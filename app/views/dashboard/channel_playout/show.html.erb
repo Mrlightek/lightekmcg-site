@@ -20,6 +20,15 @@
       <%= link_to "Refresh status", dashboard_channel_playout_path(@channel, site_id: @site.id) %>
     </div>
     <p class="ll-note">Preview your camera, screen, or guest feed in Live Studio and start a private contribution. Keep that tab open while you take it to air.</p>
+    <p>Feed status · <strong><%= @feed_health %></strong></p>
+    <details class="ll-config">
+      <summary>Backup programming · <%= @backup_ready ? "Ready" : (@channel.backup_asset_id? ? "Preparing or unavailable" : "Default slate") %></summary>
+      <%= form_with url: dashboard_channel_playout_backup_path(@channel, site_id: @site.id), method: :patch, class: "ll-playout-actions" do |form| %>
+        <label>Backup video <%= form.select :asset_id, @videos.map { |asset| [asset.name, asset.id] },
+          { include_blank: "Use default slate", selected: @channel.backup_asset_id } %></label>
+        <%= form.submit "Save backup" %>
+      <% end %>
+    </details>
     <% @airings.each do |airing| %>
       <details class="ll-config" <%= "open" if airing.status == "on_air" %>>
         <summary><strong><%= airing.title %></strong> · <%= l(airing.starts_at, format: :short) %> <%= airing.starts_at.strftime("%Z") %> · <%= airing.status.humanize %></summary>
@@ -80,6 +89,8 @@
         <div class="ll-playout-actions">
           <label>Show title <%= form.text_field :title, maxlength: 120, required: true %></label>
           <label>Airtime (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
+          <label><%= form.check_box :replay %> This rundown is a replay</label>
+          <label>Weekly airings, including this date <%= form.number_field :weekly_occurrences, min: 1, max: 12, value: 1, required: true %></label>
           <label>Also send to <%= form.select :relay, @relays, { include_blank: "Channel only" }, disabled: @channel.status != "published" %></label>
         </div>
         <% if @campaigns.any? && @show_projects.any? %>

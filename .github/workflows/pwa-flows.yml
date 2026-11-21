@@ -87,7 +87,7 @@ jobs:
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: |
-          bundle exec ruby test/standalone/broadcast_control_checks.rb -n '/test_station_joins_only_an_offered_network|test_ad_exchange_moves_only_opted_in_creative|test_network_guide_requires_approved_carriage|test_hosted_carriage_validates|test_hosted_program_exchange_pins/'
+          bundle exec ruby test/standalone/broadcast_control_checks.rb -n '/test_station_joins_only_an_offered_network|test_ad_exchange_moves_only_opted_in_creative|test_network_guide_requires_approved_carriage|test_hosted_carriage_validates|test_hosted_program_exchange_pins|test_network_operations_/'
           bundle exec ruby test/standalone/channel_playout_checks.rb
           node --test test/javascript/nielsen_viewership_test.cjs
       - name: Database and API integration tests

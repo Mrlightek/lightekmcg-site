@@ -93,25 +93,26 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
   end
 
   def offer_license
-    values = params.require(:license).permit(:licensee_site_id, :asset_id, :title, :starts_at, :ends_at)
+    values = params.require(:license).permit(:licensee_site_id, :asset_id, :title, :starts_at, :ends_at, additional_rights: [])
     asset = assets.find(values[:asset_id])
     recipient = receiving_sites.find(values[:licensee_site_id])
     licensing.create!(licensor_site: @site, licensee_site: recipient, asset: asset,
       blob_id: asset.proxy.blob&.id, title: values[:title].to_s.strip,
-      starts_at: Time.zone.parse(values[:starts_at].to_s), ends_at: Time.zone.parse(values[:ends_at].to_s))
+      starts_at: Time.zone.parse(values[:starts_at].to_s), ends_at: Time.zone.parse(values[:ends_at].to_s),
+      additional_rights: values.fetch(:additional_rights, []))
     back("Programming rights offered to #{recipient.name}.")
   end
 
   def offer_hosted_license
     raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
-    form = params.require(:license).permit(:recipient, :asset_id, :title, :starts_at, :ends_at)
+    form = params.require(:license).permit(:recipient, :asset_id, :title, :starts_at, :ends_at, additional_rights: [])
     asset = assets.find(form[:asset_id])
     starts_at = Time.zone.parse(form[:starts_at].to_s)
     ends_at = Time.zone.parse(form[:ends_at].to_s)
     raise ArgumentError, "Choose a valid rights window." unless starts_at && ends_at && ends_at > starts_at && ends_at.future?
 
     Studio::Broadcasting::HostedPrograms.publish!(site: @site, asset: asset, recipient: form[:recipient], title: form[:title].to_s.strip,
-      starts_at: starts_at, ends_at: ends_at)
+      starts_at: starts_at, ends_at: ends_at, additional_rights: form.fetch(:additional_rights, []))
     back("Program offered through the Lightek network.")
   end
 

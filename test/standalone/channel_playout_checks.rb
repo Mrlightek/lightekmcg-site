@@ -95,6 +95,8 @@ ActiveRecord::Schema.define do
     table.string :playback_url
     table.string :image_url
     table.boolean :managed_playout
+    table.bigint :backup_asset_id
+    table.bigint :backup_blob_id
     table.integer :position, default: 0
   end
   create_table(:studio_channel_airings) do |table|
@@ -137,6 +139,7 @@ AddBroadcastNetworkDistributionAndMeasurement.new.migrate(:up)
 end
 ConnectManagedBroadcastInstallations.new.migrate(:up)
 AddHostedProgramLicenseExchange.new.migrate(:up)
+ActiveRecord::Schema.define { add_column :studio_program_licenses, :additional_rights, :json, default: [], null: false }
 
 %w[program_license view_session].each { |name| require ROOT.join("app/models/studio/broadcasting", name).to_s }
 %w[audience audience_report nielsen].each { |name| require ROOT.join("app/services/studio/broadcasting", name).to_s }
@@ -232,6 +235,40 @@ class ChannelPlayoutChecks < Minitest::Test
           "-af", "aresample=async=1", *PlayoutMedia::CODECS, "-f", "flv", output.to_s)
         metadata = JSON.parse(Studio::MediaProcess.run!(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", output.to_s]))
         assert_in_delta 10, metadata.fetch("format").fetch("duration").to_f, 0.25
+      end
+    end
+  end
+
+  def test_weekly_booking_rolls_back_if_a_later_slot_conflicts
+    asset = StudioAsset.create!(site_id: @site.id, name: "Show", status: "ready", kind: "video", source_path: "source.mp4", metadata: { duration: 4 })
+    options = { channel: @channel, operator: @airing.operator, title: "Weekly show", relay: nil,
+      rows: [{ "kind" => "segment", "asset_id" => asset.id.to_s, "seconds" => "4" }] }
+    first = 1.hour.from_now
+    conflict = Airing.schedule!(starts_at: first.advance(weeks: 1), **options)
+    assert_raises(ArgumentError) { Airing.schedule_weekly!(starts_at: first, occurrences: "2", **options) }
+    assert_equal [conflict.id], @channel.airings.where(title: "Weekly show").pluck(:id)
+    conflict.command!("cancel")
+    series = Airing.schedule_weekly!(starts_at: first, occurrences: "2", **options)
+    assert_equal [first.to_i, first.advance(weeks: 1).to_i], series.map { |airing| airing.starts_at.to_i }
+  end
+
+  def test_missing_rundown_publishes_backups_without_attributing_them_to_the_show
+    Dir.mktmpdir do |tmp|
+      root = Pathname(tmp)
+      PlayoutMedia.stub(:root, root) do
+        directory = PlayoutMedia.channel_path(@channel.id)
+        FileUtils.mkdir_p(directory)
+        PlayoutMedia.encode!(PlayoutMedia.airing_path(@airing.id).join("1"), seconds: 4)
+        runner = Playout.new(@channel)
+        runner.instance_variable_set(:@feed, ChannelFeed.new(directory))
+        runner.instance_variable_set(:@standby, PlayoutMedia.standby(@channel.id))
+        2.times { assert_equal 2, runner.send(:publish, @airing) }
+        assert_equal 4, @airing.position
+        assert_empty directory.glob("out-*.json")
+        assert_equal 1, @airing.events.count { |event| event["type"] == "scheduled_media_unavailable" }
+        assert_equal 2, runner.send(:publish, @airing)
+        assert_equal "Sending video", PlayoutMedia.feed_health(@channel.id)
+        assert_equal 1, directory.glob("out-*.json").size
       end
     end
   end
@@ -343,6 +380,17 @@ class ChannelPlayoutChecks < Minitest::Test
     assert_equal asset.id, airing.rundown.first.fetch("asset_id")
     assert license.covers?(airing.starts_at, airing.ends_at)
     refute license.covers?(airing.starts_at, 2.hours.from_now)
+
+    assert_raises(ArgumentError) do
+      Airing.schedule!(channel: @channel, operator: @airing.operator, title: "Replay denied", starts_at: 10.minutes.from_now,
+        relay: nil, rows: rows, replay: true)
+    end
+    replay_license = ProgramLicense.create!(licensor_site: source, licensee_site: @site, asset: asset, blob_id: asset.proxy.id,
+      title: "Replay rights", starts_at: Time.current, ends_at: 1.hour.from_now, status: "accepted", additional_rights: %w[clip replay])
+    replay = Airing.schedule!(channel: @channel, operator: @airing.operator, title: "Replay", starts_at: 10.minutes.from_now,
+      relay: nil, rows: [{ "kind" => "segment", "asset_id" => "license-#{replay_license.id}" }], replay: true)
+    assert_equal "replay", replay.rundown.first.fetch("license_use")
+    assert_equal %w[replay clip], replay_license.reload.additional_rights
 
     another_site = DymondSite::Site.create!(tenant: User.create!)
     another_station = Channel.create!(site: another_site, name: "Other station", status: "published", managed_playout: true)

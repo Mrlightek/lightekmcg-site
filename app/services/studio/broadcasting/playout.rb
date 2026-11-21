@@ -73,8 +73,21 @@ module Studio
       end
 
       def standby
-        @feed.push(@standby, source: Object.new)
-        @standby.duration
+        segments = PlayoutMedia.backup(@channel)
+        if segments.present?
+          identity = [@channel.backup_asset_id, @channel.backup_blob_id]
+          @backup_index, @backup_source = 0, nil if @backup_identity != identity
+          @backup_identity = identity
+          @backup_index %= segments.length
+          @backup_source = Object.new if @backup_index.zero?
+          segment = segments.fetch(@backup_index)
+          @backup_index += 1
+          @feed.push(segment, source: @backup_source)
+          segment.duration
+        else
+          @feed.push(@standby, source: Object.new)
+          @standby.duration
+        end
       end
 
       def publish(airing)
@@ -91,10 +104,10 @@ module Studio
             airing.record_event!("started")
           end
           if @prepared_for != airing.id
-          @prepared_rows.clear
-          @ad_metadata = {}
-        end
-          @prepared_for = airing.id
+            @prepared_rows.clear
+            @ad_metadata = {}
+            @prepared_for = airing.id
+          end
           seconds = airing.state["input"] ? publish_input(airing) : publish_rundown(airing)
           manage_relay(airing) if seconds
           airing.save!
@@ -120,7 +133,7 @@ module Studio
             @ad_metadata[index] = Nielsen.ad_for(placement.campaign, item.fetch("kind"))
             [ad_media, true]
           else
-            [PlayoutMedia.segments(directory.join(index.to_s)), false]
+            [PlayoutMedia.segments(directory.join(index.to_s), include_missing: true), false]
           end
         end
       end
@@ -140,7 +153,9 @@ module Studio
         segment = media.find { |part| (boundary += part.duration) > offset + 0.01 }
         # Sub-frame differences in indexed media should not repeat or skip a row.
         segment ||= media.last if offset < airing.rundown.fetch(index).fetch("seconds")
-        raise "Scheduled media is missing" unless segment
+        unless segment&.path&.file?
+          return replace_missing_row(airing, index, finishing)
+        end
         source = "airing-#{airing.id}-row-#{index}"
         # Seeking within a row resets its media timestamps too.
         generation = airing.state.fetch("generation", 0)
@@ -157,10 +172,7 @@ module Studio
         else
           airing.state = airing.state.except("ad_progress")
         end
-        if airing.state["return"]
-          airing.record_event!("returned", "mode" => airing.state["return"])
-          airing.state = airing.state.except("return")
-        end
+        record_input_return(airing)
         if airing.state["source"] != source
           airing.record_event!("ad_backup", "row" => index + 1) if item["ad_campaign_id"] && !ad
           airing.record_event!("row_aired", "row" => index + 1, "label" => item.fetch("label"), "kind" => item.fetch("kind"), "sponsor" => item.fetch("sponsor"), "offset" => (boundary - segment.duration).round(2))
@@ -170,12 +182,34 @@ module Studio
         segment.duration
       end
 
+      def replace_missing_row(airing, index, finishing)
+        elapsed = standby
+        record_input_return(airing)
+        marker = "backup-row-#{index}"
+        airing.record_event!("scheduled_media_unavailable", "row" => index + 1) if airing.state["source"] != marker
+        airing.state = airing.state.except("ad_progress").merge("source" => marker, "position" => [airing.position + elapsed, finishing].min)
+        elapsed
+      end
+
+      def record_input_return(airing)
+        return unless airing.state["return"]
+
+        airing.record_event!("returned", "mode" => airing.state["return"])
+        airing.state = airing.state.except("return")
+      end
+
+      def return_from_input(airing, reason)
+        @waiting_for_input = nil
+        airing.state = airing.state.except("input", "input_segment").merge("return" => reason,
+          "generation" => airing.state.fetch("generation", 0) + 1)
+        publish_rundown(airing)
+      end
+
       def publish_input(airing)
         operation_id = airing.state.fetch("input")
         operation = StudioLiveOperation.find_by(id: operation_id, status: "live")
         unless operation && operation.studio_project.site_id == @channel.site_id && operation.metadata["destination"] == "channel_input" && operation.updated_at > 25.seconds.ago
-          airing.state = airing.state.except("input", "input_segment").merge("return" => "input_ended", "generation" => airing.state.fetch("generation", 0) + 1)
-          return publish_rundown(airing)
+          return return_from_input(airing, "input_ended")
         end
         source = "input-#{operation_id}"
         segments = PlayoutMedia.segments(Studio::Live::Encoder.hls_directory(operation_id))
@@ -183,8 +217,9 @@ module Studio
         segment = last ? segments.find { |part| segment_number(part) > last } : segments.last
         unless segment
           @waiting_for_input ||= monotonic
-          return 0.15 if monotonic - @waiting_for_input < 1
-          @waiting_for_input = nil
+          stalled_for = monotonic - @waiting_for_input
+          return return_from_input(airing, "input_stalled") if stalled_for >= 5
+          return 0.15 if stalled_for < 1
           return standby
         end
         @waiting_for_input = nil

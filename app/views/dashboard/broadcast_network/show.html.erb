@@ -6,6 +6,8 @@
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
   <header class="ll-header"><h1>TV network and audience</h1></header>
 
+  <p><%= link_to "Open Network operations", dashboard_broadcast_operations_path(site_id: @site.id) %></p>
+
   <% if @portfolio %>
     <section class="ll-panel">
       <h2>LightekMCG divisions</h2>
@@ -79,6 +81,12 @@
         <label>Program title <%= form.text_field :title, maxlength: 120, required: true %></label>
         <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
         <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, required: true %></label>
+        <fieldset class="ll-config">
+          <legend>Additional rights</legend>
+          <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.each do |right, label| %>
+            <label><%= check_box_tag "license[additional_rights][]", right, false, id: "license_#{form.object_id}_#{right}" %> <%= label %></label>
+          <% end %>
+        </fieldset>
         <%= form.submit "Offer managed-channel rights" %>
       <% end %>
     <% else %>
@@ -86,12 +94,12 @@
     <% end %>
     <ul class="ll-playout-list">
       <% @incoming.each do |license| %>
-        <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %>
+        <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
           <%= button_to "Accept rights", dashboard_accept_program_license_path(license, site_id: @site.id) if license.status == "offered" && license.ends_at.future? %>
         </li>
       <% end %>
       <% @outgoing.each do |license| %>
-        <li><%= license.title %> offered to <%= license.licensee_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %>
+        <li><%= license.title %> offered to <%= license.licensee_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
           <%= button_to "Close to future bookings", dashboard_withdraw_program_license_path(license, site_id: @site.id) if license.status != "withdrawn" %>
         </li>
       <% end %>
@@ -105,6 +113,12 @@
           <label>Program title <%= form.text_field :title, maxlength: 120, required: true %></label>
           <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
           <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, required: true %></label>
+          <fieldset class="ll-config">
+            <legend>Additional rights</legend>
+            <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.each do |right, label| %>
+              <label><%= check_box_tag "license[additional_rights][]", right, false, id: "license_#{form.object_id}_#{right}" %> <%= label %></label>
+            <% end %>
+          </fieldset>
           <%= form.submit "Offer program to network station" %>
         <% end %>
       <% end %>
@@ -112,12 +126,12 @@
         <% imported_keys = @incoming.filter_map(&:federation_key) %>
         <% @hosted_program_board.fetch("incoming").each do |offer| %>
           <% next if imported_keys.include?(offer.fetch("key")) %>
-          <li><%= offer.fetch("title") %> from <%= offer.fetch("source") %>
+          <li><%= offer.fetch("title") %> from <%= offer.fetch("source") %> · <%= Studio::Broadcasting::ProgramLicense.rights_label(offer["additional_rights"]) %>
             <%= button_to "Accept and download program", dashboard_accept_hosted_program_license_path(offer.fetch("key"), site_id: @site.id) %>
           </li>
         <% end %>
         <% @hosted_program_board.fetch("sent").each do |offer| %>
-          <li><%= offer.fetch("title") %> · <%= offer.fetch("status").humanize %>
+          <li><%= offer.fetch("title") %> · <%= offer.fetch("status").humanize %> · <%= Studio::Broadcasting::ProgramLicense.rights_label(offer["additional_rights"]) %>
             <%= button_to "Close to future bookings", dashboard_withdraw_hosted_program_license_path(offer.fetch("key"), site_id: @site.id) if offer.fetch("status") != "withdrawn" %>
           </li>
         <% end %>

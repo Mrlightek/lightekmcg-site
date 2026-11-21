@@ -18,7 +18,17 @@ module Studio
       validates :status, inclusion: { in: ACTIVE + %w[completed failed cancelled] }
       validates :starts_at, :ends_at, presence: true
 
-      def self.schedule!(channel:, operator:, title:, starts_at:, relay:, rows:, show_project_id: nil, measurement: {})
+      def self.schedule_weekly!(starts_at:, occurrences:, **options)
+        count = Integer(occurrences.presence || "1", 10)
+        raise ArgumentError, "Choose between 1 and 12 weekly airings." unless count.between?(1, 12)
+        raise ArgumentError, "Enter a valid airtime." unless starts_at
+
+        transaction do
+          Array.new(count) { |week| schedule!(starts_at: starts_at.advance(weeks: week), **options) }
+        end
+      end
+
+      def self.schedule!(channel:, operator:, title:, starts_at:, relay:, rows:, show_project_id: nil, measurement: {}, replay: false)
         raise ArgumentError, "Choose a Live Studio playout channel." unless channel.managed_playout? && channel.status != "off_air"
         raise ArgumentError, "Set airtime at least two minutes ahead so the media can be prepared." unless starts_at && starts_at >= 2.minutes.from_now
         raise ArgumentError, "Add between 1 and 40 rundown rows." unless rows.length.between?(1, 40)
@@ -52,7 +62,8 @@ module Studio
           end
           label = row["label"].to_s.strip.presence || asset.name
           { "kind" => type, "label" => label.first(120), "asset_id" => asset.id, "blob_id" => asset.proxy.blob.id,
-            "seconds" => duration, "sponsor" => row["sponsor"].to_s.squish.first(80), "ad_campaign_id" => campaign&.id, "license_id" => license&.id }.compact
+            "seconds" => duration, "sponsor" => row["sponsor"].to_s.squish.first(80), "ad_campaign_id" => campaign&.id,
+            "license_id" => license&.id, "license_use" => ("replay" if replay && license) }.compact
         end
         duration = rundown.sum { |item| item.fetch("seconds") }
         raise ArgumentError, "A rundown can run up to two hours." if duration > 2.hours.to_i
@@ -63,8 +74,8 @@ module Studio
           end
           license_ids = rundown.filter_map { |item| item["license_id"] }.uniq
           licenses = ProgramLicense.where(licensee_site_id: channel.site_id, id: license_ids).order(:id).lock.to_a
-          unless licenses.size == license_ids.size && licenses.all? { |license| license.permits?(starts_at, ends_at) }
-            raise ArgumentError, "The full rundown must fit within the accepted programming license."
+          unless licenses.size == license_ids.size && licenses.all? { |license| license.permits?(starts_at, ends_at, use: replay ? "replay" : "air") }
+            raise ArgumentError, "The accepted programming license must cover the playback type and the full rundown window."
           end
           airing = channel.airings.create!(operator: operator, title: title.to_s.strip, starts_at: starts_at,
             ends_at: ends_at, relay: relay, rundown: rundown, measurement: AudienceReport.normalize_metadata(measurement))

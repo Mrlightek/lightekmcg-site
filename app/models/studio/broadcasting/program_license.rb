@@ -4,12 +4,13 @@ module Studio
   module Broadcasting
     class ProgramLicense < ApplicationRecord
       self.table_name = "studio_program_licenses"
+      EXTRA_RIGHTS = { "replay" => "Replay", "clip" => "Clips", "syndicate" => "Syndication" }.freeze
       belongs_to :licensor_site, class_name: "DymondSite::Site", optional: true
       belongs_to :publisher_peer, class_name: "LightekReservations::Peer", optional: true
       belongs_to :licensee_site, class_name: "DymondSite::Site"
       belongs_to :asset, class_name: "::StudioAsset"
 
-      attr_readonly :licensor_site_id, :licensee_site_id, :asset_id, :blob_id, :title, :starts_at, :ends_at
+      attr_readonly :licensor_site_id, :licensee_site_id, :asset_id, :blob_id, :title, :starts_at, :ends_at, :additional_rights
       validates :status, inclusion: { in: %w[offered accepted withdrawn] }
       validates :title, length: { in: 1..120 }
       validates :starts_at, :ends_at, presence: true
@@ -19,9 +20,20 @@ module Studio
       def source_name = imported? ? originator_name : licensor_site.name
       def asset_site_id = imported? ? licensee_site_id : licensor_site_id
 
-      def permits?(starts_at, ends_at)
-        status == "accepted" && covers?(starts_at, ends_at)
+      def self.normalize_rights(input)
+        raise ArgumentError, "Choose from the listed programming rights." unless input.is_a?(Array) && (input - EXTRA_RIGHTS.keys).empty?
+
+        EXTRA_RIGHTS.keys & input
       end
+
+      def self.rights_label(rights) = (["Managed-channel airing"] + EXTRA_RIGHTS.values_at(*Array(rights)).compact).to_sentence
+      def rights_label = self.class.rights_label(additional_rights)
+
+      def permits?(starts_at, ends_at, use: "air")
+        status == "accepted" && allows_use?(use) && covers?(starts_at, ends_at)
+      end
+
+      def allows_use?(use) = use == "air" || additional_rights.include?(use)
 
       def covers?(starts_at, ends_at)
         starts_at >= self.starts_at && ends_at <= self.ends_at && asset&.site_id == asset_site_id &&
@@ -31,6 +43,7 @@ module Studio
       private
 
       def validate_terms
+        self.additional_rights = self.class.normalize_rights(additional_rights)
         errors.add(:licensor_site, "is required") unless licensor_site_id || (imported? && originator_name.present?)
         errors.add(:licensee_site, "must be a different station") if licensor_site_id == licensee_site_id
         errors.add(:ends_at, "must follow the start time") if starts_at && ends_at && ends_at <= starts_at

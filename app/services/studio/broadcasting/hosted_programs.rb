@@ -25,7 +25,7 @@ module Studio
 
       def describe(record)
         { key: record.federation_key, title: record.title, source: record.source_name,
-          starts_at: record.starts_at.iso8601, ends_at: record.ends_at.iso8601, status: record.status }
+          starts_at: record.starts_at.iso8601, ends_at: record.ends_at.iso8601, status: record.status, additional_rights: record.additional_rights }
       end
 
       def reference!(record)
@@ -35,14 +35,14 @@ module Studio
         end
       end
 
-      def publish!(site:, asset:, recipient:, title:, starts_at:, ends_at:)
+      def publish!(site:, asset:, recipient:, title:, starts_at:, ends_at:, additional_rights: [])
         key = SecureRandom.hex(16)
         blob = asset.proxy.blob || raise(Unavailable, "Choose a ready MP4 video with a playback proxy.")
         raise Unavailable, "The program exceeds the 256 MB exchange limit." unless blob.byte_size.between?(1, MAX_BYTES)
 
         blob.open do |file|
           metadata = { recipient: recipient, title: title, starts_at: starts_at.iso8601, ends_at: ends_at.iso8601,
-            sha256: Digest::SHA256.file(file.path).hexdigest }
+            additional_rights: ProgramLicense.normalize_rights(additional_rights), sha256: Digest::SHA256.file(file.path).hexdigest }
           file.rewind
           client(site).broadcast_media("broadcast/programs/#{key}/media", upload: file, bytes: blob.byte_size, metadata: metadata)
         end
@@ -51,6 +51,7 @@ module Studio
       def receive!(peer, key, header, input, length)
         values = JSON.parse(header.to_s)
         target = directory.where.not(id: peer.site_id).find(values.fetch("recipient"))
+        rights = ProgramLicense.normalize_rights(values.fetch("additional_rights", []))
         starts_at = Time.iso8601(values.fetch("starts_at"))
         ends_at = Time.iso8601(values.fetch("ends_at"))
         raise Unavailable, "The rights window is invalid." unless ends_at > starts_at && ends_at.future?
@@ -58,7 +59,7 @@ module Studio
         previous = ProgramLicense.find_by(federation_key: key, publisher_peer: peer)
         if previous
           unless previous.licensee_site_id == target.id && previous.title == values.fetch("title") &&
-              previous.creative_digest == values.fetch("sha256") && previous.starts_at == starts_at && previous.ends_at == ends_at
+              previous.creative_digest == values.fetch("sha256") && previous.starts_at == starts_at && previous.ends_at == ends_at && previous.additional_rights == rights
             raise Unavailable, "The uploaded program differs from the existing license."
           end
           return previous
@@ -75,7 +76,7 @@ module Studio
             asset = import_video!(file, site: peer.site, owner: peer.merchant)
             ProgramLicense.create!(licensor_site: peer.site, licensee_site: target, asset: asset, blob_id: asset.proxy.blob.id,
               title: values.fetch("title"), starts_at: starts_at, ends_at: ends_at, federation_key: key,
-              publisher_peer: peer, creative_digest: values.fetch("sha256"))
+              publisher_peer: peer, additional_rights: rights, creative_digest: values.fetch("sha256"))
           end
         end
       rescue JSON::ParserError, ArgumentError, KeyError, TypeError
@@ -100,7 +101,8 @@ module Studio
             asset = import_video!(file, site: site, owner: site.tenant)
             ProgramLicense.create!(licensee_site: site, asset: asset, blob_id: asset.proxy.blob.id, title: metadata.fetch("title"),
               originator_name: metadata.fetch("source"), starts_at: Time.iso8601(metadata.fetch("starts_at")),
-              ends_at: Time.iso8601(metadata.fetch("ends_at")), federation_key: key, status: "accepted")
+              ends_at: Time.iso8601(metadata.fetch("ends_at")), federation_key: key, status: "accepted",
+              additional_rights: metadata.fetch("additional_rights", []))
           end
         end
       end

@@ -26,3 +26,15 @@ post "/api/reservations/federation/broadcast/programs/:key/withdraw", to: "api/b
 post "/dashboard/live/network/licenses/hosted", to: "dashboard/broadcast_network#offer_hosted_license", as: :dashboard_hosted_program_licenses
 post "/dashboard/live/network/licenses/hosted/:key/accept", to: "dashboard/broadcast_network#accept_hosted_license", as: :dashboard_accept_hosted_program_license
 post "/dashboard/live/network/licenses/hosted/:key/withdraw", to: "dashboard/broadcast_network#withdraw_hosted_license", as: :dashboard_withdraw_hosted_program_license
+get "/dashboard/live/network/operations", to: "dashboard/broadcast_operations#show", as: :dashboard_broadcast_operations
+post "/dashboard/live/network/operations/agreements", to: "dashboard/broadcast_operations#offer_agreement", as: :dashboard_broadcast_agreements
+post "/dashboard/live/network/operations/agreements/:id/accept", to: "dashboard/broadcast_operations#accept_agreement", as: :dashboard_accept_broadcast_agreement
+post "/dashboard/live/network/operations/packages", to: "dashboard/broadcast_operations#create_package", as: :dashboard_broadcast_packages
+get "/dashboard/live/network/operations/packages/:id.csv", to: "dashboard/broadcast_operations#package_report", as: :dashboard_broadcast_package_report
+post "/dashboard/live/network/operations/plans", to: "dashboard/broadcast_operations#save_plan", as: :dashboard_broadcast_plans
+patch "/dashboard/live/network/operations/plans/:id", to: "dashboard/broadcast_operations#save_plan", as: :dashboard_broadcast_plan
+get "/broadcast-ads/package/:key", to: "broadcast_sponsor_packages#show", as: :broadcast_sponsor_package,
+  constraints: { key: /[a-zA-Z0-9]{32}/ }
+post "/dashboard/live/network/operations/agreements/hosted/:id/accept", to: "dashboard/broadcast_operations#accept_hosted_agreement", as: :dashboard_accept_hosted_broadcast_agreement
+get "/api/reservations/federation/broadcast/agreements", to: "api/broadcast_carriage#agreements"
+post "/api/reservations/federation/broadcast/agreements/:id/accept", to: "api/broadcast_carriage#accept_agreement"

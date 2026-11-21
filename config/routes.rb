@@ -753,6 +753,7 @@ post "/dashboard/live/advertising/networks/:network_id/campaigns", to: "dashboar
 patch "/dashboard/live/advertising/networks/:network_id/campaigns/:campaign_id/offer", to: "dashboard/broadcast_advertising#update_offer", as: :dashboard_broadcast_ad_offer
 get "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#show", as: :dashboard_channel_playout
 post "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#create"
+patch "/dashboard/live/channels/:channel_id/backup", to: "dashboard/channel_playout#save_backup", as: :dashboard_channel_playout_backup
 post "/dashboard/live/channels/:channel_id/rundown/:airing_id/command", to: "dashboard/channel_playout#command", as: :dashboard_channel_playout_command
 get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
 post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"

@@ -27,7 +27,8 @@ module Studio
           airing.rundown.each_with_index do |item, index|
             asset = if item["license_id"]
               license = ProgramLicense.where(licensee_site_id: airing.channel.site_id).find(item["license_id"])
-              unless license.asset_id == item["asset_id"] && license.covers?(airing.starts_at, airing.ends_at) && airing.relay.blank?
+              unless license.asset_id == item["asset_id"] && license.covers?(airing.starts_at, airing.ends_at) &&
+                  license.allows_use?(item.fetch("license_use", "air")) && airing.relay.blank?
                 raise ArgumentError, "A licensed source is unavailable for this airing."
               end
               license.asset
@@ -74,6 +75,43 @@ module Studio
         segments(path).first || raise("Standby media is unavailable")
       end
 
+      def self.feed_health(channel_id)
+        playlist = channel_path(channel_id).join("index.m3u8")
+        return "No feed yet" unless playlist.file?
+        return "Between airings" if playlist.read.include?("#EXT-X-ENDLIST")
+
+        playlist.mtime > 12.seconds.ago ? "Sending video" : "Feed stalled"
+      rescue Errno::ENOENT
+        "No feed yet"
+      end
+
+      def self.backup(channel)
+        return if channel.backup_asset_id.nil? || channel.backup_blob_id.nil?
+        return unless StudioAsset.exists?(id: channel.backup_asset_id, site_id: channel.site_id, kind: "video", status: "ready")
+
+        segments(backup_path(channel.id, channel.backup_asset_id, channel.backup_blob_id))
+      end
+
+      def self.prepare_backup!(channel, asset_id, blob_id)
+        return unless channel.backup_asset_id == asset_id && channel.backup_blob_id == blob_id
+
+        asset = StudioAsset.where(site_id: channel.site_id, status: "ready", kind: "video").find(asset_id)
+        return unless asset.proxy.attached? && asset.proxy.blob.id == blob_id
+
+        seconds = [asset.metadata["duration"].to_f.floor, 60].min
+        return if seconds < 2
+
+        directory = backup_path(channel.id, asset_id, blob_id)
+        asset.proxy.blob.open(tmpdir: Studio::MediaProcess.temp_root) do |source|
+          encode!(directory, seconds: seconds, source: source.path, audio: asset.metadata["has_audio"])
+        end
+      end
+
+      def self.backup_path(channel_id, asset_id, blob_id)
+        channel_path(channel_id).join("backup-#{Integer(asset_id)}-#{Integer(blob_id)}")
+      end
+      private_class_method :backup_path
+
       def self.encode!(directory, seconds:, source: nil, audio: false, sponsor: "", cancel_if: nil)
         FileUtils.mkdir_p(directory, mode: 0o700)
         Dir.mktmpdir("encode-", directory) do |temp|
@@ -101,7 +139,7 @@ module Studio
         end
       end
 
-      def self.segments(directory)
+      def self.segments(directory, include_missing: false)
         duration = nil
         directory.join("index.m3u8").read.lines(chomp: true).filter_map do |line|
           if line.start_with?("#EXTINF:")
@@ -109,7 +147,7 @@ module Studio
             next
           elsif FILE_NAME.match?(line) && duration&.positive?
             path = directory.join(line)
-            Segment.new(line, path, duration) if path.file?
+            Segment.new(line, path, duration) if include_missing || path.file?
           end
         end
       rescue Errno::ENOENT

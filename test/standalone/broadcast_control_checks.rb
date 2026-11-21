@@ -41,6 +41,25 @@ require File.join(ROOT, "db/migrate/20261121113500_add_hosted_program_license_ex
 ConnectManagedBroadcastInstallations.new.migrate(:up)
 AddHostedProgramLicenseExchange.new.migrate(:up)
 
+unless ActiveRecord::ConnectionAdapters::TableDefinition.method_defined?(:jsonb)
+  class ActiveRecord::ConnectionAdapters::TableDefinition
+    def jsonb(*names, **options) = json(*names, **options)
+  end
+end
+require File.join(ROOT, "db/migrate/20261113160000_create_lightek_people_and_payroll")
+CreateLightekPeopleAndPayroll.new.migrate(:up)
+require File.join(ROOT, "app/models/lightek_people/department")
+require File.join(ROOT, "app/models/lightek_people/employment")
+require File.join(ROOT, "db/migrate/20261121120000_create_broadcast_operations")
+CreateBroadcastOperations.prepend(Module.new do
+  def add_column(table, name, type, **options)
+    super(table, name, type == :jsonb ? :json : type, **options)
+  end
+end)
+CreateBroadcastOperations.new.migrate(:up)
+%w[broadcasting/carriage_agreement broadcasting/operating_plan advertising/sponsor_package advertising/sponsor_package_spot].each do |name|
+  require File.join(ROOT, "app/models/studio", name)
+end
 require File.join(ROOT, "app/services/lightek_reservations/federation/issuer")
 
 %w[app/models/studio/broadcasting/application app/models/studio/broadcasting/channel app/models/studio/broadcasting/program
@@ -55,6 +74,7 @@ require File.join(ROOT, "app/services/lightek_reservations/federation/issuer")
    app/services/gatekeeper/studio_live_policy app/services/studio/live/destination app/services/studio/live/encoder app/services/studio/live/sessions].each { |file| require File.join(ROOT, file) }
 %w[app/services/studio/gatekeeper/client app/services/studio/publishers/lightek_streaming app/services/studio/publishers/registry app/services/studio/publishing/dispatch app/jobs/studio_publication_dispatch_job].each { |file| require File.join(ROOT, file) }
 class User
+  def full_name = profile&.display_name || "User #{id}"
   def can_access_feature?(_key) = false
 end
 class ApplicationController
@@ -74,13 +94,15 @@ require File.join(ROOT, "app/controllers/dashboard/live_broadcasts_controller")
 require File.join(ROOT, "app/controllers/concerns/lightek_identity/sensitive_session")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_network_controller")
+require File.join(ROOT, "app/controllers/dashboard/broadcast_operations_controller")
+require File.join(ROOT, "app/controllers/broadcast_sponsor_packages_controller")
 require File.join(ROOT, "app/controllers/broadcast_tv_controller")
 require File.join(ROOT, "app/controllers/affiliate_channel_streams_controller")
 require File.join(ROOT, "app/controllers/linear_channel_streams_controller")
 require File.join(ROOT, "app/services/studio/broadcasting/playout_media")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
-[Dashboard::BroadcastNetworkController, BroadcastTvController].each do |controller|
+[Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController].each do |controller|
   controller.prepend_view_path(File.join(ROOT, "app/views"))
   controller.layout false
 end
@@ -125,6 +147,7 @@ Rails.application.routes.append do
   post "/dashboard/studio-broadcasting/publications", to: "dashboard/media_studio#publish", as: :dashboard_broadcast_publications
   delete "/dashboard/studio-broadcasting/publications/:id", to: "dashboard/media_studio#cancel_publication", as: :dashboard_broadcast_publication
   post "/dashboard/studio-broadcasting/live/:id/stop", to: "dashboard/media_studio#stop_live", as: :stop_dashboard_broadcast
+  get "/broadcast-ads/payment/:key", to: "broadcast_ad_payments#show", as: :broadcast_ad_payment
   get "/dashboard/live/advertising", to: "dashboard/broadcast_advertising#show", as: :dashboard_broadcast_advertising
   post "/dashboard/live/advertising/networks", to: "dashboard/broadcast_advertising#create_network", as: :dashboard_broadcast_ad_networks
   post "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#join", as: :dashboard_broadcast_ad_membership
@@ -159,6 +182,128 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     Dashboard::MediaStudioController.allow_forgery_protection = true
     super
   end
+  def test_network_operations_offers_terms_and_requires_the_station_to_accept
+    with_network_origin do
+      @other_site.update!(tenant: @bob)
+      channel = Studio::Broadcasting::Channel.create!(site: @other_site, name: "Local TV", status: "published", managed_playout: true)
+      Studio::Broadcasting::NetworkCarriage.create!(channel: channel)
+      controller = Dashboard::BroadcastOperationsController
+      controller.allow_forgery_protection = false
+      client = session_for
+      base = "/dashboard/live/network/operations"
+      client.get base, headers: headers.merge("Accept" => "text/html"), params: { site_id: @site.id }
+      assert_equal 200, client.response.status
+      assert_includes client.response.body, 'agreement[terms][distribution]'
+
+      terms = Studio::Broadcasting::CarriageAgreement::TERMS.keys.index_with { |key| "Terms for #{key}" }
+      client.post "#{base}/agreements", headers: headers, params: { site_id: @site.id, agreement: {
+        channel_id: channel.id, starts_on: Date.current.iso8601, ends_on: 1.month.from_now.to_date.iso8601, terms: terms
+      } }
+      assert_equal 303, client.response.status
+      agreement = Studio::Broadcasting::CarriageAgreement.find_by!(channel: channel)
+      assert_equal terms, agreement.terms
+      client.post "#{base}/agreements/#{agreement.id}/accept", headers: headers, params: { site_id: @site.id }
+      assert_equal 404, client.response.status
+      client.post "#{base}/agreements/#{agreement.id}/accept", headers: headers(@bob), params: { site_id: @other_site.id }
+      assert_equal 303, client.response.status
+      assert_equal @bob.id, agreement.reload.accepted_by_id
+    ensure
+      controller.allow_forgery_protection = true if controller
+    end
+  end
+
+  def test_network_operations_hosted_acceptance_is_bound_to_the_station_peer
+    @other_site.update!(tenant: @bob)
+    peer = LightekReservations::Peer.create!(site: @other_site, merchant: @bob, key: SecureRandom.uuid)
+    other_peer = LightekReservations::Peer.create!(site: @site, merchant: @alice, key: SecureRandom.uuid)
+    entry = Studio::Broadcasting::HostedCarriage.create!(peer: peer, key: SecureRandom.hex(16), name: "Hosted station")
+    agreement = Studio::Broadcasting::CarriageAgreement.create!(outlet_site: @site, station_site: @other_site, hosted_carriage: entry,
+      offered_by: @alice, starts_on: Date.current, ends_on: Date.current + 7,
+      terms: Studio::Broadcasting::CarriageAgreement::TERMS.keys.index_with { "Station terms" })
+    assert_raises(ActiveRecord::RecordNotFound) { agreement.accept_from_peer!(other_peer) }
+    assert_raises(ActiveRecord::RecordNotFound) { agreement.accept!(site: @other_site, actor: @bob) }
+    agreement.accept_from_peer!(peer)
+    assert_equal @bob.id, agreement.reload.accepted_by_id
+    assert_equal "Hosted station", agreement.station_receipt.fetch("channel")
+    refute agreement.station_receipt.key?("accepted_by_id")
+  end
+
+  def test_network_operations_sponsor_buy_and_report_are_scoped_to_the_booked_spots
+    @site.update!(tenant: @alice)
+    @other_site.update!(tenant: @bob)
+    network = Studio::Advertising::Network.create!(site: @site, name: "Lightek Advertising")
+    asset = StudioAsset.create!(site: @site, owner: @alice, name: "Private original filename", kind: "video",
+      status: "ready", request_key: "sponsor-spot", metadata: { "duration" => 30 })
+    asset.proxy.attach(io: StringIO.new("video"), filename: "ad.mp4", content_type: "video/mp4", identify: false)
+    campaign = network.campaigns.create!(name: "Local Grocer", asset: asset, blob_id: asset.proxy.blob.id,
+      seconds: 30, rate_cents: 1000, network_bps: 2000, producer_bps: 0, platform_bps: 0)
+    payments = [@site, @other_site].map do |station|
+      channel = Studio::Broadcasting::Channel.create!(site: station, name: "Station #{station.id}", status: "published", managed_playout: true)
+      airing = channel.airings.create!(operator: @alice, title: "Show", status: "ready", starts_at: 2.hours.from_now, ends_at: 3.hours.from_now)
+      spot = campaign.placements.create!(station_site: station, airing: airing, row_index: 0, **campaign.split)
+      Studio::Advertising::Payment.reserve!(spot)
+    end
+    controller = Dashboard::BroadcastOperationsController
+    controller.allow_forgery_protection = false
+    client = session_for
+    path = "/dashboard/live/network/operations/packages"
+    values = { package: { name: "Weekend sponsor", payment_ids: payments.map(&:id) } }
+    client.post path, headers: headers(@bob), params: values.merge(site_id: @other_site.id)
+    assert_equal 303, client.response.status
+    assert_empty Studio::Advertising::SponsorPackage.all
+    client.post path, headers: headers, params: values.merge(site_id: @site.id)
+    assert_equal 303, client.response.status
+    package = Studio::Advertising::SponsorPackage.sole
+    assert_equal payments.map(&:id), package.report_payments.map(&:id)
+    client.get "/broadcast-ads/package/#{package.public_key}"
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Weekend sponsor"
+    assert_includes client.response.body, "Authorize this spot"
+    refute_includes client.response.body, "Private original filename"
+    assert_equal "no-referrer", client.response.headers["Referrer-Policy"]
+    payments.first.placement.update!(delivered_at: Time.current)
+    payments.first.update!(state: "captured")
+    client.get "#{path}/#{package.id}.csv", headers: headers, params: { site_id: @site.id }
+    assert_equal 200, client.response.status
+    rows = CSV.parse(client.response.body, headers: true)
+    assert_equal %w[captured unfunded], rows.map { |row| row["payment_status"] }
+    assert_equal %w[pending pending], rows.map { |row| row["station_payout"] }
+    refute_includes client.response.body, payments.first.public_key
+    client.get "#{path}/#{package.id}.csv", headers: headers(@bob), params: { site_id: @other_site.id }
+    assert_equal 404, client.response.status
+  ensure
+    controller.allow_forgery_protection = true if controller
+  end
+
+  def test_network_operations_plans_save_and_update_reviewed_finances
+    @other_site.update!(tenant: @bob)
+    department = LightekPeople::Department.create!(employer: @bob, name: "Station operations", code: "station")
+    foreign = LightekPeople::Department.create!(employer: @alice, name: "Foreign department", code: "foreign")
+    controller = Dashboard::BroadcastOperationsController
+    controller.allow_forgery_protection = false
+    client = session_for
+    path = "/dashboard/live/network/operations/plans"
+    values = { department_id: foreign.id, owner_id: @bob.id, month: Date.current.strftime("%Y-%m"), market: "Brooklyn",
+      coverage: "Weekend producer and switcher", targets: "Two local games", budget: "500.00", actual_cost: "50.25", actual_revenue: "75.50" }
+    client.post path, headers: headers(@bob), params: { site_id: @other_site.id, plan: values }
+    assert_equal 404, client.response.status
+    values[:department_id] = department.id
+    client.post path, headers: headers(@bob), params: { site_id: @other_site.id, plan: values }
+    assert_equal 303, client.response.status
+    plan = Studio::Broadcasting::OperatingPlan.find_by!(site: @other_site)
+    assert_equal 2525, plan.margin_cents
+    assert_equal 44975, plan.remaining_budget_cents
+    client.patch "#{path}/#{plan.id}", headers: headers(@bob), params: { site_id: @other_site.id, plan: values.merge(actual_cost: "80.50") }
+    assert_equal 303, client.response.status
+    assert_equal(-500, plan.reload.margin_cents)
+    client.get "/dashboard/live/network/operations", headers: headers(@bob).merge("Accept" => "text/html"), params: { site_id: @other_site.id }
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Brooklyn"
+    assert_includes client.response.body, "Weekend producer and switcher"
+  ensure
+    controller.allow_forgery_protection = true if controller
+  end
+
   def test_hosted_carriage_validates_the_station_and_serves_the_network_playback
     with_network_origin do
       @other_site.update!(tenant: @bob)
@@ -225,7 +370,7 @@ class BroadcastControlTest < PwaHttpIntegrationTest
         data = File.binread(path)
         checksum = Digest::SHA256.hexdigest(data)
         terms = { recipient: @site.id, title: "Affiliate special", sha256: checksum,
-          starts_at: Time.current.iso8601, ends_at: 1.day.from_now.iso8601 }
+          starts_at: Time.current.iso8601, ends_at: 1.day.from_now.iso8601, additional_rights: %w[replay syndicate] }
         assert_raises(Studio::Broadcasting::HostedPrograms::Unavailable) do
           exchange.receive!(peer, key, JSON.generate(terms.merge(sha256: "wrong")), StringIO.new(data), data.bytesize)
         end
@@ -233,6 +378,10 @@ class BroadcastControlTest < PwaHttpIntegrationTest
         assert_equal @site, agreement.licensee_site
         assert_equal @other_site, agreement.licensor_site
         assert_equal "offered", agreement.status
+        assert_equal %w[replay syndicate], exchange.describe(agreement).fetch(:additional_rights)
+        assert_raises(Studio::Broadcasting::HostedPrograms::Unavailable) do
+          exchange.receive!(peer, key, JSON.generate(terms.merge(additional_rights: ["clip"])), StringIO.new(data), data.bytesize)
+        end
         assert_equal agreement.id, exchange.receive!(peer, key, JSON.generate(terms), StringIO.new(data), data.bytesize).id
         refute agreement.permits?(Time.current, 2.hours.from_now)
         agreement.update!(status: "accepted")

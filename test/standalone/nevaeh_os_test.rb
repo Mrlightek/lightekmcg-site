@@ -993,3 +993,53 @@ class NevaehOsHttpTest
     refute response.parsed_body.key?('code_knowledge')
   end
 end
+
+require_relative '../../app/services/nevaeh_os/platform_actions'
+
+module LightekConnect
+  class Connection < ApplicationRecord
+    self.table_name = 'test_connect_connections'
+    belongs_to :user
+  end
+end
+ActiveRecord::Schema.define do
+  create_table(:test_connect_connections) do |t|
+    t.references :user
+    t.string :label
+    t.string :platform
+    t.string :token_digest
+    t.datetime :revoked_at
+  end
+end
+
+class NevaehOsHttpTest
+  def test_operating_code_binding_runs_an_account_scoped_action
+    own = LightekConnect::Connection.create!(user: @actor, platform: 'shopify', label: 'My shop', token_digest: 'private')
+    LightekConnect::Connection.create!(user: @other, platform: 'wordpress', label: 'Another account')
+    post :ask, params: { q: '/code connect.connections.list', request_key: 'platform-code-discovery' }, as: :json
+    assert_response :success
+    row = response.parsed_body.fetch('code_knowledge').fetch('entries').sole
+    assert_equal 'enabled', row.fetch('binding_status')
+
+    post :ask, params: { q: row.fetch('example'), request_key: 'platform-code-execute' }, as: :json
+    assert_response :success
+    action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+    assert_equal 'platform_action', action.command.fetch('kind')
+    assert_equal 'pending', action.status
+    output = NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+    assert_equal 'completed', action.reload.status
+    assert_equal [own.id], output.fetch('records').map { |record| record.fetch('id') }
+    refute output.fetch('records').sole.key?('token_digest')
+    assert_equal output, NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+  end
+
+  def test_platform_action_rechecks_role_before_worker_access
+    post :ask, params: { q: '/execute connect.connections.list {}', request_key: 'platform-code-role-loss' }, as: :json
+    assert_response :success
+    action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+    @actor.update!(role: 'client')
+
+    assert_raises(Gatekeeper::AuthorizationDenied) { NevaehOs::Worker.perform('execute', {'action_id'=>action.id}) }
+    assert_equal 'failed', action.reload.status
+  end
+end

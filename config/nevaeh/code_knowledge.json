@@ -11,7 +11,8 @@
         ],
         "implementation": [
           "app/services/lightek_accounting/imports.rb",
-          "app/services/lightek_accounting/reconcile.rb"
+          "app/services/lightek_accounting/reconcile.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/enterprise-directory-and-accounting.md"
@@ -19,7 +20,24 @@
         "models": [
           "app/models/lightek_accounting/book.rb",
           "app/models/lightek_accounting/transaction.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
+      },
+      "capability": {
+        "key": "operations.finance.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Lists uncategorized transactions in books the caller can read."
       }
     },
     {
@@ -32,18 +50,36 @@
         ],
         "implementation": [
           "app/services/lightek_commerce/order_placement.rb",
-          "app/controllers/dashboard/commerce_fulfillments_controller.rb"
+          "app/controllers/dashboard/commerce_fulfillments_controller.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/commerce/platform-operations.md"
         ],
         "models": [
           "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
-      ]
+      ],
+      "capability": {
+        "key": "operations.commerce.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID"
+        },
+        "result": "Lists paid orders on the selected site that are awaiting fulfillment."
+      }
     },
     {
       "id": "commerce.payouts",
@@ -74,7 +110,8 @@
         ],
         "implementation": [
           "app/services/gatekeeper/website_deployment.rb",
-          "app/jobs/gatekeeper/hosting/provision_application_job.rb"
+          "app/jobs/gatekeeper/hosting/provision_application_job.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/server-application-management.md"
@@ -82,11 +119,26 @@
         "models": [
           "app/models/provisioning_request.rb",
           "app/models/provisioning_profile.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_dispatch"
-      ]
+      ],
+      "capability": {
+        "key": "operations.hosting.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Lists saved unhealthy node states within the caller’s hosting access."
+      }
     },
     {
       "id": "identity.sign_in",
@@ -115,14 +167,33 @@
         "implementation": [
           "app/services/lightek_connect/workspace.rb",
           "app/services/lightek_connect/shopify.rb",
-          "app/services/lightek_connect/wordpress_package.rb"
+          "app/services/lightek_connect/wordpress_package.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/integrations/lightek-connect.md"
         ],
         "models": [
           "app/models/lightek_connect/connection.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/nevaeh_os_test.rb"
         ]
+      },
+      "capability": {
+        "key": "connect.connections.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Lists the agency operator’s connections and recorded revocation state."
       }
     },
     {
@@ -136,14 +207,32 @@
         "implementation": [
           "app/services/lightek_mail/submission.rb",
           "app/services/lightek_mail/mailbox_management.rb",
-          "app/jobs/lightek_mail/deliver_job.rb"
+          "app/jobs/lightek_mail/deliver_job.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/mail/operations.md"
         ],
         "models": [
           "app/models/lightek_mail/message.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
+      },
+      "capability": {
+        "key": "mail.mailbox.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID"
+        },
+        "result": "Returns enabled and sending-readiness flags for an authorized mailbox."
       }
     },
     {
@@ -156,14 +245,39 @@
         ],
         "implementation": [
           "app/services/lightek_marketing/publication_calendar.rb",
-          "app/jobs/lightek_marketing/publication_slot_job.rb"
+          "app/jobs/lightek_marketing/publication_slot_job.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/sales/publishing-calendar.md"
         ],
         "models": [
           "app/models/lightek_marketing/publication_slot.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/publication_calendar_checks.rb"
         ]
+      },
+      "capability": {
+        "key": "marketing.publication.schedule",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "campaign_id": "CAMPAIGN_ID",
+          "connection_id": "CONNECTION_ID",
+          "scheduled_at": "ISO_8601_WITH_OFFSET",
+          "time_zone": "UTC"
+        },
+        "result": "Schedules a reviewed campaign via the existing calendar and returns the saved slot state."
       }
     },
     {
@@ -240,15 +354,33 @@
         ],
         "implementation": [
           "app/services/lightek_people/payroll.rb",
-          "app/jobs/payroll_preparation_job.rb"
+          "app/jobs/payroll_preparation_job.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/people/organization-benefits-payroll.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
-      ]
+      ],
+      "capability": {
+        "key": "operations.payroll.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Lists payroll drafts due for approval within the caller’s employer access."
+      }
     },
     {
       "id": "reservations.booking",
@@ -260,7 +392,8 @@
         ],
         "implementation": [
           "app/services/lightek_reservations/booking.rb",
-          "app/services/lightek_reservations/settlement.rb"
+          "app/services/lightek_reservations/settlement.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/reservations_and_payouts.md"
@@ -268,11 +401,30 @@
         "models": [
           "app/models/lightek_reservations/reservation.rb",
           "app/models/lightek_reservations/resource.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
-      ]
+      ],
+      "capability": {
+        "key": "reservations.availability.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "resource_id": "RESOURCE_ID",
+          "date": "YYYY-MM-DD"
+        },
+        "result": "Returns available slots for the published resource and its timezone."
+      }
     },
     {
       "id": "sales.crm",
@@ -284,7 +436,8 @@
         ],
         "implementation": [
           "app/services/lightek_sales/workspace.rb",
-          "app/services/lightek_sales/forecast.rb"
+          "app/services/lightek_sales/forecast.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/sales/crm.md"
@@ -292,7 +445,69 @@
         "models": [
           "app/models/lightek_sales/lead.rb",
           "app/models/lightek_sales/opportunity.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
         ]
+      },
+      "capability": {
+        "key": "sales.lead.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "name": "LEAD_NAME",
+          "company": "COMPANY",
+          "email": "EMAIL_ADDRESS"
+        },
+        "result": "Creates a lead and records the normal CRM activity on the selected site."
+      }
+    },
+    {
+      "id": "sales.crm.follow_up",
+      "title": "Review overdue sales follow-ups",
+      "summary": "Review leads and opportunities with overdue follow-ups on an authorized site.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/lightek_sales/forecast.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb",
+          "app/models/lightek_sales/opportunity.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ]
+      },
+      "capability": {
+        "key": "operations.sales.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID"
+        },
+        "result": "Returns overdue leads and opportunities on the selected site."
       }
     },
     {
@@ -304,7 +519,8 @@
           "app/controllers/dashboard/sales_quotes_controller.rb"
         ],
         "implementation": [
-          "app/services/lightek_sales/quotes.rb"
+          "app/services/lightek_sales/quotes.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/sales/quotes-to-delivery.md"
@@ -312,11 +528,29 @@
         "models": [
           "app/models/lightek_sales/quote.rb",
           "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
-      ]
+      ],
+      "capability": {
+        "key": "sales.quote.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "quote_id": "QUOTE_ID"
+        },
+        "result": "Returns the saved quote state and the linked order state when present."
+      }
     },
     {
       "id": "studio.broadcast.playout",
@@ -329,7 +563,8 @@
         "implementation": [
           "app/services/studio/broadcasting/playout.rb",
           "app/services/studio/broadcasting/channel_feed.rb",
-          "app/jobs/studio/broadcasting/channel_playout_job.rb"
+          "app/jobs/studio/broadcasting/channel_playout_job.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/studio/session-rooms-and-audience.md"
@@ -337,7 +572,25 @@
         "models": [
           "app/models/studio/broadcasting/channel.rb",
           "app/models/studio/broadcasting/airing.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
+      },
+      "capability": {
+        "key": "studio.broadcast.channel.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "channel_id": "CHANNEL_ID"
+        },
+        "result": "Returns the saved channel state and managed playout flag."
       }
     },
     {
@@ -515,12 +768,30 @@
         ],
         "guides": [
           "docs/cms/site-themes-and-journal.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_dash",
         "dymond_site"
-      ]
+      ],
+      "capability": {
+        "key": "site.page.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "title": "PAGE_TITLE"
+        },
+        "result": "Creates a draft CMS page and returns its ID and edit link."
+      }
     }
   ]
 }

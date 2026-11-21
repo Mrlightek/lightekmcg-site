@@ -19,6 +19,8 @@ module NevaehOs
         WebsitePages.authorize!(actor,command)
       when 'specialist_review'
         SpecialistTasks.authorize!(actor,command)
+      when 'platform_action'
+        PlatformActions.authorize!(actor, command)
       when 'documentation_question'
         Guide.tutorial(command.fetch('topic'),actor:actor)
         agent=NevaehOsAgent.find(command['agent_id']) if command['agent_id']
@@ -148,6 +150,8 @@ module NevaehOs
         WebsitePages.create!(actor:actor,command:command)
       when 'specialist_review'
         SpecialistTasks.perform!(actor:actor,command:command)
+      when 'platform_action'
+        PlatformActions.perform!(actor: actor, command: command, action_id: action.id)
       when 'documentation_question'
         DocumentationWorkers.delegate_question!(actor:actor,topic:command.fetch('topic'),query:command.fetch('query'),key:"documentation-action-#{action.id}")
       when 'documentation_answer'

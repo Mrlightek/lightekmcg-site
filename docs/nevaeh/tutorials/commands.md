@@ -24,7 +24,9 @@ Open **Dashboard → Software Library → Code map** or ask Nevaeh with `/code S
 
 A mapped binding appears as enabled when its installed registry entry matches the worker, event, and Gatekeeper capability. For enabled entries, Nevaeh shows an example command. Replace placeholders such as `SCENE_ID` with IDs for records you can access. Submit the command through the normal conversation and follow the existing execution receipt. A render quote returns an operation and quote, and the render follows the existing Studio settlement workflow.
 
-An architecture reference documents a workflow's source. Check Guide for execution routes outside the map. To extend the map, update `config/nevaeh/code_knowledge.json` with repository-relative references. Add a capability link after the shared native registry can resolve the action. CI checks that source paths, gem references and worker method bindings resolve.
+An architecture reference documents a workflow's source. Check Guide for execution routes outside the map. To extend the map, update `config/nevaeh/code_knowledge.json` with repository-relative references. Add a capability link after the shared native registry can resolve the action. For in-app operations, link to a named `NevaehOs::PlatformActions` entry. These commands use the saved-action worker, and authorization is checked at submission and execution. CI checks that source paths, gem references and both kinds of worker bindings resolve.
+
+Examples of in-app operations include `/execute sales.lead.create`, `/execute reservations.availability.list`, and `/execute marketing.publication.schedule`. Use their code map examples for the exact inputs. A calendar receipt confirms a saved schedule. Provider delivery has its own status. A saved broadcast channel status reports configuration. Check the broadcast workspace for live stream health.
 
 ## Query and edit resources
 

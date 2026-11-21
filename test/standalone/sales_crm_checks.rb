@@ -98,6 +98,8 @@ SalesHarness.routes.draw do
     get "/workspace/#{name}", to: 'dashboard/sales#index', as: "dashboard_#{name}"
   end
 end
+require_relative '../../app/services/nevaeh_os/platform_actions'
+
 class SalesCrmChecks < ActionDispatch::IntegrationTest
   include SalesHarness.routes.url_helpers
   def app = SalesHarness
@@ -141,6 +143,21 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     LightekSales::Opportunity.create!({site: @site, account: values.fetch(:account) { company }, name: 'Managed services', amount_cents: 100_000, probability: 60,
       stage: 'proposal', close_on: Date.current, owner: @owner, next_step: 'Review proposal', follow_up_on: Date.current}.merge(values))
   end
+  def test_nevaeh_creates_a_real_crm_lead_and_rejects_foreign_sites
+    input = {'site_id'=>@site.id, 'name'=>'Nevaeh lead', 'company'=>'North Studio', 'email'=>'new-lead@example.test'}
+    command = NevaehOs::PlatformActions.command('sales.lead.create', input)
+    assert_no_difference 'LightekSales::Lead.count' do
+      assert_raises(ActiveRecord::RecordNotFound) do
+        NevaehOs::PlatformActions.perform!(actor: @other, command: command, action_id: 1)
+      end
+    end
+    receipt = NevaehOs::PlatformActions.perform!(actor: @member, command: command, action_id: 1)
+    record = LightekSales::Lead.where(site: @site).find(receipt.fetch('lead_id'))
+    assert_equal input.fetch('email'), record.email
+    assert_equal 'new', record.status
+    assert LightekSales::Activity.exists?(site: @site, actor: @member, record: record, kind: 'created')
+  end
+
   def test_conversion_reuses_company_and_marketing_contact_preserves_consent_and_is_idempotent
     account = company
     contact = LightekMarketing::Contact.create!(site: @site, email: 'jamie@example.test', subscribed_at: 2.days.ago, unsubscribed_at: 1.day.ago)

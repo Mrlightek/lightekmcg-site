@@ -8,6 +8,9 @@ require_relative '../../app/services/studio/workers/workspace'
 require_relative '../../app/services/susu/workers/pwa'
 require_relative '../../app/services/nevaeh_orchestration/native_contracts'
 require_relative '../../app/services/nevaeh_os/command'
+require_relative '../../app/services/nevaeh_os/platform_actions'
+require_relative '../../app/services/nevaeh_os/specialist_tasks'
+require_relative '../../app/services/nevaeh_os/worker'
 require_relative '../../app/services/nevaeh_intelligences/code_knowledge'
 
 class NevaehCodeKnowledgeChecks < Minitest::Test
@@ -38,7 +41,7 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
       entry.fetch('gems', []).each do |name|
         assert_match(/^    #{Regexp.escape(name)} \(/, lockfile, "Gem must be pinned in Gemfile.lock: #{name}")
       end
-      assert_native_binding(entry.fetch('capability'), sources.fetch('workers')) if entry.key?('capability')
+      assert_binding(entry.fetch('capability'), sources.fetch('workers')) if entry.key?('capability')
     end
   end
 
@@ -50,13 +53,32 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
 
   private
 
-  def assert_native_binding(link, worker_paths)
+  def assert_binding(link, worker_paths)
     key = link.fetch('key')
     contracts = NevaehOrchestration::NativeContracts
-    assert contracts.supported?(key), "Missing native capability: #{key}"
-    assert_equal link.fetch('action'), contracts.resolve_worker_action!(key)
     worker = Object.const_get(link.fetch('worker'))
-    source, = worker.instance_method(link.fetch('action')).source_location
+    source, = if link['route'] == 'operating'
+      assert NevaehOs::PlatformActions.supported?(key), "Missing operating action: #{key}"
+      assert_equal 'execute', link.fetch('action')
+      assert_equal NevaehOs::Worker, worker
+      values = link.fetch('inputs').transform_values { |value| value.to_s.end_with?('_ID') ? 1 : value }
+      values['date'] = '2027-01-01' if values.key?('date')
+      actual = NevaehOs::PlatformActions.command(key, values)
+      if key == 'site.page.create'
+        assert_equal 'website_page', actual.fetch('kind')
+      elsif (role = NevaehOs::PlatformActions::REVIEWS[key])
+        input = NevaehOs::SpecialistTasks::DEFINITIONS.fetch(role).last
+        assert_equal [input].compact, values.keys
+        assert_equal 'specialist_review', actual.fetch('kind')
+      else
+        assert_equal 'platform_action', actual.fetch('kind')
+      end
+      worker.method(:perform).source_location
+    else
+      assert contracts.supported?(key), "Missing native capability: #{key}"
+      assert_equal link.fetch('action'), contracts.resolve_worker_action!(key)
+      worker.instance_method(link.fetch('action')).source_location
+    end
     assert_includes worker_paths.map { |path| File.join(ROOT, path) }, source
     assert_kind_of Hash, link.fetch('inputs')
     parsed = NevaehOs::Command.parse("/execute #{key} #{JSON.generate(link.fetch('inputs'))}")

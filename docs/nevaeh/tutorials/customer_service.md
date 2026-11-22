@@ -16,7 +16,7 @@ Ask Nevaeh to “review customer support cases” or run `/operations customer_s
 
 Customer Service & Billing offers guided answers for finding purchased services and managing sign-in security. Nevaeh records which guide she used, posts the answer, and closes the case. Customers can reply to reopen it and reach the Customer Service queue.
 
-Set `NEVAEH_SUPPORT_MAILBOX_ID` to the authorized, sending-ready Lightek Mail mailbox for this installation to enable outbound case updates. The worker scans recent replies every 15 minutes and queues a generic sign-in link for the latest customer-visible update. It checks the account and recipient again before submission. The Mail Studio message status shows whether the notification queued, sent, failed, or needs review. Case text and billing amounts stay in the Dashboard.
+Open Customer Service & Billing → Outbound mailbox as a platform administrator. Select an existing sending-ready staff mailbox and save it. Choose Pause outbound messages to pause case updates and billing reminders. The worker scans recent replies every 15 minutes and queues a generic sign-in link for the latest customer-visible update. It checks the account and recipient again before submission. The Mail Studio message status shows whether the notification queued, sent, failed, or needs review. Case text and billing amounts stay in the Dashboard.
 
 ## Find purchased services
 

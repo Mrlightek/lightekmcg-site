@@ -17,6 +17,7 @@ DATABASE = File.join(Dir.tmpdir, "nevaeh-backlog-#{Process.pid}.sqlite3")
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: DATABASE)
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
+  create_table(:lightek_mail_sending_policies) { |t| t.json :nevaeh_support_sender, default: {} }
   create_table(:users) { |t| t.string :role, :email_address; t.datetime :access_suspended_at }
   create_table(:dymond_bank_invoices) do |t|
     t.references :billable, polymorphic: true
@@ -195,7 +196,7 @@ end
    jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service
    services/lightek_people/lifecycle_access services/lightek_people/access services/lightek_accounting/access
    services/gatekeeper/hosting/access services/lightek_agency/package_policy
-   services/nevaeh_customer_service/cases services/nevaeh_customer_service/outbound services/nevaeh_customer_service/refunds services/nevaeh_os/specialist_tasks].each do |file|
+   models/lightek_mail/sending_policy services/nevaeh_customer_service/cases services/nevaeh_customer_service/sender_settings services/nevaeh_customer_service/outbound services/nevaeh_customer_service/refunds services/nevaeh_os/specialist_tasks].each do |file|
   require File.join(ROOT, "app", "#{file}.rb")
 end
 %w[models/nevaeh_intelligence services/gatekeeper services/gatekeeper/authorization_decision

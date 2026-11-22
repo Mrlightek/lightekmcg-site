@@ -8,10 +8,8 @@ module NevaehCustomerService
     module_function
 
     def mailbox
-      account = LightekMail::Account.mailboxes.find_by(id: ENV.fetch("NEVAEH_SUPPORT_MAILBOX_ID", nil))
-      return unless account&.sending_ready? && LightekPeople::LifecycleAccess.active?(account.user)
-
-      LightekMail::Access.accounts(account.user).find_by(id: account.id)
+      account = LightekMail::Account.mailboxes.find_by(id: SenderSettings.snapshot["mailbox_id"])
+      account if SenderSettings.ready?(account)
     end
 
     def follow_up!(account:, event:)
@@ -75,7 +73,7 @@ module NevaehCustomerService
         return true
       end
 
-      ENV["NEVAEH_SUPPORT_MAILBOX_ID"].to_s == message.account_id.to_s &&
+      SenderSettings.snapshot["mailbox_id"] == message.account_id &&
         LightekPeople::LifecycleAccess.active?(customer) && message.to_addresses == [customer.email_address.to_s.downcase]
     end
 
@@ -87,6 +85,11 @@ module NevaehCustomerService
         LightekMail::DeliverJob.perform_later(existing.id) if existing.state == "queued" && existing.updated_at < 15.minutes.ago
         return existing
       end
+
+      settings = SenderSettings.snapshot
+      return unless settings["mailbox_id"] == account.id
+      return if LightekMail::Message.where(account_id: settings.fetch("previous_mailbox_ids", []), idempotency_key: key,
+        state: %w[submitting sent uncertain]).exists?
 
       LightekMail::Submission.create!(account: account, idempotency_key: key,
         attributes: {"to" => customer.email_address, "subject" => subject, "text" => body})

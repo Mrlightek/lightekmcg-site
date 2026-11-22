@@ -22,7 +22,7 @@ ActiveRecord::Schema.define do
   create_table(:lightek_mail_templates) { |t| t.integer :account_id }
   create_table(:lightek_mail_messages) do |t|
     t.integer :account_id
-    t.string :subject
+    t.string :subject, :idempotency_key, :state
     t.string :direction, default: 'inbound'
     t.string :text_body
     %i[trashed archived starred].each { |flag| t.boolean flag, default: false }
@@ -37,6 +37,10 @@ version = ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'
 path = ROOT+'/db/migrate/20261113140000_add_lightek_mailbox_management.rb'
 eval(File.read(path).sub('Migration[8.0]',"Migration[#{version}]"),TOPLEVEL_BINDING,path)
 AddLightekMailboxManagement.new.migrate(:up)
+ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json }
+path = ROOT+'/db/migrate/20261122180000_add_nevaeh_support_sender_to_mail_policy.rb'
+eval(File.read(path).sub('Migration[8.0]',"Migration[#{version}]"),TOPLEVEL_BINDING,path)
+2.times { AddNevaehSupportSenderToMailPolicy.new.migrate(:up) }
 class ApplicationRecord < ActiveRecord::Base; self.abstract_class = true; end
 class User < ApplicationRecord
   def can_access_feature?(*) = true
@@ -46,17 +50,56 @@ module LightekMail
   class Message < ApplicationRecord; self.table_name = 'lightek_mail_messages'; end
   class CustomerSuspension < ApplicationRecord; self.table_name = 'lightek_mail_customer_suspensions'; end
 end
-%w[domain account group_member].each { |file| require ROOT+"/app/models/lightek_mail/#{file}" }
+%w[domain account group_member sending_policy].each { |file| require ROOT+"/app/models/lightek_mail/#{file}" }
 %w[access mailbox_management recipient_directory spam_filter message_folder message_flag search].each { |file| require ROOT+"/app/services/lightek_mail/#{file}" }
 require ROOT+'/app/services/nevaeh_os/platform_actions'
+require ROOT+'/app/services/lightek_people/lifecycle_access'
+require ROOT+'/app/services/nevaeh_customer_service/cases'
+require ROOT+'/app/services/nevaeh_customer_service/sender_settings'
+require ROOT+'/app/services/nevaeh_customer_service/outbound'
 class LightekMailboxManagementTest < Minitest::Test
   def setup
+    LightekMail::SendingPolicy.delete_all
     @user = User.create!(role:'client')
     @domain = LightekMail::Domain.create!(user:@user,name:"client-#{SecureRandom.hex(4)}.test",verified_at:Time.current)
   end
   def mailbox(name)
     LightekMail::MailboxManagement.create!(user:@user,domain:@domain,local_part:name,display_name:name.capitalize)
   end
+  def test_nevaeh_uses_an_existing_staff_mailbox_and_can_pause_delivery
+    admin = User.create!(role: "super_admin")
+    staff_domain = LightekMail::Domain.create!(user: admin, name: "staff-#{SecureRandom.hex(4)}.test", verified_at: Time.current)
+    first = LightekMail::MailboxManagement.create!(user: admin, domain: staff_domain, local_part: "support", display_name: "Support")
+    second = LightekMail::MailboxManagement.create!(user: admin, domain: staff_domain, local_part: "billing", display_name: "Billing")
+    customer_mail = mailbox('customer')
+    settings = NevaehCustomerService::SenderSettings
+    outbound = NevaehCustomerService::Outbound
+    ENV["NEVAEH_SUPPORT_MAILBOX_ID"] = first.id.to_s
+
+    assert_equal first, outbound.mailbox
+    assert_includes settings.eligible_mailboxes(admin), first
+    refute_includes settings.eligible_mailboxes(admin), customer_mail
+    assert_raises(settings::Invalid) { settings.save!(actor: @user, mailbox_id: first.id) }
+    assert_raises(settings::Invalid) { settings.save!(actor: admin, mailbox_id: customer_mail.id) }
+
+    settings.save!(actor: admin, mailbox_id: second.id)
+    assert_equal second, outbound.mailbox
+    assert_includes settings.snapshot.fetch("previous_mailbox_ids"), first.id
+
+    first.messages.create!(idempotency_key: "support_event_42", state: "sent")
+    customer = Struct.new(:email_address).new("buyer@example.test")
+    assert_nil outbound.submit!(second, customer, "Case update", "Body", "support_event_42")
+    assert_empty second.messages
+
+    second.update!(enabled: false)
+    assert_nil outbound.mailbox
+    assert_raises(settings::Invalid) { settings.save!(actor: admin, mailbox_id: second.id) }
+    settings.save!(actor: admin, mailbox_id: "")
+    assert_nil outbound.mailbox
+  ensure
+    ENV.delete("NEVAEH_SUPPORT_MAILBOX_ID")
+  end
+
   def test_nevaeh_searches_and_flags_only_the_selected_mailbox
     account = mailbox('primary')
     second = mailbox('other')

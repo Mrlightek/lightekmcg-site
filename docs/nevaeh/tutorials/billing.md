@@ -16,4 +16,4 @@ Customers can request an eligible installation refund from Customer Service & Bi
 
 ## Overdue reminders
 
-Set `NEVAEH_COLLECTIONS_ENABLED=1` after selecting the authorized sending mailbox in `NEVAEH_SUPPORT_MAILBOX_ID`. The worker queues one reminder during days 3–9 after the due date and one during days 10–16. Only open Dymond Bank invoices with an outstanding balance qualify. Nevaeh holds reminders while the customer has an open billing case. The mail worker checks the invoice, dispute hold and recipient again before submission. The messages direct the customer to the private billing workspace.
+Set `NEVAEH_COLLECTIONS_ENABLED=1` after selecting a staff mailbox under Customer Service & Billing → Outbound mailbox. The worker queues one reminder during days 3–9 after the due date and one during days 10–16. Only open Dymond Bank invoices with an outstanding balance qualify. Nevaeh holds reminders while the customer has an open billing case. The mail worker checks the invoice, dispute hold and recipient again before submission. The messages direct the customer to the private billing workspace.

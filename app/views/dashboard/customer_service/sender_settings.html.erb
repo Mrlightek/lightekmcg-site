@@ -1,0 +1,25 @@
+<% content_for :page_title, "Outbound mailbox" %>
+<%= stylesheet_link_tag "/lightek/people-workspace.css" %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div>
+      <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %></p>
+      <h1>Outbound mailbox</h1>
+      <p>Choose an existing Lightek Mail address for Nevaeh’s case updates and enabled billing reminders.</p>
+    </div>
+  </header>
+  <section class="lp-card">
+    <% if @sender_mailbox && @mailboxes.none? { |account| account.id == @sender_mailbox } %>
+      <p role="status">The saved address is unavailable. Choose an available mailbox to resume sending.</p>
+    <% end %>
+    <% if @mailboxes.empty? %>
+      <p>There are no sending-ready staff mailboxes. <%= link_to "Open Mail Studio", dashboard_mail_path %>.</p>
+    <% end %>
+    <%= form_with url: dashboard_customer_service_sender_path, method: :patch, class: "lp-form" do |form| %>
+      <%= form.label :mailbox_id, "From address" %>
+      <%= form.collection_select :mailbox_id, @mailboxes, :id, :address,
+        include_blank: "Pause outbound messages", selected: @sender_mailbox %>
+      <%= form.submit "Save outbound mailbox", class: "lp-button" %>
+    <% end %>
+  </section>
+</main>

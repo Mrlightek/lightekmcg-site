@@ -131,6 +131,7 @@ end
 class ApplicationJob < ActiveJob::Base; end
 # Minimal host adapters. Real ticket models/services/jobs below are loaded intact.
 class User < ApplicationRecord
+  def full_name = "Support operator"
   def can_access_feature?(_feature) = false # Host feature-assignment boundary.
   def employee? = %w[employee admin super_admin].include?(role)
 end
@@ -216,7 +217,8 @@ end
    services/gatekeeper/hosting/access services/gatekeeper/knowledge_service services/gatekeeper/support_ticket_service
    services/gatekeeper/command_runner services/gatekeeper/project_health_monitor
    jobs/gatekeeper/healthcheck_project_job jobs/gatekeeper/project_health_sweep_job
-   services/nevaeh_os/platform_actions].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
+   services/nevaeh_os/platform_actions services/lightek_people/lifecycle_access
+   services/lightek_people/access].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 Minitest.after_run do
@@ -241,6 +243,34 @@ class NevaehBacklogPersistenceTest < Minitest::Test
   end
 
   def backlog(ticket) = ticket.reload.extra_fields.fetch("nevaeh_backlog")
+
+  def test_owner_confirmation_closes_only_the_owned_unstructured_technical_ticket
+    customer = User.create!(role: "client")
+    outsider = User.create!(role: "client")
+    owned = ticket(submitted_by: customer, extra_fields: {"source" => "support_hub"})
+    assert_raises(ArgumentError) { owned.confirm_customer_resolution!(actor: outsider) }
+    assert_equal "open", owned.reload.status
+    owned.confirm_customer_resolution!(actor: customer)
+    owned.confirm_customer_resolution!(actor: customer)
+    assert_equal "resolved", owned.reload.status
+    assert_equal 1, owned.events.where(action: "Customer confirmed resolution").count
+
+    execution = ticket(submitted_by: customer, extra_fields: {"nevaeh_work_order" => {"kind" => "internal"}})
+    assert_raises(ArgumentError) { execution.confirm_customer_resolution!(actor: customer) }
+    assert_equal "open", execution.reload.status
+  end
+
+  def test_support_operator_can_post_a_reply_and_customer_cannot_use_the_operator_action
+    customer = User.create!(role: "client")
+    operator = User.create!(role: "admin")
+    owned = ticket(submitted_by: customer, number: "LT-1042")
+    action = NevaehOs::PlatformActions.command("support.ticket.reply",
+      {"ticket_number"=>"LT-1042", "detail"=>"Please check incoming mail again."})
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: customer, command: action, action_id: 10) }
+    result = NevaehOs::PlatformActions.perform!(actor: operator, command: action, action_id: 11)
+    assert_equal "in_progress", result.fetch("status")
+    assert_equal "Please check incoming mail again.", owned.events.find(result.fetch("event_id")).detail
+  end
 
   def test_intake_enqueues_after_commit_and_sweep_discovers_historical_records
     old = ticket

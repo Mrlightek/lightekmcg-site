@@ -25,6 +25,7 @@ ActiveRecord::Schema.define do
     t.integer :account_id
     t.string :subject
     t.string :direction, default: 'inbound'
+    t.string :state
     t.string :text_body
     %i[trashed archived starred].each { |flag| t.boolean flag, default: false }
     t.datetime :read_at
@@ -43,6 +44,9 @@ class User < ApplicationRecord
   def can_access_feature?(*) = true
 end
 module LightekMail
+  class DeliverJob
+    def self.perform_later(*) = raise("Expected a controlled delivery job")
+  end
   class Template < ApplicationRecord; self.table_name = 'lightek_mail_templates'; end
   class Message < ApplicationRecord; self.table_name = 'lightek_mail_messages'; end
   class CustomerSuspension < ApplicationRecord; self.table_name = 'lightek_mail_customer_suspensions'; end
@@ -108,6 +112,19 @@ class LightekMailboxManagementTest < Minitest::Test
       assert_equal true, result.fetch('mx_ready')
     end
     query.verify
+  end
+
+  def test_resuming_mail_queues_only_outbound_messages_with_no_submission_in_progress
+    account = mailbox('outbox')
+    message = account.messages.create!(subject: 'Queued message', direction: 'outbound', state: 'queued')
+    action = NevaehOs::PlatformActions.command('mail.message.resume_queued',
+      {'mailbox_id'=>account.id, 'message_id'=>message.id})
+    job = ->(id) { assert_equal message.id, id; Struct.new(:job_id).new("queued-123") }
+    LightekMail::DeliverJob.stub(:perform_later, job) do
+      assert_equal "queued-123", NevaehOs::PlatformActions.perform!(actor: @user, command: action, action_id: 5).fetch('job_id')
+    end
+    message.update!(state: 'uncertain')
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: @user, command: action, action_id: 6) }
   end
   def test_group_resolves_to_two_individual_mailboxes_without_duplicates
     first, second = mailbox('andrew'),mailbox('marlon')

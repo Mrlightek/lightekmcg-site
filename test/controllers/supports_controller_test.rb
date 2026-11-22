@@ -52,6 +52,22 @@ class SupportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "customer confirmation closes an owned support case and preserves tenant scope" do
+    ticket = support_ticket(@customer)
+    other = support_ticket(customer)
+
+    patch confirm_resolution_support_path(other), params: {confirmed: true}, as: :json
+    assert_response :not_found
+    patch confirm_resolution_support_path(ticket), params: {confirmed: false}, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "open", ticket.reload.status
+
+    patch confirm_resolution_support_path(ticket), params: {confirmed: true}, as: :json
+    assert_response :success
+    assert_equal "resolved", response.parsed_body.dig("ticket", "status")
+    assert_equal "resolved", ticket.reload.status
+  end
+
   private
 
   def customer

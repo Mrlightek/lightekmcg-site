@@ -11,6 +11,50 @@ module NevaehOs
     SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
     QUOTE_ITEM = /([1-9]\d{0,2}) of (?:product |item )?#?([1-9]\d{0,17})/i
     PHRASES = {
+      'hosting.fleet.rollback' => [
+        /confirm rollback (?:of )?fleet target #?(?<target_id>[1-9]\d{0,17})/i,
+        'Confirm rollback of fleet target #42'
+      ],
+      'hosting.fleet.recovery.status' => [
+        /(?:check|show) recovery (?:for|of) fleet target #?(?<target_id>[1-9]\d{0,17})/i,
+        'Check recovery for fleet target #42'
+      ],
+      'hosting.fleet.backup.drill' => [
+        /test (?:the )?backup restore for fleet target #?(?<target_id>[1-9]\d{0,17})/i,
+        'Test backup restore for fleet target #42'
+      ],
+      'hosting.fleet.backup.status' => [
+        /(?:check|show) backup restore drill #?(?<operation_id>[1-9]\d{0,17})/i,
+        'Check backup restore drill #42'
+      ],
+      'hosting.project.dns.repair' => [
+        /repair (?:missing )?dns for project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Repair missing DNS for project #42'
+      ],
+      'mail.mailbox.receiving.repair' => [
+        /repair (?:missing )?receiving dns for mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Repair missing receiving DNS for mailbox #42'
+      ],
+      'support.ticket.confirm_resolution' => [
+        /confirm (?:my )?(?:support )?ticket (?<ticket_number>LT-[A-Z0-9-]{1,30}) is fixed/i,
+        'Confirm my support ticket LT-1042 is fixed'
+      ],
+      'support.ticket.reply' => [
+        /post (?:a )?support reply to ticket (?<ticket_number>LT-[A-Z0-9-]{1,30}) with (?<detail>#{QUOTED})/i,
+        'Post a support reply to ticket LT-1042 with "Please check incoming mail again."'
+      ],
+      'identity.lifecycle.review' => [
+        /review lifecycle case #?(?<case_id>[1-9]\d{0,17}) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Review lifecycle case #42 for employer #3'
+      ],
+      'identity.directory.grant.review' => [
+        /review access grant #?(?<grant_id>[1-9]\d{0,17}) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Review access grant #42 for employer #3'
+      ],
+      'identity.sso.containment.review' => [
+        /review sso session revocation for membership #?(?<membership_id>[1-9]\d{0,17}) at employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Review SSO session revocation for membership #42 at employer #3'
+      ],
       'accounting.workspace.open' => [
         /open (?:the )?(?:books|accounting|books and accounting) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
         'Open accounting for employer #42'
@@ -74,6 +118,10 @@ module NevaehOs
       'mail.message.open' => [
         /open (?:mail )?message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
         'Open message #42 in mailbox #3'
+      ],
+      'mail.message.resume_queued' => [
+        /resume delivery of queued message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Resume delivery of queued message #42 in mailbox #3'
       ],
       'mail.message.flag' => [
         /set (?:mail )?message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17}) (?<flag>archived|trashed|starred|unread|junk) to (?<value>true|false)/i,
@@ -200,7 +248,8 @@ module NevaehOs
         payload = match.named_captures.transform_values do |value|
           value.start_with?('"') ? JSON.parse(value) : value
         end
-        payload['confirmed'] = true if %w[sales.quote.accept mail.draft.send hosting.fleet.rollout.control].include?(intent)
+        payload['confirmed'] = true if %w[sales.quote.accept mail.draft.send hosting.fleet.rollout.control hosting.fleet.rollback support.ticket.confirm_resolution].include?(intent)
+        payload['ticket_number']&.upcase!
         payload['currency']&.upcase!
         payload['folder']&.downcase!
         payload['operation']&.downcase!

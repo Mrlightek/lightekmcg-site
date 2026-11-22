@@ -778,6 +778,7 @@ function renderTracker(){
           <div class="tdbr-label">REPLY TO YOUR REP</div>
           <textarea class="tdbr-input" rows="3" maxlength="8000" placeholder="Add additional context, confirm information, or ask a follow-up question…"></textarea>
           <button class="tdbr-send" onclick="sendReply(this,${t.id})">SEND REPLY →</button>
+          ${t.may_confirm_resolution ? `<button class="tdbr-send" onclick="confirmResolution(this,${t.id})">Confirm fixed</button>` : ''}
         </div>`:'<div style="font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);padding:12px 0;">✓ TICKET RESOLVED — Closed '+t.time+'</div>'}
       </div>
     </div>`;
@@ -788,6 +789,28 @@ function renderTracker(){
 function toggleTicket(ticketId){
   const body=document.getElementById('body-'+ticketId);
   if(body)body.classList.toggle('open');
+}
+
+async function confirmResolution(button, ticketId) {
+  if (!window.confirm('Close this ticket because the issue is fixed?')) return;
+  button.disabled = true;
+  try {
+    const response = await fetch(`/supports/${ticketId}/confirm_resolution`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content},
+      body: JSON.stringify({confirmed: true})
+    });
+    const receipt = await response.json();
+    if (!response.ok || !receipt.ok) throw new Error(receipt.error || 'Could not close this ticket.');
+    const index = MY_TICKETS.findIndex(ticket => ticket.id === ticketId);
+    if (index !== -1) MY_TICKETS[index] = receipt.ticket;
+    renderTracker();
+    toggleTicket(ticketId);
+  } catch (error) {
+    button.disabled = false;
+    alert(error.message);
+  }
 }
 
 function sendReply(btn,ticketId){

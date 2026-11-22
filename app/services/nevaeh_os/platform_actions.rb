@@ -3,6 +3,7 @@
 require_relative 'mail_actions'
 require_relative 'hosting_actions'
 require_relative 'room_actions'
+require_relative 'it_actions'
 
 module NevaehOs
   # Explicit OS bindings. These commands run through the saved-action worker
@@ -57,7 +58,7 @@ module NevaehOs
                                            'scheduled_at'=>40, 'time_zone'=>100}.freeze,
       'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
       'marketing.publication.cancel' => {'site_id'=>:id, 'slot_id'=>:id, 'lock_version'=>:version}.freeze
-    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS).freeze
+    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS, ItActions::INPUTS).freeze
 
     module_function
 
@@ -92,6 +93,7 @@ module NevaehOs
         when :mail_query then value.is_a?(String) && value.length <= 240 && !value.match?(/[\x00-\x1f\x7f]/)
         when :mail_body then value.is_a?(String) && value.strip.length.between?(1, 8000) && !value.match?(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
         when :confirmation then value == true
+        when :ticket_number then value.is_a?(String) && /\ALT-[A-Z0-9-]{1,30}\z/.match?(value)
         when :quote_quantities
           value.is_a?(Hash) && value.size.between?(1, 50) && value.all? do |id, quantity|
             id.is_a?(String) && id.match?(/\A[1-9]\d{0,17}\z/) && quantity.is_a?(Integer) && quantity.between?(1, 100)
@@ -106,6 +108,7 @@ module NevaehOs
     def authorize!(actor, command)
       key, values = command.values_at('intent', 'payload')
       validate!(key, values)
+      return ItActions.authorize!(actor, key, values) if ItActions::INPUTS.key?(key)
       return MailActions.authorize!(actor, key, values) if MailActions::INPUTS.key?(key)
       return HostingActions.authorize!(actor, key, values) if HostingActions::INPUTS.key?(key)
       return RoomActions.authorize!(actor, values) if RoomActions::INPUTS.key?(key)
@@ -201,6 +204,7 @@ module NevaehOs
     def perform!(actor:, command:, action_id:)
       key, values = command.values_at('intent', 'payload')
       target = authorize!(actor, command)
+      return ItActions.perform!(actor, key, target, values) if ItActions::INPUTS.key?(key)
       return MailActions.perform!(key, target, values, action_id: action_id) if MailActions::INPUTS.key?(key)
       return HostingActions.perform!(key, target, values, actor: actor) if HostingActions::INPUTS.key?(key)
       return RoomActions.perform!(actor, key, target, values) if RoomActions::INPUTS.key?(key)

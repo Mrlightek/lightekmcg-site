@@ -57,6 +57,19 @@ class SupportsController < ApplicationController
     render json: { ok: true, ticket: ticket_to_hub_json(ticket) }
   end
 
+  def confirm_resolution
+    return head :unauthorized unless current_user
+
+    ticket = Marlon::Ticket.find_by(id: params[:id], submitted_by: current_user)
+    return render json: { ok: false, error: "Ticket was not found." }, status: :not_found unless ticket
+    raise ArgumentError, "Confirm that the issue is fixed." unless params[:confirmed] == true
+
+    ticket.confirm_customer_resolution!(actor: current_user)
+    render json: { ok: true, ticket: ticket_to_hub_json(ticket) }
+  rescue ArgumentError => error
+    render json: { ok: false, error: error.message }, status: :unprocessable_entity
+  end
+
   private
 
   def ticket_params
@@ -76,6 +89,7 @@ class SupportsController < ApplicationController
       status: STATUS_MAP[ticket.status] || ticket.status,
       time: relative_time(ticket.created_at),
       priority: PRIORITY_ABBR[ticket.priority] || ticket.priority.upcase,
+      may_confirm_resolution: ticket.customer_resolution_allowed?(current_user) && ticket.status != "resolved",
       events: customer_timeline(ticket, meta[:color])
     }
   end
@@ -89,7 +103,7 @@ class SupportsController < ApplicationController
         timeline_entry(event, category_color, "Nevaeh support update", NEVAEH_UPDATES.fetch(event.action))
       when event.action == "Ticket submitted"
         timeline_entry(event, category_color, event.action, ticket.description.to_s)
-      when event.action == "Ticket resolved"
+      when ["Ticket resolved", "Customer confirmed resolution"].include?(event.action)
         timeline_entry(event, category_color, event.action, "")
       when event.actor_id && event.action.end_with?(" replied")
         timeline_entry(event, category_color, event.action, event.detail.to_s)

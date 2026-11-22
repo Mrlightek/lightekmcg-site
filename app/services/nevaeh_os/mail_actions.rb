@@ -8,6 +8,7 @@ module NevaehOs
       'mail.mailbox.receiving.check' => {'mailbox_id'=>:id},
       'mail.message.search' => {'mailbox_id'=>:id, 'folder'=>16, 'query'=>:mail_query},
       'mail.message.open' => {'mailbox_id'=>:id, 'message_id'=>:id},
+      'mail.message.resume_queued' => {'mailbox_id'=>:id, 'message_id'=>:id},
       'mail.message.flag' => {'mailbox_id'=>:id, 'message_id'=>:id, 'flag'=>10, 'value'=>:boolean},
       'mail.draft.create' => {'mailbox_id'=>:id, 'to'=>512, 'subject'=>200, 'text'=>:mail_body},
       'mail.draft.send' => {'mailbox_id'=>:id, 'message_id'=>:id, 'confirmed'=>:confirmation}
@@ -46,6 +47,17 @@ module NevaehOs
          'records'=>matches.order(created_at: :desc, id: :desc).limit(30).map { |message| message_summary(message) }}
       when 'mail.message.open'
         message_summary(target).merge('links'=>[{'label'=>'Open message in Mail Studio', 'url'=>message_path(target)}])
+      when 'mail.message.resume_queued'
+        target.with_lock do
+          unless target.direction == 'outbound' && target.state == 'queued'
+            raise ArgumentError, 'Choose an outbound message that is still queued'
+          end
+
+          job = LightekMail::DeliverJob.perform_later(target.id)
+          raise ArgumentError, 'The delivery worker could not be queued' unless job
+
+          message_summary(target).merge('job_id'=>job.job_id, 'text'=>'Delivery worker queued for this message.')
+        end
       when 'mail.message.flag'
         LightekMail::MessageFlag.update!(target, flag: values.fetch('flag'), value: values.fetch('value'))
         message_summary(target)

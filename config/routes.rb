@@ -382,6 +382,7 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   #resources :dashboards
   resources :supports, only: %i[index create] do
     member { patch :reply }
+    member { patch :confirm_resolution }
   end
   resources :stores
   resources :architectures

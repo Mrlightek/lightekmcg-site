@@ -3,6 +3,9 @@ class LightekEmailProvisioningService
   class Unavailable < StandardError; end
   def self.domain!
     raise Unavailable, 'Member email is not open yet' unless LightekPwa::LaunchSettings.enabled?('member_mail_enabled')
+    verified_domain!
+  end
+  def self.verified_domain!
     domain = LightekMail::Domain.find_by(name: DOMAIN)
     raise Unavailable, 'The Lightek mail domain must be verified by the platform owner' unless domain&.verified_at && domain.user.role == 'super_admin'
     domain

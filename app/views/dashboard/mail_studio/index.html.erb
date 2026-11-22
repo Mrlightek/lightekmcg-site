@@ -1,4 +1,7 @@
 <%= render 'style' %>
+<% if LightekTeam::Installation.site&.tenant == current_user %>
+  <p><%= link_to "Open your installation mailbox", dashboard_installation_mail_path, class: "dd-topbar-btn dd-btn-primary" %></p>
+<% end %>
 <main class="lm mail-app" data-mail-app data-account="<%= @account&.id %>">
   <header class="mail-topbar"><a class="mail-brand" href="<%= dashboard_mail_path(account_id: @account&.id) %>" data-mail-nav><span class="brand-mark" aria-hidden="true">L<span>✦</span></span><span>Lightek <strong>Mail</strong></span></a><span class="mail-topline">A little more connected.</span><button class="secondary icon-button" data-mail-help aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">?</button><%= link_to 'Settings', dashboard_mail_path(account_id: @account&.id, view: 'settings'), class: 'button secondary', data: {mail_nav: true} %></header>
   <% unless LightekMail::SendingPolicy.current.sending_enabled? %><p class="notice danger">Outgoing mail is paused across the platform. Reading and saving drafts remain available.</p><% end %>

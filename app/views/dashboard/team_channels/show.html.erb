@@ -26,6 +26,7 @@
 </style>
 <main class="team-chat" data-turbo="false">
   <h1>Team Chat</h1>
+  <% if LightekTeam::Installation.site %><p><%= link_to "Network channels", dashboard_network_team_path %></p><% end %>
   <% if @employer %>
     <div class="team-layout">
       <aside class="team-panel">

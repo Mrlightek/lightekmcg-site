@@ -1,0 +1,10 @@
+<%= form_with url: dashboard_installation_mail_path, scope: :installation_message do |form| %>
+  <%= form.hidden_field :request_key, value: @draft&.[](:request_key).presence || SecureRandom.uuid %>
+  <%= form.label :to, "To" %>
+  <%= form.text_field :to, value: @draft&.[](:to), required: true, placeholder: "name@example.com" %>
+  <%= form.label :subject_line, "Subject" %>
+  <%= form.text_field :subject_line, value: @draft&.[](:subject_line), required: true, maxlength: 200 %>
+  <%= form.label :text, "Message" %>
+  <%= form.text_area :text, value: @draft&.[](:text), required: true, maxlength: 8_000, rows: 6 %>
+  <%= form.submit "Send email", class: "dd-topbar-btn dd-btn-primary" %>
+<% end %>

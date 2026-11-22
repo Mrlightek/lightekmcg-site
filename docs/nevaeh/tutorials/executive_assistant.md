@@ -18,3 +18,13 @@ Calendar invitations and external availability, phone triage, automatic executiv
 An organization owner can use **Create shared channel** in Team Chat and enter the account email of another organization owner on the same Lightek installation. The receiving owner reviews and accepts the invitation in Team Chat. Each owner can add active teammates from their own workforce directory. Shared history and the participant list identify the organization for each message or teammate.
 
 Either owner can disconnect the organizations. Partner access to the channel and its history ends at disconnection. The host keeps its record. A new invitation creates a fresh channel. Offboarding also removes access through the affected organization.
+
+### Channels across installations
+
+Open **Network channels** from Team Chat on a managed installation connected to the Lightek hub. The inviting owner enters the other installation's hostname or branded Lightek mailbox. The receiving owner accepts inside their own Dashboard. Each owner can add active coworkers, and the message timeline identifies the sending installation. The hub stores the conversation. Disconnecting removes the partner's access while the inviting owner retains its history.
+
+### Installation email
+
+Finishing owner password setup queues creation of the installation's own branded mailbox. Existing installations can open **Mail Studio → Open your installation mailbox** to provision or access it. The address belongs to the installation's owner and is distinct from a personal Lightek member address. Read, compose, and check queued delivery from the installation mailbox.
+
+Use **Mail Studio** settings for mail on domains you own. Add and verify your domain and create mailboxes for it. Custom-domain mail uses that installation's existing DNS and mail transport configuration. The branded installation mailbox uses the Lightek hub's verified mail domain and delivery service.

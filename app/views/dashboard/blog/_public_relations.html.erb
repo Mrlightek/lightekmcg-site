@@ -1,0 +1,49 @@
+<% if site.manifest.to_h.dig('nevaeh_website_marketing', 'actor_id') == current_user.id %>
+  <% releases = NevaehOs::PublicRelations.releases(site).limit(30) %>
+  <% pitches = LightekGrowth::WebsiteChange.where(site_id: site.id, actor_id: current_user.id, operation: 'media_pitch').order(id: :desc).limit(10) %>
+  <section id="public-relations" class="content-card">
+    <h2>Public relations</h2>
+    <details>
+      <summary>Assign a press release</summary>
+      <%= form_with url: assign_public_relations_dashboard_blog_index_path(site_id: site.id), scope: :brief, local: true, class: 'content-form' do |form| %>
+        <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+        <%= hidden_field_tag :operation, 'press_release', id: nil %>
+        <label>Headline <%= form.text_field :title, required: true, maxlength: 160, id: 'press-release-title' %></label>
+        <label>Announcement summary <%= form.text_area :summary, required: true, maxlength: 400, rows: 3 %></label>
+        <label>Confirmed facts <%= form.text_area :facts, required: true, maxlength: 4000, rows: 5 %></label>
+        <label>Public press email <%= form.email_field :press_email, required: true, maxlength: 254 %></label>
+        <label>Publication <%= form.select :status, [['Save as a draft', 'draft'], ['Publish when ready', 'published']], {}, id: 'press-release-status' %></label>
+        <%= form.submit 'Assign release', class: 'content-button primary' %>
+      <% end %>
+    </details>
+
+    <details>
+      <summary>Draft a media pitch</summary>
+      <% if releases.any? %>
+        <%= form_with url: assign_public_relations_dashboard_blog_index_path(site_id: site.id), scope: :brief, local: true, class: 'content-form' do |form| %>
+          <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+          <%= hidden_field_tag :operation, 'media_pitch', id: nil %>
+          <label>Published release <%= form.collection_select :entry_id, releases, :id, ->(entry) { entry.post.title } %></label>
+          <label>Outlet or journalist <%= form.text_field :outlet, required: true, maxlength: 120 %></label>
+          <label>Recipient email <%= form.email_field :recipient, required: true, maxlength: 254 %></label>
+          <label>Why it matters to their audience <%= form.text_area :angle, required: true, maxlength: 800, rows: 4 %></label>
+          <%= form.submit 'Assign pitch draft', class: 'content-button primary' %>
+        <% end %>
+      <% else %>
+        <p>Publish a press release before drafting a pitch.</p>
+      <% end %>
+    </details>
+
+    <% pitches.each do |pitch| %>
+      <% draft = pitch.result %>
+      <details>
+        <summary><%= draft.fetch('subject') %></summary>
+        <p><%= draft.fetch('recipient') %></p>
+        <%= simple_format(h(draft.fetch('body')), {}, sanitize: false) %>
+        <% if NevaehOs::PublicRelations.releases(site).exists?(id: draft.fetch('entry_id')) %>
+          <%= mail_to draft.fetch('recipient'), 'Review in email app', subject: draft.fetch('subject'), body: draft.fetch('body') %>
+        <% end %>
+      </details>
+    <% end %>
+  </section>
+<% end %>

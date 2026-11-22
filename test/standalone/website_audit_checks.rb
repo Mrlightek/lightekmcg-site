@@ -49,6 +49,13 @@ RecordNevaehWebsiteChanges.new.migrate(:up)
 require Rails.root.join('app/models/lightek_growth/website_change')
 require Rails.root.join('app/services/nevaeh_os/website_marketing')
 require Rails.root.join('app/services/nevaeh_os/website_journal')
+require Rails.root.join('app/services/nevaeh_os/public_relations')
+require Rails.root.join('app/controllers/media_website_controller')
+Rails.application.routes.append do
+  eval(Rails.root.join('config/routes/media_website.rb').read, binding)
+  root to: "media_website#index"
+end
+Rails.application.reload_routes!
 require Rails.root.join('app/services/nevaeh_os/goals')
 require Rails.root.join('app/services/nevaeh_os/journal_editorial')
 require Rails.root.join('app/services/nevaeh_os/web_document')
@@ -92,6 +99,46 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def test_audit_public_relations_keeps_pitch_drafts_private_and_lists_only_live_releases
+    marketing = NevaehOs::WebsiteMarketing
+    @site.update!(host: 'lightekmcg.com', manifest: @site.manifest.merge(marketing::KEY => { 'actor_id' => @user.id, 'key' => 'press-grant' }))
+    host! @site.host
+    values = { 'title' => 'Lightek announces a creator showcase', 'summary' => 'The showcase highlights independent production.',
+      'facts' => 'The showcase will include a live Q&A with creators.', 'press_email' => 'press@lightekmcg.com' }
+    command = marketing.bind(@user, { 'site_id' => @site.id, 'operation' => 'press_release', 'values' => values })
+    private_release = marketing.perform!(actor: @user, command: command, action_id: 301)
+    refute private_release.fetch('published')
+    get private_release.fetch('path')
+    assert_response :not_found
+
+    pitch = command.merge('operation' => 'media_pitch', 'values' => { 'entry_id' => private_release.fetch('entry_id'), 'outlet' => 'Local Media',
+      'angle' => 'Your readers cover independent production and local creators.', 'recipient' => 'editor@localmedia.test' })
+    assert_raises(ActiveRecord::RecordNotFound) { marketing.perform!(actor: @user, command: pitch, action_id: 302) }
+
+    published = command.merge('values' => values.merge('title' => 'Lightek opens showcase registration', 'status' => 'published'))
+    release = marketing.perform!(actor: @user, command: published, action_id: 303)
+    assert release.fetch('published')
+    get '/media/press'
+    assert_response :success
+    assert_includes response.body, 'Lightek opens showcase registration'
+    refute_includes response.body, 'Lightek announces a creator showcase'
+    get release.fetch('path')
+    assert_response :success
+    assert_includes response.body, 'mailto:press@lightekmcg.com'
+
+    pitch['values']['entry_id'] = release.fetch('entry_id')
+    drafted = marketing.perform!(actor: @user, command: pitch, action_id: 304)
+    assert_includes drafted.fetch('subject'), 'Local Media'
+    assert_includes drafted.fetch('body'), release.fetch('path')
+    assert_equal drafted, marketing.perform!(actor: @user, command: pitch, action_id: 304)
+    get '/dashboard/blog', params: { site_id: @site.id }, headers: headers
+    assert_response :success
+    assert_includes response.body, 'Review in email app'
+    assert_includes response.body, 'editor@localmedia.test'
+    get release.fetch('path')
+    refute_includes response.body, 'editor@localmedia.test'
+  end
+
   def test_audit_editorial_schedule_selects_new_approved_material_and_prepares_public_sharing
     marketing = NevaehOs::WebsiteMarketing
     editorial = NevaehOs::JournalEditorial

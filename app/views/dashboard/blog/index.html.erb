@@ -4,6 +4,7 @@
 <%= form_with url:dashboard_blog_index_path,method: :get,local:true,class:"content-actions" do %><label>Website<%= select_tag :site_id,options_from_collection_for_select(@sites,:id,:name,@site.id) %></label><%= submit_tag "Switch website",class:"content-button" %><% end %>
 <%= render "dashboard/blog/nevaeh_assignment", site: @site %>
 <%= render "dashboard/blog/editorial_schedule", site: @site, schedule: @editorial_schedule %>
+<%= render "dashboard/blog/public_relations", site: @site %>
 <% values=@article_values || {}; post=@entry.post %><% if @error %><p class="content-error" role="alert"><%= @error %></p><% end %>
 <div class="content-columns"><section class="content-card"><h2><%= @entry.persisted? ? "Edit article" : "New article" %></h2><%= form_with url:(@entry.persisted? ? dashboard_blog_path(@entry,site_id:@site.id) : dashboard_blog_index_path(site_id:@site.id)),method:(@entry.persisted? ? :patch : :post),scope: :article,local:true,multipart:true,class:"content-form",data:{article_editor:true} do |f| %>
 <%= f.hidden_field :lock_version,value:values.fetch("lock_version",@entry.lock_version) %><label>Title<%= f.text_field :title,value:values.fetch("title",post.title),required:true,maxlength:160 %></label><label>URL slug<%= f.text_field :slug,value:values.fetch("slug",@entry.slug),required:true,maxlength:160,pattern:"[a-z0-9]+(-[a-z0-9]+)*",data:{article_slug:true,slug_auto:@entry.new_record? && values.fetch("slug",@entry.slug).blank?},placeholder:"our-next-chapter" %></label>

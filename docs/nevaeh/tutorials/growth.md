@@ -145,3 +145,11 @@ Use `/website journal_inspect SITE_ID` to list recent articles, or pass `{"entry
 In **Journal & Articles → Nevaeh editorial schedule**, enter the topics to follow and the exact public HTTPS pages you approve for research. Set daily or weekly and choose private drafts or automatic publication. The first cycle is due after saving. Nevaeh rereads the approved pages, selects an unused excerpt relevant to a topic, and writes a short Journal update with a source link. The cycle stops without publishing if there is no new, relevant source material. Source redirects require approving the final URL. Pause the schedule to stop subsequent work, including queued writes that have yet to start.
 
 Every cycle has a goal that records research evidence before the article is written. For automatic publication, select **Prepare a social campaign draft** to add a promotion with the article's link. Review the generated copy in Content review, then use the existing social account and publication calendar. Provider media requirements still apply. Readers of the live article can share to Facebook, LinkedIn, X or email directly.
+
+### Public relations
+
+Open **Journal & Articles → Public relations** to assign a press release from an announcement summary, confirmed facts and a public press contact. Choose a private draft or publish under the existing website delegation. Published releases appear in the Journal under **Press Releases** and on the Lightek Media press page for the current site.
+
+After publication, select the release, enter a media contact and explain why the story fits their audience. Nevaeh drafts a tailored pitch linked to the public release. Review the saved draft and open it in your email app when it is ready to send. Drafting does not contact the outlet.
+
+The Marketing SME can use `/website press_release SITE_ID {…}` with `title`, `summary`, `facts`, `press_email` and optional `status`. Use `/website media_pitch SITE_ID {…}` with a published press release's `entry_id`, `outlet`, `angle` and `recipient`. The same steps can be assigned in a goal, using the first step's confirmed entry ID for the pitch.

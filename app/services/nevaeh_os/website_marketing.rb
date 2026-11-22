@@ -13,7 +13,9 @@ module NevaehOs
       'journal_write' => 'website.marketing.journal_write',
       'journal_research' => 'website.marketing.journal_research',
       'journal_editorial_write' => 'website.marketing.journal_editorial_write',
-      'journal_social_draft' => 'website.marketing.journal_social_draft'
+      'journal_social_draft' => 'website.marketing.journal_social_draft',
+      'press_release' => 'website.marketing.press_release',
+      'media_pitch' => 'website.marketing.media_pitch'
     }.freeze
 
     module_function
@@ -94,6 +96,8 @@ module NevaehOs
         when 'journal_write' then WebsiteJournal.write!(site, actor, values)
         when 'journal_editorial_write' then JournalEditorial.write!(site, actor, command)
         when 'journal_social_draft' then JournalEditorial.social_draft!(site, actor, command)
+        when 'press_release' then PublicRelations.release!(site, actor, values)
+        when 'media_pitch' then PublicRelations.pitch!(site, values)
         when 'compose' then compose(site, actor, values)
         when 'publication' then publication(site, values)
         when 'appearance' then appearance(site, actor, values)

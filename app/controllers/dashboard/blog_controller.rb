@@ -34,6 +34,24 @@ class Dashboard::BlogController < ApplicationController
   rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
     redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other, alert: error.message
   end
+  def assign_public_relations
+    key = params[:request_key].to_s
+    raise ArgumentError, 'Reload the form before assigning this work.' unless key.match?(/\A[0-9a-f-]{36}\z/)
+
+    operation, label, values, expectation = public_relations_assignment
+    command = { 'kind' => 'website_marketing', 'operation' => operation, 'site_id' => @site.id, 'values' => values }
+    goal = NevaehOs::Goals.create!(actor: current_user, request_key: "public-relations-#{@site.id}-#{key}",
+      values: { 'title' => label, 'steps' => [{
+        'key' => operation, 'label' => label, 'agent' => 'marketing_strategy',
+        'command' => command, 'expectations' => [expectation]
+      }] })
+    NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
+    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'public-relations'), status: :see_other,
+      notice: "#{label} assigned to Nevaeh in Goal ##{goal.id}."
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'public-relations'), status: :see_other, alert: error.message
+  end
+
   def configure_editorial
     editorial = NevaehOs::JournalEditorial
     if params[:operation] == 'pause'
@@ -62,6 +80,20 @@ class Dashboard::BlogController < ApplicationController
     LightekBlog::Images.deliver(self, LightekBlog::Images.blob!(entry, params[:attachment_id]))
   end
   private
+  def public_relations_assignment
+    case params[:operation]
+    when 'press_release'
+      values = params.require(:brief).permit(:title, :summary, :facts, :press_email, :status).to_h
+      status = values['status'] == 'published' ? 'published' : 'draft'
+      ['press_release', 'Write press release', values.merge('status' => status), { 'path' => 'result.article_status', 'equals' => status }]
+    when 'media_pitch'
+      values = params.require(:brief).permit(:entry_id, :outlet, :angle, :recipient).to_h
+      ['media_pitch', 'Draft media pitch', values, { 'path' => 'result.body', 'present' => true }]
+    else
+      raise ArgumentError, 'Choose a press release or media pitch.'
+    end
+  end
+
   def load_site
     @sites=LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name)
     @site=params[:site_id].present? ? @sites.find(params[:site_id]) : (@sites.find_by(id:session[:dymond_dash_site_id]) || @sites.first)

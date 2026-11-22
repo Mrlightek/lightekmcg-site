@@ -71,7 +71,7 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
-      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
+      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
         return { 'kind' => 'website_marketing', 'operation' => match[1], 'site_id' => match[2].to_i,
           'values' => match[3] ? JSON.parse(match[3]) : {} }
       end

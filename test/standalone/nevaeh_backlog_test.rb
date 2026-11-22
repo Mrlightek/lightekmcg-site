@@ -20,7 +20,8 @@ ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
   create_table(:users) { |t| t.string :role }
   create_table :marlon_tickets do |t|
-    %i[number title category priority status assigned_team assigned_rep description related_type organization_name].each { |c| t.string c }
+    %i[number title category priority assigned_team assigned_rep description related_type organization_name].each { |c| t.string c }
+    t.string :status, default: "open"
     t.integer :urgency
     t.integer :submitted_by_id
     t.integer :related_id

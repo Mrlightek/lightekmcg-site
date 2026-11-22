@@ -101,6 +101,16 @@ package access, explicit video approval and the actual saved file. A draft page
 or an approved video alone does not grant public playback. No public page is
 published or external message sent merely by executing this goal.
 
+## Build a demo campaign
+
+Enable the public demo request form for the website in **Dashboard → Demos**. Ask Nevaeh to **Prepare a demo campaign for site SITE_ID**, or use **Marketing copilot** with `/request-demo` as the destination. Execute the kit to build the walkthrough. Nevaeh reads the reviewed feature catalog and automatically adds real screenshots from the Studio manuals along with the captioned overviews.
+
+Under each feature in the completed draft, choose **Add product screenshot**. Open a demo workspace with sample data, click **Capture demo window**, and select that window or tab in the browser prompt. Add a caption and save. You can also select a PNG. Review the screenshots for accuracy and private information, and remove any that should stay private. The public endpoint requires both walkthrough-media approval and CMS publication on the exact site. Approved screenshots remain fixed for that walkthrough.
+
+Publish the approved page and open **Demo campaign** to copy the tracked walkthrough link or generate promotion copy. Review the promotion in **Content review**, then use the existing publication calendar and a connected provider. The walkthrough points to the site's demo form without overwriting the inbound campaign visit. The panel counts tracked visits, demo requests, activated demos, and paid upgrades verified on their linked orders. Requests with no matching visit remain unattributed.
+
+Apply the demo attribution migration before deployment. Test the published walkthrough link, confirmation email and activation on the intended hostname. Real payment and provider publication remain deployment checks.
+
 ## Work from the kit
 
 Review the priorities first: incoming inquiries, paid delivery obligations and

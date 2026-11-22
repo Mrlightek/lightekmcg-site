@@ -1,6 +1,16 @@
 get '/g/:token', to: 'growth_links#show', as: :growth_link
 get '/feature-videos/:token/:position.mp4', to: 'feature_showcase_videos#show', as: :feature_showcase_video, constraints: {position: /[0-5]/}
 get '/dashboard/marketing-copilot/showcases/:id/videos/:position', to: 'dashboard/marketing_copilot#video', as: :preview_dashboard_feature_video
+get '/feature-videos/:token/:position/screenshots/:attachment_id', to: 'feature_showcase_videos#screenshot',
+  as: :feature_showcase_screenshot, constraints: { position: /[0-5]/, attachment_id: /[0-9]+/ }
+get '/dashboard/marketing-copilot/showcases/:id/screenshots/:position/:attachment_id', to: 'dashboard/marketing_copilot#screenshot',
+  as: :preview_dashboard_feature_screenshot
+delete '/dashboard/marketing-copilot/showcases/:id/screenshots/:position/:attachment_id', to: 'dashboard/marketing_copilot#remove_screenshot',
+  as: :remove_dashboard_feature_screenshot
+post '/dashboard/marketing-copilot/showcases/:id/screenshots/:position', to: 'dashboard/marketing_copilot#save_screenshot',
+  as: :save_dashboard_feature_screenshot
+post '/dashboard/marketing-copilot/showcases/:id/promotion', to: 'dashboard/marketing_copilot#prepare_demo_promotion',
+  as: :prepare_dashboard_demo_promotion
 post '/dashboard/marketing-copilot/showcases/:id/approve', to: 'dashboard/marketing_copilot#approve_showcase', as: :approve_dashboard_feature_showcase
 post '/dashboard/marketing-copilot/:id/execute', to: 'dashboard/marketing_copilot#execute', as: :execute_dashboard_marketing_kit
 get '/dashboard/growth', to: 'dashboard/growth#index', as: :dashboard_growth

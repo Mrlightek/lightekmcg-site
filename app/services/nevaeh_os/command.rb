@@ -102,6 +102,10 @@ module NevaehOs
         raise ArgumentError, 'Use a marketing input object' unless values.is_a?(Hash)
         return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>values}.compact
       end
+      if (m = q.match(/\A(?:please )?prepare (?:a |my )?demo campaign(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i,
+          'values'=>{'destination_path'=>'/request-demo', 'cta_label'=>'Request a demo'}}.compact
+      end
       if (m = q.match(/\A(?:please )?(?:help me market my business|prepare my marketing kit|build my marketing kit)(?:\s+(?:for\s+)?(?:site\s+)?([1-9][0-9]{0,17}))?[.!]?\z/i))
         return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>{}}.compact
       end

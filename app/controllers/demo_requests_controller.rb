@@ -12,7 +12,8 @@ class DemoRequestsController < ApplicationController
     values = params.require(:demo_request).permit(:first_name, :last_name, :email_address).to_h
     values['email_address'] = values['email_address'].to_s.strip.downcase
     if params[:website_url].blank? && !LightekAgency::DemoRequest.where(agency: @setting.agency, email_address: values['email_address']).where('invitation_queued_at > ?', 1.hour.ago).exists?
-      record = LightekAgency::DemoRequest.create!(values.merge(agency: @setting.agency))
+      visit = LightekGrowth::Tracking.from_request(site: @setting.public_site, cookies: cookies, request: request)
+      record = LightekAgency::DemoRequest.create!(values.merge(agency: @setting.agency, growth_visit: visit))
       LightekAgency::DemoRequestMailer.confirmation(record.id).deliver_later
       record.update!(invitation_queued_at: Time.current)
     end

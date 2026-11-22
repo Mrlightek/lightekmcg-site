@@ -54,6 +54,16 @@ require ROOT.join('app/services/lightek_design/catalog')
 require ROOT.join('app/services/lightek_design/website_designs')
 require ROOT.join('app/models/user_feature_entitlement')
 %w[demo_setting demo_request].each { |file| require ROOT.join("app/models/lightek_agency/#{file}") }
+ActiveRecord::Schema.define do
+  create_table(:lightek_growth_links) { |t| t.references :site; t.references :campaign; t.string :token }
+  create_table(:lightek_growth_visits) { |t| t.references :site; t.references :link; t.string :token; t.timestamps }
+end
+require ROOT.join('db/migrate/20261122125000_add_growth_attribution_to_demo_requests')
+AddGrowthAttributionToDemoRequests.new.migrate(:up)
+require ROOT.join('app/models/lightek_growth/link')
+require ROOT.join('app/models/lightek_growth/visit')
+require ROOT.join('app/services/lightek_growth/tracking')
+require ROOT.join('app/services/lightek_growth/demo_showcase')
 LightekAgency::DemoRequest.generated_token_verifier = User.generated_token_verifier
 %w[demo_content demo_upgrade demo_cleanup].each { |file| require ROOT.join("app/services/lightek_agency/#{file}") }
 class ApplicationJob
@@ -126,9 +136,15 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
   end
   def test_demo_public_request_queues_email_without_allocating_and_requires_confirmation
     before = LightekAgency::Demo.count
-    post request_demo_path, params: {demo_request: {first_name: 'Public', last_name: 'Client', email_address: 'public@example.test'}}
+    link_id = LightekGrowth::Link.insert!({site_id: @agency_site.id, campaign_id: 91, token: SecureRandom.hex(16)}, returning: [:id]).rows.first.first
+    visit = LightekGrowth::Visit.create!(site: @agency_site, link_id: link_id)
+    LightekGrowth::Tracking.stub(:from_request, ->(site:, **_args) { assert_equal @agency_site, site; visit }) do
+      post request_demo_path, params: {demo_request: {first_name: 'Public', last_name: 'Client', email_address: 'public@example.test'}}
+    end
     assert_redirected_to request_demo_path
     request = LightekAgency::DemoRequest.last
+    assert_equal visit.id, request.growth_visit_id
+    assert_equal({visits: 1, requests: 1, activated: 0, paid: 0}, LightekGrowth::DemoShowcase.funnel(@agency_site, 91))
     assert_equal before, LightekAgency::Demo.count
     assert ActiveJob::Base.queue_adapter.enqueued_jobs.any?
     token = request.generate_token_for(:confirmation)
@@ -140,6 +156,7 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
     assert_match %r{/account/setup/}, response.location
     assert_equal before + 1, LightekAgency::Demo.count
     assert_equal 'activated', request.reload.status
+    assert_equal({visits: 1, requests: 1, activated: 1, paid: 0}, LightekGrowth::DemoShowcase.funnel(@agency_site, 91))
     assert_raises(ActiveSupport::MessageVerifier::InvalidSignature) { LightekAgency::DemoRequest.find_by_token_for!(:confirmation, token) }
   end
   def test_demo_public_existing_identity_cannot_be_claimed_or_reparented

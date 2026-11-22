@@ -1,0 +1,22 @@
+<section class="sales-panel" aria-label="Demo campaign">
+  <h3>Demo campaign</h3>
+  <% if LightekGrowth::DemoShowcase.promotion_ready?(showcase, link) %>
+    <% if (origin = LightekGrowth::SearchDiscovery.origin(site)) %>
+      <% url = "#{origin}/g/#{link.token}" %>
+      <label>Tracked walkthrough link <%= text_field_tag nil, url, readonly: true, id: nil %></label>
+      <%= button_to 'Prepare walkthrough promotion', prepare_dashboard_demo_promotion_path(showcase, site_id: site.id), class: 'sales-button secondary' if @demo_variants.empty? %>
+      <% if @demo_variants.any? %>
+        <%= link_to 'Review walkthrough promotion', dashboard_campaign_content_path(site_id: site.id, campaign_id: link.campaign_id) %>
+      <% end %>
+      <%= link_to 'Open walkthrough', "#{origin}#{link.destination_path}", class: 'sales-button secondary' %>
+    <% end %>
+  <% else %>
+    <p>The promotion link requires an approved, published walkthrough at its original URL and an enabled demo request form.</p>
+  <% end %>
+  <dl>
+    <dt>Tracked visits</dt><dd><%= funnel.fetch(:visits) %></dd>
+    <dt>Demo requests</dt><dd><%= funnel.fetch(:requests) %></dd>
+    <dt>Activated demos</dt><dd><%= funnel.fetch(:activated) %></dd>
+    <dt>Paid demo upgrades</dt><dd><%= funnel.fetch(:paid) %></dd>
+  </dl>
+</section>

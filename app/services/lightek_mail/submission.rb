@@ -1,4 +1,3 @@
-require "mail"
 require "base64"
 require "stringio"
 require "digest"

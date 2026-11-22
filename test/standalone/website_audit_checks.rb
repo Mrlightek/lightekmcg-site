@@ -5,6 +5,8 @@ gem 'minitest', '~>5.0'
 require 'minitest/mock'
 require_relative 'site_content_checks'
 ActiveRecord::Schema.define do
+  create_table(:nevaeh_goals) { |t| t.references :user; t.string :title; t.string :request_key; t.string :status, default: 'draft'; t.string :error; t.timestamps }
+  create_table(:lightek_marketing_deliveries) { |t| t.references :campaign }
   create_table(:lightek_agency_site_memberships) { |t| t.references :site; t.references :user; t.references :granted_by; t.string :role }
 end
 require Rails.root.join('app/models/lightek_agency/site_membership')
@@ -28,6 +30,58 @@ AddWebsiteGrowthAudits.new.migrate(:up)
 %w[access source renderer analyzer runner fixes recommendations].each { |file| require Rails.root.join("app/services/lightek_growth/audits/#{file}") }
 require Rails.root.join('app/services/lightek_growth/playbook')
 require Rails.root.join('app/controllers/lightek_growth/audit_pages_controller')
+require Rails.root.join('db/migrate/20261122090000_add_growth_search_evidence')
+AddGrowthSearchEvidence.new.migrate(:up)
+ActiveRecord::Schema.define do
+  create_table(:lightek_growth_briefs) { |t| t.bigint :site_id; t.text :offering }
+end
+require Rails.root.join('app/models/lightek_growth/brief')
+%w[backlink search_snapshot].each { |file| require Rails.root.join("app/models/lightek_growth/#{file}") }
+%w[workspace backlink_work search_console].each { |file| require Rails.root.join("app/services/lightek_growth/#{file}") }
+require Rails.root.join('app/controllers/dashboard/search_growth_controller')
+Dashboard::SearchGrowthController.layout false
+Rails.application.routes.append do
+  eval(File.readlines(Rails.root.join('config/routes/growth.rb')).grep(/dashboard\/growth\/search/).join, binding)
+end
+Rails.application.reload_routes!
+require Rails.root.join('db/migrate/20261122090100_record_nevaeh_website_changes')
+RecordNevaehWebsiteChanges.new.migrate(:up)
+require Rails.root.join('app/models/lightek_growth/website_change')
+require Rails.root.join('app/services/nevaeh_os/website_marketing')
+require Rails.root.join('app/services/nevaeh_os/website_journal')
+require Rails.root.join('app/services/nevaeh_os/public_relations')
+%w[template_renderer submission sending_limits].each { |name| require Rails.root.join("app/services/lightek_mail/#{name}") }
+module LightekMail
+  class DeliverJob
+    def self.perform_later(_id) = true
+  end
+end
+class NevaehOsAgent < ApplicationRecord
+  belongs_to :user
+end
+ActiveRecord::Schema.define do
+  create_table(:nevaeh_os_agents) { |t| t.references :user; t.string :system_key; t.boolean :enabled; t.datetime :deleted_at }
+end
+require Rails.root.join('app/controllers/media_website_controller')
+Rails.application.routes.append do
+  eval(Rails.root.join('config/routes/media_website.rb').read, binding)
+  root to: "media_website#index"
+end
+Rails.application.reload_routes!
+require Rails.root.join('app/services/nevaeh_os/goals')
+require Rails.root.join('app/services/nevaeh_os/journal_editorial')
+require Rails.root.join('app/services/nevaeh_os/web_document')
+require Rails.root.join('app/models/nevaeh_goal')
+require Rails.root.join('db/migrate/20261028173000_create_lightek_marketing_campaigns')
+CreateLightekMarketingCampaigns.new.migrate(:up)
+ActiveRecord::Schema.define { add_column :lightek_marketing_campaigns, :media_url, :string }
+require Rails.root.join('db/migrate/20261115160000_add_campaign_content_review')
+AddCampaignContentReview.new.migrate(:up)
+require Rails.root.join('app/models/lightek_marketing/campaign')
+require Rails.root.join('app/models/lightek_marketing/content_variant')
+require Rails.root.join('app/services/lightek_marketing/content_workbench')
+require Rails.root.join('app/services/nevaeh_intelligences/writing_engine')
+require Rails.root.join('app/services/nevaeh_intelligences/editorial_direction')
 require Rails.root.join('app/controllers/dashboard/website_audits_controller')
 Dashboard::WebsiteAuditsController.layout false
 DymondSite::Page.has_one :growth_page_metadata, class_name: 'LightekGrowth::PageMetadata', foreign_key: :page_id, dependent: :destroy
@@ -57,6 +111,378 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def press_work(operation, values, actor: @user, site: @site, action_id: nil)
+    pr = NevaehOs::PublicRelations
+    command = pr.bind(actor, { 'kind' => 'public_relations', 'operation' => operation, 'site_id' => site.id, 'values' => values })
+    pr.perform!(actor: actor, command: command, action_id: action_id || (LightekGrowth::WebsiteChange.maximum(:action_id).to_i + 1))
+  end
+
+  def test_audit_pr_workflow_tracks_actual_mail_state_and_guards_pending_outreach
+    pr = NevaehOs::PublicRelations
+    @user.update!(role: 'super_admin')
+    @site.update!(host: 'lightekmcg.com')
+    domain = LightekMail::Domain.create!(name: @site.host, user: @user, verified_at: Time.current)
+    mailbox = LightekMail::Account.create!(domain: domain, user: @user, display_name: 'Press', address: 'press@lightekmcg.com')
+    other_domain = LightekMail::Domain.create!(name: 'other.example', user: @marketer, verified_at: Time.current)
+    foreign = LightekMail::Account.create!(domain: other_domain, user: @marketer, display_name: 'Other', address: 'press@other.example')
+    assert_raises(ArgumentError) { pr.configure!(site: @site, actor: @user, enabled: true, mailbox_id: foreign.id) }
+    assert_raises(ArgumentError) { pr.configure!(site: @site, actor: @marketer, enabled: true, mailbox_id: foreign.id) }
+    assert_raises(ArgumentError) { press_work('report', {}) }
+    pr.configure!(site: @site, actor: @user, enabled: true, mailbox_id: mailbox.id)
+    agent = NevaehOsAgent.create!(user_id: @user.id, system_key: 'public_relations', enabled: true)
+
+    facts = { 'title' => 'Creator showcase', 'summary' => 'Independent production showcase', 'facts' => 'Creators will host a Q&A.',
+      'press_email' => mailbox.address, 'status' => 'published' }
+    release = press_work('press_release', facts)
+    attrs = { 'entry_id' => release.fetch('entry_id'), 'outlet' => 'Local Media', 'angle' => 'For your readers.',
+      'recipient' => 'editor@localmedia.example' }
+    pitch = press_work('media_pitch', attrs)
+    send_values = { 'pitch_id' => pitch.fetch('change_id') }
+    assert_raises(ArgumentError) { press_work('send_pitch', send_values) }
+    press_work('contact', { 'email' => attrs.fetch('recipient'), 'outlet' => attrs.fetch('outlet'), 'contact_basis' => 'Editorial contact page' })
+    queued = press_work('send_pitch', send_values)
+    assert_equal 'queued', queued.fetch('delivery_state')
+    message = mailbox.messages.find(queued.fetch('message_id'))
+    assert_equal [attrs.fetch('recipient')], message.to_addresses
+    assert_equal message.id, press_work('send_pitch', send_values).fetch('message_id')
+    assert_equal 1, mailbox.messages.count
+    assert pr.delivery_allowed?(message, mailbox)
+    agent.update!(enabled: false)
+    refute pr.delivery_allowed?(message, mailbox)
+    agent.update!(enabled: true)
+    assert_equal 'queued', press_work('report', {}).fetch('pitches').first.fetch('delivery')
+    assert_raises(ArgumentError) { press_work('follow_up', send_values.merge('angle' => 'Can I send more details?')) }
+
+    message.update!(state: 'sent', submitted_at: 4.days.ago)
+    followup = press_work('follow_up', send_values.merge('angle' => 'Can I send more details?'))
+    followup_message = mailbox.messages.find(followup.fetch('message_id'))
+    assert_equal "<#{message.message_id}>", followup_message.in_reply_to
+    assert pr.delivery_allowed?(followup_message, mailbox)
+    mailbox.messages.create!(direction: 'inbound', state: 'inbox', from_address: attrs.fetch('recipient'),
+      message_id: 'reply@localmedia.example', in_reply_to: message.message_id)
+    refute pr.delivery_allowed?(followup_message, mailbox)
+    assert press_work('report', {}).fetch('pitches').first.fetch('replied')
+
+    url = 'https://localmedia.example/showcase'
+    document = { url: url, title: 'Events', body: 'Local Media covered Lightek Media at the showcase.', sha256: 'source-digest' }
+    NevaehOs::WebDocument.stub(:fetch, document) do
+      scanned = press_work('monitor', { 'url' => url, 'phrase' => 'Lightek Media' })
+      assert scanned.fetch('matched')
+      assert_includes scanned.fetch('excerpt'), 'Lightek Media'
+      refute press_work('monitor', { 'url' => url, 'phrase' => 'Different brand' }).fetch('matched')
+    end
+    assert_raises(ArgumentError) { press_work('monitor', { 'url' => 'http://bad.example', 'phrase' => 'Private' }) }
+
+    coverage = press_work('coverage', attrs.slice('entry_id', 'outlet').merge('url' => 'https://localmedia.example/showcase', 'notes' => 'Event mention'))
+    assert_equal 'https://localmedia.example/showcase', coverage.fetch('url')
+    press_work('response_brief', { 'title' => 'Private inquiry', 'facts' => 'Confirmed details', 'response' => 'Proposed wording', 'next_update' => 'Tomorrow' })
+    pr_ids = NevaehOs::Command.parse('Review PR activity for site 12')
+    assert_equal ['public_relations', 'report', 12], pr_ids.values_at('kind', 'operation', 'site_id')
+
+    host! @site.host
+    get '/dashboard/blog', params: { site_id: @site.id }, headers: { 'X-Pwa-Test-User' => @user.id.to_s }
+    assert_response :success
+    assert_includes response.body, 'Private inquiry'
+    assert_includes response.body, 'Event mention'
+    assert_equal 'private, no-store', response.headers['Cache-Control']
+    get '/media/press'
+    assert_response :success
+    refute_includes response.body, 'Private inquiry'
+    refute_includes response.body, attrs.fetch('recipient')
+
+    withdrawn = press_work('release_status', release.slice('entry_id', 'revision').merge('status' => 'archived'))
+    refute withdrawn.fetch('published')
+    refute pr.delivery_allowed?(message, mailbox)
+    press_work('release_status', withdrawn.slice('entry_id', 'revision').merge('status' => 'published'))
+    assert pr.delivery_allowed?(message, mailbox)
+    press_work('suppress', { 'email' => attrs.fetch('recipient') })
+    refute pr.delivery_allowed?(message, mailbox)
+    command = pr.bind(@user, { 'site_id' => @site.id, 'operation' => 'report', 'values' => {} })
+    pr.configure!(site: @site, actor: @user, enabled: false)
+    pr.configure!(site: @site, actor: @user, enabled: true, mailbox_id: mailbox.id)
+    assert_raises(ArgumentError) { pr.authorize!(@user, command) }
+    refute pr.delivery_allowed?(message, mailbox)
+  end
+
+  def test_audit_public_relations_keeps_pitch_drafts_private_and_lists_only_live_releases
+    marketing = NevaehOs::WebsiteMarketing
+    @site.update!(host: 'lightekmcg.com', manifest: @site.manifest.merge(marketing::KEY => { 'actor_id' => @user.id, 'key' => 'press-grant' }))
+    host! @site.host
+    values = { 'title' => 'Lightek announces a creator showcase', 'summary' => 'The showcase highlights independent production.',
+      'facts' => 'The showcase will include a live Q&A with creators.', 'press_email' => 'press@lightekmcg.com' }
+    command = marketing.bind(@user, { 'site_id' => @site.id, 'operation' => 'press_release', 'values' => values })
+    private_release = marketing.perform!(actor: @user, command: command, action_id: 301)
+    refute private_release.fetch('published')
+    get private_release.fetch('path')
+    assert_response :not_found
+
+    pitch = command.merge('operation' => 'media_pitch', 'values' => { 'entry_id' => private_release.fetch('entry_id'), 'outlet' => 'Local Media',
+      'angle' => 'Your readers cover independent production and local creators.', 'recipient' => 'editor@localmedia.test' })
+    assert_raises(ActiveRecord::RecordNotFound) { marketing.perform!(actor: @user, command: pitch, action_id: 302) }
+
+    published = command.merge('values' => values.merge('title' => 'Lightek opens showcase registration', 'status' => 'published'))
+    release = marketing.perform!(actor: @user, command: published, action_id: 303)
+    assert release.fetch('published')
+    get '/media/press'
+    assert_response :success
+    assert_includes response.body, 'Lightek opens showcase registration'
+    refute_includes response.body, 'Lightek announces a creator showcase'
+    get release.fetch('path')
+    assert_response :success
+    assert_includes response.body, 'mailto:press@lightekmcg.com'
+
+    pitch['values']['entry_id'] = release.fetch('entry_id')
+    drafted = marketing.perform!(actor: @user, command: pitch, action_id: 304)
+    assert_includes drafted.fetch('subject'), 'Local Media'
+    assert_includes drafted.fetch('body'), release.fetch('path')
+    assert_equal drafted, marketing.perform!(actor: @user, command: pitch, action_id: 304)
+    get '/dashboard/blog', params: { site_id: @site.id }, headers: headers
+    assert_response :success
+    assert_includes response.body, 'Review in email app'
+    assert_includes response.body, 'editor@localmedia.test'
+    get release.fetch('path')
+    refute_includes response.body, 'editor@localmedia.test'
+  end
+
+  def test_audit_editorial_schedule_selects_new_approved_material_and_prepares_public_sharing
+    marketing = NevaehOs::WebsiteMarketing
+    editorial = NevaehOs::JournalEditorial
+    @site.update!(manifest: @site.manifest.merge(marketing::KEY => { 'actor_id' => @user.id, 'key' => 'editorial-grant' }))
+    source = 'https://journal-source.test/updates'
+    config = { topics: "Studio
+Payroll", sources: source, cadence: 'weekly', article_status: 'published', social_draft: '1' }
+    patch '/dashboard/blog/configure_editorial', params: { site_id: @site.id, editorial: config }, headers: headers
+    assert_response :see_other
+    schedule = LightekBlog::EditorialSchedule.find_by!(site: @site)
+    assert schedule.enabled?
+    assert schedule.social_draft?
+    assert_operator schedule.next_run_at, :<=, Time.current
+
+    now = Time.current
+    plan = NevaehGoal.create!(user: @user, title: 'Editorial cycle', request_key: 'editorial-fixture')
+    captures = []
+    create = ->(actor:, values:, request_key:) { captures << [actor, values, request_key]; plan }
+    start = ->(goal:, actor:, operation:) { assert_equal [plan, @user, 'start'], [goal, actor, operation]; goal.update!(status: 'running') }
+    NevaehOs::Goals.stub(:create!, create) do
+      NevaehOs::Goals.stub(:control!, start) do
+        editorial.dispatch!(schedule, now: now)
+        editorial.dispatch!(schedule, now: now)
+      end
+    end
+    assert_equal 1, captures.length
+    assert_in_delta (now + 1.week).to_f, schedule.reload.next_run_at.to_f, 0.001
+    steps = captures.first[1].fetch('steps')
+    assert_equal %w[research article promote], steps.pluck('key')
+    assert_equal({ '$step' => 'research', 'path' => 'result.story' }, steps[1].dig('command', 'values', 'story'))
+
+    read = ->(url, follow_redirects:) do
+      assert_equal source, url
+      refute follow_redirects
+      { url: source, title: 'Creator tools update', sha256: 'source-digest', body: "Unrelated
+Lightek Studio now helps creators record and edit interviews together from their own computers." }
+    end
+    research = marketing.bind(@user, steps[0].fetch('command'))
+    NevaehOs::WebDocument.stub(:fetch, read) do
+      story = marketing.perform!(actor: @user, command: research, action_id: 201).fetch('story')
+      assert_equal 'Studio', story.fetch('topic')
+      write = marketing.bind(@user, steps[1].fetch('command'))
+      write['values']['story'] = story
+      saved = marketing.perform!(actor: @user, command: write, action_id: 202)
+      assert saved.fetch('published')
+      assert_equal source, saved.fetch('source_url')
+      get saved.fetch('path')
+      assert_response :success
+      assert_includes response.body, 'href="https://journal-source.test/updates"'
+      assert_includes response.body, 'Share to'
+      assert_includes response.body, 'linkedin.com/sharing/share-offsite'
+      assert_raises(ArgumentError) { marketing.perform!(actor: @user, command: research, action_id: 203) }
+
+      promote = marketing.bind(@user, steps[2].fetch('command'))
+      promote['values']['entry_id'] = saved.fetch('entry_id')
+      promotion = marketing.perform!(actor: @user, command: promote, action_id: 204)
+      assert_equal 'draft', promotion.fetch('campaign_status')
+      assert_equal promotion, marketing.perform!(actor: @user, command: promote, action_id: 204)
+      draft = LightekMarketing::ContentVariant.find(promotion.fetch('variant_id'))
+      assert_equal "https://#{@site.host}#{saved.fetch('path')}", draft.cta_url
+      assert_equal saved.fetch('entry_id'), draft.source_snapshot.fetch('journal_entry_id')
+      workbench = LightekMarketing::ContentWorkbench.new(actor: @user, site: @site)
+      workbench.send(:validate_source!, draft)
+      draft.cta_url = 'https://different.test/article'
+      assert_raises(ArgumentError) { workbench.send(:validate_source!, draft) }
+      editorial.pause!(site: @site, actor: @user)
+      assert_raises(ArgumentError) { marketing.perform!(actor: @user, command: write, action_id: 205) }
+    end
+  end
+
+  def test_audit_delegated_marketing_writes_and_publishes_native_journal_articles
+    operator = NevaehOs::WebsiteMarketing
+    grant = { 'actor_id' => @user.id, 'key' => 'fixture-grant' }
+    @site.update!(manifest: @site.manifest.merge(operator::KEY => grant))
+    get '/dashboard/blog', params: { site_id: @site.id }, headers: headers
+    assert_response :success
+    assert_includes response.body, 'Assign an article to Nevaeh'
+    assert_includes response.body, '/dashboard/blog/assign_nevaeh'
+
+    create_goal = lambda do |actor:, request_key:, values:|
+      assert_equal @user, actor
+      assert_match(/\Ajournal-#{@site.id}-/, request_key)
+      step = values.fetch('steps').sole
+      assert_equal 'marketing_strategy', step.fetch('agent')
+      assert_equal 'journal_write', step.dig('command', 'operation')
+      assert_equal 'draft', step.dig('command', 'values', 'status')
+      Struct.new(:id, :status).new(123, 'draft')
+    end
+    start_goal = ->(goal:, actor:, operation:) { assert_equal [123, @user, 'start'], [goal.id, actor, operation] }
+    NevaehOs::Goals.stub(:create!, create_goal) do
+      NevaehOs::Goals.stub(:control!, start_goal) do
+        post '/dashboard/blog/assign_nevaeh', params: { site_id: @site.id, request_key: SecureRandom.uuid,
+          assignment: { title: 'Inside Lightek Studio', facts: 'Creators can edit a show in Lightek Studio.' } }, headers: headers
+        assert_response :see_other
+      end
+    end
+
+    draft = operator.bind(@user, { 'site_id' => @site.id, 'operation' => 'journal_write', 'values' => {
+      'title' => 'Inside Lightek Studio', 'category' => 'News',
+      'brief' => { 'facts' => 'Creators can record and edit a show in Lightek Studio.' }
+    } })
+    receipt = operator.perform!(actor: @user, command: draft, action_id: 11)
+    assert_equal 'draft', receipt.fetch('article_status')
+    assert_equal receipt, operator.perform!(actor: @user, command: draft, action_id: 11)
+    path = receipt.fetch('path')
+    get path
+    assert_response :not_found
+
+    entry = LightekBlog::Entry.find(receipt.fetch('entry_id'))
+    inspect_command = draft.merge('operation' => 'journal_inspect', 'values' => { 'entry_id' => entry.id })
+    article = operator.perform!(actor: @user, command: inspect_command, action_id: 12)
+    assert_includes article.fetch('content'), 'Creators can record and edit a show in Lightek Studio.'
+    revised = LightekBlog::Editor.save!(site: @site, user: @user, entry: entry,
+      attributes: { title: entry.post.title, content: article.fetch('content') + "\n\nA note from the editor.", slug: entry.slug,
+        category: entry.category, status: entry.status, lock_version: entry.lock_version })
+    publish = draft.merge('values' => { 'entry_id' => entry.id, 'revision' => article.fetch('revision'), 'status' => 'published' })
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: publish, action_id: 13) }
+    publish['values']['revision'] = revised.lock_version
+    live = operator.perform!(actor: @user, command: publish, action_id: 13)
+    assert live.fetch('published')
+    get path
+    assert_response :success
+    assert_includes response.body, 'A note from the editor.'
+    get '/journal.xml'
+    assert_response :success
+    assert_includes response.body, 'Inside Lightek Studio'
+
+    foreign_entry = LightekBlog::Editor.save!(site: @foreign, user: @other,
+      attributes: { title: 'Other news', content: 'Private facts', slug: 'other-news' })
+    assert_raises(ActiveRecord::RecordNotFound) do
+      operator.perform!(actor: @user, command: inspect_command.merge('values' => { 'entry_id' => foreign_entry.id }), action_id: 14)
+    end
+    @site.update!(manifest: @site.reload.manifest.except(operator::KEY))
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: publish, action_id: 15) }
+  end
+
+  def test_audit_delegated_marketing_renders_public_copy_and_rejects_stale_or_revoked_work
+    operator = NevaehOs::WebsiteMarketing
+    @site.update!(manifest: @site.manifest.merge(operator::KEY => { 'actor_id' => @user.id, 'key' => 'fixture-grant' }))
+    values = { 'title' => 'Book Studio', 'slug' => 'book-studio', 'published' => true, 'description' => 'Book a production session.',
+      'sections' => [{ 'block' => 'hero', 'data' => { 'heading' => 'Make your next show', 'body' => 'Record, edit and publish.' } }] }
+    command = operator.bind(@user, { 'site_id' => @site.id, 'operation' => 'compose', 'values' => values })
+    receipt = operator.perform!(actor: @user, command: command, action_id: 1)
+    assert receipt.fetch('published')
+    assert_equal receipt, operator.perform!(actor: @user, command: command, action_id: 1)
+
+    @site.update!(manifest: @site.reload.manifest.merge('hosted_application_key' => 'test'))
+    get '/site/book-studio'
+    assert_response :success
+    assert_includes response.body, 'Make your next show'
+    assert_includes response.body, 'Book a production session.'
+
+    page = @site.pages.find(receipt.fetch('page_id'))
+    updated = command.merge('values' => values.merge('page_id' => page.id, 'revision' => receipt.fetch('revision'), 'title' => 'Updated page'))
+    update_receipt = operator.perform!(actor: @user, command: updated, action_id: 2)
+    restore = command.merge('operation' => 'restore', 'values' => {
+      'page_id' => page.id, 'revision' => update_receipt.fetch('revision'), 'change_id' => update_receipt.fetch('change_id')
+    })
+    restored = operator.perform!(actor: @user, command: restore, action_id: 3)
+    assert_equal 'Book Studio', page.reload.title
+    assert restored.fetch('published')
+
+    inspected = operator.perform!(actor: @user, command: command.merge('operation' => 'inspect', 'values' => {}), action_id: 4)
+    appearance = command.merge('operation' => 'appearance', 'values' => {
+      'revision' => inspected.fetch('appearance_revision'), 'design' => 'vinylctrl', 'colors' => { 'color_primary' => '#112233' }
+    })
+    result = operator.perform!(actor: @user, command: appearance, action_id: 5)
+    assert_equal '#112233', @site.reload.active_template.settings.dig('tokens', 'color_primary')
+    refute_equal inspected.fetch('appearance_revision'), result.fetch('appearance_revision')
+
+    page.update!(title: 'A newer edit')
+    publish = command.merge('operation' => 'publication', 'values' => {
+      'page_id' => page.id, 'revision' => receipt.fetch('revision'), 'published' => false
+    })
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: publish, action_id: 6) }
+    assert page.reload.published?
+    assert_raises(ActiveRecord::RecordNotFound) do
+      operator.perform!(actor: @user, command: command.merge('site_id' => @foreign.id), action_id: 7)
+    end
+
+    operator.configure!(actor: @user, site_id: @site.id, enabled: false)
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: command, action_id: 8) }
+    assert_equal 4, LightekGrowth::WebsiteChange.where(site_id: @site.id).count
+  end
+
+  def test_audit_search_growth_import_and_draft_permissions
+    work = LightekGrowth::BacklinkWork.new(actor: @user, site: @site)
+    target = "https://#{@site.host}/site/home"
+    source = 'https://publication.test/article'
+    prospect = work.record!(source: source, target: target, status: 'prospect')
+    assert_raises(ArgumentError) { work.authorize_draft!(id: prospect.id, version: 'outdated') }
+    assert_raises(ActiveRecord::RecordNotFound) do
+      LightekGrowth::BacklinkWork.new(actor: @other, site: @foreign).authorize_draft!(id: prospect.id, version: prospect.updated_at.iso8601(6))
+    end
+    draft = work.authorize_draft!(id: prospect.id, version: prospect.updated_at.iso8601(6))
+    assert_equal @user.id, draft.approved_by_id
+    assert_includes draft.outreach_draft, target
+
+    work.record!(source: source, target: target, status: 'lost')
+    csv = "Source URL,Target URL\n#{source},#{target}\n"
+    assert_equal 1, work.import!(StringIO.new(csv))
+    assert_equal 'lost', prospect.reload.status
+    assert_nil prospect.approved_at
+    assert_equal 1, LightekGrowth::Backlink.where(site: @site).count
+
+    get dashboard_search_growth_path(site_id: @site.id), headers: headers
+    assert_response :success
+    assert_includes response.body, 'Search &amp; backlinks'
+    assert_includes response.body, source
+  end
+
+  def test_audit_search_console_scopes_results_and_records_observed_metrics
+    sync = LightekGrowth::SearchConsole.new(actor: @user, site: @site)
+    requests = []
+    page = "https://#{@site.host}/site/home"
+    sync.define_singleton_method(:post) do |uri, data, token: nil|
+      requests << [uri, data, token]
+      case uri.host
+      when 'oauth2.googleapis.com' then { 'access_token' => 'fixture' }
+      when 'www.googleapis.com'
+        row = { 'keys' => [page, 'business software'], 'clicks' => 2, 'impressions' => 200, 'ctr' => 0.01, 'position' => 5 }
+        { 'rows' => [row, row.merge('keys' => ['https://other.test/', 'unrelated'])] }
+      else
+        { 'inspectionResult' => { 'indexStatusResult' => { 'verdict' => 'PASS' } } }
+      end
+    end
+    credential = { 'client_id' => 'example', 'client_secret' => 'example', 'refresh_token' => 'example' }
+    LightekVault::Service.stub(:checkout!, credential) do
+      assert_raises(ArgumentError) { sync.sync!(inspection_url: 'https://other.test/') }
+      snapshot = sync.sync!(inspection_url: page)
+      assert_equal 3, requests.size
+      assert_equal "https://#{@site.host}/", snapshot.property
+      assert_equal 28, (snapshot.ends_on - snapshot.starts_on).to_i + 1
+      assert_equal 1, snapshot.rows.size
+      assert_equal page, snapshot.review_candidate.fetch('page')
+      assert_equal 'PASS', snapshot.inspection.fetch('verdict')
+    end
+  end
+
   def test_audit_native_output_has_evidence_and_only_published_site_pages
     @site.pages.create!(title: 'Draft', slug: 'draft', published: false)
     @foreign.pages.create!(title: 'Foreign', slug: 'secret', published: true)
@@ -82,6 +508,7 @@ class WebsiteAuditChecks < SiteContentChecks
     fix = preview(value: 'Tools for creators <and> businesses.')
     refute LightekGrowth::PageMetadata.exists?(page: @page)
     refute_includes html, 'name="description"'
+    assert_includes html, %(rel="canonical" href="https://#{@site.host}/site/home")
     assert_equal 'prepared', fix.status
     fixer.apply!(id: fix.id, version: fix.lock_version)
     assert_equal 'applied', fix.reload.status

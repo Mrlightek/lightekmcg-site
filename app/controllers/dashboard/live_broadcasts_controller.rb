@@ -15,6 +15,13 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     access=LightekCommunity::Access.new(user:current_user,site_id:@site.id)
     @communities=access.communities.select{|community|access.super_admin? || community.member?(current_user.profile)}
     site = @site
+    @host_package = NevaehOs::LiveShow.for_host!(current_user, site, params[:show_id]) if params[:show_id].present?
+    @show_actions = recent_show_actions(site) unless @host_package
+    @prepared_scene_id = @host_package ? @host_package['scene_id'] : params[:scene_id]
+    @host_destination = @host_package&.fetch('destination')
+    if (@host_destination.in?(%w[restream simulcast]) && !@restream_ready) || (@host_destination == 'tiktok' && !@tiktok_ready)
+      @host_destination = 'test'
+    end
     if site.tenant.is_a?(User)
       demo_site = LightekAgency::DemoSetting.find_by(agency: site.tenant, public_enabled: true)&.public_site
       if demo_site&.tenant == site.tenant && demo_site.host.present?
@@ -41,8 +48,8 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     rooms = rooms.where(host_user_id: current_user.id) unless current_user.role == 'super_admin' || @site.tenant == current_user
     @session_rooms = rooms.includes(:resource).order(:starts_at).limit(100)
     @production_scenes = StudioScene.where(studio_project_id:actor.projects.where(site_id:site.id).select(:id)).includes(:studio_project).order(updated_at: :desc).limit(100).to_a
-    if params[:scene_id].present?
-      selected=Studio::Live::ProductionPreset.new(user:current_user,site:site).scene!(params[:scene_id])
+    if @prepared_scene_id.present?
+      selected=Studio::Live::ProductionPreset.new(user:current_user,site:site).scene!(@prepared_scene_id)
       @production_scenes.unshift(selected) unless @production_scenes.any?{|scene|scene.id==selected.id}
     end
     @playout_channels = []
@@ -57,6 +64,24 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     settings = Studio::Live::Audience.settings(current_user)
     @audience_connections = {tiktok: settings['tiktok_username'], ssn: settings['ssn_session'].present?, restream: @restream_chat_url.present?}
     @recent = Studio::Live::Sessions.for_user(current_user).order(id: :desc).limit(8)
+  end
+  def prepare_show
+    site = live_site
+    raise ActiveRecord::RecordNotFound unless site
+
+    request_key = params[:request_key].to_s
+    raise ArgumentError, 'Reload the show form before assigning it.' unless request_key.match?(/\A[0-9a-f-]{36}\z/)
+
+    fields = params.require(:show).permit(:title, :brief, :destination, :scene_id, :house_look, :subtitle).to_h
+    command = { 'kind' => 'live_show', 'site_id' => site.id, 'values' => fields }
+    NevaehOs::LiveShow.authorize!(current_user, command)
+    goal = NevaehOs::Goals.create!(actor: current_user, request_key: "live-show-#{request_key}",
+      values: { 'title' => fields.fetch('title'), 'steps' => [{
+        'key' => 'prepare_show', 'agent' => NevaehOs::LiveShow::ROLE, 'command' => command,
+        'expectations' => [{ 'path' => 'result.host_path', 'present' => true }]
+      }] })
+    NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
+    redirect_to dashboard_live_path(site_id: site.id), notice: "Assigned to the Live Broadcast Producer in Goal ##{goal.id}.", status: :see_other
   end
   def production
     site=live_site
@@ -105,6 +130,12 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     send_file path, type: "video/mp4", disposition: "attachment", filename: "lightek-live-test-#{operation.id}.mp4"
   end
   private
+  def recent_show_actions(site)
+    NevaehOsAction.where(user: current_user, status: 'completed')
+      .where("command ->> 'kind' = ? AND CAST(command ->> 'site_id' AS TEXT) = ?", 'live_show', site.id.to_s)
+      .order(id: :desc).limit(8)
+  end
+
   def live_site
     return LightekPwa::Policy.sites_for(current_user).find(params[:site_id]) if params[:site_id].present?
     LightekPwa::SiteContext.resolve(request.host)

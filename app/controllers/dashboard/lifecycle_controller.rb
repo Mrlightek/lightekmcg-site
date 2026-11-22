@@ -12,6 +12,7 @@ class Dashboard::LifecycleController < Dashboard::SettingsHomeController
   end
   def index
     @cases = LightekPeople::LifecycleCase.where(employer: @employer).includes(:subject, :created_by).order(created_at: :desc).limit(100)
+    @cases = @cases.where(id: params[:case_id]) if params[:case_id].present?
     @people = LightekPeople::Employment.where(employer: @employer).includes(:worker).order(:title)
     @agencies = User.where(agency_id: @employer.id, role: 'white_label').order(:email_address)
   end
@@ -45,13 +46,9 @@ class Dashboard::LifecycleController < Dashboard::SettingsHomeController
   private
   def back!(message) = redirect_to(dashboard_lifecycle_path(employer_id: @employer.id), notice: message, status: :see_other)
   def context!
-    @employers = current_user.role == 'super_admin' ? User.where(role: LightekPeople::Access::BUSINESS_ROLES) : LightekPeople::Access.employers_for(current_user)
+    @employers = LightekPeople::Lifecycle.employers_for(current_user)
     @employer = params[:employer_id].present? ? @employers.find(params[:employer_id]) : (@employers.find_by(id: current_user.id) || @employers.first!)
-    unless current_user.role == 'super_admin'
-      access = LightekPeople::Access.new(actor: current_user, employer: @employer)
-      access.require_active!
-      raise LightekPeople::Access::Denied unless access.people_admin? || access.directory_admin?
-    end
+    LightekPeople::Lifecycle.authorize_review!(actor: current_user, employer: @employer)
     @workflow = LightekPeople::Lifecycle.new(actor: current_user, employer: @employer)
   end
 end

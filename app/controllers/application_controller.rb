@@ -1,4 +1,6 @@
 class ApplicationController < ActionController::Base
+  include LightekExperiments::ControllerMethods
+
   skip_authorization_check
   #allow_browser versions: :modern
   # ── Rails 8 native auth helpers ───────────────────────────────────────────────

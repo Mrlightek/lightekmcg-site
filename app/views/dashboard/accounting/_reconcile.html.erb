@@ -3,3 +3,20 @@
 <section class="lp-card"><h2>Reconciliation history</h2><% @reconciliations.each do |record| %><article class="lp-election"><div><strong><%= record.bank_account.name %> · <%= record.starts_on %> – <%= record.ends_on %></strong><p><%= record.status.humanize %> · ending <%= accounting_money(record.data['ending_cents']) %></p></div><% if @can_review && record.status == 'final' %><%= button_to 'Reopen latest period',reopen_dashboard_accounting_reconciliation_path(record,employer_id: @employer.id,book_id: @book.id),class: 'lp-button secondary' %><% end %></article><% end %></section>
 
 <%= javascript_include_tag "/lightek/accounting-live.js",defer: true %>
+
+<% if @can_review && @statement_imports.any? %>
+  <section class="lp-card">
+    <h2>Have Nevaeh reconcile a statement</h2>
+    <p>Use a complete committed statement and verify its opening and closing balances. Nevaeh finalizes the period when the imported entries match and both proofs balance.</p>
+    <%= form_with url: dashboard_accounting_reconcile_statement_path(employer_id: @employer.id, book_id: @book.id), class: 'lp-form' do |form| %>
+      <label>Committed statement <%= form.collection_select :import_id, @statement_imports, :id, ->(statement) { "#{statement.bank_account.name} · Import ##{statement.id}" } %></label>
+      <div class="lp-grid">
+        <label>Statement starts <%= form.date_field :starts_on, required: true %></label>
+        <label>Statement ends <%= form.date_field :ends_on, required: true %></label>
+        <label>Starting balance (USD) <%= form.number_field :starting_amount, step: '0.01', required: true %></label>
+        <label>Ending balance (USD) <%= form.number_field :ending_amount, step: '0.01', required: true %></label>
+      </div>
+      <%= form.submit 'Queue statement reconciliation', class: 'lp-button' %>
+    <% end %>
+  </section>
+<% end %>

@@ -1,0 +1,18 @@
+<section class="panel">
+  <h2><%= @asset.name %></h2>
+  <p>Asset ID <code><%= @asset.id %></code></p>
+  <p><%= link_to "Download asset", file_studio_animation_asset_path(@asset, site_id: @site.id) %></p>
+  <% if @asset.animation_role? %>
+    <p><%= @asset.file.filename %></p>
+    <%= render "form", asset: @asset %>
+    <%= button_to "Delete asset", studio_animation_asset_path(@asset, site_id: @site.id), method: :delete %>
+  <% else %>
+    <p>Starter asset · 3D</p>
+    <ul>
+      <% Array(@asset.metadata.dig("source", "credits")).each do |credit| %>
+        <li><%= [credit["name"], credit["credit"], credit["license"]].compact.join(" · ") %></li>
+      <% end %>
+    </ul>
+    <%= link_to "Open Character Builder", "/lightek/#/studio/rigged" %>
+  <% end %>
+</section>

@@ -19,6 +19,50 @@ module NevaehOs
         /add (?:a )?(?<category>meeting|personal|travel|screening|follow_up) (?:called|named) (?<title>#{QUOTED}) to my CEO agenda from (?<starts_at>#{TIMESTAMP}) to (?<ends_at>#{TIMESTAMP})/i,
         'Add a meeting called "Launch review" to my CEO agenda from 2026-11-30T14:00 to 2026-11-30T14:30'
       ],
+      'hosting.fleet.rollback' => [
+        /confirm rollback (?:of )?fleet target #?(?<target_id>[1-9]\d{0,17})/i,
+        'Confirm rollback of fleet target #42'
+      ],
+      'hosting.fleet.recovery.status' => [
+        /(?:check|show) recovery (?:for|of) fleet target #?(?<target_id>[1-9]\d{0,17})/i,
+        'Check recovery for fleet target #42'
+      ],
+      'hosting.fleet.backup.drill' => [
+        /test (?:the )?backup restore for fleet target #?(?<target_id>[1-9]\d{0,17})/i,
+        'Test backup restore for fleet target #42'
+      ],
+      'hosting.fleet.backup.status' => [
+        /(?:check|show) backup restore drill #?(?<operation_id>[1-9]\d{0,17})/i,
+        'Check backup restore drill #42'
+      ],
+      'hosting.project.dns.repair' => [
+        /repair (?:missing )?dns for project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Repair missing DNS for project #42'
+      ],
+      'mail.mailbox.receiving.repair' => [
+        /repair (?:missing )?receiving dns for mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Repair missing receiving DNS for mailbox #42'
+      ],
+      'support.ticket.confirm_resolution' => [
+        /confirm (?:my )?(?:support )?ticket (?<ticket_number>LT-[A-Z0-9-]{1,30}) is fixed/i,
+        'Confirm my support ticket LT-1042 is fixed'
+      ],
+      'support.ticket.reply' => [
+        /post (?:a )?support reply to ticket (?<ticket_number>LT-[A-Z0-9-]{1,30}) with (?<detail>#{QUOTED})/i,
+        'Post a support reply to ticket LT-1042 with "Please check incoming mail again."'
+      ],
+      'identity.lifecycle.review' => [
+        /review lifecycle case #?(?<case_id>[1-9]\d{0,17}) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Review lifecycle case #42 for employer #3'
+      ],
+      'identity.directory.grant.review' => [
+        /review access grant #?(?<grant_id>[1-9]\d{0,17}) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Review access grant #42 for employer #3'
+      ],
+      'identity.sso.containment.review' => [
+        /review sso session revocation for membership #?(?<membership_id>[1-9]\d{0,17}) at employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Review SSO session revocation for membership #42 at employer #3'
+      ],
       'accounting.workspace.open' => [
         /open (?:the )?(?:books|accounting|books and accounting) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
         'Open accounting for employer #42'
@@ -38,6 +82,18 @@ module NevaehOs
       'hosting.server.status' => [
         /(?:show|check) (?:the )?(?:status of )?server #?(?<node_id>[1-9]\d{0,17})/i,
         'Check server #3'
+      ],
+      'hosting.project.healthcheck' => [
+        /(?:run|queue) (?:a )?health check for project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Run a health check for project #42'
+      ],
+      'hosting.project.health.status' => [
+        /(?:show|check) (?:the )?health status (?:of|for) project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Show health status for project #42'
+      ],
+      'hosting.project.health.monitor' => [
+        /(?<operation>enable|pause) (?:automatic )?health (?:checks|monitoring) for project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Enable automatic health checks for project #42'
       ],
       'hosting.fleet.rollout.list' => [
         /(?:show|list) (?:me )?(?:the )?fleet rollouts/i,
@@ -59,6 +115,10 @@ module NevaehOs
         /(?:show|check) (?:the )?(?:status of )?mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
         'Check mailbox #3'
       ],
+      'mail.mailbox.receiving.check' => [
+        /(?:check|test) (?:the )?(?:incoming mail DNS|receiving DNS) for mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Check receiving DNS for mailbox #3'
+      ],
       'mail.message.search' => [
         /search (?:the )?(?<folder>inbox|unread|junk|starred|sent|draft|outbox|archived|all|trash) in mailbox #?(?<mailbox_id>[1-9]\d{0,17}) for (?<query>#{QUOTED})/i,
         'Search inbox in mailbox #3 for "Proposal"'
@@ -66,6 +126,10 @@ module NevaehOs
       'mail.message.open' => [
         /open (?:mail )?message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
         'Open message #42 in mailbox #3'
+      ],
+      'mail.message.resume_queued' => [
+        /resume delivery of queued message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Resume delivery of queued message #42 in mailbox #3'
       ],
       'mail.message.flag' => [
         /set (?:mail )?message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17}) (?<flag>archived|trashed|starred|unread|junk) to (?<value>true|false)/i,
@@ -192,7 +256,8 @@ module NevaehOs
         payload = match.named_captures.transform_values do |value|
           value.start_with?('"') ? JSON.parse(value) : value
         end
-        payload['confirmed'] = true if %w[sales.quote.accept mail.draft.send hosting.fleet.rollout.control].include?(intent)
+        payload['confirmed'] = true if %w[sales.quote.accept mail.draft.send hosting.fleet.rollout.control hosting.fleet.rollback support.ticket.confirm_resolution].include?(intent)
+        payload['ticket_number']&.upcase!
         payload['currency']&.upcase!
         payload['folder']&.downcase!
         payload['case_kind']&.downcase!

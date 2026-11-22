@@ -1,0 +1,12 @@
+<% if (origin = LightekGrowth::SearchDiscovery.origin(site)) %>
+  <% article_url = "#{origin}/blog/#{entry.slug}" %>
+  <% url = ERB::Util.url_encode(article_url) %>
+  <% title = ERB::Util.url_encode(entry.post.title) %>
+  <nav class="content-actions journal-share" aria-label="Share article">
+    <span>Share to</span>
+    <%= link_to 'Facebook', "https://www.facebook.com/sharer/sharer.php?u=#{url}", target: '_blank', rel: 'noopener noreferrer' %>
+    <%= link_to 'LinkedIn', "https://www.linkedin.com/sharing/share-offsite/?url=#{url}", target: '_blank', rel: 'noopener noreferrer' %>
+    <%= link_to 'X', "https://x.com/intent/post?url=#{url}&text=#{title}", target: '_blank', rel: 'noopener noreferrer' %>
+    <%= link_to 'Email', "mailto:?subject=#{title}&body=#{url}" %>
+  </nav>
+<% end %>

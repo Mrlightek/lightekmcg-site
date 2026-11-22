@@ -84,8 +84,23 @@ require Rails.root.join('app/helpers/lightek_design/studio_helper')
 require Rails.root.join('db/migrate/20261112170000_create_lightek_blog_entries')
 CreateLightekBlogEntries.new.migrate(:up)
 require Rails.root.join('app/models/lightek_blog/entry')
+require Rails.root.join('db/migrate/20261122090200_schedule_nevaeh_journal_editorial')
+ScheduleNevaehJournalEditorial.new.migrate(:up)
+require Rails.root.join('app/models/lightek_blog/editorial_schedule')
 require Rails.root.join('app/services/lightek_blog/editor')
 require Rails.root.join('app/services/lightek_blog/images')
+require Rails.root.join('app/services/nevaeh_os/public_relations')
+require Rails.root.join('db/migrate/20261122102000_create_press_contacts')
+CreatePressContacts.new.migrate(:up)
+require Rails.root.join('app/models/lightek_growth/press_contact')
+ActiveRecord::Schema.define { create_table(:action_mailbox_inbound_emails) }
+%w[20261026150000_create_lightek_mail_studio 20261026200000_add_lightek_mail_sending_controls 20261113140000_add_lightek_mailbox_management].each do |name|
+  migrate_session_fixture(name)
+end
+%w[domain account template message customer_suspension sending_policy send_reservation].each do |name|
+  require Rails.root.join("app/models/lightek_mail/#{name}")
+end
+require Rails.root.join('app/services/lightek_mail/access')
 module DymondDash
   module TemplateSchemaHelper
     def theme_styles(*) = ''
@@ -107,6 +122,10 @@ Rails.application.routes.append do
   get '/journal.xml',to:'lightek_blog#feed',as: :website_blog_feed
   namespace :dashboard do
     resources :blog,only:%i[index create update],controller:'blog' do
+      post :assign_nevaeh, on: :collection
+      patch :configure_editorial, on: :collection
+      post :assign_public_relations, on: :collection
+      post :configure_public_relations, on: :collection
       get :preview,on: :member
       get 'images/:attachment_id',to:'blog#image',on: :member,as: :image
     end
@@ -141,6 +160,8 @@ require Rails.root.join('app/models/website_template_inquiry')
 require Rails.root.join('app/services/lightek_commerce/industry_starters')
 require Rails.root.join('app/controllers/dashboard/website_designs_controller')
 require Rails.root.join('app/controllers/gatekeeper/hosted_sites_controller')
+require Rails.root.join('app/services/lightek_growth/search_discovery')
+require Rails.root.join('app/controllers/website_search_discovery_controller')
 require Rails.root.join('app/jobs/lightek_design/html_import_job')
 require Rails.root.join('app/controllers/dashboard/design_studio_controller')
 Dashboard::DesignStudioController.layout false
@@ -152,6 +173,10 @@ Rails.application.routes.append do
   get '/dashboard/design-studio/:id/edit',to:'dashboard/design_studio#edit',as: :edit_dashboard_design_studio
   get '/dashboard/design-content',to:'dashboard/website_designs#index'
   get '/site/:slug',to:'gatekeeper/hosted_sites#show'
+  get '/robots.txt', to: 'website_search_discovery#robots', format: false
+  get '/sitemap.xml', to: 'website_search_discovery#sitemap', format: false
+  patch '/dashboard/website/designs/nevaeh', to: 'dashboard/website_designs#nevaeh_delegation', as: :delegate_dashboard_website_designs
+  post '/dashboard/website/designs/nevaeh/landing-page', to: 'dashboard/website_designs#nevaeh_landing_page', as: :publish_nevaeh_landing_page
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
   post '/dashboard/website/designs/upload',to:'dashboard/website_designs#upload_html',as: :upload_dashboard_website_designs
@@ -242,6 +267,33 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
     assert_equal count,DymondSite::SiteTemplate.count
     assert_empty @site.pages
   end
+  def test_site_search_discovery_only_lists_public_urls_for_the_request_host
+    @site.pages.create!(title: "Home", slug: "home", published: true)
+    @site.pages.create!(title: "Draft", slug: "draft", published: false)
+    @foreign.pages.create!(title: "Other site", slug: "other", published: true)
+    entry = article
+
+    get "/robots.txt"
+    assert_response :success
+    assert_includes response.body, "Sitemap: https://#{@site.host}/sitemap.xml"
+
+    get "/sitemap.xml", params: { site_id: @foreign.id }
+    assert_response :success
+    assert_equal "application/xml", response.media_type
+    assert_equal ["https://#{@site.host}/site/home"], Nokogiri::XML(response.body).xpath("//s:loc", "s" => "http://www.sitemaps.org/schemas/sitemap/0.9").map(&:text)
+
+    LightekBlog::Editor.save!(site: @site, user: @user, entry: entry, attributes: { title: entry.post.title,
+      content: entry.post.content, slug: entry.slug, status: "published", lock_version: entry.lock_version })
+    get "/sitemap.xml"
+    assert_response :success
+    assert_equal ["https://#{@site.host}/site/home", "https://#{@site.host}/blog/#{entry.slug}"],
+      Nokogiri::XML(response.body).xpath("//s:loc", "s" => "http://www.sitemaps.org/schemas/sitemap/0.9").map(&:text)
+
+    host! "unknown.test"
+    get "/sitemap.xml"
+    assert_response :not_found
+  end
+
   def test_site_article_draft_preview_publish_archive_and_public_host_isolation
     entry=article
     get "/blog/#{entry.slug}";assert_response :not_found

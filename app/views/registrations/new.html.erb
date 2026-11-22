@@ -15,7 +15,7 @@
       <% {password: "Password", password_confirmation: "Confirm password"}.each do |key, label| %>
         <div class="auth-field"><%= form.label key, label %><%= form.password_field key, class: "auth-input auth-input-plain", required: true, autocomplete: "new-password", maxlength: 72 %></div>
       <% end %>
-      <%= form.submit "Create account →", class: "auth-submit" %>
+      <%= form.submit(respond_to?(:experiment_text) ? experiment_text("pwa_signup", "Create account →", site: @signup_site) : "Create account →", class: "auth-submit") %>
     <% end %>
     <div class="auth-divider">Already have an account?</div>
     <%= link_to "Sign in", new_session_path, class: "auth-secondary" %>

@@ -13,6 +13,14 @@ module Marlon
         tips: ["Include your instance URL and the specific module affected", "Share any error messages or console output if available", "Note whether this is a new issue or a regression", "Include your approximate go-live date if on onboarding"],
         teams: [{ avatar: "🔧", name: "@darius.m", role: "LEAD · DEPLOYMENT", status: "green" }, { avatar: "⚡", name: "@tech-malik", role: "INFRA · TECHNICAL", status: "green" }]
       },
+      "customer_service" => {
+        label: "Customer Service", icon: "💬", color: "#188474", stripe: "#106356",
+        sla_hours: 24, team: "Customer Service", default_rep: "Nevaeh",
+        desc: "Questions about your account, services or using Lightek.",
+        examples: ["Where to find a feature", "Service questions"],
+        tips: ["Include the relevant service and describe what you expected"],
+        teams: [{ avatar: "💬", name: "Nevaeh", role: "CUSTOMER SERVICE", status: "green" }]
+      },
       "billing" => {
         label: "Billing", icon: "💳", color: "#10A8D8", stripe: "#0878A8",
         sla_hours: 24, team: "Finance Team", default_rep: "@finance-jen",

@@ -16,6 +16,7 @@ class WebsiteTemplateInquiriesController < ApplicationController
     record = WebsiteTemplateInquiry.new(site: site, template_key: key, section_key: section, fields: fields)
     record.growth_visit = LightekGrowth::Tracking.from_request(site: site, cookies: cookies, request: request)
     if record.save
+      record_platform_experiment('inquiry', record, site: site) if respond_to?(:record_platform_experiment, true)
       render json: {message: "Your request was received. The team will contact you to confirm details.", reference: record.id}, status: :created
     else
       render json: {error: record.errors.full_messages.join(". ")}, status: :unprocessable_entity

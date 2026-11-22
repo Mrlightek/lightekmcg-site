@@ -116,6 +116,17 @@ require File.join(ROOT, "app/models/lightek_agency/demo_setting")
 require File.join(ROOT, "app/models/lightek_agency/installed_package")
 require File.join(ROOT, "app/services/lightek_agency/package_policy")
 require File.join(ROOT, "app/services/lightek_pwa/media_ownership")
+ActiveRecord::Schema.define do
+  create_table(:nevaeh_os_actions) do |t|
+    t.references :user
+    t.string :request_key
+    t.string :status
+    t.json :command
+    t.json :result
+  end
+end
+require File.join(ROOT, "app/models/nevaeh_os_action")
+require File.join(ROOT, "app/services/nevaeh_os/live_show")
 require File.join(ROOT, "app/controllers/dashboard/live_broadcasts_controller")
 require File.join(ROOT, "app/controllers/concerns/lightek_identity/sensitive_session")
 require File.join(ROOT, "app/services/lightek_reservations/availability")
@@ -222,6 +233,7 @@ Rails.application.routes.append do
   post "/dashboard/live/advertising/networks/:network_id/campaigns", to: "dashboard/broadcast_advertising#create_campaign", as: :dashboard_broadcast_ad_campaigns
   patch "/dashboard/live/advertising/networks/:network_id/campaigns/:campaign_id/offer", to: "dashboard/broadcast_advertising#update_offer", as: :dashboard_broadcast_ad_offer
   get "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/live_broadcasts#index", as: :dashboard_channel_playout
+  post "/dashboard/live/prepare", to: "dashboard/live_broadcasts#prepare_show", as: :dashboard_live_prepare
   get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
   post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
   post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination

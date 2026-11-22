@@ -1,0 +1,17 @@
+<% if @render.active? %>
+  <% content_for :animation_head do %><meta http-equiv="refresh" content="5"><% end %>
+<% end %>
+<section class="panel">
+  <h2><%= @scene.name %> · MP4 render</h2>
+  <%= link_to "Back to scene", studio_animation_scene_path(@scene, site_id: @site.id) %>
+  <p role="status"><%= @render.status.humanize %> · <%= @render.progress %>%</p>
+  <% if @render.active? %><progress value="<%= @render.progress %>" max="100" aria-label="Render progress"></progress><% end %>
+  <% if @render.error_message.present? %><p role="alert"><%= @render.error_message %></p><% end %>
+  <% if @render.status == "completed" && @render.video.attached? %>
+    <video controls playsinline preload="metadata" style="display:block;max-width:100%;max-height:72vh" src="<%= video_studio_animation_scene_render_path(@scene, @render, site_id: @site.id) %>"></video>
+    <p><%= link_to "Download MP4", video_studio_animation_scene_render_path(@scene, @render, site_id: @site.id, download: 1) %></p>
+  <% end %>
+  <% unless @render.active? %>
+    <%= button_to "Delete render", studio_animation_scene_render_path(@scene, @render, site_id: @site.id), method: :delete %>
+  <% end %>
+</section>

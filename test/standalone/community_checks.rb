@@ -130,6 +130,14 @@ require File.join(ROOT, "db/migrate/20261031140002_integrate_profile_top_people_
 IntegrateProfileTopPeopleAndAudiences.new.migrate(:up)
 require File.join(ROOT,"db/migrate/20261031150000_create_studio_asset_library")
 CreateStudioAssetLibrary.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261122120000_add_studio_scene_animation")
+class AddStudioSceneAnimation
+  def add_column(table, name, type, **options)
+    super(table, name, type == :jsonb ? :json : type, **options)
+  end
+end
+AddStudioSceneAnimation.new.migrate(:up)
+require File.join(ROOT, "app/models/studio_scene_render")
 require File.join(ROOT,"db/migrate/20261107210000_create_studio_workstations")
 CreateStudioWorkstations.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261031213017_add_lightek_pwa_administration")

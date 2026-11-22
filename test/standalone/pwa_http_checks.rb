@@ -43,6 +43,7 @@ class ApplicationController < ActionController::Base
     render json: { error: "Not found" }, status: :not_found
   end
 end
+require File.join(ROOT, "app/controllers/concerns/studio_blob_streaming")
 require File.join(ROOT, "app/controllers/api/lightek_pwa_controller")
 require File.join(ROOT, "app/services/nevaeh_orchestration/native_contracts")
 require File.join(ROOT, "app/services/nevaeh_os/conversation")
@@ -54,7 +55,9 @@ class PwaTestCsrfController < ApplicationController
   protect_from_forgery with: :exception
   def show = render(json: { csrf_token: form_authenticity_token })
 end
+animation_routes = File.join(ROOT, "config/routes/studio_animation.rb")
 Rails.application.routes.append do
+  instance_eval(File.read(animation_routes), animation_routes)
   resources :posts
   resources :communities
   get "/api/lightek/pwa/posts/:post_id/spatial",to:"api/lightek_pwa#spatial_manifest"

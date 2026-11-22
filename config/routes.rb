@@ -354,6 +354,8 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   mount DymondKb::Engine => "/kb"
   get "/catalog", to: "dymond_catalog/catalog#index"
   mount DymondCatalog::Engine => "/catalog"
+  draw :studio_animation
+
   get "/studio/pipeline", to: "api/studio/pipeline#page", as: :studio_pipeline
   post "/studio/pipeline/mixamo", to: "studio_character_animations#save_mixamo", as: :studio_mixamo_connection
   resources :studio_character_animations, path: "/studio/pipeline/characters", only: %i[create show] do

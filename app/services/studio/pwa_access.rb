@@ -7,8 +7,9 @@ module Studio
     end
     attr_reader :user, :site_id
     def projects
-      return StudioProject.all if user.role.to_s == "super_admin"
-      base = StudioProject.where(site_id: site_id)
+      library = StudioProject.shared_studio_projects
+      return library if user.role.to_s == "super_admin"
+      base = library.where(site_id: site_id)
       policy = LightekPwa::Policy.new(user: user, site: DymondSite::Site.find(site_id)) if site_id
       return base if policy && %w[admin editor].include?(policy.role)
       base.where(owner_id: user.id)

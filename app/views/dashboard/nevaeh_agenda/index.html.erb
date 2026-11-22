@@ -39,10 +39,12 @@
               </small>
               <% if item.notes.present? %><details><summary>Notes</summary><p class="agenda-notes"><%= item.notes %></p></details><% end %>
               <div class="agenda-actions">
+                <%= link_to "Download calendar file", calendar_dashboard_nevaeh_agenda_item_path(item) %>
                 <%= link_to "Edit", dashboard_nevaeh_agenda_path(edit: item.id, anchor: "agenda-entry"), aria: {label: "Edit #{item.title}"} %>
                 <%= button_to "Close entry", close_dashboard_nevaeh_agenda_item_path(item), method: :patch,
                   class: "dd-topbar-btn dd-btn-ghost", aria: {label: "Close #{item.title}"} %>
               </div>
+              <%= render "calendar_delivery", item: item %>
             </li>
           <% end %>
         </ol>
@@ -50,7 +52,10 @@
       <% if @recently_closed.any? %>
         <details>
           <summary>Recently closed</summary>
-          <ul><% @recently_closed.each do |item| %><li><%= item.title %> · <%= l(item.closed_at, format: :short) %></li><% end %></ul>
+          <ul><% @recently_closed.each do |item| %><li>
+            <%= item.title %> · <%= l(item.closed_at, format: :short) %>
+            <%= render "calendar_delivery", item: item %>
+          </li><% end %></ul>
         </details>
       <% end %>
     </section>

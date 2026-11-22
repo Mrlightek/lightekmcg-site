@@ -20,6 +20,9 @@ module NevaehControlCenterHelper
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
       item.call("journal", "Journal & Articles", main_app.dashboard_blog_index_path, "ti-article"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
+    if current_user.role == "super_admin" || NevaehExecutiveCase.visible_to(current_user).exists?
+      rows << item.call("executive-work", "Executive work", main_app.dashboard_executive_work_path, "ti-list-details", "Nevaeh")
+    end
     if LightekTeam::Workspace.employers_for(current_user).exists?
       rows << item.call("team-chat", "Team Chat", main_app.dashboard_team_channels_path, "ti-messages")
     end

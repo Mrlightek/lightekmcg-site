@@ -86,6 +86,7 @@
       <section class="team-panel" aria-label="Channel">
         <% if @channel %>
           <h2>#<%= @channel.name %></h2>
+          <%= link_to "Shared files", dashboard_team_office_path(@channel, employer_id: @employer.id) %>
           <% if @partnership %>
             <p class="team-muted">Shared with <%= @channel.employer_id == @employer.id ? @partnership.partner.full_name : @channel.employer.full_name %> · <%= @partnership.status_label %></p>
             <details>

@@ -18,7 +18,7 @@ module NevaehOs
 
     def sections
       [provisioning_approvals, blocked_goals, urgent_tickets, due_follow_ups, paid_orders,
-        executive_agenda, executive_mail, upcoming_bookings]
+        executive_follow_through, executive_agenda, executive_mail, upcoming_bookings]
     end
 
     def reply
@@ -87,6 +87,14 @@ module NevaehOs
       section('Paid orders awaiting fulfillment', orders.order(:paid_at, :id).includes(:site)) do |order|
         {title: "Order ##{order.id}", detail: "#{order.site.name} · paid #{timestamp(order.paid_at)}",
           path: @routes.dashboard_commerce_orders_path(site_id: order.site_id)}
+      end
+    end
+
+    def executive_follow_through
+      entries = NevaehExecutiveCase.where(owner: @actor).pending.where('due_at <= ?', @now)
+      section('Executive follow-through due', entries.order(:due_at, :id)) do |entry|
+        {title: entry.title, detail: "#{entry.kind_label} · #{entry.status.humanize}",
+          path: @routes.dashboard_executive_work_path(item: entry.id)}
       end
     end
 

@@ -103,7 +103,7 @@ module NevaehOs
       end
       if defined?(PlatformActions)
         PlatformLanguage::PHRASES.each do |key, (_, example)|
-          executive = key == AgendaActions::CREATE
+          executive = [AgendaActions::CREATE, ExecutiveCaseActions::CREATE].include?(key)
           next if executive && !ExecutiveBrief.available_to?(actor)
 
           fields = PlatformActions::INPUTS.fetch(key).transform_values do |type|

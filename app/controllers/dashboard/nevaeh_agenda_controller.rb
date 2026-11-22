@@ -5,6 +5,9 @@ class Dashboard::NevaehAgendaController < DymondDash::ApplicationController
   before_action :authorize_agenda!
   rescue_from ActiveRecord::RecordNotFound, with: -> { head :not_found }
   rescue_from ActiveRecord::RecordInvalid, with: :invalid_item
+  rescue_from ArgumentError, LightekMail::Submission::Unavailable do |error|
+    redirect_to dashboard_nevaeh_agenda_path(edit: (@item.id if @item&.persisted? && !@item.closed_at?)), alert: error.message, status: :see_other
+  end
   rescue_from ActiveRecord::StaleObjectError do
     redirect_to dashboard_nevaeh_agenda_path, alert: 'This entry changed. Open it again to edit the latest version.'
   end
@@ -31,6 +34,21 @@ class Dashboard::NevaehAgendaController < DymondDash::ApplicationController
     redirect_to dashboard_nevaeh_agenda_path, notice: 'Agenda entry closed.', status: :see_other
   end
 
+  def calendar
+    item = agenda.find(params[:id])
+    data = NevaehOs::ExecutiveCalendar.attachment(item: item, cancel: item.closed_at?)
+    send_data data, filename: "meeting-#{item.id}.ics", type: 'text/calendar; charset=UTF-8', disposition: 'attachment'
+  end
+
+  def invite
+    @item = agenda.find(params[:id])
+    options = params.require(:calendar_delivery).permit(:mailbox_id, :recipient, :cancel)
+    delivery = NevaehOs::ExecutiveDelivery.new(actor: current_user, mailbox_id: options.require(:mailbox_id))
+    receipt = delivery.invite!(item: @item, recipient: options.require(:recipient), cancel: options[:cancel] == '1')
+    redirect_to dashboard_nevaeh_agenda_path(edit: (@item.id unless @item.closed_at?)),
+      notice: "Calendar message status: #{receipt.state.humanize}. Track it in Mail Studio.", status: :see_other
+  end
+
   private
 
   def authorize_agenda!
@@ -52,6 +70,7 @@ class Dashboard::NevaehAgendaController < DymondDash::ApplicationController
     @upcoming = open.where('ends_at > ?', now).order(:starts_at, :id).limit(60)
     @overdue = open.where('ends_at <= ?', now).order(ends_at: :desc, id: :desc).limit(30)
     @recently_closed = agenda.where.not(closed_at: nil).order(closed_at: :desc).limit(10)
+    @mailboxes = LightekMail::Access.accounts(current_user).where(user: current_user).order(:address)
   end
 
   def save_notice
@@ -61,6 +80,11 @@ class Dashboard::NevaehAgendaController < DymondDash::ApplicationController
   end
 
   def invalid_item(error)
+    if !error.record.is_a?(NevaehAgendaItem)
+      return redirect_to dashboard_nevaeh_agenda_path(edit: (@item.id if @item&.persisted? && !@item.closed_at?)),
+        alert: error.message, status: :see_other
+    end
+
     @item = error.record
     load_agenda
     render :index, status: :unprocessable_entity

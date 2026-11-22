@@ -11,7 +11,15 @@ Nevaeh supports Lightek's CEO across company operations, communications, schedul
 | Coordinate departments and projects | Use **Team Chat** for company-wide discussions and invite-only channels. A channel carries message history, replies, and search. Channel access follows active workforce membership. |
 | Plan travel, screenings, and follow-up | Track the commitment on the private agenda and use the existing Reservations, Rooms, Studio, Sales, or Accounting workflow where applicable. |
 
-Calendar invitations and external availability, phone triage, automatic executive follow-up, supplier travel booking, receipt and contract routing, screening delivery, and general-purpose collaborative documents and spreadsheets still require connected workflows. An agenda entry records a commitment. Its presence does not verify an external booking, invitation, expense approval, or delivery.
+## Executive work and shared files
+
+- Open **Executive work** to create a follow-up, call, travel, expense, contract, or screening item. A due item produces a Dashboard notification for the CEO and the active assignee. Route supporting files to a teammate, record their review, and save a completion reference and confirmation file when applicable. Closing an expense or contract requires a completed review. The CEO brief includes due work.
+- To add a work item through Nevaeh, say `Track travel "Atlanta production meetings" for my CEO Desk by 2026-11-30T14:00`.
+- From **Private agenda**, download a calendar file or send an invitation, update, or cancellation through an owned Lightek mailbox. Use the same organizer address for the event. Private agenda notes stay in the agenda. Mail Studio reports delivery status. External availability and RSVP collection require separate calendar integration.
+- In **Executive work**, connect a phone gateway with a signing secret and optional active assignee. The callback accepts missed-call and voicemail events. The gateway sends JSON keys `event_id`, `kind` (`missed` or `voicemail`), optional `caller`, optional `summary`, and optional boolean `urgent`. Send the Unix timestamp in `X-Lightek-Timestamp` and the lowercase hexadecimal HMAC-SHA256 of `timestamp.raw_request_body` in `X-Lightek-Signature`. The installation needs a configured gateway to receive live calls.
+- For travel, send a booking request to an approved booking desk. Record the provider's itinerary or booking reference and attach the confirmation to finish. A queued message is a request. Direct airline, hotel, and transport APIs are separate integrations.
+- For screenings, choose a valid web-screening license and send the attendee the protected Lightek viewing link. The existing screening endpoint rechecks playback rights. DCP upload and theater delivery require a separate distribution path.
+- Open **Shared files** inside a Team Chat channel to co-edit documents, formula spreadsheets, or browser presentations. Spreadsheet exports contain calculated CSV values. Documents export as text and slides export as source. This editor uses revision checks to protect concurrent saves. Files are shared through the channel on the same installation.
 
 ## Shared team channels
 

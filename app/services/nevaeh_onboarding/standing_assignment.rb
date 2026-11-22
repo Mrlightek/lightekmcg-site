@@ -58,7 +58,7 @@ module NevaehOnboarding
         mailbox = branded_mailbox(prospect)
         agency_ready = LightekPeople::LifecycleAccess.agency_ready?(prospect)
         if mailbox.nil? && entry.dashboard_at? && agency_ready
-          provision_mailbox(trial, prospect)
+          provision_mailbox(entry, trial, prospect)
           mailbox = branded_mailbox(prospect)
         end
         if agency_ready && entry.dashboard_at? && mailbox&.sending_ready?
@@ -75,11 +75,17 @@ module NevaehOnboarding
           'mailbox_unavailable'
         elsif !email_verified?(trial, prospect)
           'email_verification_required'
+        elsif entry.mailbox_attempts < 3
+          'mailbox_retry_pending'
         else
           'mailbox_configuration'
         end
         elapsed = Time.current - entry.paid_at
-        due = reason != 'waiting_for_dashboard' || elapsed >= Improvement.escalation_hours(entry).hours
+        due = case reason
+        when 'waiting_for_dashboard' then elapsed >= Improvement.escalation_hours(entry).hours
+        when 'mailbox_retry_pending' then false
+        else true
+        end
         entry.escalated_at = nil if !due || entry.blocker != reason
         entry.escalated_at ||= Time.current if due
         entry.dashboard_escalated_at ||= entry.escalated_at if due && reason == 'waiting_for_dashboard'
@@ -110,12 +116,17 @@ module NevaehOnboarding
         lightek_mail_domains: {name: LightekEmailProvisioningService::DOMAIN})
     end
 
-    def self.provision_mailbox(trial, prospect)
+    def self.provision_mailbox(entry, trial, prospect)
       return if prospect.password_setup_required? || !email_verified?(trial, prospect)
+      return if entry.mailbox_attempts >= 3 || entry.mailbox_attempted_at&.after?(15.minutes.ago)
 
-      LightekEmailProvisioningService.provision_for_paid_agency!(prospect, expected_email: prospect.email_address)
-    rescue LightekEmailProvisioningService::Unavailable
-      # The next sweep checks the verified domain again. The case stays visible.
+      entry.mailbox_attempts += 1
+      entry.mailbox_attempted_at = Time.current
+      ApplicationRecord.transaction(requires_new: true) do
+        LightekEmailProvisioningService.provision_for_paid_agency!(prospect, expected_email: prospect.email_address)
+      end
+    rescue LightekEmailProvisioningService::Unavailable, ActiveRecord::RecordInvalid
+      # Keep the attempt and recheck verified mailbox state before any retry.
       nil
     end
 

@@ -235,6 +235,8 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
   post "/dashboard/agencies/onboarding/email", to: "dashboard/agencies#request_onboarding_email", as: :request_agency_onboarding_email
+  get "/dashboard/nevaeh/improvements", to: "dashboard/nevaeh_improvement#show", as: :dashboard_nevaeh_improvement
+  post "/dashboard/nevaeh/improvements/:id/decision", to: "dashboard/nevaeh_improvement#decide", as: :decide_nevaeh_improvement
   get "/dashboard/nevaeh/onboarding", to: "dashboard/nevaeh_onboarding#show", as: :dashboard_nevaeh_onboarding
   post "/dashboard/nevaeh/onboarding/playbooks/:id/approve", to: "dashboard/nevaeh_onboarding#approve", as: :approve_nevaeh_onboarding_playbook
   post "/dashboard/nevaeh/onboarding/playbooks/:id/reject", to: "dashboard/nevaeh_onboarding#reject", as: :reject_nevaeh_onboarding_playbook

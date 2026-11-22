@@ -7,11 +7,21 @@ module NevaehOnboarding
     def perform
       LightekAgency::Trial.where('paid_through > ?', Time.current).where.not(activated_at: nil)
         .find_each { |trial| process_record(trial) { StandingAssignment.start!(trial) } }
-      NevaehOnboardingCase.open_cases.find_each { |entry| process_record(entry) { StandingAssignment.advance!(entry) } }
+      pending_measurements = NevaehResolutionObservation.where(workflow: NevaehImprovement::Agency::KEY, measured_at: nil)
+      NevaehOnboardingCase.open_cases.or(NevaehOnboardingCase.where(id: pending_measurements.select(:subject_id))).find_each do |entry|
+        process_record(entry) do
+          StandingAssignment.advance!(entry)
+          NevaehImprovement::Agency.update!(entry)
+        end
+      end
       operators = NevaehOnboardingCase.select(:operator_id).distinct
       User.where(id: operators, role: 'super_admin').find_each do |operator|
-        process_record(operator) { Improvement.new(operator).evaluate! }
+        process_record(operator) do
+          Improvement.new(operator).evaluate!
+          NevaehImprovement::Cycle.new(operator, NevaehImprovement::Agency::KEY).evaluate!
+        end
       end
+      NevaehImprovement::PurchasedService.sweep!
     end
 
     private

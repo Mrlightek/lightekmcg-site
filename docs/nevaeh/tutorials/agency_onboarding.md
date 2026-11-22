@@ -13,3 +13,13 @@ Nevaeh compares 12-, 24- and 48-hour operator escalation timings for owners who 
 A passing proposal appears under **Playbook improvements**. The operator can approve or decline it. Approval compares the revised timing with the previous timing on roughly half of new cases each. After at least six mature cases in each group, the sweep measures observed escalations. A worse rollout which also loses on a replay of the same cases restores the last accepted timing. Cases that explain a rollback become regression examples for later proposals.
 
 The rollout score measures the timing of internal escalation. Completion still requires the same payment, Dashboard and mailbox evidence, and the automatic Dashboard reminder continues at 24 hours. Details for each version include held-out score, cohort sizes, observed scores and rollback status.
+
+## Resolution improvements
+
+Open **Agency onboarding → Resolution improvements**. Nevaeh verifies the actual blocker before acting. When the owner has opened their Dashboard and their signup email is verified, Nevaeh can retry branded mailbox setup up to three times, 15 minutes apart. The case completes only after the mailbox is sending-ready. If the retries are exhausted, the case stays open for review.
+
+For an owner who has yet to open the Dashboard, Nevaeh can propose one email follow-up at 24 or 48 hours. The candidate uses the configured Customer Service & Billing sender or the existing support mailbox environment setting. The worker checks the original purchase, recipient, access, sender and Dashboard state again before SMTP submission. It never resubmits an uncertain SMTP delivery. The operator can inspect the queued, sent, failed or uncertain receipt.
+
+The same review workflow can evaluate a direct link for Customer Service's **Find my purchased services** cases when the customer has exactly one confirmed, ready installation. The pilot observes an authenticated opening of that installation, replies and staff handoffs after the recommendation. Its verified outcome is separate from the support ticket's ordinary answer status.
+
+Nevaeh learns from at least 12 completed observations, checks candidate actions against held-out cases and independent eligibility examples, and uses the older observations to select a proposal. A proposal needs operator approval. Actual rollout outcomes compare roughly half of new qualifying cases with the current playbook. The seven-day score uses verified outcomes, reopenings and handoffs. A candidate needs at least six mature observations per group for a win, and a safety regression or a failure to improve restores the previous playbook. The next round replays retained regression cases.

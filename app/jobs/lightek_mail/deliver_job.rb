@@ -39,6 +39,11 @@ module LightekMail
             next false
           end
           if policy.sending_enabled? && account.sending_ready?
+            if message.idempotency_key.to_s.start_with?('agency_onboarding_') &&
+                !NevaehImprovement::Agency.current_message?(message)
+              message.update!(state: "failed", error_message: "The agency onboarding follow-up is no longer current.")
+              next false
+            end
             SendingLimits.dispatch!(account, message)
             true
           else

@@ -87,6 +87,8 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
+      - name: Verify paid agency onboarding and playbook rollback
+        run: bundle exec ruby test/standalone/nevaeh_onboarding_checks.rb
       - name: Verify page contracts, specialist handoff and execution guards
         run: bundle exec ruby test/standalone/nevaeh_page_worker_checks.rb --name '/NevaehPageWorkerChecks/'
       - name: Verify specialist reports, feedback, isolation and manager recall
@@ -99,8 +101,6 @@ jobs:
         run: bundle exec ruby test/standalone/nevaeh_runtime_backfill_checks.rb --name '/NevaehRuntimeBackfillChecks/'
       - name: Verify workforce lifecycle and current-page context
         run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
-      - name: Verify paid agency onboarding and playbook rollback
-        run: bundle exec ruby test/standalone/nevaeh_onboarding_checks.rb
 
   voice-queue:
     runs-on: ubuntu-24.04

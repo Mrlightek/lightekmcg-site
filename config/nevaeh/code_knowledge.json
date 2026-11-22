@@ -536,6 +536,72 @@
       ]
     },
     {
+      "id": "hosting.project.healthcheck",
+      "title": "Run a Gatekeeper project health check",
+      "summary": "Queue the existing project probe with the current operator and node bound to the job.",
+      "sources": {
+        "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
+        "implementation": ["app/services/nevaeh_os/hosting_actions.rb", "app/jobs/gatekeeper/healthcheck_project_job.rb", "app/services/gatekeeper/capabilities/healthcheck_project.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/nevaeh_backlog_test.rb"]
+      },
+      "capability": {
+        "key": "hosting.project.healthcheck",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"project_id": "PROJECT_ID"},
+        "result": "Return the job identifier once the probe is queued."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "POST", "action": "gatekeeper/projects#healthcheck", "coverage": "bound"}
+      ]
+    },
+    {
+      "id": "hosting.project.health.status",
+      "title": "Read Gatekeeper project health",
+      "summary": "Read the saved project status and latest health check on its current server.",
+      "sources": {
+        "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
+        "implementation": ["app/services/nevaeh_os/hosting_actions.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/nevaeh_backlog_test.rb"]
+      },
+      "capability": {
+        "key": "hosting.project.health.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"project_id": "PROJECT_ID"},
+        "result": "Return the latest saved probe result and the Gatekeeper project link."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "GET", "action": "gatekeeper/projects#show", "coverage": "partial"}
+      ]
+    },
+    {
+      "id": "mail.mailbox.receiving.check",
+      "title": "Check a mailbox’s receiving DNS",
+      "summary": "Verify the enabled mailbox uses the expected MX routing for its verified domain.",
+      "sources": {
+        "entry_points": ["app/controllers/dashboard/mail_studio_controller.rb"],
+        "implementation": ["app/services/nevaeh_os/mail_actions.rb", "app/services/lightek_mail/receiving_status.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/lightek_mailbox_management_test.rb"]
+      },
+      "capability": {
+        "key": "mail.mailbox.receiving.check",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"mailbox_id": "MAILBOX_ID"},
+        "result": "Return the DNS check outcome and the same explanation as Mail Studio."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "POST", "action": "dashboard/mail_studio#check_receiving", "coverage": "bound"}
+      ]
+    },
+    {
       "id": "identity.sign_in",
       "title": "Sign-in and MFA",
       "summary": "Authenticate sessions and enforce sign-in security and account access.",

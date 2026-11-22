@@ -202,7 +202,7 @@ module NevaehOs
       key, values = command.values_at('intent', 'payload')
       target = authorize!(actor, command)
       return MailActions.perform!(key, target, values, action_id: action_id) if MailActions::INPUTS.key?(key)
-      return HostingActions.perform!(key, target, values) if HostingActions::INPUTS.key?(key)
+      return HostingActions.perform!(key, target, values, actor: actor) if HostingActions::INPUTS.key?(key)
       return RoomActions.perform!(actor, key, target, values) if RoomActions::INPUTS.key?(key)
 
       case key

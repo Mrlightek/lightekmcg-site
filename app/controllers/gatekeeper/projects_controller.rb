@@ -56,7 +56,8 @@ module Gatekeeper
     end
 
     def healthcheck
-      HealthcheckProjectJob.perform_later(@project.id, requested_by: requester_name, expected_node_id: @project.gatekeeper_node_id)
+      HealthcheckProjectJob.perform_later(@project.id, requested_by: requester_name, expected_node_id: @project.gatekeeper_node_id,
+        operator_id: current_user.id)
       redirect_to gatekeeper_project_path(@project), notice: "Healthcheck queued."
     end
 

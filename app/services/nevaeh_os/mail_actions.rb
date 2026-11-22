@@ -5,6 +5,7 @@ module NevaehOs
     INPUTS = {
       'mail.mailbox.list' => {},
       'mail.mailbox.status' => {'mailbox_id'=>:id},
+      'mail.mailbox.receiving.check' => {'mailbox_id'=>:id},
       'mail.message.search' => {'mailbox_id'=>:id, 'folder'=>16, 'query'=>:mail_query},
       'mail.message.open' => {'mailbox_id'=>:id, 'message_id'=>:id},
       'mail.message.flag' => {'mailbox_id'=>:id, 'message_id'=>:id, 'flag'=>10, 'value'=>:boolean},
@@ -32,6 +33,9 @@ module NevaehOs
         SpecialistTasks.summary(target, %w[id address display_name enabled])
       when 'mail.mailbox.status'
         {'mailbox_id'=>target.id, 'enabled'=>target.enabled?, 'sending_ready'=>target.sending_ready?}
+      when 'mail.mailbox.receiving.check'
+        result = LightekMail::ReceivingStatus.check(target)
+        {'mailbox_id'=>target.id, 'mx_ready'=>result.fetch(:ok), 'text'=>result.fetch(:message)}
       when 'mail.message.search'
         folder = values.fetch('folder')
         raise ArgumentError, 'Choose a valid mail folder.' unless LightekMail::MessageFolder::NAMES.include?(folder)

@@ -31,6 +31,14 @@ module NevaehOs
         /(?:show|check) (?:the )?(?:status of )?server #?(?<node_id>[1-9]\d{0,17})/i,
         'Check server #3'
       ],
+      'hosting.project.healthcheck' => [
+        /(?:run|queue) (?:a )?health check for project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Run a health check for project #42'
+      ],
+      'hosting.project.health.status' => [
+        /(?:show|check) (?:the )?health status (?:of|for) project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Show health status for project #42'
+      ],
       'hosting.fleet.rollout.list' => [
         /(?:show|list) (?:me )?(?:the )?fleet rollouts/i,
         'List fleet rollouts'
@@ -50,6 +58,10 @@ module NevaehOs
       'mail.mailbox.status' => [
         /(?:show|check) (?:the )?(?:status of )?mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
         'Check mailbox #3'
+      ],
+      'mail.mailbox.receiving.check' => [
+        /(?:check|test) (?:the )?(?:incoming mail DNS|receiving DNS) for mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Check receiving DNS for mailbox #3'
       ],
       'mail.message.search' => [
         /search (?:the )?(?<folder>inbox|unread|junk|starred|sent|draft|outbox|archived|all|trash) in mailbox #?(?<mailbox_id>[1-9]\d{0,17}) for (?<query>#{QUOTED})/i,

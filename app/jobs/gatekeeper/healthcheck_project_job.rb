@@ -2,7 +2,9 @@ module Gatekeeper
   class HealthcheckProjectJob < ApplicationJob
     queue_as :default
 
-    def perform(project_id, requested_by: "gatekeeper", expected_node_id: nil)
+    def perform(project_id, requested_by: "gatekeeper", expected_node_id: nil, operator_id: nil)
+      return if operator_id && !Hosting::Access.super_admin?(User.find_by(id: operator_id))
+
       project = GatekeeperProject.find(project_id)
       return if expected_node_id && project.gatekeeper_node_id != expected_node_id
       Hosting::Access.active!(project.gatekeeper_node)
@@ -11,7 +13,8 @@ module Gatekeeper
         capability: "healthcheck_project",
         node: project.gatekeeper_node,
         project:,
-        requested_by:
+        requested_by:,
+        parameters: { "healthcheck_job_id" => job_id }
       )
     rescue Capabilities::HealthcheckProject::Unhealthy
       raise unless expected_node_id

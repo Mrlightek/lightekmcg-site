@@ -210,7 +210,8 @@ end
    services/nevaeh_intelligences/structured_ticket_worker services/nevaeh_orchestration/escalation].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 %w[services/gatekeeper/capabilities/healthcheck_project services/gatekeeper/capability_registry services/gatekeeper/executor
    services/gatekeeper/hosting/access services/gatekeeper/knowledge_service services/gatekeeper/support_ticket_service
-   services/gatekeeper/command_runner jobs/gatekeeper/healthcheck_project_job].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
+   services/gatekeeper/command_runner jobs/gatekeeper/healthcheck_project_job
+   services/nevaeh_os/platform_actions].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 Minitest.after_run do
@@ -601,6 +602,8 @@ class NevaehBacklogPersistenceTest < Minitest::Test
   end
 
   def test_gatekeeper_job_rechecks_a_failed_health_probe_and_backlog_closes_its_ticket
+    operator = User.create!(role: "super_admin")
+    customer = User.create!(role: "client")
     node = GatekeeperNode.create!(name: "Test server", status: "healthy")
     project = GatekeeperProject.create!(gatekeeper_node: node, name: "test-app", domain: "test.example",
       app_root: "/test/app", apache_service_name: "apache2", status: "healthy")
@@ -609,7 +612,18 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     failed = runner::Result.new(command: "test probe", stdout: "FAIL https 503", stderr: "", exit_status: 1)
     passed = runner::Result.new(command: "test probe", stdout: "OK https 200", stderr: "", exit_status: 0)
 
-    runner.stub(:call, failed) { probe.perform_now(project.id, requested_by: "user:1", expected_node_id: node.id) }
+    actions = NevaehOs::PlatformActions
+    command = actions.command("hosting.project.healthcheck", {"project_id" => project.id})
+    status = actions.command("hosting.project.health.status", {"project_id" => project.id})
+    assert_raises(ArgumentError) { actions.perform!(actor: customer, command: command, action_id: 1) }
+    assert_raises(ArgumentError) { actions.perform!(actor: customer, command: status, action_id: 2) }
+    queued = actions.perform!(actor: operator, command: command, action_id: 3)
+    assert_equal "queued", queued.fetch("status")
+    enqueued_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
+    initial_job = enqueued_jobs.find { |entry| entry[:job] == probe }
+    enqueued_jobs.delete(initial_job)
+    assert_equal queued.fetch("job_id"), initial_job.fetch("job_id")
+    runner.stub(:call, failed) { probe.execute(initial_job) }
     original = GatekeeperOperation.find_by!(gatekeeper_project: project, status: "failed")
     row = Marlon::Ticket.find_by!(related_type: "GatekeeperOperation", related_id: original.id)
     retries = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |entry| entry[:job] == probe }
@@ -622,6 +636,16 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal "healthy", project.reload.status
     assert_equal "failed", original.reload.status
     assert_equal 1, Marlon::Ticket.count
+    result = actions.perform!(actor: operator, command: status, action_id: 4)
+    assert_equal "succeeded", result.dig("latest_check", "status")
+    assert_equal queued.fetch("job_id"), result.dig("latest_check", "job_id")
+
+    actions.perform!(actor: operator, command: command, action_id: 5)
+    operator.update!(role: "client")
+    runner.stub(:call, ->(**) { flunk("revoked operator must not run a health check") }) do
+      probe.execute(enqueued_jobs.last)
+    end
+    assert_equal 2, GatekeeperOperation.count
   end
 
   def test_real_incident_reference_builds_native_recovery_order_without_dispatch

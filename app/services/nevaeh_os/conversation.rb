@@ -64,6 +64,7 @@ module NevaehOs
       # A recognized business task goes to its executor even when a different
       # chat specialist is selected. Explicit /delegate retains its named worker.
       routed_to=language&.fetch('worker_ref', nil) || case command['kind']
+      when 'live_show' then 'live_broadcast_producer'
       when 'website_page' then 'website'
       when 'campaign_produce' then 'campaign'
       when 'marketing_kit', 'marketing_execute' then 'campaign'

@@ -160,3 +160,17 @@
   .ll-room-inputs, .ll-source-settings, .ll-community-fields { grid-template-columns: minmax(0, 1fr); }
   .ll-control-room .ll-format { display: none; }
 }
+
+.ll-control-room .ll-host-cues { margin-block: 0 1rem; }
+.ll-control-room .ll-host-cues form {
+  display: grid;
+  gap: .65rem;
+  margin-block: .75rem;
+  max-width: 42rem;
+}
+.ll-control-room .ll-host-cues textarea { width: 100%; }
+.ll-control-room .ll-host-cards article p {
+  font-size: clamp(1.125rem, 2vw, 1.5rem);
+  overflow-wrap: anywhere;
+}
+.ll-control-room [data-host-navigation][hidden] { display: none; }

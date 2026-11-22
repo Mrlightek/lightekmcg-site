@@ -758,6 +758,7 @@ patch "/dashboard/live/channels/:channel_id/backup", to: "dashboard/channel_play
 post "/dashboard/live/channels/:channel_id/rundown/:airing_id/command", to: "dashboard/channel_playout#command", as: :dashboard_channel_playout_command
 get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
 post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"
+post "/dashboard/live/prepare", to: "dashboard/live_broadcasts#prepare_show", as: :dashboard_live_prepare
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
 post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
 post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination

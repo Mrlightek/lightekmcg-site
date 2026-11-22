@@ -18,6 +18,7 @@ module NevaehOs
     end
     def capability(command)
       case command['kind']
+      when 'live_show' then LiveShow::CAPABILITY
       when 'website_page' then 'site.page.create'
       when 'specialist_review' then SpecialistTasks.capability(command.fetch('role'))
       when 'production' then 'studio.direct.production'

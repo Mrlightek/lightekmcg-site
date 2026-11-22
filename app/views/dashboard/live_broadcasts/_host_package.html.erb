@@ -1,0 +1,43 @@
+<% if @host_package %>
+  <section class="ll-panel ll-host-cues" data-host-cues aria-label="Host rundown">
+    <h2><%= @host_package.fetch('title') %></h2>
+    <p>Destination <strong><%= NevaehOs::LiveShow::DESTINATIONS.fetch(@host_package.fetch('destination')) %></strong></p>
+    <% if @host_destination != @host_package.fetch('destination') %>
+      <p role="alert">The prepared destination is unavailable. The broadcast controls are set to private test.</p>
+    <% end %>
+    <% if @prepared_scene_id %>
+      <button type="button" data-host-load>Load prepared scene into preview</button>
+      <p role="status" data-host-setup-status></p>
+    <% end %>
+    <div class="ll-host-cards">
+      <% @host_package.fetch('cues').each do |cue| %>
+        <article data-host-cue>
+          <h3><%= cue.fetch('label') %></h3>
+          <p><%= cue.fetch('text') %></p>
+        </article>
+      <% end %>
+    </div>
+    <div class="ll-room-controls" data-host-navigation hidden>
+      <button type="button" data-host-previous>Previous cue</button>
+      <button type="button" data-host-next>Next cue</button>
+      <button type="button" data-host-freestyle aria-pressed="false">Freestyle</button>
+      <span role="status" data-host-position></span>
+    </div>
+    <%= link_to 'Live Studio', dashboard_live_path(site_id: @site.id) %>
+  </section>
+<% else %>
+  <details class="ll-panel ll-host-cues">
+    <summary>Prepare a show with Nevaeh</summary>
+    <%= form_with url: dashboard_live_prepare_path(site_id: @site.id), scope: :show, local: true do |form| %>
+      <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+      <label>Show title <%= form.text_field :title, required: true, maxlength: 120 %></label>
+      <label>Talking points <%= form.text_area :brief, required: true, maxlength: 2400, rows: 4, placeholder: "One talking point per line" %></label>
+      <label>Saved scene <%= form.collection_select :scene_id, @production_scenes, :id, :name, include_blank: 'Camera only' %></label>
+      <label>Destination <%= form.select :destination, NevaehOs::LiveShow::DESTINATIONS.invert %></label>
+      <%= form.submit 'Assign show to Nevaeh' %>
+    <% end %>
+    <% @show_actions.each do |action| %>
+      <p><%= link_to action.result.fetch('title'), dashboard_live_path(site_id: @site.id, show_id: action.id) %></p>
+    <% end %>
+  </details>
+<% end %>

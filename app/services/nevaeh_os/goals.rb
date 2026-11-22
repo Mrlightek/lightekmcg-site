@@ -2,7 +2,7 @@
 require 'digest'
 module NevaehOs
   module Goals
-    KINDS=%w[website_page specialist_review documentation_answer production campaign_produce marketing_kit feature_showcase marketing_follow_up growth_plan growth_review capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].freeze
+    KINDS=%w[live_show website_page specialist_review documentation_answer production campaign_produce marketing_kit feature_showcase marketing_follow_up growth_plan growth_review capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].freeze
     FAILURES=%w[failed blocked error cancelled needs_attention needs_review evidence_unavailable stale].freeze
     WAITING=%w[pending queued running dispatched processing publishing training].freeze
     module_function

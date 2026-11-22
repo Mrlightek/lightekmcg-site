@@ -1,4 +1,5 @@
 require_relative 'nevaeh_os_test'
+require File.join(ROOT, 'app/services/nevaeh_os/live_show')
 class NevaehWorkforceGoalChecks < NevaehOsTest
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
   def teardown
@@ -19,14 +20,36 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
     execute(run.reload.nevaeh_os_action)
     NevaehOs::Goals.tick!(plan.reload)
   end
+  def test_live_show_goal_dispatches_through_the_producer_and_reads_the_manual
+    service = NevaehOs::LiveShow
+    prepare = lambda do |actor, command, action_id|
+      assert_equal @actor.id, actor.id
+      assert_equal 'CEO update', command.dig('values', 'title')
+      assert_equal 'docs/nevaeh/tutorials/live_broadcast_producer.md', command.dig('documentation_read', 'path')
+      { 'status' => 'completed', 'host_path' => "/dashboard/live?site_id=91&show_id=#{action_id}" }
+    end
+    service.stub(:authorize!, true) do
+      service.stub(:prepare!, prepare) do
+        plan = goal({ 'title' => 'Prepare CEO update', 'steps' => [{
+          'key' => 'prepare', 'agent' => service::ROLE, 'command' => '/live prepare 91 {"title":"CEO update","brief":"Roadmap"}',
+          'expectations' => [{ 'path' => 'result.host_path', 'present' => true }]
+        }] })
+        NevaehOs::Goals.control!(goal: plan, actor: @actor, operation: 'start')
+        complete_current(plan)
+        assert_equal 'completed', plan.reload.status
+        assert_match %r{/dashboard/live[?]site_id=91&show_id=}, plan.steps.first.evidence.dig('result', 'host_path')
+      end
+    end
+  end
+
   def test_default_roles_are_defined_owned_and_do_not_resurrect_after_deletion
     NevaehOs::Workforce.install!(@actor)
-    assert_equal 28,NevaehOsAgent.where(user:@actor).count
+    assert_equal NevaehOs::Workforce::ROLES.size,NevaehOsAgent.where(user:@actor).count
     sage=NevaehOsAgent.find_by!(user:@actor,system_key:'sage')
     assert_includes sage.instructions,'growth'
     NevaehOs::Workforce.remove_agent!(@actor,sage.id)
     NevaehOs::Workforce.install!(@actor)
-    assert_equal 28,NevaehOsAgent.where(user:@actor).count
+    assert_equal NevaehOs::Workforce::ROLES.size,NevaehOsAgent.where(user:@actor).count
     assert sage.reload.deleted_at
     assert_raises(ArgumentError) { NevaehOs::Agents.resolve!('sage',@actor) }
     assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::Workforce.remove_agent!(@other,sage.id) }
@@ -133,7 +156,7 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
     get :workforce,format: :json
     assert_response :success
     rows=JSON.parse(response.body)['roles']
-    assert_equal 28,rows.size
+    assert_equal NevaehOs::Workforce::ROLES.size,rows.size
     assert rows.all? { |row| row['purpose'].present? && row['department'].present? }
     refute rows.any? { |row| row['id']==NevaehOsAgent.find_by!(user:@other,system_key:'sage').id }
   end

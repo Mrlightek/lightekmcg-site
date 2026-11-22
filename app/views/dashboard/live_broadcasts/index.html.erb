@@ -3,7 +3,7 @@
 <%= javascript_include_tag "/lightek/live/comments.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/show-presentation.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/overlay.js?v=1", defer: true %>
-<%= javascript_include_tag "/lightek/live/production.js?v=3", defer: true %>
+<%= javascript_include_tag "/lightek/live/production.js?v=4", defer: true %>
 <%= javascript_include_tag "/lightek/live/graphics.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/broadcast-look.js?v=5", defer: true %>
 <%= javascript_include_tag "/lightek/live/slate-design.js?v=1", defer: true %>
@@ -18,8 +18,9 @@
 <%= javascript_include_tag "/lightek/live/studio.js?v=19", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>
 <%= javascript_include_tag '/lightek/live/audience.js?v=3', defer: true %>
-<%= stylesheet_link_tag "/lightek/live/control-room.css?v=1" %>
+<%= stylesheet_link_tag "/lightek/live/control-room.css?v=2" %>
 <%= javascript_include_tag "/lightek/live/control-room.js?v=1", defer: true %>
+<%= javascript_include_tag "/lightek/live/host-cues.js?v=1", defer: true if @host_package %>
 <main class="ll-studio ll-control-room" data-tour-page="live" data-live-studio data-encoder="<%= @encoder_ready ? 'ready' : 'missing' %>" data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
 
@@ -32,6 +33,8 @@
       </div>
     <% end %>
   </header>
+
+  <%= render "dashboard/live_broadcasts/host_package" %>
 
   <div class="ll-room-layout">
     <section class="ll-program-console" id="live-program" aria-label="Program monitor and controls">
@@ -59,7 +62,7 @@
           <button type="button" data-hold aria-pressed="false">Holding screen</button>
         </div>
         <div class="ll-room-inputs">
-          <label>Program source<select data-layout><option value="screen">Screen only</option><option value="camera">Camera only</option><option value="combined">Screen + camera</option><option value="library">Library image / video</option><option value="stage">3D stage + camera</option><option value="session">Lightek session room</option></select></label>
+          <label>Program source<select data-layout><option value="screen">Screen only</option><option value="camera" <%= "selected" if @host_package %>>Camera only</option><option value="combined">Screen + camera</option><option value="library">Library image / video</option><option value="stage">3D stage + camera</option><option value="session">Lightek session room</option></select></label>
           <div class="ll-meter"><label>Microphone level <meter min="0" max="1" value="0" data-meter></meter></label><span data-mic-status>Microphone off</span></div>
         </div>
       </div>
@@ -109,8 +112,8 @@
 
       <section class="ll-room-tool" id="live-destinations" data-live-tool aria-label="Broadcast settings">
         <div class="ll-room-fields">
-      <label>Session title<input type="text" value="Building Lightek · Live" maxlength="120" data-title></label>
-      <label>Destination<select data-destination><option value="lightek">Lightek · community or My Space</option><option value="test">Private test recording · 2 minutes max</option><option value="simulcast" <%= "disabled" unless @restream_ready %>>Lightek / OTT + Restream</option><option value="restream" <%= "disabled" unless @restream_ready %>>Restream · TikTok & connected channels<%= " · connection needed" unless @restream_ready %></option><option value="tiktok" <%= "disabled" unless @tiktok_ready %>>TikTok LIVE<%= " · connection needed" unless @tiktok_ready %></option><% if @playout_channels.present? %><option value="channel_input" <%= "selected" if params[:contribution] == "1" %>>Private channel contribution</option><% end %></select></label>
+      <label>Session title<input type="text" value="<%= @host_package&.fetch('title') || 'Building Lightek · Live' %>" maxlength="120" data-title></label>
+      <label>Destination<select data-destination><option value="lightek" <%= "selected" if @host_destination == "lightek" %>>Lightek · community or My Space</option><option value="test" <%= "selected" if @host_destination == "test" %>>Private test recording · 2 minutes max</option><option value="simulcast" <%= "selected" if @restream_ready && @host_destination == "simulcast" %> <%= "disabled" unless @restream_ready %>>Lightek / OTT + Restream</option><option value="restream" <%= "selected" if @restream_ready && @host_destination == "restream" %> <%= "disabled" unless @restream_ready %>>Restream · TikTok & connected channels<%= " · connection needed" unless @restream_ready %></option><option value="tiktok" <%= "selected" if @tiktok_ready && @host_destination == "tiktok" %> <%= "disabled" unless @tiktok_ready %>>TikTok LIVE<%= " · connection needed" unless @tiktok_ready %></option><% if @playout_channels.present? %><option value="channel_input" <%= "selected" if params[:contribution] == "1" %>>Private channel contribution</option><% end %></select></label>
       <div class="ll-community-fields" data-live-community-fields><label>Community<select data-community><option value="">My Space</option><% @communities.each do |community| %><option value="<%= community.slug %>" <%= "selected" if params[:community_slug]==community.slug %>><%= community.name %></option><% end %></select></label><label>Audience<select data-audience><option value="everyone">Everyone allowed in this space</option><option value="women">Women only</option><option value="men">Men only</option></select></label></div>
         </div>
       <p class="ll-note">A private test stays on your server. “Sending” means the server encoder is producing output; confirm visibility in TikTok separately. Restream sends to the channels enabled in your Restream stream.</p>

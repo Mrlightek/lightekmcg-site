@@ -30,7 +30,7 @@ def snapshot(names):
     return f"""
         SELECT json_build_object('cluster_id', (SELECT system_identifier::text FROM pg_control_system()),
           'databases', coalesce(json_object_agg(datname, json_build_object(
-            'oid', oid::bigint, 'allows_connections', datallowconn,
+            'oid', oid::bigint, 'owner', pg_get_userbyid(datdba), 'allows_connections', datallowconn,
             'sessions', (SELECT count(*) FROM pg_stat_activity WHERE datid = pg_database.oid)
           )), '{{}}'::json)) FROM pg_database WHERE datname IN ({targets});
     """
@@ -100,24 +100,27 @@ def verify_candidate(live, candidate):
         SET statement_timeout = '20s';
         SELECT json_build_object('oid', (SELECT oid::bigint FROM pg_database WHERE datname = current_database()),
           'cluster_id', (SELECT system_identifier::text FROM pg_control_system()),
+          'owner', (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()),
           'migration_count', count(*), 'schema_fingerprint', md5(string_agg(version, ',' ORDER BY version)),
           'users_table', to_regclass('public.users') IS NOT NULL)
         FROM public.schema_migrations;
     """
     original, replacement = query(live, schema), query(candidate, schema)
-    if not (original["cluster_id"] == replacement["cluster_id"] and original["users_table"] and
+    if not (original["cluster_id"] == replacement["cluster_id"] and original["owner"] == replacement["owner"] and original["users_table"] and
             replacement["users_table"] and original["migration_count"] > 0 and
             original["schema_fingerprint"] == replacement["schema_fingerprint"]):
         raise ValueError("Candidate application schema does not match the live release")
-    return {"cluster_id": original["cluster_id"], "original_oid": original["oid"], "replacement_oid": replacement["oid"],
+    return {"cluster_id": original["cluster_id"], "database_owner": original["owner"],
+            "original_oid": original["oid"], "replacement_oid": replacement["oid"],
             "schema_fingerprint": original["schema_fingerprint"]}
 
 
 def prepare_candidate(args):
     inventory = query("postgres", snapshot((args.live, args.candidate, args.retained)))
     mapping = inventory["databases"]
-    if (inventory["cluster_id"] != args.cluster_id or mapping.get(args.live, {}).get("oid") != args.original_oid or
-            mapping.get(args.candidate, {}).get("oid") != args.replacement_oid or args.retained in mapping):
+    live, candidate = mapping.get(args.live, {}), mapping.get(args.candidate, {})
+    if (inventory["cluster_id"] != args.cluster_id or live.get("oid") != args.original_oid or
+            candidate.get("oid") != args.replacement_oid or args.retained in mapping or live.get("owner") != candidate.get("owner")):
         raise ValueError("The live and candidate identities do not match the preparation request")
     target = query(args.candidate, """
         SELECT json_build_object('oid', (SELECT oid::bigint FROM pg_database WHERE datname = current_database()),
@@ -128,12 +131,12 @@ def prepare_candidate(args):
     if target["oid"] != args.replacement_oid or not target["empty"]:
         raise ValueError("Restore into the empty candidate database recorded in the request")
     descriptor = os.open(args.archive, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(descriptor, "rb") as archive:
+    with os.fdopen(descriptor, "rb", buffering=0) as archive:
         if not stat.S_ISREG(os.fstat(archive.fileno()).st_mode) or archive.read(5) != b"PGDMP":
             raise ValueError("Supply an approved PostgreSQL custom-format archive")
         archive.seek(0)
         subprocess.run(["pg_restore", "--no-password", "--single-transaction", "--exit-on-error", "--no-owner",
-                        "--no-acl", "--dbname", args.candidate], stdin=archive, capture_output=True,
+                        "--no-acl", "--role", candidate["owner"], "--dbname", args.candidate], stdin=archive, capture_output=True,
                        text=True, timeout=1800, check=True, env={**os.environ, "PGCONNECT_TIMEOUT": "5"})
     proof = verify_candidate(args.live, args.candidate)
     if (proof["cluster_id"] != args.cluster_id or proof["original_oid"] != args.original_oid or

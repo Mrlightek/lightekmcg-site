@@ -46,9 +46,10 @@ class PostgresCutoverTest(unittest.TestCase):
         else:
             raise RuntimeError("Fixture PostgreSQL never became ready")
 
-        cls.psql("postgres", "CREATE DATABASE lightek")
-        cls.psql("postgres", "CREATE DATABASE lightek_stage")
-        cls.psql("lightek", "CREATE TABLE schema_migrations(version text); INSERT INTO schema_migrations VALUES ('1');"
+        cls.psql("postgres", "CREATE ROLE lightek_app")
+        cls.psql("postgres", "CREATE DATABASE lightek OWNER lightek_app")
+        cls.psql("postgres", "CREATE DATABASE lightek_stage OWNER lightek_app")
+        cls.psql("lightek", "SET ROLE lightek_app; CREATE TABLE schema_migrations(version text); INSERT INTO schema_migrations VALUES ('1');"
                            "CREATE TABLE users(marker text); INSERT INTO users VALUES ('replacement');")
         cls.archive = subprocess.check_output(["docker", "exec", cls.container, "pg_dump", "-U", "postgres",
                                                "--format=custom", "--dbname", "lightek"])
@@ -86,6 +87,8 @@ class PostgresCutoverTest(unittest.TestCase):
                            str(databases["lightek_stage"]["oid"]), "--cluster-id", inventory["cluster_id"],
                            "--confirm", "lightek_stage", "--archive", str(archive))
             proof = run("prepare", *preparation)
+            self.assertEqual(proof["database_owner"], "lightek_app")
+            self.assertEqual(self.psql("lightek_stage", "SELECT tableowner FROM pg_tables WHERE tablename = 'users'"), "lightek_app")
             self.assertEqual(run("verify")["schema_fingerprint"], proof["schema_fingerprint"])
             self.assertIn("empty candidate", run("prepare", *preparation, accepted=False))
             original, replacement = proof["original_oid"], proof["replacement_oid"]
@@ -93,6 +96,17 @@ class PostgresCutoverTest(unittest.TestCase):
             approval = (*ids, "--cluster-id", proof["cluster_id"])
             wrong_cluster = (*ids, "--cluster-id", "1")
             self.assertIn("cluster identity changed", run("fence", *wrong_cluster, "--phase", "original", accepted=False))
+            with subprocess.Popen(["docker", "exec", self.container, "psql", "-XqAt", "-U", "postgres", "-d", "lightek",
+                                   "-c", "SET application_name = 'cutover-session-fixture'; SELECT pg_sleep(5)"],
+                                  stdout=subprocess.DEVNULL) as client:
+                for _ in range(20):
+                    if self.psql("postgres", "SELECT count(*) FROM pg_stat_activity WHERE application_name = 'cutover-session-fixture'") == "1":
+                        break
+                    time.sleep(0.1)
+                else:
+                    self.fail("Fixture client never connected")
+                self.assertIn("Stop database clients", run("fence", *approval, "--phase", "original", accepted=False))
+                client.wait(timeout=8)
             self.assertIn("Fence both databases", run("promote", *approval, accepted=False))
             fenced = run("fence", *approval, "--phase", "original")["databases"]
             self.assertFalse(fenced["lightek"]["allows_connections"])

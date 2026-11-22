@@ -133,3 +133,9 @@ The website owner or platform operator opens **Growth → Website design & conte
 | `/website restore SITE_ID {…}` | Pass the `page_id`, `revision` and `change_id` from the latest matching page-change receipt to restore its saved prior content. For a new page, use publication to take it offline. |
 
 Website edits use the native CMS and Site Design library. A completed write receipt identifies the site, operator, operation and saved result. A page edit keeps a prior source for recovery. Existing page and appearance revision checks protect newer human edits.
+
+## Write and publish Journal articles
+
+Website delegation also gives the Marketing SME access to **Journal & Articles**. Choose **Assign an article to Nevaeh**, enter the title and facts, and choose a private draft or publication. Nevaeh uses the existing writing engine to compose from the brief and the Journal editor to save the article. Published entries appear on the website and its connected PWA. Follow the result in Nevaeh Goals.
+
+Use `/website journal_inspect SITE_ID` to list recent articles, or pass `{"entry_id":123}` to read one article and its revision. Use `/website journal_write SITE_ID {…}` with `title` and either `content` or a `brief` with `facts` and optional `call_to_action`. Optional fields include `slug`, `excerpt`, `category` and `status`. To update, publish or archive an existing article, supply its `entry_id` and current `revision` along with the changed fields. Use `draft`, `published` or `archived` for status. New entries default to draft. Existing stories keep their URL and any attached images.

@@ -8,7 +8,9 @@ module NevaehOs
       'compose' => 'website.marketing.compose',
       'publication' => 'website.marketing.publication',
       'appearance' => 'website.marketing.appearance',
-      'restore' => 'website.marketing.restore'
+      'restore' => 'website.marketing.restore',
+      'journal_inspect' => 'website.marketing.journal_inspect',
+      'journal_write' => 'website.marketing.journal_write'
     }.freeze
 
     module_function
@@ -78,15 +80,18 @@ module NevaehOs
         before = previous_page(site, values) if %w[compose publication restore].include?(operation) && values['page_id']
         before = { 'template_id' => site.active_template_id, 'settings' => site.active_template&.settings } if operation == 'appearance'
 
+        # The site lock serializes delegated article creation and grant changes.
         result = case operation
         when 'inspect' then inspect_site(site, values)
+        when 'journal_inspect' then WebsiteJournal.inspect_entries(site, values)
+        when 'journal_write' then WebsiteJournal.write!(site, actor, values)
         when 'compose' then compose(site, actor, values)
         when 'publication' then publication(site, values)
         when 'appearance' then appearance(site, actor, values)
         when 'restore' then restore_page(site, actor, values, receipts)
         end
         receipt = result.merge('site_id' => site.id, 'status' => 'completed', 'operation' => operation)
-        if operation == 'inspect'
+        if %w[inspect journal_inspect].include?(operation)
           receipt
         else
           change = receipts.create!(action_id: action_id, actor_id: actor.id, operation: operation, previous_source: before, result: receipt)

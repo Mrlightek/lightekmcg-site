@@ -59,6 +59,8 @@ module NevaehOs
       'website.marketing.publication'=>['Set publication on a delegated CMS page','/website publication SITE_ID {…}','growth','growth'],
       'website.marketing.restore'=>['Restore the prior CMS page version','/website restore SITE_ID {…}','growth','growth'],
       'website.marketing.appearance'=>['Change a delegated website’s appearance','/website appearance SITE_ID {…}','growth','growth'],
+      'website.marketing.journal_inspect'=>['Inspect Journal articles for a delegated website','/website journal_inspect SITE_ID','growth','growth'],
+      'website.marketing.journal_write'=>['Write, edit or publish a Journal article','/website journal_write SITE_ID {…}','growth','growth'],
       'growth.backlink.draft'=>['Draft outreach for an approved backlink prospect','Growth → Search & backlinks','growth','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],

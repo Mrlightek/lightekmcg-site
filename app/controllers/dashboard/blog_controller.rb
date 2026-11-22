@@ -10,6 +10,29 @@ class Dashboard::BlogController < ApplicationController
   end
   def create = save_article
   def update = save_article
+  def assign_nevaeh
+    fields = params.require(:assignment).permit(:title, :category, :facts, :call_to_action, :status).to_h
+    key = params[:request_key].to_s
+    raise ArgumentError, 'Reload the form before assigning this article.' unless key.match?(/\A[0-9a-f-]{36}\z/)
+    unless fields['title'].to_s.strip.present? && fields['facts'].to_s.strip.present?
+      raise ArgumentError, 'Enter a title and the facts Nevaeh should cover.'
+    end
+    status = fields['status'] == 'published' ? 'published' : 'draft'
+    values = fields.slice('title', 'category').merge('status' => status, 'brief' => fields.slice('facts', 'call_to_action'))
+    command = { 'kind' => 'website_marketing', 'operation' => 'journal_write', 'site_id' => @site.id, 'values' => values }
+    NevaehOs::WebsiteMarketing.authorize!(current_user, NevaehOs::WebsiteMarketing.bind(current_user, command))
+    goal = NevaehOs::Goals.create!(actor: current_user, request_key: "journal-#{@site.id}-#{key}",
+      values: { 'title' => "Write #{fields.fetch('title').first(100)}", 'steps' => [{
+        'key' => 'write_article', 'label' => 'Write the Journal article', 'agent' => 'marketing_strategy',
+        'command' => command, 'expectations' => [{ 'path' => 'result.article_status', 'equals' => status },
+          { 'path' => 'result.published', 'equals' => status == 'published' }]
+      }] })
+    NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
+    redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other,
+      notice: "Journal goal ##{goal.id} assigned. Follow it in Nevaeh Goals."
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other, alert: error.message
+  end
   def preview
     @entry=LightekBlog::Entry.where(site:@site).includes(:post).find(params[:id])
     @page=Struct.new(:title,:theme,:sections).new(@entry.post.title,nil,[])

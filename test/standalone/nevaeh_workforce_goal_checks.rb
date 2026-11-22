@@ -22,21 +22,32 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
     NevaehOs::Goals.tick!(plan.reload)
   end
   def test_website_goal_dispatches_the_marketing_sme_and_records_the_publication_receipt
+    assert_marketing_goal_dispatch(
+      { 'kind' => 'website_marketing', 'operation' => 'compose', 'site_id' => 91, 'values' => { 'published' => true } },
+      { 'published' => true, 'page_id' => 12 })
+  end
+
+  def test_journal_goal_dispatches_the_marketing_sme_and_records_the_publication_receipt
+    command = NevaehOs::Command.parse('/website journal_write 91 {"entry_id":12,"revision":0,"status":"published"}')
+    assert_equal 'journal_write', command.fetch('operation')
+    assert_marketing_goal_dispatch(command, { 'published' => true, 'entry_id' => 12, 'article_status' => 'published' })
+  end
+
+  def assert_marketing_goal_dispatch(command, result)
     operations = NevaehOs::WebsiteMarketing
-    command = { 'kind' => 'website_marketing', 'operation' => 'compose', 'site_id' => 91, 'values' => { 'published' => true } }
     bind = ->(_actor, input) { input.merge('delegation_id' => 'fixture-grant') }
     execute_site = lambda do |actor:, command:, action_id:|
       assert_equal @actor.id, actor.id
       assert_equal 'fixture-grant', command.fetch('delegation_id')
       assert_operator action_id, :>, 0
-      { 'status' => 'completed', 'published' => true, 'page_id' => 12 }
+      result.merge('status' => 'completed')
     end
 
     NevaehOs::Guide.stub(:allowed?, ->(level, actor) { level == 'growth' && actor.id == @actor.id }) do
       operations.stub(:bind, bind) do
         operations.stub(:authorize!, true) do
           operations.stub(:perform!, execute_site) do
-            plan = goal({ 'title' => 'Publish a campaign landing page', 'steps' => [{
+            plan = goal({ 'title' => 'Execute a delegated publication', 'steps' => [{
               'key' => 'publish', 'agent' => 'marketing_strategy', 'command' => command,
               'expectations' => [{ 'path' => 'result.published', 'equals' => true }]
             }] })

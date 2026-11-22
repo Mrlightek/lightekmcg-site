@@ -107,6 +107,7 @@ Rails.application.routes.append do
   get '/journal.xml',to:'lightek_blog#feed',as: :website_blog_feed
   namespace :dashboard do
     resources :blog,only:%i[index create update],controller:'blog' do
+      post :assign_nevaeh, on: :collection
       get :preview,on: :member
       get 'images/:attachment_id',to:'blog#image',on: :member,as: :image
     end

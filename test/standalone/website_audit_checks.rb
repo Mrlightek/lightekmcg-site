@@ -46,6 +46,10 @@ require Rails.root.join('db/migrate/20261122090100_record_nevaeh_website_changes
 RecordNevaehWebsiteChanges.new.migrate(:up)
 require Rails.root.join('app/models/lightek_growth/website_change')
 require Rails.root.join('app/services/nevaeh_os/website_marketing')
+require Rails.root.join('app/services/nevaeh_os/website_journal')
+require Rails.root.join('app/services/nevaeh_os/goals')
+require Rails.root.join('app/services/nevaeh_intelligences/writing_engine')
+require Rails.root.join('app/services/nevaeh_intelligences/editorial_direction')
 require Rails.root.join('app/controllers/dashboard/website_audits_controller')
 Dashboard::WebsiteAuditsController.layout false
 DymondSite::Page.has_one :growth_page_metadata, class_name: 'LightekGrowth::PageMetadata', foreign_key: :page_id, dependent: :destroy
@@ -75,6 +79,72 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def test_audit_delegated_marketing_writes_and_publishes_native_journal_articles
+    operator = NevaehOs::WebsiteMarketing
+    grant = { 'actor_id' => @user.id, 'key' => 'fixture-grant' }
+    @site.update!(manifest: @site.manifest.merge(operator::KEY => grant))
+    get '/dashboard/blog', params: { site_id: @site.id }, headers: headers
+    assert_response :success
+    assert_includes response.body, 'Assign an article to Nevaeh'
+    assert_includes response.body, '/dashboard/blog/assign_nevaeh'
+
+    create_goal = lambda do |actor:, request_key:, values:|
+      assert_equal @user, actor
+      assert_match(/\Ajournal-#{@site.id}-/, request_key)
+      step = values.fetch('steps').sole
+      assert_equal 'marketing_strategy', step.fetch('agent')
+      assert_equal 'journal_write', step.dig('command', 'operation')
+      assert_equal 'draft', step.dig('command', 'values', 'status')
+      Struct.new(:id, :status).new(123, 'draft')
+    end
+    start_goal = ->(goal:, actor:, operation:) { assert_equal [123, @user, 'start'], [goal.id, actor, operation] }
+    NevaehOs::Goals.stub(:create!, create_goal) do
+      NevaehOs::Goals.stub(:control!, start_goal) do
+        post '/dashboard/blog/assign_nevaeh', params: { site_id: @site.id, request_key: SecureRandom.uuid,
+          assignment: { title: 'Inside Lightek Studio', facts: 'Creators can edit a show in Lightek Studio.' } }, headers: headers
+        assert_response :see_other
+      end
+    end
+
+    draft = operator.bind(@user, { 'site_id' => @site.id, 'operation' => 'journal_write', 'values' => {
+      'title' => 'Inside Lightek Studio', 'category' => 'News',
+      'brief' => { 'facts' => 'Creators can record and edit a show in Lightek Studio.' }
+    } })
+    receipt = operator.perform!(actor: @user, command: draft, action_id: 11)
+    assert_equal 'draft', receipt.fetch('article_status')
+    assert_equal receipt, operator.perform!(actor: @user, command: draft, action_id: 11)
+    path = receipt.fetch('path')
+    get path
+    assert_response :not_found
+
+    entry = LightekBlog::Entry.find(receipt.fetch('entry_id'))
+    inspect_command = draft.merge('operation' => 'journal_inspect', 'values' => { 'entry_id' => entry.id })
+    article = operator.perform!(actor: @user, command: inspect_command, action_id: 12)
+    assert_includes article.fetch('content'), 'Creators can record and edit a show in Lightek Studio.'
+    revised = LightekBlog::Editor.save!(site: @site, user: @user, entry: entry,
+      attributes: { title: entry.post.title, content: article.fetch('content') + "\n\nA note from the editor.", slug: entry.slug,
+        category: entry.category, status: entry.status, lock_version: entry.lock_version })
+    publish = draft.merge('values' => { 'entry_id' => entry.id, 'revision' => article.fetch('revision'), 'status' => 'published' })
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: publish, action_id: 13) }
+    publish['values']['revision'] = revised.lock_version
+    live = operator.perform!(actor: @user, command: publish, action_id: 13)
+    assert live.fetch('published')
+    get path
+    assert_response :success
+    assert_includes response.body, 'A note from the editor.'
+    get '/journal.xml'
+    assert_response :success
+    assert_includes response.body, 'Inside Lightek Studio'
+
+    foreign_entry = LightekBlog::Editor.save!(site: @foreign, user: @other,
+      attributes: { title: 'Other news', content: 'Private facts', slug: 'other-news' })
+    assert_raises(ActiveRecord::RecordNotFound) do
+      operator.perform!(actor: @user, command: inspect_command.merge('values' => { 'entry_id' => foreign_entry.id }), action_id: 14)
+    end
+    @site.update!(manifest: @site.reload.manifest.except(operator::KEY))
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: publish, action_id: 15) }
+  end
+
   def test_audit_delegated_marketing_renders_public_copy_and_rejects_stale_or_revoked_work
     operator = NevaehOs::WebsiteMarketing
     @site.update!(manifest: @site.manifest.merge(operator::KEY => { 'actor_id' => @user.id, 'key' => 'fixture-grant' }))

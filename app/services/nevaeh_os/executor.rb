@@ -206,8 +206,17 @@ module NevaehOs
         workspace = LightekGrowth::Performance::Workspace.new(actor: actor, site: site)
         workspace.receipt(workspace.review!(comparison_id: command.fetch('comparison_id'), request_key: "nevaeh-action-#{action.id}"))
       when 'marketing_kit'
-        copilot = LightekGrowth::MarketingCopilot.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
-        copilot.receipt(copilot.prepare!(values: command.fetch('values', {}), request_key: "marketing-#{action.id}"))
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        copilot = LightekGrowth::MarketingCopilot.new(actor: actor, site: site)
+        if command['execute_demo'] == true
+          raise ArgumentError, 'Enable the site’s public demo requests before preparing this campaign.' unless LightekGrowth::DemoShowcase.demo_booking?(site)
+
+          planner = LightekGrowth::MarketingExecutionPlan.new(actor: actor, site: site)
+          kit = copilot.prepare!(values: command.fetch('values'), request_key: "marketing-#{action.id}")
+          planner.receipt(planner.start!(kit_id: kit.id))
+        else
+          copilot.receipt(copilot.prepare!(values: command.fetch('values', {}), request_key: "marketing-#{action.id}"))
+        end
       when 'feature_showcase'
         builder = LightekGrowth::ShowcaseBuilder.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
         builder.receipt(builder.start!(kit_id: command.fetch('kit_id')))

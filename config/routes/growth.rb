@@ -11,6 +11,9 @@ post '/dashboard/marketing-copilot/showcases/:id/screenshots/:position', to: 'da
   as: :save_dashboard_feature_screenshot
 post '/dashboard/marketing-copilot/showcases/:id/promotion', to: 'dashboard/marketing_copilot#prepare_demo_promotion',
   as: :prepare_dashboard_demo_promotion
+post '/dashboard/marketing-copilot/showcases/:id/publish-demo', to: 'dashboard/marketing_copilot#publish_demo', as: :publish_dashboard_demo
+post '/dashboard/marketing-copilot/showcases/:id/schedule-demo', to: 'dashboard/marketing_copilot#schedule_demo', as: :schedule_dashboard_demo
+post '/dashboard/marketing-copilot/showcases/:id/experiment', to: 'dashboard/marketing_copilot#start_demo_experiment', as: :start_dashboard_demo_experiment
 post '/dashboard/marketing-copilot/showcases/:id/approve', to: 'dashboard/marketing_copilot#approve_showcase', as: :approve_dashboard_feature_showcase
 post '/dashboard/marketing-copilot/:id/execute', to: 'dashboard/marketing_copilot#execute', as: :execute_dashboard_marketing_kit
 get '/dashboard/growth', to: 'dashboard/growth#index', as: :dashboard_growth

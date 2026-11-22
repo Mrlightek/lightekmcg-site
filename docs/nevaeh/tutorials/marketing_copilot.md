@@ -101,15 +101,27 @@ package access, explicit video approval and the actual saved file. A draft page
 or an approved video alone does not grant public playback. No public page is
 published or external message sent merely by executing this goal.
 
-## Build a demo campaign
+## Build and run a demo campaign
 
-Enable the public demo request form for the website in **Dashboard → Demos**. Ask Nevaeh to **Prepare a demo campaign for site SITE_ID**, or use **Marketing copilot** with `/request-demo` as the destination. Execute the kit to build the walkthrough. Nevaeh reads the reviewed feature catalog and automatically adds real screenshots from the Studio manuals along with the captioned overviews.
+Enable the website's public demo request form in **Dashboard → Demos** and save the intended audience and offer in the business brief. Ask Nevaeh, **Get more local businesses to book a Lightek demo**. She starts a marketing kit and a goal that builds the walkthrough, prepares promotion copy and creates Sales follow-up tasks for eligible existing leads. If more than one website is available, add **for site SITE_ID**. **Prepare a demo campaign for site SITE_ID** saves a kit that you can start from Marketing Copilot.
 
-Under each feature in the completed draft, choose **Add product screenshot**. Open a demo workspace with sample data, click **Capture demo window**, and select that window or tab in the browser prompt. Add a caption and save. You can also select a PNG. Review the screenshots for accuracy and private information, and remove any that should stay private. The public endpoint requires both walkthrough-media approval and CMS publication on the exact site. Approved screenshots remain fixed for that walkthrough.
+The walkthrough adds real product screenshots to every included feature. The starter screenshots show Design & Content, Studio and Live Studio, Sales & CRM, Commerce, Marketing Copilot, and the Nevaeh Guide. Fresh captures from an open demo window or an uploaded PNG can be added to individual cards. Review the images and claims before approval. The screenshot endpoint requires the approved and published page on the exact website.
 
-Publish the approved page and open **Demo campaign** to copy the tracked walkthrough link or generate promotion copy. Review the promotion in **Content review**, then use the existing publication calendar and a connected provider. The walkthrough points to the site's demo form without overwriting the inbound campaign visit. The panel counts tracked visits, demo requests, activated demos, and paid upgrades verified on their linked orders. Requests with no matching visit remain unattributed.
+In **Demo campaign**, use **Publish demo walkthrough** or approve the tracked promotion copy and choose **Publish and schedule promotion**. Pick an already connected channel and its release time. The publish step checks the saved walkthrough, its screenshots, and the site's request form configuration. The publication scheduler checks account access, the approved creative and provider-specific media requirements, and rechecks that the walkthrough is still available at dispatch. The campaign calendar records the actual provider outcome.
 
-Apply the demo attribution migration before deployment. Test the published walkthrough link, confirmation email and activation on the intended hostname. Real payment and provider publication remain deployment checks.
+For delegated website commands, use these inputs:
+
+| Command | Inputs |
+| --- | --- |
+| `/website demo_publish SITE_ID {…}` | `showcase_id` |
+| `/website demo_launch SITE_ID {…}` | `showcase_id`, `connection_id`, `scheduled_at` with a timezone offset and optional `time_zone` |
+| `/website demo_schedule SITE_ID {…}` | The same scheduling fields for a published walkthrough |
+| `/website demo_experiment SITE_ID {…}` | `showcase_id` |
+| `/website demo_report SITE_ID {…}` | `showcase_id` |
+
+The campaign reports tracked visits, demo requests, activated demos, and paid demo upgrades. If visitors reach the walkthrough without requesting demos, ask Nevaeh to start the button wording experiment or select **Test demo button wording**. New tracked visits through the walkthrough's promotion link are split between the original button and an alternative. The report shows both variants' assigned visits, requests, conversion rates and paid upgrades as they are recorded. Direct and untracked views use the original button. The report has no automatic winner or minimum traffic requirement.
+
+Apply the demo attribution and experiment migrations on deployment. Verify the production confirmation email, connected channel and upgrade payment on the intended site. Standalone tests use sample data without live provider or payment transactions.
 
 ## Work from the kit
 

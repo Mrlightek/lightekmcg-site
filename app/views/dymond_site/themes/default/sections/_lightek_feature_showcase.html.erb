@@ -21,7 +21,11 @@
   <% demo_walkthrough = showcase.snapshot['demo_promotion_link_id'].present? %>
   <footer><h2>Find the right fit for your business.</h2><p>Explore the offer, ask your questions and choose your next step.</p><% if demo_walkthrough %>
     <% if LightekGrowth::DemoShowcase.demo_booking?(@site) %>
-      <%= link_to 'Request a demo', '/request-demo', class: 'feature-cta' %>
+      <% if showcase.demo_experiment_started_at && controller&.respond_to?(:cookies) && request %>
+        <% controller.response.set_header('Cache-Control', 'private, no-store') %>
+        <% visit = LightekGrowth::Tracking.from_request(site: @site, cookies: controller.cookies, request: request) %>
+      <% end %>
+      <%= link_to LightekGrowth::DemoCampaign.cta(showcase, visit), '/request-demo', class: 'feature-cta' %>
     <% end %>
   <% else %>
     <%= link_to campaign.cta_label.presence || 'Learn more', LightekDesign::Catalog.safe_url(campaign.cta_url), class: 'feature-cta' %>

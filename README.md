@@ -45,7 +45,7 @@ A business can build its website, sell products or book services, manage custome
 | Animate a library still into a video shot | [Genesis image-to-video](docs/studio/genesis-image-to-video.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
-| Build a screenshot-backed demo and track requests | [Demo campaigns](docs/nevaeh/tutorials/marketing_copilot.md#build-a-demo-campaign) |
+| Build a screenshot-backed demo and track requests | [Demo campaigns](docs/nevaeh/tutorials/marketing_copilot.md#build-and-run-a-demo-campaign) |
 | Delegate press releases, media outreach and coverage monitoring | [Nevaeh PR SME](docs/nevaeh/tutorials/public_relations.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |

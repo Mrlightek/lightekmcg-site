@@ -15,7 +15,12 @@ module NevaehOs
       'journal_editorial_write' => 'website.marketing.journal_editorial_write',
       'journal_social_draft' => 'website.marketing.journal_social_draft',
       'press_release' => 'website.marketing.press_release',
-      'media_pitch' => 'website.marketing.media_pitch'
+      'media_pitch' => 'website.marketing.media_pitch',
+      'demo_publish' => 'website.marketing.demo_publish',
+      'demo_launch' => 'website.marketing.demo_launch',
+      'demo_schedule' => 'website.marketing.demo_schedule',
+      'demo_experiment' => 'website.marketing.demo_experiment',
+      'demo_report' => 'website.marketing.demo_report'
     }.freeze
 
     module_function
@@ -96,6 +101,8 @@ module NevaehOs
         when 'journal_write' then WebsiteJournal.write!(site, actor, values)
         when 'journal_editorial_write' then JournalEditorial.write!(site, actor, command)
         when 'journal_social_draft' then JournalEditorial.social_draft!(site, actor, command)
+        when 'demo_publish', 'demo_launch', 'demo_schedule', 'demo_experiment', 'demo_report'
+          demo_work!(site, actor, operation, values, action_id)
         when 'press_release' then PublicRelations.release!(site, actor, values)
         when 'media_pitch' then PublicRelations.pitch!(site, values)
         when 'compose' then compose(site, actor, values)
@@ -113,6 +120,22 @@ module NevaehOs
       end
     rescue KeyError => error
       raise ArgumentError, "Missing or unsupported website input: #{error.key}."
+    end
+
+    def demo_work!(site, actor, operation, values, action_id)
+      campaign = LightekGrowth::DemoCampaign.new(actor: actor, site: site)
+      keys = %w[demo_launch demo_schedule].include?(operation) ? %w[showcase_id connection_id scheduled_at time_zone] : %w[showcase_id]
+      allowed!(values, keys)
+      id = values.fetch('showcase_id')
+      case operation
+      when 'demo_publish' then campaign.publish!(showcase_id: id)
+      when 'demo_launch', 'demo_schedule'
+        method = operation == 'demo_launch' ? :launch! : :schedule!
+        campaign.public_send(method, showcase_id: id, connection_id: values.fetch('connection_id'),
+          scheduled_at: values.fetch('scheduled_at'), time_zone: values.fetch('time_zone', 'UTC'), request_key: "demo-nevaeh-#{action_id}")
+      when 'demo_experiment' then campaign.experiment!(showcase_id: id)
+      when 'demo_report' then campaign.report!(showcase_id: id)
+      end
     end
 
     def previous_page(site, values)

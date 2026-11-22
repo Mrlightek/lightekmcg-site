@@ -79,7 +79,7 @@ module NevaehOs
         return { 'kind' => 'public_relations', 'operation' => match[1], 'site_id' => match[2].to_i,
           'values' => match[3] ? JSON.parse(match[3]) : {} }
       end
-      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
+      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch|demo_publish|demo_launch|demo_schedule|demo_experiment|demo_report) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
         return { 'kind' => 'website_marketing', 'operation' => match[1], 'site_id' => match[2].to_i,
           'values' => match[3] ? JSON.parse(match[3]) : {} }
       end
@@ -101,6 +101,10 @@ module NevaehOs
         values = m[2] ? JSON.parse(m[2]) : {}
         raise ArgumentError, 'Use a marketing input object' unless values.is_a?(Hash)
         return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>values}.compact
+      end
+      if (m = q.match(/\A(?:please )?get more (?:local )?businesses to book (?:a )?(?:Lightek )?demo(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return { 'kind' => 'marketing_kit', 'site_id' => m[1]&.to_i, 'execute_demo' => true,
+          'values' => { 'destination_path' => '/request-demo', 'cta_label' => 'Request a demo' } }.compact
       end
       if (m = q.match(/\A(?:please )?prepare (?:a |my )?demo campaign(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
         return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i,

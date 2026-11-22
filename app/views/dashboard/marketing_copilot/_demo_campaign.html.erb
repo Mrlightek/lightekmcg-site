@@ -1,22 +1,45 @@
 <section class="sales-panel" aria-label="Demo campaign">
   <h3>Demo campaign</h3>
+  <% funnel = report.fetch('funnel') %>
+  <% if showcase.approved_at && !showcase.page.published? %>
+    <%= button_to 'Publish demo walkthrough', publish_dashboard_demo_path(showcase, site_id: site.id), class: 'sales-button' %>
+  <% end %>
   <% if LightekGrowth::DemoShowcase.promotion_ready?(showcase, link) %>
     <% if (origin = LightekGrowth::SearchDiscovery.origin(site)) %>
       <% url = "#{origin}/g/#{link.token}" %>
       <label>Tracked walkthrough link <%= text_field_tag nil, url, readonly: true, id: nil %></label>
       <%= button_to 'Prepare walkthrough promotion', prepare_dashboard_demo_promotion_path(showcase, site_id: site.id), class: 'sales-button secondary' if @demo_variants.empty? %>
-      <% if @demo_variants.any? %>
-        <%= link_to 'Review walkthrough promotion', dashboard_campaign_content_path(site_id: site.id, campaign_id: link.campaign_id) %>
-      <% end %>
       <%= link_to 'Open walkthrough', "#{origin}#{link.destination_path}", class: 'sales-button secondary' %>
+      <% if report.fetch('experiment_started_at').nil? %>
+        <%= button_to 'Test demo button wording', start_dashboard_demo_experiment_path(showcase, site_id: site.id), class: 'sales-button secondary' %>
+      <% end %>
     <% end %>
   <% else %>
     <p>The promotion link requires an approved, published walkthrough at its original URL and an enabled demo request form.</p>
   <% end %>
+  <% if @demo_variants.any? %>
+    <%= link_to 'Review walkthrough promotion', dashboard_campaign_content_path(site_id: site.id, campaign_id: link.campaign_id) %>
+  <% end %>
+  <% campaign = showcase.marketing_kit.campaign %>
+  <% if (origin = LightekGrowth::SearchDiscovery.origin(site)) && showcase.approved_at && @demo_connections&.any? && campaign.cta_url == "#{origin}/g/#{link.token}" && campaign.content_approved? %>
+    <%= form_with url: schedule_dashboard_demo_path(showcase, site_id: site.id), local: true, class: 'sales-form' do %>
+      <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+      <label>Connected channel <%= select_tag :connection_id, options_for_select(@demo_connections.map { |row| ["#{row.provider.humanize} · #{row.account_label}", row.id] }) %></label>
+      <label>Publication time <%= datetime_field_tag :scheduled_local, nil, required: true %></label>
+      <label>Time zone <%= select_tag :time_zone, options_for_select(['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London'], Time.zone&.tzinfo&.identifier || 'UTC'), required: true %></label>
+      <%= submit_tag(showcase.page.published? ? 'Schedule promotion' : 'Publish and schedule promotion', class: 'sales-button') %>
+    <% end %>
+  <% end %>
   <dl>
-    <dt>Tracked visits</dt><dd><%= funnel.fetch(:visits) %></dd>
-    <dt>Demo requests</dt><dd><%= funnel.fetch(:requests) %></dd>
-    <dt>Activated demos</dt><dd><%= funnel.fetch(:activated) %></dd>
-    <dt>Paid demo upgrades</dt><dd><%= funnel.fetch(:paid) %></dd>
+    <dt>Tracked visits</dt><dd><%= funnel.fetch('visits') %></dd>
+    <dt>Demo requests</dt><dd><%= funnel.fetch('requests') %></dd>
+    <dt>Activated demos</dt><dd><%= funnel.fetch('activated') %></dd>
+    <dt>Paid demo upgrades</dt><dd><%= funnel.fetch('paid') %></dd>
   </dl>
+  <% if report['experiment_started_at'] %>
+    <h4>Demo button experiment</h4>
+    <% report.fetch('arms').each do |arm| %>
+      <p><strong><%= arm.fetch('label') %></strong> · <%= arm.fetch('visits') %> assigned visits · <%= arm.fetch('requests') %> requests<%= " · #{arm['request_rate']}% of visits requested a demo" if arm['request_rate'] %> · <%= arm.fetch('paid') %> paid upgrades</p>
+    <% end %>
+  <% end %>
 </section>

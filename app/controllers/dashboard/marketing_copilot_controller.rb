@@ -21,7 +21,10 @@ class Dashboard::MarketingCopilotController < Dashboard::SettingsHomeController
       @showcase = LightekGrowth::FeatureShowcase.where(site: @site, marketing_kit: @kit).includes(clips: {file_attachment: :blob}).first
       if @showcase && (link_id = @showcase.snapshot['demo_promotion_link_id'])
         @demo_link = LightekGrowth::Link.where(site: @site, campaign: @kit.campaign).find_by(id: link_id)
-        @demo_funnel = LightekGrowth::DemoShowcase.funnel(@site, @kit.campaign_id)
+        @demo_report = LightekGrowth::DemoCampaign.new(actor: current_user, site: @site).report!(showcase_id: @showcase.id) if @demo_link
+        if current_user.role.in?(%w[admin super_admin])
+          @demo_connections = LightekMarketing::SocialConnection.where(site: @site, enabled: true, provider: %w[facebook instagram tiktok]).order(:account_label)
+        end
         @demo_variants = LightekMarketing::ContentVariant.where(campaign: @kit.campaign, batch_key: "demo-walkthrough-#{@showcase.id}").order(:id)
       end
       @execution = LightekGrowth::MarketingExecution.find_by(marketing_kit: @kit)
@@ -81,12 +84,38 @@ class Dashboard::MarketingCopilotController < Dashboard::SettingsHomeController
     redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase&.marketing_kit_id), alert: error.message, status: :see_other
   end
 
+  def publish_demo
+    demo_action('Walkthrough published.') { |service, showcase| service.publish!(showcase_id: showcase.id) }
+  end
+
+  def schedule_demo
+    demo_action('Walkthrough published and promotion scheduled. The calendar records delivery.') do |service, showcase|
+      scheduled_at = LightekMarketing::PublicationCalendar.parse_local(value: params[:scheduled_local], zone: params[:time_zone])
+      service.launch!(showcase_id: showcase.id, connection_id: params[:connection_id], scheduled_at: scheduled_at,
+        request_key: params[:request_key], time_zone: params[:time_zone])
+    end
+  end
+
+  def start_demo_experiment
+    demo_action('Demo button wording experiment started.') { |service, showcase| service.experiment!(showcase_id: showcase.id) }
+  end
+
   def approve_showcase
     raise ArgumentError, 'Confirm review of the feature claims, videos and screenshots' unless params[:confirmed] == '1'
     showcase = LightekGrowth::ShowcaseBuilder.new(actor: current_user, site: @site).approve!(id: params[:id])
     redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id), notice: 'Walkthrough media approved for this page. Publish the reviewed draft through the normal website editor when ready.', status: :see_other
   end
   private
+  def demo_action(message)
+    showcase = LightekGrowth::FeatureShowcase.where(site: @site).find(params[:id])
+    yield LightekGrowth::DemoCampaign.new(actor: current_user, site: @site), showcase
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id),
+      notice: message, status: :see_other
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase&.marketing_kit_id),
+      alert: error.message, status: :see_other
+  end
+
   def change_screenshot
     showcase = LightekGrowth::FeatureShowcase.where(site: @site).find(params[:id])
     showcase.with_lock do

@@ -33,6 +33,11 @@ module LightekGrowth
           'See the tools, understand what they do, and choose your next step.'
         page.sections.create!(kind: 'lightek_feature_showcase', position: 0,
           data: { 'showcase_id' => showcase.id.to_s, 'heading' => heading, 'intro' => intro })
+        if promotion
+          LightekMarketing::ContentWorkbench.new(actor: @actor, site: @site).generate!(
+            campaign_id: kit.campaign_id, request_key: "demo-walkthrough-#{showcase.id}",
+            tracking_link_id: promotion.id, purpose: 'marketing_kit')
+        end
         FeatureShowcaseJob.perform_later(showcase.id)
         showcase
       end
@@ -64,10 +69,7 @@ module LightekGrowth
         showcase = FeatureShowcase.where(site: @site).find(id)
         showcase.with_lock do
           raise ArgumentError, 'Wait for every saved video and review the current source' unless showcase.status=='completed' && showcase.clips.all?(&:ready?) && showcase.snapshot['source']==FeatureCatalog.snapshot
-          screenshots = showcase.clips.flat_map { |clip| clip.screenshots_attachments.map { |image| DemoShowcase.image!(clip, image.id) } }
-          if showcase.snapshot['demo_promotion_link_id'] && screenshots.empty?
-            raise ArgumentError, 'Add a real product screenshot before approving the demo walkthrough.'
-          end
+          DemoShowcase.verify_screenshots!(showcase)
           showcase.update!(approved_by: @actor, approved_at: Time.current)
         end
         showcase

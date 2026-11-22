@@ -60,11 +60,19 @@ module Gatekeeper
         capability: "healthcheck_project").where("parameters ->> 'health_monitor_id' = ?", monitor_id)
     end
 
-    def repair_available?(project, monitor_id)
-      checks = operations(project.id, project.gatekeeper_node_id, monitor_id)
-      latest_pass = checks.where(status: "succeeded").maximum(:id) || 0
-      checks.where("id > ?", latest_pass)
-        .where("CAST(parameters ->> 'repair_failed_worker' AS TEXT) IN (?)", %w[true 1]).none?
+    def claim_repair!(project, monitor_id)
+      project.with_lock do
+        settings = project.metadata.to_h[SETTINGS_KEY]
+        return false unless settings && settings["id"] == monitor_id && %w[healthy degraded].include?(project.status)
+
+        checks = operations(project.id, project.gatekeeper_node_id, monitor_id)
+        latest_pass = checks.where(status: "succeeded").maximum(:id) || 0
+        return false if settings["repair_after_operation_id"] == latest_pass
+
+        updated = settings.merge("repair_after_operation_id" => latest_pass)
+        project.update!(metadata: project.metadata.merge(SETTINGS_KEY => updated))
+        true
+      end
     end
 
     def status(project)

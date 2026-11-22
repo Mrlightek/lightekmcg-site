@@ -11,13 +11,16 @@ module Gatekeeper
         return unless %w[healthy degraded].include?(project.status) &&
           ProjectHealthMonitor.operator_allowed?(project, health_monitor_id, operator_id)
       end
-      Hosting::Access.active!(project.gatekeeper_node)
       repair = operator_id.present? && executions == 2 &&
-        (!health_monitor_id || ProjectHealthMonitor.repair_available?(project, health_monitor_id))
+        (!health_monitor_id || ProjectHealthMonitor.claim_repair!(project, health_monitor_id))
+      return if expected_node_id && project.gatekeeper_node_id != expected_node_id
+
+      node = project.gatekeeper_node
+      Hosting::Access.active!(node)
 
       Executor.call(
         capability: "healthcheck_project",
-        node: project.gatekeeper_node,
+        node: node,
         project:,
         requested_by:,
         parameters: {"healthcheck_job_id" => job_id, "repair_failed_worker" => repair, "health_monitor_id" => health_monitor_id}.compact

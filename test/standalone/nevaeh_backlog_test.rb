@@ -691,14 +691,15 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     end
     assert_equal 2, GatekeeperOperation.count
     assert_equal 1, Marlon::Ticket.count
-    refute monitor.repair_available?(project, monitor_id)
+    refute monitor.claim_repair!(project, monitor_id)
 
     travel 16.minutes
     sweep.perform_now
     passed = runner::Result.new(command: "test probe", stdout: "OK https 200", stderr: "", exit_status: 0)
     runner.stub(:call, passed) { probe.execute(next_probe.call) }
     assert_equal "resolved", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: Marlon::Ticket.first.id)
-    assert monitor.repair_available?(project, monitor_id)
+    assert monitor.claim_repair!(project, monitor_id)
+    refute monitor.claim_repair!(project, monitor_id)
 
     travel 16.minutes
     sweep.perform_now

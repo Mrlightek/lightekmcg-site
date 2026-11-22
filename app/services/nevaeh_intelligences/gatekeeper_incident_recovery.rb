@@ -22,13 +22,14 @@ module NevaehIntelligences
         return unless triage
 
         verified_at = Time.current
-        proof = triage.slice("operation", "follow_up", "project_health_observed_at").merge("verified_at" => verified_at.iso8601(6))
+        proof = triage.slice("operation", "follow_up", "project_health_observed_at", "worker_recovered")
+          .merge("verified_at" => verified_at.iso8601(6))
         fields["nevaeh"] = state.merge(
           "intent_key" => "healthcheck_project", "execution_status" => "verified",
           "verification_mode" => "gatekeeper_project_health_recovery", "verification" => proof
         )
         fields["nevaeh_backlog"] = backlog.merge(
-          "status" => "verified_resolved", "blockers" => [], "incident_triage" => triage.except("project_health_observed_at"),
+          "status" => "verified_resolved", "blockers" => [], "incident_triage" => triage.slice("status", "operation", "follow_up"),
           "updated_at" => verified_at.iso8601
         )
         ticket.update!(status: "resolved", resolved_at: verified_at, extra_fields: fields)

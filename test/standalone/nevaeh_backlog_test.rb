@@ -96,6 +96,7 @@ ActiveRecord::Schema.define do
     t.string :domain
     t.string :app_root
     t.string :apache_service_name
+    t.string :deployed_sha
     t.string :status
     t.datetime :last_healthcheck_at
   end
@@ -606,11 +607,11 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     customer = User.create!(role: "client")
     node = GatekeeperNode.create!(name: "Test server", status: "healthy")
     project = GatekeeperProject.create!(gatekeeper_node: node, name: "test-app", domain: "test.example",
-      app_root: "/test/app", apache_service_name: "apache2", status: "healthy")
+      app_root: "/test/app", apache_service_name: "apache2", status: "healthy", deployed_sha: "a" * 40)
     probe = Gatekeeper::HealthcheckProjectJob
     runner = Gatekeeper::CommandRunner
-    failed = runner::Result.new(command: "test probe", stdout: "FAIL https 503", stderr: "", exit_status: 1)
-    passed = runner::Result.new(command: "test probe", stdout: "OK https 200", stderr: "", exit_status: 0)
+    failed = runner::Result.new(command: "test probe", stdout: "FAIL sidekiq", stderr: "", exit_status: 1)
+    passed = runner::Result.new(command: "test probe", stdout: "OK https 200\nGATEKEEPER_WORKER_RECOVERED=1", stderr: "", exit_status: 0)
 
     actions = NevaehOs::PlatformActions
     command = actions.command("hosting.project.healthcheck", {"project_id" => project.id})
@@ -623,19 +624,28 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     initial_job = enqueued_jobs.find { |entry| entry[:job] == probe }
     enqueued_jobs.delete(initial_job)
     assert_equal queued.fetch("job_id"), initial_job.fetch("job_id")
-    runner.stub(:call, failed) { probe.execute(initial_job) }
+    first_probe = ->(command:, node:) do
+      refute_includes command, project.deployed_sha
+      failed
+    end
+    runner.stub(:call, first_probe) { probe.execute(initial_job) }
     original = GatekeeperOperation.find_by!(gatekeeper_project: project, status: "failed")
     row = Marlon::Ticket.find_by!(related_type: "GatekeeperOperation", related_id: original.id)
     retries = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |entry| entry[:job] == probe }
     assert_equal 1, retries.size
     assert_equal "open", row.status
 
-    runner.stub(:call, passed) { probe.execute(retries.first) }
+    second_probe = ->(command:, node:) do
+      assert_includes command, "EXPECTED_WORKER_RELEASE=#{project.deployed_sha}"
+      passed
+    end
+    runner.stub(:call, second_probe) { probe.execute(retries.first) }
     assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count { |entry| entry[:job] == probe }
     assert_equal "resolved", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
     assert_equal "healthy", project.reload.status
     assert_equal "failed", original.reload.status
     assert_equal 1, Marlon::Ticket.count
+    assert_equal true, row.reload.extra_fields.dig("nevaeh", "verification", "worker_recovered")
     result = actions.perform!(actor: operator, command: status, action_id: 4)
     assert_equal "succeeded", result.dig("latest_check", "status")
     assert_equal queued.fetch("job_id"), result.dig("latest_check", "job_id")

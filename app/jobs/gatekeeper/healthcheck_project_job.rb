@@ -14,7 +14,7 @@ module Gatekeeper
         node: project.gatekeeper_node,
         project:,
         requested_by:,
-        parameters: { "healthcheck_job_id" => job_id }
+        parameters: { "healthcheck_job_id" => job_id, "repair_failed_worker" => operator_id.present? && executions == 2 }
       )
     rescue Capabilities::HealthcheckProject::Unhealthy
       raise unless expected_node_id

@@ -18,7 +18,11 @@
         <p>The linked operation confirms the reported failure.</p>
       <% when 'follow_up_recorded' %>
         <% if ticket.extra_fields.to_h.dig('nevaeh', 'verification_mode') == 'gatekeeper_project_health_recovery' %>
-          <p>Nevaeh verified the successful Gatekeeper health check and closed this incident.</p>
+          <% if ticket.extra_fields.to_h.dig('nevaeh', 'verification', 'worker_recovered') %>
+            <p>Nevaeh restarted the failed Sidekiq worker, verified the project health check, and closed this incident.</p>
+          <% else %>
+            <p>Nevaeh verified the successful Gatekeeper health check and closed this incident.</p>
+          <% end %>
         <% else %>
           <p>A later operation started on the same node and project. Incident resolution still requires verification.</p>
         <% end %>

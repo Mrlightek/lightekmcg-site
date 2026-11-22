@@ -538,12 +538,12 @@
     {
       "id": "hosting.project.healthcheck",
       "title": "Run a Gatekeeper project health check",
-      "summary": "Queue the existing project probe with the current operator and node bound to the job.",
+      "summary": "Queue the project probe with the current operator and node bound to the job. The retry can recover a failed worker on the registered release.",
       "sources": {
         "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
         "implementation": ["app/services/nevaeh_os/hosting_actions.rb", "app/jobs/gatekeeper/healthcheck_project_job.rb", "app/services/gatekeeper/capabilities/healthcheck_project.rb"],
         "workers": ["app/services/nevaeh_os/worker.rb"],
-        "tests": ["test/standalone/nevaeh_backlog_test.rb"]
+        "tests": ["test/standalone/nevaeh_backlog_test.rb", "test/standalone/gatekeeper_project_health_test.py"]
       },
       "capability": {
         "key": "hosting.project.healthcheck",

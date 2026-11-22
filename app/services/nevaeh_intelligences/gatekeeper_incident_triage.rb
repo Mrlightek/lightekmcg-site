@@ -50,7 +50,8 @@ module NevaehIntelligences
         gatekeeper_node_id: check.gatekeeper_node_id, status: "healthy")
       return unless project&.last_healthcheck_at && project.last_healthcheck_at >= check.started_at
 
-      triage.merge("project_health_observed_at" => project.last_healthcheck_at.iso8601(6))
+      triage.merge("project_health_observed_at" => project.last_healthcheck_at.iso8601(6),
+        "worker_recovered" => check.result.to_h["worker_recovered"] == true)
     end
 
     def self.latest_follow_up(operation)

@@ -8,6 +8,7 @@ module NevaehOs
       I'm Nevaeh. Tell me what you need, or use a command:
       /website page {"site_id":1,"title":"About us"} — create a draft website page
       /operations — specialist review tasks, inputs and scheduling examples
+      /guide public_relations — releases, outreach and media monitoring
       /guide — open the operating manual and tutorials
       /page commands How do I delegate? — ask the SME for one documentation page
       /describe susu.list — inputs, permissions, examples and verification
@@ -71,6 +72,20 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (match = q.match(/\A\/live prepare ([1-9][0-9]{0,17}) (\{.*\})\z/m))
+        return { 'kind' => 'live_show', 'site_id' => match[1].to_i, 'values' => JSON.parse(match[2]) }
+      end
+      if (match = q.match(/\A(?:review PR activity for site |\/pr report )([1-9][0-9]{0,17})\z/i))
+        return { 'kind' => 'public_relations', 'operation' => 'report', 'site_id' => match[1].to_i, 'values' => {} }
+      end
+      if (match = q.match(/\A\/pr ([a-z_]+) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
+        return { 'kind' => 'public_relations', 'operation' => match[1], 'site_id' => match[2].to_i,
+          'values' => match[3] ? JSON.parse(match[3]) : {} }
+      end
+      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch|demo_publish|demo_launch|demo_schedule|demo_experiment|demo_report|ab_start|ab_report|ab_finish) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
+        return { 'kind' => 'website_marketing', 'operation' => match[1], 'site_id' => match[2].to_i,
+          'values' => match[3] ? JSON.parse(match[3]) : {} }
+      end
       platform_phrase = PlatformLanguage.command(q)
       return platform_phrase if platform_phrase
       if (m = q.match(/\A(?:please )?(?:build|create|make)(?: me)? (?:a |my |the )?(?:feature|features|feature showcase) (?:page|webpage)(?: with (?:feature |overview |captioned )?videos)?(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
@@ -89,6 +104,14 @@ module NevaehOs
         values = m[2] ? JSON.parse(m[2]) : {}
         raise ArgumentError, 'Use a marketing input object' unless values.is_a?(Hash)
         return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>values}.compact
+      end
+      if (m = q.match(/\A(?:please )?get more (?:local )?businesses to book (?:a )?(?:Lightek )?demo(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return { 'kind' => 'marketing_kit', 'site_id' => m[1]&.to_i, 'execute_demo' => true,
+          'values' => { 'destination_path' => '/request-demo', 'cta_label' => 'Request a demo' } }.compact
+      end
+      if (m = q.match(/\A(?:please )?prepare (?:a |my )?demo campaign(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i,
+          'values'=>{'destination_path'=>'/request-demo', 'cta_label'=>'Request a demo'}}.compact
       end
       if (m = q.match(/\A(?:please )?(?:help me market my business|prepare my marketing kit|build my marketing kit)(?:\s+(?:for\s+)?(?:site\s+)?([1-9][0-9]{0,17}))?[.!]?\z/i))
         return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>{}}.compact

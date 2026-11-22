@@ -31,6 +31,8 @@ Draft previews require an authenticated website manager, use private/no-store re
 
 Public routes are `/blog`, `/blog/:slug` and `/journal.xml` (RSS). Listings support search, category filtering and pagination. Hostname lookup selects the website; a query-string site ID cannot expose another website's articles. URLs are unique within a website. Optimistic locking prevents an older editor tab from overwriting a newer article or partially changing the shared post.
 
+Use **Journal & Articles → Public relations** to delegate newsroom releases and media outreach to the [PR SME](../nevaeh/tutorials/public_relations.md).
+
 ## Deployment and acceptance
 
 Apply migration `20261112170000_create_lightek_blog_entries` and restart Rails/workers as usual. The PWA shell cache version changes so existing installations receive the article-card update after their normal worker update/reload.

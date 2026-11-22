@@ -14,7 +14,10 @@ module LightekGrowth
     module_function
     def snapshot
       body = Rails.root.join('FEATURES.md').read
-      {'path'=>'FEATURES.md', 'sha256'=>Digest::SHA256.hexdigest(body), 'catalog_sha256'=>Digest::SHA256.hexdigest(JSON.generate(ROWS)), 'version'=>'lightek-feature-overviews-v1'}
+      screenshots = DemoShowcase::DOCUMENTED_IMAGES.values.flat_map(&:keys).to_h do |path|
+        [path, Digest::SHA256.file(Rails.root.join(path)).hexdigest]
+      end
+      {'path'=>'FEATURES.md', 'sha256'=>Digest::SHA256.hexdigest(body), 'catalog_sha256'=>Digest::SHA256.hexdigest(JSON.generate(ROWS)), 'version'=>'lightek-feature-overviews-v2', 'screenshots'=>screenshots}
     end
     def rows(site)
       ROWS.filter_map do |key, category, title, body, feature|

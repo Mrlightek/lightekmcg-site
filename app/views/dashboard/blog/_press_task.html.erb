@@ -1,0 +1,6 @@
+<%= form_with url: assign_public_relations_dashboard_blog_index_path(site_id: site.id), scope: :brief, local: true, class: 'content-form' do |form| %>
+  <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+  <%= hidden_field_tag :operation, operation, id: nil %>
+  <%= render "dashboard/blog/press_task_fields", form: form, operation: operation, context: context %>
+  <%= form.submit label, class: 'content-button primary' %>
+<% end %>

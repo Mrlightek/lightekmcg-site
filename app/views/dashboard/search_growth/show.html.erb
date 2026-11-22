@@ -1,0 +1,69 @@
+<%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
+<% content_for :page_title, 'Search & backlinks' %>
+<main class="sales-workspace growth-workspace">
+  <%= stylesheet_link_tag '/lightek/growth-workspace.css?v=2' %>
+  <header class="sales-header">
+    <div><h1>Search &amp; backlinks</h1><p><%= @site.name %></p></div>
+    <%= link_to 'Growth', dashboard_growth_path(site_id: @site.id), class: 'sales-button secondary' %>
+  </header>
+
+  <section class="sales-panel">
+    <h2>Search performance</h2>
+    <%= form_with url: sync_dashboard_search_growth_path(site_id: @site.id), class: 'sales-form' do %>
+      <label>Verified property type <%= select_tag :property_type, options_for_select([['HTTPS URL prefix', 'prefix'], ['Domain', 'domain']]) %></label>
+      <label>Page to inspect <%= url_field_tag :inspection_url, nil, placeholder: 'Optional full HTTPS URL' %></label>
+      <%= submit_tag 'Refresh Search Console data', class: 'sales-button' %>
+    <% end %>
+    <% if @snapshot %>
+      <p><%= @snapshot.starts_on %> to <%= @snapshot.ends_on %> · <%= @snapshot.property %> · up to 250 page and query pairs.</p>
+      <% if (inspection = @snapshot.inspection) %>
+        <p><strong>Index status</strong> <%= inspection['coverageState'] || inspection['verdict'] %> · <%= inspection['page'] %></p>
+      <% end %>
+      <% if @candidate %>
+        <p><strong>Nevaeh suggests reviewing this search snippet</strong> <%= @candidate['page'] %> received <%= @candidate['impressions'] %> impressions for “<%= @candidate['query'] %>” with <%= number_to_percentage(@candidate['ctr'] * 100, precision: 1) %> click-through. Compare the title with what people are searching for.</p>
+        <%= link_to 'Review page titles in Website audit', dashboard_website_audits_path(site_id: @site.id) %>
+      <% end %>
+      <% if @snapshot.rows.any? %>
+        <div class="sales-table-scroll"><table><thead><tr><th scope="col">Page and query</th><th scope="col">Clicks</th><th scope="col">Impressions</th><th scope="col">CTR</th><th scope="col">Position</th></tr></thead>
+          <tbody><% @snapshot.rows.each do |row| %>
+            <tr><th scope="row"><%= row['page'] %><br><%= row['query'] %></th><td><%= row['clicks'] %></td><td><%= row['impressions'] %></td>
+              <td><%= number_to_percentage(row['ctr'] * 100, precision: 1) %></td><td><%= number_with_precision(row['position'], precision: 1) %></td></tr>
+          <% end %></tbody>
+        </table></div>
+      <% end %>
+    <% else %>
+      <p>Connect a read-only Search Console credential in Vault for this website, then refresh.</p>
+    <% end %>
+  </section>
+
+  <section class="sales-panel">
+    <h2>Backlinks</h2>
+    <%= form_with url: import_dashboard_search_backlinks_path(site_id: @site.id), class: 'sales-form', multipart: true do %>
+      <label>Backlink CSV <%= file_field_tag :backlink_csv, required: true, accept: '.csv,text/csv' %></label>
+      <small>Use columns Source URL and Target URL, or Source page and Target page.</small>
+      <%= submit_tag 'Import links', class: 'sales-button secondary' %>
+    <% end %>
+    <%= form_with url: record_dashboard_search_backlink_path(site_id: @site.id), class: 'sales-form' do %>
+      <label>External page <%= url_field_tag :source_url, nil, required: true %></label>
+      <label>Page on this website <%= url_field_tag :target_url, nil, required: true %></label>
+      <label>Status <%= select_tag :link_status, options_for_select(LightekGrowth::Backlink::STATUSES.map { |status| [status.humanize, status] }) %></label>
+      <%= submit_tag 'Save backlink', class: 'sales-button' %>
+    <% end %>
+
+    <% @backlinks.each do |backlink| %>
+      <article class="growth-link">
+        <h3><%= backlink.status.humanize %></h3>
+        <p><%= backlink.source_url %> → <%= backlink.target_url %></p>
+        <% if backlink.outreach_draft.present? %>
+          <%= simple_format(backlink.outreach_draft, {}, sanitize: true) %>
+        <% elsif backlink.status == 'prospect' %>
+          <%= form_with url: draft_dashboard_search_backlink_path(site_id: @site.id, id: backlink.id), class: 'sales-form' do %>
+            <%= hidden_field_tag :record_version, backlink.updated_at.iso8601(6) %>
+            <%= hidden_field_tag :approved, '1' %>
+            <%= submit_tag 'Authorize Nevaeh to draft outreach', class: 'sales-button secondary' %>
+          <% end %>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+</main>

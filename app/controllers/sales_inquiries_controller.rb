@@ -20,7 +20,10 @@ class SalesInquiriesController < ApplicationController
     template, section = WebsiteTemplateInquiry::SALES_FORM_KEYS
     @inquiry = WebsiteTemplateInquiry.new(site: @site, template_key: template, section_key: section, fields: fields)
     @inquiry.growth_visit = LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request)
-    return received if @inquiry.save
+    if @inquiry.save
+      record_platform_experiment('inquiry', @inquiry) if respond_to?(:record_platform_experiment, true)
+      return received
+    end
 
     render :new, status: :unprocessable_entity
   end

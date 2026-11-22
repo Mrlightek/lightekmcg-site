@@ -3,6 +3,7 @@ module LightekGrowth
     self.table_name = 'lightek_growth_feature_clips'
     belongs_to :feature_showcase, class_name: 'LightekGrowth::FeatureShowcase'
     has_one_attached :file
+    has_many_attached :screenshots
     validates :title, presence: true, length: {maximum: 80}
     validates :body, presence: true, length: {maximum: 280}
     validates :position, numericality: {only_integer: true, greater_than_or_equal_to: 0, less_than: 6}

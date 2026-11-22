@@ -9,7 +9,10 @@ class GrowthLinksController < ApplicationController
     response.set_header('Cache-Control', 'private, no-store')
     response.set_header('Referrer-Policy', 'no-referrer')
     unless request.head? || request.headers['DNT'] == '1' || request.headers['Sec-GPC'] == '1'
-      LightekGrowth::Tracking.capture!(link: link, cookies: cookies, secure: request.ssl?)
+      visit = LightekGrowth::Tracking.capture!(link: link, cookies: cookies, secure: request.ssl?)
+      if link.label == 'Demo walkthrough'
+        LightekGrowth::DemoCampaign.record_exposure!(link, visit)
+      end
     end
     redirect_to link.destination_url, allow_other_host: false, status: :see_other
   end

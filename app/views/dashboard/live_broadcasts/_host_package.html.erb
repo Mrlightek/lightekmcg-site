@@ -1,0 +1,58 @@
+<% if @host_package %>
+  <section class="ll-panel ll-host-cues" data-host-cues aria-label="Host teleprompter">
+    <h2><%= @host_package.fetch('title') %></h2>
+    <p>Destination <strong><%= NevaehOs::LiveShow::DESTINATIONS.fetch(@host_package.fetch('destination')) %></strong></p>
+    <% if @host_package['look'] %>
+      <p>House look <strong><%= NevaehOs::LiveShow::HOUSE_LOOKS.fetch(@host_package.dig('look', 'frame')) %></strong></p>
+    <% end %>
+    <% if @host_destination != @host_package.fetch('destination') %>
+      <p role="alert">The prepared destination is unavailable. The broadcast controls are set to private test.</p>
+    <% end %>
+    <% if @prepared_scene_id %>
+      <button type="button" data-host-load>Load prepared scene into preview</button>
+      <p role="status" data-host-setup-status></p>
+    <% end %>
+    <h3>Teleprompter</h3>
+    <p class="ll-note">When screen sharing, share the demo window to keep your script private.</p>
+    <div class="ll-host-reader">
+      <div class="ll-host-cards" data-host-script tabindex="0" role="region" aria-label="Teleprompter script">
+        <% @host_package.fetch('cues').each do |cue| %>
+          <article data-host-cue>
+            <h4><%= cue.fetch('label') %></h4>
+            <p><%= cue.fetch('text') %></p>
+          </article>
+        <% end %>
+      </div>
+      <p class="ll-host-freestyle" data-host-freestyle-message hidden>Freestyle. Your place is saved.</p>
+    </div>
+    <div class="ll-room-controls ll-host-navigation" data-host-navigation hidden>
+      <button type="button" data-host-play>Play scroll</button>
+      <button type="button" data-host-previous>Previous cue</button>
+      <button type="button" data-host-next>Next cue</button>
+      <button type="button" data-host-freestyle aria-pressed="false">Freestyle</button>
+      <span role="status" data-host-position></span>
+      <div class="ll-host-settings">
+        <label>Scroll speed <input type="range" data-host-speed min="10" max="120" step="5" value="35"></label>
+        <label>Text size <input type="range" data-host-text-size min="20" max="54" step="2" value="30"></label>
+      </div>
+    </div>
+    <%= link_to 'Live Studio', dashboard_live_path(site_id: @site.id) %>
+  </section>
+<% else %>
+  <details class="ll-panel ll-host-cues">
+    <summary>Prepare a show with Nevaeh</summary>
+    <%= form_with url: dashboard_live_prepare_path(site_id: @site.id), scope: :show, local: true do |form| %>
+      <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+      <label>Show title <%= form.text_field :title, required: true, maxlength: 120 %></label>
+      <label>Talking points <%= form.text_area :brief, required: true, maxlength: 2400, rows: 4, placeholder: "One talking point per line" %></label>
+      <label>Saved scene <%= form.collection_select :scene_id, @production_scenes, :id, :name, include_blank: 'Camera only' %></label>
+      <label>House look <%= form.select :house_look, NevaehOs::LiveShow::HOUSE_LOOKS.invert %></label>
+      <label>On-air subtitle <%= form.text_field :subtitle, maxlength: 80 %></label>
+      <label>Destination <%= form.select :destination, NevaehOs::LiveShow::DESTINATIONS.invert %></label>
+      <%= form.submit 'Assign show to Nevaeh' %>
+    <% end %>
+    <% @show_actions.each do |action| %>
+      <p><%= link_to action.result.fetch('title'), dashboard_live_path(site_id: @site.id, show_id: action.id) %></p>
+    <% end %>
+  </details>
+<% end %>

@@ -1,6 +1,19 @@
 get '/g/:token', to: 'growth_links#show', as: :growth_link
 get '/feature-videos/:token/:position.mp4', to: 'feature_showcase_videos#show', as: :feature_showcase_video, constraints: {position: /[0-5]/}
 get '/dashboard/marketing-copilot/showcases/:id/videos/:position', to: 'dashboard/marketing_copilot#video', as: :preview_dashboard_feature_video
+get '/feature-videos/:token/:position/screenshots/:attachment_id', to: 'feature_showcase_videos#screenshot',
+  as: :feature_showcase_screenshot, constraints: { position: /[0-5]/, attachment_id: /[0-9]+/ }
+get '/dashboard/marketing-copilot/showcases/:id/screenshots/:position/:attachment_id', to: 'dashboard/marketing_copilot#screenshot',
+  as: :preview_dashboard_feature_screenshot
+delete '/dashboard/marketing-copilot/showcases/:id/screenshots/:position/:attachment_id', to: 'dashboard/marketing_copilot#remove_screenshot',
+  as: :remove_dashboard_feature_screenshot
+post '/dashboard/marketing-copilot/showcases/:id/screenshots/:position', to: 'dashboard/marketing_copilot#save_screenshot',
+  as: :save_dashboard_feature_screenshot
+post '/dashboard/marketing-copilot/showcases/:id/promotion', to: 'dashboard/marketing_copilot#prepare_demo_promotion',
+  as: :prepare_dashboard_demo_promotion
+post '/dashboard/marketing-copilot/showcases/:id/publish-demo', to: 'dashboard/marketing_copilot#publish_demo', as: :publish_dashboard_demo
+post '/dashboard/marketing-copilot/showcases/:id/schedule-demo', to: 'dashboard/marketing_copilot#schedule_demo', as: :schedule_dashboard_demo
+post '/dashboard/marketing-copilot/showcases/:id/experiment', to: 'dashboard/marketing_copilot#start_demo_experiment', as: :start_dashboard_demo_experiment
 post '/dashboard/marketing-copilot/showcases/:id/approve', to: 'dashboard/marketing_copilot#approve_showcase', as: :approve_dashboard_feature_showcase
 post '/dashboard/marketing-copilot/:id/execute', to: 'dashboard/marketing_copilot#execute', as: :execute_dashboard_marketing_kit
 get '/dashboard/growth', to: 'dashboard/growth#index', as: :dashboard_growth
@@ -14,3 +27,12 @@ patch '/dashboard/growth/links/:id', to: 'dashboard/growth#toggle', as: :dashboa
 post '/dashboard/growth/plans', to: 'dashboard/growth#prepare_plan', as: :prepare_dashboard_growth_plan
 patch '/dashboard/growth/plans/:plan_id/steps/:id/resolve', to: 'dashboard/growth#resolve_step', as: :resolve_dashboard_growth_step
 post '/dashboard/growth/plans/:plan_id/steps/:id/draft', to: 'dashboard/growth#draft_step', as: :draft_dashboard_growth_step
+get '/dashboard/growth/search', to: 'dashboard/search_growth#show', as: :dashboard_search_growth
+post '/dashboard/growth/search/sync', to: 'dashboard/search_growth#sync', as: :sync_dashboard_search_growth
+post '/dashboard/growth/search/backlinks', to: 'dashboard/search_growth#record', as: :record_dashboard_search_backlink
+post '/dashboard/growth/search/backlinks/import', to: 'dashboard/search_growth#import', as: :import_dashboard_search_backlinks
+post '/dashboard/growth/search/backlinks/:id/draft', to: 'dashboard/search_growth#draft', as: :draft_dashboard_search_backlink
+
+get '/dashboard/growth/experiments', to: 'dashboard/experiments#index', as: :dashboard_experiments
+post '/dashboard/growth/experiments', to: 'dashboard/experiments#create'
+patch '/dashboard/growth/experiments/:id', to: 'dashboard/experiments#finish', as: :finish_dashboard_experiment

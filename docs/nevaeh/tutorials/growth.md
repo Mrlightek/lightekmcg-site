@@ -98,3 +98,85 @@ Deploy migration `20261116040000_add_campaign_performance_comparisons.rb` before
 Structured log events are `lightek.growth.comparison_created`, `performance_reviewed` and `performance_draft_prepared`, containing actor/site/comparison/review/campaign IDs without copy, tracking tokens or customer information. Review the saved comparison, measured timestamp, source health, action receipt and structured worker report in the existing IT tools. For missing counts, verify placement link use, date/time zone, enabled state and attribution rather than assuming zero total traffic. For changed creative, prepare a fresh comparison; for stale reviews, measure again; for revoked access/package, resolve authorization before resubmitting. Publication remains governed by its own provider receipts and reconciliation controls.
 
 Acceptance: `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_performance_checks.rb` exercises native schema/models/services, scoped HTTP/CSRF, measured cohorts, immutable reviews, guarded drafts and current worker documentation/UUID/journal integration. The inherited host fixtures replace private engine authentication/records and provider IO. Full installed/private-engine boot, real user placement/link usage, deployed publication and business results remain separate acceptance.
+
+## A/B testing across Lightek
+
+Open **Dashboard → Business → Growth → A/B testing**. Choose a website and a surface, give the test a name, and enter the original wording as the control and the proposed wording as the challenger. Start with one change you can measure. Website hero tests use the ID of a published native hero section. Demo walkthrough tests use the ID of an approved, published showcase linked to a demo request campaign. The workspace shows eligible targets and allows one running test per target and surface.
+
+| Surface | Outcomes reported per variant |
+| --- | --- |
+| Website hero headline or button | Sales inquiries, demo requests and upgrades, store checkouts and confirmed payments, local reservation requests and confirmations |
+| Sales inquiry form button | Saved sales inquiries |
+| Demo walkthrough or demo request form button | Recorded demo requests, activations and paid upgrades |
+| Store checkout button | Checkout sessions started and orders with confirmed payment |
+| Local reservation button | Saved requests and confirmed reservations |
+| PWA member signup button | Saved membership requests |
+
+Eligible browsers are assigned to the control or challenger with equal probability. A signed first-party cookie keeps the browser on its assigned variant for up to 30 days. Preview pages, browser privacy opt-outs and prefetches use the original copy during a test. Conversion reports count distinct assigned browsers for each outcome. A saved outcome can be credited to multiple eligible surfaces that the browser saw, so read results per experiment. Conversions can arrive after the test closes. Credit goes to the most recent assignment on that surface and target within the 30-day window. Cross-device activity and browsers that lose their cookie may be counted separately. The dashboard shows observed conversion rates and the underlying counts.
+
+Review the results, then finish the test using the original site copy, the control or the challenger. Choosing an arm applies its wording for everyone on that surface. The experiment retains both variants and its outcome history. Walkthroughs with an existing legacy button experiment continue to use their original controls. Choose another eligible walkthrough for a shared-engine test.
+
+Nevaeh can start, report and finish tests through the existing website marketing capability. Start with the configured Growth website ID and use the experiment ID returned by the start command for reporting and finishing.
+
+```text
+/website ab_start SITE_ID {"name":"Demo form wording","surface":"demo_request","control":"Request a demo","challenger":"Book a walkthrough"}
+/website ab_report SITE_ID {"experiment_id":42}
+/website ab_finish SITE_ID {"experiment_id":42,"winner":"challenger"}
+```
+
+Include a `target` for the `website_headline`, `website_cta` and `demo_walkthrough` surfaces. Omit `winner` to restore the original wording. The existing website delegation, website management access for writes, and marketing package entitlement apply. Deploy migration `20261122134000_create_lightek_experiments.rb` before enabling tests.
+
+## Search, backlinks and marketing decisions
+
+Open **Dashboard → Business → Growth → Search & backlinks**. The website's verified Google Search Console property may be the HTTPS URL prefix or the exact-host domain property. In Vault, configure `growth-search-console-SITE_ID` for consumer `LightekGrowth::SearchConsole` and purpose `search_console_read`. Provide Google OAuth `client_id`, `client_secret`, and a `refresh_token` with the `https://www.googleapis.com/auth/webmasters.readonly` scope. The Google account needs access to the property. Refresh records up to 250 page/query pairs from 28 finalized days and can inspect one same-host HTTPS URL. Search Console returns limited rows. An inspection describes Google's indexed version of the page.
+
+Import a paired source/target CSV or save an external prospect manually. Review sources yourself before marking a link verified or lost. The prospect's **Authorize Nevaeh to draft outreach** button creates an approved goal for the Marketing SME, which prepares the draft and records the approving operator. Follow it in Nevaeh Goals. Review it before using your usual outreach workflow. CSV imports treat unverified rows as reported and preserve verified and lost decisions.
+
+Use these decisions when reviewing the daily Growth plan or handing work to the Marketing copilot:
+
+| Evidence | Marketing decision |
+| --- | --- |
+| Search impressions with low click-through | Review title and description against the observed query, search position, and page intent. Compare later snapshots after indexing. |
+| Credible partner, review or editorial mention | Identify the specific benefit to their readers and prepare a relevant outreach draft for review. |
+| Existing leads or expiring quotes | Address the open sales opportunity before spending more on acquisition. |
+| Visits with weak inquiry or payment evidence | Check the promise, offer, form and checkout. Change one variable and measure the next cohort. |
+| Paid campaign opportunity | Document the audience, offer, conversion event, spend ceiling and stopping criteria. Use campaign tracking to compare verified purchases and refunds. |
+| Repeat customers | Segment existing customers by demonstrated need and use consented channels for retention and follow-up. |
+
+The daily plan cites recorded data. Preparing and authorizing marketing work uses the existing campaign, CMS and goal workflows for their supported actions.
+
+## Delegate website design and publication
+
+The website owner or platform operator opens **Growth → Website design & content → Nevaeh website delegation** and authorizes the Marketing SME for that website. The grant can be revoked there. The worker rechecks the grant, the operator's site access and the installed packages when it begins a change. A revoked or replaced grant blocks queued work tied to the prior grant.
+
+**Assign a landing page to Nevaeh** creates a goal to design the page from the supplied offer and publish it. Use Nevaeh Goals to assign several related steps and check their receipts. A goal can consume a previous step's verified page ID and revision. Use the Marketing SME for these instructions:
+
+| Command | Inputs and result |
+| --- | --- |
+| `/website inspect SITE_ID` | Lists site pages and the current appearance revision. Pass `{"page_id":123}` to inspect page content and its revision. |
+| `/website compose SITE_ID {…}` | Supply `title`, `slug`, native `sections` and a boolean `published`. A section uses `block`, `data` and optional `anchor` or `style`. To edit a page, provide `page_id` and its current `revision`. Optional `search_title` and `description` set CMS search metadata. |
+| `/website publication SITE_ID {…}` | Provide `page_id`, current `revision` and a boolean `published`. |
+| `/website appearance SITE_ID {…}` | Provide the current appearance `revision` and a catalog `design` or installed `theme_id`. Optional `fonts` and `colors` use Design Studio token fields such as `font_heading` and `color_primary`. |
+| `/website restore SITE_ID {…}` | Pass the `page_id`, `revision` and `change_id` from the latest matching page-change receipt to restore its saved prior content. For a new page, use publication to take it offline. |
+
+Website edits use the native CMS and Site Design library. A completed write receipt identifies the site, operator, operation and saved result. A page edit keeps a prior source for recovery. Existing page and appearance revision checks protect newer human edits.
+
+## Write and publish Journal articles
+
+Website delegation also gives the Marketing SME access to **Journal & Articles**. Choose **Assign an article to Nevaeh**, enter the title and facts, and choose a private draft or publication. Nevaeh uses the existing writing engine to compose from the brief and the Journal editor to save the article. Published entries appear on the website and its connected PWA. Follow the result in Nevaeh Goals.
+
+Use `/website journal_inspect SITE_ID` to list recent articles, or pass `{"entry_id":123}` to read one article and its revision. Use `/website journal_write SITE_ID {…}` with `title` and either `content` or a `brief` with `facts` and optional `call_to_action`. Optional fields include `slug`, `excerpt`, `category` and `status`. To update, publish or archive an existing article, supply its `entry_id` and current `revision` along with the changed fields. Use `draft`, `published` or `archived` for status. New entries default to draft. Existing stories keep their URL and any attached images.
+
+### Run the editorial schedule
+
+In **Journal & Articles → Nevaeh editorial schedule**, enter the topics to follow and the exact public HTTPS pages you approve for research. Set daily or weekly and choose private drafts or automatic publication. The first cycle is due after saving. Nevaeh rereads the approved pages, selects an unused excerpt relevant to a topic, and writes a short Journal update with a source link. The cycle stops without publishing if there is no new, relevant source material. Source redirects require approving the final URL. Pause the schedule to stop subsequent work, including queued writes that have yet to start.
+
+Every cycle has a goal that records research evidence before the article is written. For automatic publication, select **Prepare a social campaign draft** to add a promotion with the article's link. Review the generated copy in Content review, then use the existing social account and publication calendar. Provider media requirements still apply. Readers of the live article can share to Facebook, LinkedIn, X or email directly.
+
+### Public relations
+
+Open **Journal & Articles → Public relations** to assign a press release from an announcement summary, confirmed facts and a public press contact. Choose a private draft or publish under the existing website delegation. Published releases appear in the Journal under **Press Releases** and on the Lightek Media press page for the current site.
+
+After publication, select the release, enter a media contact and explain why the story fits their audience. Nevaeh drafts a tailored pitch linked to the public release. Review the saved draft and open it in your email app when it is ready to send. Drafting does not contact the outlet.
+
+The Marketing SME can use `/website press_release SITE_ID {…}` with `title`, `summary`, `facts`, `press_email` and optional `status`. Use `/website media_pitch SITE_ID {…}` with a published press release's `entry_id`, `outlet`, `angle` and `recipient`. The same steps can be assigned in a goal, using the first step's confirmed entry ID for the pitch.

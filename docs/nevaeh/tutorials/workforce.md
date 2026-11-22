@@ -4,7 +4,7 @@ Open **Dashboard → Nevaeh → Workforce & goals**. This is the directory of sp
 
 ## Roles have jobs; tasks perform work
 
-A role is a saved specialist identity, instructions and capability assignment. An assigned task is a concrete instruction with real inputs and an execution history. A goal connects up to twelve one-time tasks in order and waits for their downstream results. The roles use the same operating engine and account authority; they are not twenty-seven separately trained language models.
+A role is a saved specialist identity, instructions and capability assignment. An assigned task is a concrete instruction with real inputs and an execution history. A goal connects up to twelve one-time tasks in order and waits for their downstream results. The roles use the same operating engine and account authority.
 
 | Department | Default roles and responsibilities |
 | --- | --- |
@@ -13,8 +13,10 @@ A role is a saved specialist identity, instructions and capability assignment. A
 | Creative | Muse writes editable captions, posts and script drafts. |
 | Quality | Warden inspects production/rehearsal receipts and audits capability gaps. |
 | Studio | Episode Producer, Cast Director, Blocking Technician, Episode Editor and Media Processor prepare scenes, direct registered Cast, rehearse spatial blocking, assemble exports and process files. |
+| Live production | The [Live Broadcast Producer](live_broadcast_producer.md) prepares host cues and a Live Studio setup. |
 | Distribution | Publishing Coordinator delivers explicitly reviewed masters through configured destinations. |
 | Marketing | Campaign Producer builds editable ads/private previews; Growth Analyst prepares evidence-based daily plans. |
+| Public Relations | The [PR SME](public_relations.md) manages delegated releases, media outreach, scheduled source checks and response briefs. |
 | Learning | Manuals Librarian imports documentation; Language Contract Tester checks phrase source/action validity; Language Trainer runs reviewed native training. |
 | Engineering | Capability Builder compiles saved construction contracts, emits Ruby service/worker/verifier/test artifacts and runs their acceptance examples. |
 | Support | Support Coordinator creates actionable problem tickets. |
@@ -27,7 +29,7 @@ A role is a saved specialist identity, instructions and capability assignment. A
 | Commerce | Commerce Operator uses connected order, inventory, shipping and catalog operations. |
 | Legal & Compliance | Compliance Coordinator uses connected compliance capabilities and retains evidence. |
 
-There are 28 roles including Nevaeh. Existing names, instructions and assignments are preserved. A deleted role stays deleted; revisiting the directory does not silently restore it. **Tasks available** means a task template or connected action exists; account and provider setup may still be required. The default filter shows enabled specialists with available tasks. Choose **All specialists** to include paused roles and roles marked **Not connected yet**. Assignment is disabled for these roles until they are enabled and have connected tasks. Account permissions are checked when work is submitted and again when it executes.
+Existing names, instructions and assignments are preserved. A deleted role stays deleted; revisiting the directory does not silently restore it. **Tasks available** means a task template or connected action exists; account and provider setup may still be required. The default filter shows enabled specialists with available tasks. Choose **All specialists** to include paused roles and roles marked **Not connected yet**. Assignment is disabled for these roles until they are enabled and have connected tasks. Account permissions are checked when work is submitted and again when it executes.
 
 ## Delegate work and manage the team
 

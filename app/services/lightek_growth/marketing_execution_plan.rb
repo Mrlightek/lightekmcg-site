@@ -15,7 +15,7 @@ module LightekGrowth
           raise ArgumentError, 'This kit is already being executed by another authorized operator; review its existing goal' unless execution.actor_id == @actor.id
           return execution.goal
         end
-        steps = [{'key'=>'showcase', 'label'=>'Build the feature page and render its overview videos', 'agent'=>'website',
+        steps = [{'key'=>'showcase', 'label'=>'Build the walkthrough with screenshots and overview videos', 'agent'=>'website',
           'command'=>{'kind'=>'feature_showcase', 'site_id'=>@site.id, 'kit_id'=>kit.id},
           'expectations'=>[{'path'=>'result.page_id', 'present'=>true}, {'path'=>'result.status', 'equals'=>'completed'}]}]
         kit.snapshot.fetch('follow_ups').each_with_index do |lead,index|
@@ -35,7 +35,7 @@ module LightekGrowth
       state = goal.reload.status
       {'goal_id'=>goal.id, 'kit_id'=>execution.marketing_kit_id, 'site_id'=>@site.id,
         'status'=>state=='completed' ? 'completed' : %w[blocked cancelled].include?(state) ? 'blocked' : 'running',
-        'text'=>"Marketing execution #{state}. The goal tracks saved page/video output and follow-up tasks. Publication and customer contact require their separate approvals.",
+        'text'=>"Marketing execution #{state}. The goal tracks saved walkthrough media and follow-up tasks. Publication and customer contact require their separate approvals.",
         'links'=>[{'label'=>'Review marketing execution', 'url'=>Rails.application.routes.url_helpers.dashboard_marketing_copilot_path(site_id: @site.id, kit_id: execution.marketing_kit_id)}]}
     end
   end

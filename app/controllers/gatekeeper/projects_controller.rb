@@ -2,7 +2,7 @@ module Gatekeeper
   class ProjectsController < ApplicationController
     layout "dymond_dash/layouts/dymond_dash"
     before_action :require_project_operator!
-    before_action :set_project, only: %i[show edit update destroy deploy deploy_github healthcheck]
+    before_action :set_project, only: %i[show edit update destroy deploy deploy_github healthcheck monitor]
 
     def index = @projects = GatekeeperProject.includes(:gatekeeper_node).order(:name)
 
@@ -56,8 +56,17 @@ module Gatekeeper
     end
 
     def healthcheck
-      HealthcheckProjectJob.perform_later(@project.id, requested_by: requester_name)
+      HealthcheckProjectJob.perform_later(@project.id, requested_by: requester_name, expected_node_id: @project.gatekeeper_node_id,
+        operator_id: current_user.id)
       redirect_to gatekeeper_project_path(@project), notice: "Healthcheck queued."
+    end
+
+    def monitor
+      enabled = ActiveModel::Type::Boolean.new.cast(params.require(:enabled))
+      ProjectHealthMonitor.configure!(project: @project, actor: current_user, enabled: enabled)
+      redirect_to gatekeeper_project_path(@project), notice: enabled ? "Automatic health checks enabled." : "Automatic health checks paused."
+    rescue Hosting::Access::Denied => error
+      redirect_to gatekeeper_project_path(@project), alert: error.message
     end
 
     private

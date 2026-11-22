@@ -3,6 +3,13 @@ module Gatekeeper
     class SweepJob < ApplicationJob
       queue_as :default
       def perform
+        drills = GatekeeperOperation.where(capability: BackupDrill::CAPABILITY)
+        drills.where(status: "running").where("started_at < ?", 35.minutes.ago).update_all(
+          status: "failed", error_class: "BackupDrillTimeout", error_message: "The worker stopped reporting before verification.",
+          completed_at: Time.current, updated_at: Time.current)
+        drills.where(status: "queued").find_each do |operation|
+          BackupDrillJob.perform_later(operation.id)
+        end
         GatekeeperRollout.where(status: "draft", requested_by: "github_release_pipeline").find_each do |rollout|
           Releases.start_pending!(rollout)
         end

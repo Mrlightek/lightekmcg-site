@@ -30,3 +30,5 @@ Rails.application.config.filter_parameters += [:vast_tag, :decision_key, :viewin
 
 # Customer support messages may contain sensitive account details.
 Rails.application.config.filter_parameters += [:support_case, :support_reply, :starting_amount, :ending_amount]
+Rails.application.config.filter_parameters += ['show.brief']
+Rails.application.config.filter_parameters += %w[brief.recipient brief.email brief.contact_basis brief.facts brief.response brief.notes]

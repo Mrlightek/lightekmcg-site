@@ -11,8 +11,8 @@ module LightekPwa
     def application = Application.find_or_initialize_by(site_id: site.id)
     def posts = Post.where(site_id: site.id)
     def communities = Community.where(site_id: site.id)
-    def projects = StudioProject.where(site_id: site.id)
-    def assets = StudioAsset.where(site_id: site.id)
+    def projects = StudioProject.shared_studio_projects.where(site_id: site.id)
+    def assets = StudioAsset.shared_studio_library.where(site_id: site.id)
     def live = StudioLiveOperation.where(studio_project_id: projects.select(:id))
     def conversations
       LightekMessaging::Conversation.where(kind: %w[community watch_party])

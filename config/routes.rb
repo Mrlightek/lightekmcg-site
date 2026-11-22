@@ -48,6 +48,10 @@ Rails.application.routes.draw do
   namespace :dashboard do
     resources :blog, only: %i[index create update], controller: "blog" do
       get :preview, on: :member
+      post :assign_nevaeh, on: :collection
+      patch :configure_editorial, on: :collection
+      post :assign_public_relations, on: :collection
+      post :configure_public_relations, on: :collection
       get "images/:attachment_id", to: "blog#image", on: :member, as: :image
     end
   end
@@ -354,6 +358,8 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   mount DymondKb::Engine => "/kb"
   get "/catalog", to: "dymond_catalog/catalog#index"
   mount DymondCatalog::Engine => "/catalog"
+  draw :studio_animation
+
   get "/studio/pipeline", to: "api/studio/pipeline#page", as: :studio_pipeline
   post "/studio/pipeline/mixamo", to: "studio_character_animations#save_mixamo", as: :studio_mixamo_connection
   resources :studio_character_animations, path: "/studio/pipeline/characters", only: %i[create show] do
@@ -382,6 +388,7 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   #resources :dashboards
   resources :supports, only: %i[index create] do
     member { patch :reply }
+    member { patch :confirm_resolution }
   end
   resources :stores
   resources :architectures
@@ -392,6 +399,8 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   
 # ── Public site ──────────────────────────────────────────────────────────────
 draw :media_website
+get "/robots.txt", to: "website_search_discovery#robots", format: false
+get "/sitemap.xml", to: "website_search_discovery#sitemap", format: false
 get "/", to: redirect("/site/home", status: 302),constraints: { host: /(?:www\.)?lightekmcg\.com/ }
 get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
 get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
@@ -433,6 +442,7 @@ namespace :gatekeeper do
       post :deploy
       post :deploy_github
       post :healthcheck
+      post :monitor
     end
   end
 end
@@ -693,6 +703,8 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
 
 # BEGIN LIGHTEK WEBSITE DESIGNS
   get "/dashboard/website/designs", to: "dashboard/website_designs#index", as: :dashboard_website_designs
+  patch "/dashboard/website/designs/nevaeh", to: "dashboard/website_designs#nevaeh_delegation", as: :delegate_dashboard_website_designs
+  post "/dashboard/website/designs/nevaeh/landing-page", to: "dashboard/website_designs#nevaeh_landing_page", as: :publish_nevaeh_landing_page
   get "/dashboard/website/designs/preview", to: "dashboard/website_designs#preview", as: :preview_dashboard_website_designs
   post "/dashboard/website/designs/apply", to: "dashboard/website_designs#apply", as: :apply_dashboard_website_designs
   post "/dashboard/website/designs/import", to: "dashboard/website_designs#import", as: :import_dashboard_website_designs
@@ -764,6 +776,7 @@ patch "/dashboard/live/channels/:channel_id/backup", to: "dashboard/channel_play
 post "/dashboard/live/channels/:channel_id/rundown/:airing_id/command", to: "dashboard/channel_playout#command", as: :dashboard_channel_playout_command
 get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
 post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"
+post "/dashboard/live/prepare", to: "dashboard/live_broadcasts#prepare_show", as: :dashboard_live_prepare
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
 post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
 post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination

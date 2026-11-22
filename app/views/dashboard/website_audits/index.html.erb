@@ -2,6 +2,13 @@
 <main class="sales-workspace growth-workspace"><%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %><%= stylesheet_link_tag '/lightek/growth-workspace.css?v=5' %><%= render 'dashboard/shared/business_workspace', active: 'Website audit' %>
 <header class="sales-header"><div><span class="sales-eyebrow">LIGHTEK / OBSERVE · REVIEW · IMPROVE</span><h1>Website growth audit</h1><p>Evidence from published native CMS output. Changes stay reviewable.</p></div><%= form_with url: dashboard_website_audits_path, method: :get, class: 'sales-site' do %><%= label_tag :site_id, 'Business website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch', class: 'sales-button secondary' %><% end %></header>
 <% if flash[:alert] %><div class="sales-errors" role="alert"><%= flash[:alert] %></div><% end %><% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+<% if (sitemap = LightekGrowth::SearchDiscovery.sitemap_url(@site)) %>
+  <section class="sales-panel">
+    <h2>Search discovery</h2>
+    <p>Submit the website’s sitemap in its verified search property. It lists published CMS pages and public blog articles.</p>
+    <%= link_to "Open XML sitemap", sitemap, class: "sales-button secondary" %>
+  </section>
+<% end %>
 <section class="sales-panel"><h2>Check the website you publish</h2><p>Page titles, search descriptions, heading structure, image descriptions, placeholder actions and links to published CMS pages. This reads native output without making network requests or running page scripts.</p><%= button_to 'Run native website audit', dashboard_website_audits_path(site_id: @site.id), params: {request_key: SecureRandom.uuid}, class: 'sales-button' %><p><small>Up to 50 published pages and 200 findings. Unsupported layouts and failed renders are unassessed. This does not test live HTTP delivery, external links, search rankings, app-store listings or conversion causality.</small></p></section>
 <% if @audit %><section class="sales-coach"><span class="sales-eyebrow"><%= @audit.status.humanize %> / <%= @audit.rules_version %></span><h2>Audit #<%= @audit.id %></h2><p><%= @audit.summary['assessed_pages'] %> assessed of <%= @audit.summary['published_pages'] %> published pages · <%= @audit.summary['finding_count'] %> recorded findings · <%= @audit.created_at.to_fs(:long) %></p><p>High items identify broken native targets; other findings are review prompts. Dismissal records a decision, not a verified fix or a passing SEO score.</p></section>
 <% @audit.page_results.each do |result| %><% if result['status'] == 'unassessed' %><p class="sales-errors"><strong><%= result['path'] %> · Unassessed:</strong> <%= result['reason'] %></p><% end %><% end %>

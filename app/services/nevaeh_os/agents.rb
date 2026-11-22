@@ -18,6 +18,8 @@ module NevaehOs
     end
     def capability(command)
       case command['kind']
+      when 'public_relations' then PublicRelations.capability(command.fetch('operation'))
+      when 'website_marketing' then WebsiteMarketing::CAPABILITIES.fetch(command.fetch('operation'))
       when 'website_page' then 'site.page.create'
       when 'specialist_review' then SpecialistTasks.capability(command.fetch('role'))
       when 'production' then 'studio.direct.production'
@@ -28,6 +30,7 @@ module NevaehOs
       when 'feature_showcase' then 'site.features.create'
       when 'marketing_follow_up' then 'sales.follow_up.prepare'
       when 'marketing_kit' then 'growth.marketing_kit'
+      when 'backlink_draft' then 'growth.backlink.draft'
       when 'growth_plan' then 'growth.plan'
       when 'growth_review' then 'growth.review'
       when 'capability', 'platform_action' then command['intent']

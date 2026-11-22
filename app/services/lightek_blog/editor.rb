@@ -21,6 +21,8 @@ module LightekBlog
         entry.post.metadata=entry.post.metadata.to_h.merge("website_article"=>{"slug"=>entry.slug,"url"=>"/blog/#{entry.slug}"})
         entry.valid? # Validate before writing the shared post; keep form errors.
         raise ActiveRecord::RecordInvalid.new(entry) if entry.errors.any?
+        # Protect body-only edits with the same optimistic lock as publication changes.
+        entry.updated_at_will_change! if entry.persisted? && entry.post.changed?
         entry.post.save!
         entry.save!
       end

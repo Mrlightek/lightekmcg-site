@@ -21,8 +21,32 @@ SalesHarness.config.active_storage.service_configurations = {'test'=>{'service'=
 at_exit { FileUtils.rm_rf(FEATURE_TEST_STORAGE) }
 require ROOT.join('db/migrate/20261116140000_add_marketing_copilot')
 AddMarketingCopilot.new.migrate(:up)
+require ROOT.join('db/migrate/20261122131000_add_demo_cta_experiments')
+AddDemoCtaExperiments.new.migrate(:up)
+ActiveRecord::Schema.define do
+  create_table(:lightek_agency_demo_requests) { |t| t.references :agency; t.references :growth_visit; t.string :status }
+  create_table(:lightek_agency_demos) { |t| t.references :agency; t.references :demo_request; t.references :upgrade_order }
+end
+module LightekAgency
+  class DemoRequest < ApplicationRecord
+    self.table_name = 'lightek_agency_demo_requests'
+  end
+  class Demo < ApplicationRecord
+    self.table_name = 'lightek_agency_demos'
+  end
+end
+require ROOT.join('app/models/lightek_growth/demo_exposure')
+require ROOT.join('app/services/lightek_growth/demo_campaign')
+require ROOT.join('app/services/lightek_growth/search_discovery')
+require ROOT.join('db/migrate/20261115170000_add_campaign_publishing_calendar')
+AddCampaignPublishingCalendar.new.migrate(:up)
+LightekMarketing::Campaign.reset_column_information
+require ROOT.join('app/models/lightek_marketing/media_binding')
+require ROOT.join('app/models/lightek_marketing/publication_slot')
+require ROOT.join('app/services/lightek_marketing/publication_calendar')
+ApplicationRecord.singleton_class.remove_method(:has_many_attached)
 %w[marketing_kit marketing_check_in feature_showcase feature_clip marketing_execution].each { |file| require ROOT.join("app/models/lightek_growth/#{file}") }
-%w[marketing_playbook marketing_copilot feature_catalog feature_video showcase_builder marketing_execution_plan].each { |file| require ROOT.join("app/services/lightek_growth/#{file}") }
+%w[marketing_playbook marketing_copilot feature_catalog feature_video demo_showcase showcase_builder marketing_execution_plan].each { |file| require ROOT.join("app/services/lightek_growth/#{file}") }
 %w[nevaeh_goal nevaeh_goal_step].each { |file| require ROOT.join("app/models/#{file}") }
 require ROOT.join('app/services/nevaeh_os/goals')
 require ROOT.join('app/services/nevaeh_os/website_pages')
@@ -35,6 +59,7 @@ require ROOT.join('app/jobs/studio_asset_ingest_job')
 require ROOT.join('app/jobs/nevaeh_os/goal_tick_job')
 require ROOT.join('app/controllers/feature_showcase_videos_controller')
 require ROOT.join('app/services/lightek_design/catalog')
+require ROOT.join('app/services/lightek_blog/images')
 SalesHarness.routes.send(:eval_block, proc do
   storage_routes = File.read(ActiveStorage::Engine.root.join('config/routes.rb'))
   storage_routes = storage_routes.sub(/.*?Rails\.application\.routes\.draw do/m, '').sub(/end if ActiveStorage\.draw_routes\s*\z/, '')
@@ -46,6 +71,10 @@ Dashboard::MarketingCopilotController.prepend_view_path ROOT.join('app/views')
 Dashboard::MarketingCopilotController.layout false
 SalesCrmChecks.prepend(Module.new do
   def setup
+    LightekMarketing::PublicationSlot.delete_all
+    LightekGrowth::DemoExposure.delete_all
+    LightekAgency::DemoRequest.delete_all
+    LightekAgency::Demo.delete_all
     LightekGrowth::MarketingExecution.delete_all
     LightekGrowth::FeatureClip.delete_all
     LightekGrowth::FeatureShowcase.delete_all
@@ -230,6 +259,13 @@ class MarketingCopilotChecks < CampaignContentChecks
     FeatureShowcaseJob.perform_now(showcase.id)
     assert_equal 'completed', showcase.reload.status
     assert_equal 6, showcase.clips.count
+    studio = showcase.clips.find_by!(feature_key: 'studio')
+    assert_equal 2, studio.screenshots_attachments.count
+    assert_equal 7, showcase.clips.sum { |card| card.screenshots_attachments.count }
+    assert showcase.clips.all? { |card| card.screenshots_attachments.exists? }
+    image = studio.screenshots_attachments.first
+    assert_equal 'image/png', LightekGrowth::DemoShowcase.image!(studio, image.id).content_type
+    assert_raises(ActiveRecord::RecordNotFound) { LightekGrowth::DemoShowcase.image!(showcase.clips.first, image.id) }
     assert showcase.clips.all?(&:ready?)
     assert_equal showcase.clips.size,StudioAsset.where(site_id:@site.id,owner_id:@owner.id,kind:"video").count
     assert_equal showcase.clips.first.file.blob.id,StudioAsset.find_by!(request_key:"growth-feature-clip-#{showcase.clips.first.id}").file.blob.id
@@ -255,6 +291,8 @@ class MarketingCopilotChecks < CampaignContentChecks
     assert_raises(ActiveRecord::RecordNotFound) { get preview_dashboard_feature_video_path(showcase, position: 0, site_id: @site.id), headers: headers(@other) }
     host! @site.host
     assert_raises(ActiveRecord::RecordNotFound) { get feature_showcase_video_path(token: showcase.token, position: 0) }
+    image_path = feature_showcase_screenshot_path(token: showcase.token, position: studio.position, attachment_id: image.id)
+    assert_raises(ActiveRecord::RecordNotFound) { get image_path }
     stale_source = LightekGrowth::FeatureCatalog.snapshot.merge('sha256'=>'0'*64)
     LightekGrowth::FeatureCatalog.stub(:snapshot, stale_source) { assert_raises(ArgumentError) { builder.approve!(id: showcase.id) } }
     builder.approve!(id: showcase.id)
@@ -264,7 +302,12 @@ class MarketingCopilotChecks < CampaignContentChecks
     assert_response :success
     assert_equal 'video/mp4', response.media_type
     assert response.body.start_with?("\x00\x00".b)
+    get image_path
+    assert_response :success
+    assert_equal 'image/png', response.media_type
+    assert response.body.start_with?("\x89PNG".b)
     host! 'wrong.test'
+    assert_raises(ActiveRecord::RecordNotFound) { get image_path }
     assert_raises(ActiveRecord::RecordNotFound) { get feature_showcase_video_path(token: showcase.token, position: 0) }
     assert_equal before, builder.receipt(showcase.reload)
     assert NevaehOs::WorkerReports.resolve!(actor: @owner, dependency: dependency)
@@ -280,6 +323,8 @@ class MarketingCopilotChecks < CampaignContentChecks
     view.instance_variable_set(:@site, @site)
     html = view.render(partial: 'dymond_site/themes/default/sections/lightek_feature_showcase', locals: {section: showcase.page.sections.sole})
     assert_equal 6, html.scan('<video ').size
+    assert_includes html, 'Media studio editor'
+    assert_equal 7, html.scan('class="feature-screenshot"').size
     FileUtils.mkdir_p(ROOT.join('tmp'))
     File.write(ROOT.join('tmp/feature-showcase-preview.html'), '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+html)
     # The manager must reject missing durable media, not trust its prior report.
@@ -287,6 +332,66 @@ class MarketingCopilotChecks < CampaignContentChecks
     missing.service.delete(missing.key)
     assert_raises(ArgumentError) { NevaehOs::WorkerReports.resolve!(actor: @owner, dependency: dependency) }
   end
+  def test_demo_kit_requires_configured_booking_and_builds_a_tracked_walkthrough_link
+    command = NevaehOs::Command.parse("Get more local businesses to book a Lightek demo for site #{@site.id}")
+    assert command.fetch('execute_demo')
+    inputs = command.fetch('values')
+    saved = kit(inputs)
+    builder = LightekGrowth::ShowcaseBuilder.new(actor: @owner, site: @site)
+    LightekGrowth::DemoShowcase.stub(:demo_booking?, false) do
+      assert_raises(ArgumentError) { builder.start!(kit_id: saved.id) }
+      assert_empty LightekGrowth::FeatureShowcase.where(site: @site)
+    end
+    LightekGrowth::DemoShowcase.stub(:demo_booking?, true) do
+      showcase = builder.start!(kit_id: saved.id)
+      link = LightekGrowth::Link.find(showcase.snapshot.fetch('demo_promotion_link_id'))
+      assert_equal 3, saved.campaign.content_variants.where(batch_key: "demo-walkthrough-#{showcase.id}").count
+      assert_equal saved.campaign_id, link.campaign_id
+      assert_equal "/site/#{showcase.page.slug}", link.destination_path
+      refute LightekGrowth::DemoShowcase.promotion_ready?(showcase, link)
+      showcase.update!(approved_at: Time.current, status: 'completed')
+      service = LightekGrowth::DemoCampaign.new(actor: @owner, site: @site)
+      e = assert_raises(ArgumentError) { service.publish!(showcase_id: showcase.id) }
+      assert_match(/every feature/, e.message)
+      showcase.clips.each { |clip| LightekGrowth::DemoShowcase.add_documented_images!(clip) }
+      assert service.publish!(showcase_id: showcase.id).fetch('published')
+      assert LightekGrowth::DemoShowcase.promotion_ready?(showcase.reload, link)
+      report = service.experiment!(showcase_id: showcase.id)
+      assert report.fetch('experiment_started_at')
+      visit = LightekGrowth::Visit.create!(site: @site, link: link)
+      exposure = LightekGrowth::DemoCampaign.record_exposure!(link, visit)
+      assert_equal exposure.id, LightekGrowth::DemoCampaign.record_exposure!(link, visit).id
+      assert_equal LightekGrowth::DemoCampaign::LABELS.fetch(exposure.variant), LightekGrowth::DemoCampaign.cta(showcase.reload, visit)
+      LightekAgency::DemoRequest.create!(agency_id: @site.tenant_id, growth_visit_id: visit.id, status: 'activated')
+      measured = service.report!(showcase_id: showcase.id).fetch('arms').find { |arm| arm['variant'] == exposure.variant }
+      assert_equal [1, 1, 1, 100.0], measured.values_at('visits', 'requests', 'activated', 'request_rate')
+      get dashboard_marketing_copilot_path(site_id: @site.id, kit_id: saved.id), headers: headers
+      assert_response :success
+      assert_includes response.body, 'Demo button experiment'
+
+      schedule = {showcase_id: showcase.id, connection_id: LightekMarketing::SocialConnection.create!(site: @site,
+        provider: 'facebook', account_label: 'Demo page', credential_key: 'fixture', publish_endpoint: 'https://graph.facebook.com').id,
+        scheduled_at: 1.hour.from_now.iso8601, request_key: 'demo-schedule-check'}
+      assert_raises(ArgumentError) { service.schedule!(**schedule) }
+      workbench = LightekMarketing::ContentWorkbench.new(actor: @owner, site: @site)
+      variant = workbench.generate!(campaign_id: saved.campaign_id, tracking_link_id: link.id, request_key: 'demo-approved-copy').first
+      workbench.approve!(id: variant.id, version: variant.lock_version)
+      showcase.page.reload.update!(published: false)
+      assert_raises(ArgumentError) { service.launch!(**schedule.merge(scheduled_at: 1.hour.ago.iso8601)) }
+      refute showcase.page.reload.published?
+      queued = service.launch!(**schedule)
+      assert queued.fetch('published')
+      assert_equal 'scheduled', queued.fetch('publication_status')
+      assert_equal queued, service.launch!(**schedule)
+      get dashboard_marketing_copilot_path(site_id: @site.id, kit_id: saved.id), headers: headers
+      assert_response :success
+      assert_includes response.body, 'Schedule promotion'
+      showcase.page.update!(slug: 'moved')
+      refute LightekGrowth::DemoShowcase.promotion_ready?(showcase, link)
+      assert_raises(ArgumentError) { LightekGrowth::DemoCampaign.ensure_promotion_available!(saved.campaign.reload) }
+    end
+  end
+
   def test_render_failure_blocks_execution_before_follow_up_and_pause_is_not_completion
     target = lead(follow_up_on: Date.current)
     saved = kit

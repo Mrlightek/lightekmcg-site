@@ -1,4 +1,6 @@
 require_relative 'nevaeh_os_test'
+require File.join(ROOT, 'app/services/nevaeh_os/website_marketing')
+require File.join(ROOT, 'app/services/nevaeh_os/public_relations')
 class NevaehWorkforceGoalChecks < NevaehOsTest
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
   def teardown
@@ -14,19 +16,97 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
   def complete_current(plan)
     NevaehOs::Goals.tick!(plan.reload)
     step=plan.steps.where(status:'running').first
+    assert step, plan.reload.error
     run=step.nevaeh_agent_run
     NevaehOs::AgentWorkforce.execute!(run)
     execute(run.reload.nevaeh_os_action)
     NevaehOs::Goals.tick!(plan.reload)
   end
+  def test_website_goal_dispatches_the_marketing_sme_and_records_the_publication_receipt
+    assert_marketing_goal_dispatch(
+      { 'kind' => 'website_marketing', 'operation' => 'compose', 'site_id' => 91, 'values' => { 'published' => true } },
+      { 'published' => true, 'page_id' => 12 })
+  end
+
+  def test_journal_goal_dispatches_the_marketing_sme_and_records_the_publication_receipt
+    command = NevaehOs::Command.parse('/website journal_write 91 {"entry_id":12,"revision":0,"status":"published"}')
+    assert_equal 'journal_write', command.fetch('operation')
+    assert_marketing_goal_dispatch(command, { 'published' => true, 'entry_id' => 12, 'article_status' => 'published' })
+  end
+
+  def assert_marketing_goal_dispatch(command, result)
+    operations = NevaehOs::WebsiteMarketing
+    bind = ->(_actor, input) { input.merge('delegation_id' => 'fixture-grant') }
+    execute_site = lambda do |actor:, command:, action_id:|
+      assert_equal @actor.id, actor.id
+      assert_equal 'fixture-grant', command.fetch('delegation_id')
+      assert_operator action_id, :>, 0
+      result.merge('status' => 'completed')
+    end
+
+    NevaehOs::Guide.stub(:allowed?, ->(level, actor) { level == 'growth' && actor.id == @actor.id }) do
+      operations.stub(:bind, bind) do
+        operations.stub(:authorize!, true) do
+          operations.stub(:perform!, execute_site) do
+            plan = goal({ 'title' => 'Execute a delegated publication', 'steps' => [{
+              'key' => 'publish', 'agent' => 'marketing_strategy', 'command' => command,
+              'expectations' => [{ 'path' => 'result.published', 'equals' => true }]
+            }] })
+            NevaehOs::Goals.control!(goal: plan, actor: @actor, operation: 'start')
+            complete_current(plan)
+            assert_equal 'completed', plan.reload.status
+            assert_equal 'marketing_strategy', plan.steps.first.nevaeh_os_agent.system_key
+          end
+        end
+      end
+    end
+  end
+
+  def test_pr_goal_uses_the_pr_manual_and_passes_the_saved_pitch_to_delivery
+    service = NevaehOs::PublicRelations
+    bind = ->(_actor, input) { input.merge('delegation_id' => 'press-grant') }
+    execution = lambda do |actor:, command:, action_id:|
+      assert_equal @actor.id, actor.id
+      assert_operator action_id, :>, 0
+      assert_equal 'press-grant', command.fetch('delegation_id')
+      assert_equal 'docs/nevaeh/tutorials/public_relations.md', command.dig('documentation_read', 'path')
+      if command.fetch('operation') == 'media_pitch'
+        { 'change_id' => 502, 'body' => 'Pitch', 'status' => 'completed' }
+      else
+        assert_equal 502, command.dig('values', 'pitch_id')
+        { 'message_id' => 81, 'delivery_state' => 'queued', 'status' => 'completed' }
+      end
+    end
+    send_command = { 'kind' => 'public_relations', 'operation' => 'send_pitch', 'site_id' => 91,
+      'values' => { 'pitch_id' => { '$step' => 'draft', 'path' => 'result.change_id' } } }
+    NevaehOs::Guide.stub(:allowed?, ->(level, actor) { level == 'growth' && actor.id == @actor.id }) do
+      service.stub(:bind, bind) do
+        service.stub(:authorize!, true) do
+          service.stub(:perform!, execution) do
+            plan = goal({ 'title' => 'Draft and queue a pitch', 'steps' => [
+              { 'key' => 'draft', 'agent' => 'public_relations', 'command' => '/pr media_pitch 91 {}' },
+              { 'key' => 'send', 'agent' => 'public_relations', 'command' => send_command,
+                'expectations' => [{ 'path' => 'result.message_id', 'present' => true }] }
+            ] })
+            NevaehOs::Goals.control!(goal: plan, actor: @actor, operation: 'start')
+            2.times { complete_current(plan) }
+            assert_equal 'completed', plan.reload.status
+            assert plan.steps.all? { |step| step.nevaeh_os_agent.system_key == 'public_relations' }
+            assert_equal 'queued', plan.steps.last.evidence.dig('result', 'delivery_state')
+          end
+        end
+      end
+    end
+  end
+
   def test_default_roles_are_defined_owned_and_do_not_resurrect_after_deletion
     NevaehOs::Workforce.install!(@actor)
-    assert_equal 28,NevaehOsAgent.where(user:@actor).count
+    assert_equal NevaehOs::Workforce::ROLES.size, NevaehOsAgent.where(user: @actor).count
     sage=NevaehOsAgent.find_by!(user:@actor,system_key:'sage')
     assert_includes sage.instructions,'growth'
     NevaehOs::Workforce.remove_agent!(@actor,sage.id)
     NevaehOs::Workforce.install!(@actor)
-    assert_equal 28,NevaehOsAgent.where(user:@actor).count
+    assert_equal NevaehOs::Workforce::ROLES.size, NevaehOsAgent.where(user: @actor).count
     assert sage.reload.deleted_at
     assert_raises(ArgumentError) { NevaehOs::Agents.resolve!('sage',@actor) }
     assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::Workforce.remove_agent!(@other,sage.id) }
@@ -133,7 +213,11 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
     get :workforce,format: :json
     assert_response :success
     rows=JSON.parse(response.body)['roles']
-    assert_equal 28,rows.size
+    assert_equal NevaehOs::Workforce::ROLES.size, rows.size
+    marketing = rows.find { |row| row['system_key'] == 'marketing_strategy' }
+    assert_equal 'Marketing SME', marketing.fetch('name')
+    assert_includes marketing.fetch('allowed_capabilities'), 'growth.backlink.draft'
+    assert_includes marketing.fetch('allowed_capabilities'), 'website.marketing.*'
     assert rows.all? { |row| row['purpose'].present? && row['department'].present? }
     refute rows.any? { |row| row['id']==NevaehOsAgent.find_by!(user:@other,system_key:'sage').id }
   end

@@ -61,6 +61,7 @@ class ReservationsController < ApplicationController
     reservation = LightekReservations::Booking.reserve!(customer: current_user, resource: resource,
       starts_at: params.require(:starts_at), checkout_key: params.require(:checkout_key),
       quantity: params.fetch(:quantity, 1), notes: params[:notes])
+    record_platform_experiment('reservation', reservation, site: resource.site) if respond_to?(:record_platform_experiment, true)
     redirect_to my_reservation_path(reservation), status: :see_other
   end
   def checkout

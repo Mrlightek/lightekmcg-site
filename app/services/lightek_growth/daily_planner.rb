@@ -98,9 +98,18 @@ module LightekGrowth
           'campaigns' => LightekMarketing::Campaign.where(site: @site).count,
           'enabled_links' => Link.where(site: @site, enabled: true).count,
           'tracked_visits' => stages.fetch('Tracked visits'), 'inquiry_visits' => stages.fetch('Inquiry'), 'paid_visits' => stages.fetch('Confirmed payment')
-        }.merge(defined?(LightekGrowth::Comparison) && LightekGrowth::Comparison.table_exists? ? LightekGrowth::Performance::Recommendations.call(@site) : {}).merge(defined?(LightekGrowth::WebsiteAudit) && LightekGrowth::WebsiteAudit.table_exists? ? LightekGrowth::Audits::Recommendations.call(@site) : {})
+        }.merge(defined?(LightekGrowth::Comparison) && LightekGrowth::Comparison.table_exists? ? LightekGrowth::Performance::Recommendations.call(@site) : {}).merge(defined?(LightekGrowth::WebsiteAudit) && LightekGrowth::WebsiteAudit.table_exists? ? LightekGrowth::Audits::Recommendations.call(@site) : {}).merge(search_facts)
       }
     end
+    def search_facts
+      return {} unless defined?(SearchSnapshot) && SearchSnapshot.table_exists? && Backlink.table_exists?
+
+      snapshot = SearchSnapshot.where(site: @site).order(id: :desc).first
+      candidate = snapshot.review_candidate if snapshot && snapshot.created_at >= 14.days.ago
+      { 'search_snapshot_id' => snapshot&.id, 'search_page_review' => candidate,
+        'backlink_prospects' => Backlink.where(site: @site, status: 'prospect', approved_at: nil).count }
+    end
+
     def find_step(plan_id, id) = Plan.where(site: @site).find(plan_id).steps.find(id)
     def current!(plan)
       raise ArgumentError, 'This plan is historical. Open or prepare today’s latest plan.' unless plan.current?

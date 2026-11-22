@@ -150,3 +150,9 @@ broadcast_delivery_storage:
   class: 'Studio::Broadcasting::DeliveryStorageSnapshotJob'
   queue: default
   active_job: true
+
+nevaeh_journal_editorial:
+  cron: "*/5 * * * *"
+  class: "NevaehOs::JournalEditorialSweepJob"
+  queue: default
+  active_job: true

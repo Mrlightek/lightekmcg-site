@@ -45,6 +45,8 @@ A business can build its website, sell products or book services, manage custome
 | Animate a library still into a video shot | [Genesis image-to-video](docs/studio/genesis-image-to-video.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
+| Build a screenshot-backed demo and track requests | [Demo campaigns](docs/nevaeh/tutorials/marketing_copilot.md#build-and-run-a-demo-campaign) |
+| Delegate press releases, media outreach and coverage monitoring | [Nevaeh PR SME](docs/nevaeh/tutorials/public_relations.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |
 
@@ -58,7 +60,9 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
 | Campaign performance | Pinned reviewed versions, separate placement cohorts, immutable measured reviews and editable follow-up drafts through Nevaeh; [guide](docs/nevaeh/tutorials/growth.md#campaign-performance-and-follow-up-experiments) |
+| A/B testing | Sticky traffic splits and outcome reporting for website copy, sales and demo forms, checkout, reservations, and PWA signup. Start, review and roll out variants from Growth or Nevaeh. [Guide](docs/nevaeh/tutorials/growth.md#ab-testing-across-lightek) |
 | Website growth audit | Native CMS evidence, guided metadata/CTA/alt previews, verified rechecks and guarded rollback; [operating guide](docs/sales/website-growth-audits.md) |
+| Public relations | Nevaeh manages newsroom releases, media contacts, email pitches and follow-ups, source monitoring, coverage and private response briefs; [operating guide](docs/nevaeh/tutorials/public_relations.md) |
 | Publishing calendar | Finished Studio export handoff, reviewed social schedules and provider outcome recovery; [operating guide](docs/sales/publishing-calendar.md) |
 | Recipe-driven episode Director | Reuses long-form production templates and show bibles, creates independent scenes with editable camera coverage, queues local stock-voice dialogue/captions, directs bound Cast performances, quotes scene renders, assembles private episode masters, and delivers reviewed community/OTT or configured TikTok/Instagram publications; [operating guide](docs/nevaeh/tutorials/production_director.md) |
 | Conversational campaign producer | Native TikTok draft recipe: timed script/storyboard, editable portrait timeline, graphics or owned images, music and captions, private MP4 preview and retry receipts; [operating guide](docs/nevaeh/tutorials/campaign_producer.md) |
@@ -75,7 +79,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Studio | Photo/video editing and exports; Blender authoring, modifier stacks and resumable CPU economy rendering, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups, positioned graphic overlays and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh speaking character | Private local spoken replies, stable 2D mouth animation driven by actual audio, pause/stop/replay and contextual Dashboard voice input; [guide](docs/nevaeh/tutorials/voice.md) |
-| Nevaeh workforce & goals | 28 explained specialist roles, delegation/deletion, evidence-driven sequential goals, expansion workers and page-aware Dashboard assistance; [guide](docs/nevaeh/tutorials/workforce.md) |
+| Nevaeh workforce & goals | A directory of specialist roles, delegation/deletion, evidence-driven sequential goals, expansion workers and page-aware Dashboard assistance; [guide](docs/nevaeh/tutorials/workforce.md) |
 | Graphical Nevaeh workspace | Persistent work tabs, script/blocking/embedded Studio, private correction rehearsals and a reactive Dashboard assistant; [guide](docs/nevaeh/tutorials/director_stage.md) |
 | Character stories & spatial direction | Fictional personality templates, real cooperative story workers, limited character knowledge, pinned Cast identities, relative cameras/gaze, personal space and frame-sampled collision/depth checks; [guide](docs/nevaeh/tutorials/story_simulation.md) |
 | Nevaeh | Task-focused conversational workspace with Studio/learning navigation, live receipts, sources, and consent controls; typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |

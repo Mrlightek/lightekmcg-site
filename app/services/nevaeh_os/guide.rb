@@ -17,6 +17,7 @@ module NevaehOs
       'social_delivery'=>['Studio TikTok and Instagram video delivery','all'],
       'production_director'=>['Direct episodes, characters, story workers and delivery','all'],
       'campaign_producer'=>['Produce a campaign in Studio','growth'],
+      'public_relations'=>['Public relations and media outreach','growth'],
       'growth'=>['Daily business growth plans','growth'],
       'start'=>['Meet your operating workspace','all'], 'commands'=>['Commands, inputs and capability discovery','all'],
       'agents'=>['Agents, delegation and scheduled workers','all'], 'memory'=>['Memory, voice and personas','all'],
@@ -54,6 +55,24 @@ module NevaehOs
       'growth.marketing_kit'=>['Prepare a seven-day marketing kit','/marketing SITE_ID','marketing_copilot','growth'],
       'growth.marketing_execute'=>['Execute a saved marketing kit','/marketing execute SITE_ID KIT_ID','marketing_copilot','growth'],
       'site.features.create'=>['Build a feature-showcase draft and overview videos','/features SITE_ID KIT_ID','marketing_copilot','growth'],
+      'website.marketing.demo_publish'=>['Publish the approved demo walkthrough','/website demo_publish SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_launch'=>['Publish and schedule a reviewed demo campaign','/website demo_launch SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_schedule'=>['Schedule approved demo promotion','/website demo_schedule SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_experiment'=>['Start a demo button wording experiment','/website demo_experiment SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_report'=>['Report demo visits, requests, and experiments','/website demo_report SITE_ID {…}','growth','growth'],
+      'website.marketing.ab_start'=>['Start a site A/B test','/website ab_start SITE_ID {…}','growth','growth'],
+      'website.marketing.ab_report'=>['Compare A/B test outcomes','/website ab_report SITE_ID {…}','growth','growth'],
+      'website.marketing.ab_finish'=>['Finish an A/B test and choose the rollout','/website ab_finish SITE_ID {…}','growth','growth'],
+      'website.marketing.inspect'=>['Inspect a delegated website','/website inspect SITE_ID','growth','growth'],
+      'website.marketing.compose'=>['Create or redesign a native CMS page','/website compose SITE_ID {…}','growth','growth'],
+      'website.marketing.publication'=>['Set publication on a delegated CMS page','/website publication SITE_ID {…}','growth','growth'],
+      'website.marketing.restore'=>['Restore the prior CMS page version','/website restore SITE_ID {…}','growth','growth'],
+      'website.marketing.appearance'=>['Change a delegated website’s appearance','/website appearance SITE_ID {…}','growth','growth'],
+      'website.marketing.journal_inspect'=>['Inspect Journal articles for a delegated website','/website journal_inspect SITE_ID','growth','growth'],
+      'website.marketing.journal_write'=>['Write, edit or publish a Journal article','/website journal_write SITE_ID {…}','growth','growth'],
+      'website.marketing.press_release'=>['Write or publish a press release','/website press_release SITE_ID {…}','growth','growth'],
+      'website.marketing.media_pitch'=>['Draft an outlet-specific media pitch','/website media_pitch SITE_ID {…}','growth','growth'],
+      'growth.backlink.draft'=>['Draft outreach for an approved backlink prospect','Growth → Search & backlinks','growth','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],
@@ -97,6 +116,12 @@ module NevaehOs
       rows=BUILTINS.filter_map do |key,(title,example,topic,permission)|
         next unless allowed?(permission,actor)
         entry(key,title,topic,permission,example:example,source:'built-in command',coverage:'tutorial')
+      end
+      if defined?(PublicRelations) && allowed?('growth', actor)
+        PublicRelations::OPERATIONS.each do |operation, (label, fields, _)|
+          rows << entry(PublicRelations.capability(operation), label, 'public_relations', 'growth',
+            example: "/pr #{operation} SITE_ID#{' {…}' if fields.any?}", source: 'built-in command', coverage: 'tutorial')
+        end
       end
       if defined?(PlatformActions)
         PlatformLanguage::PHRASES.each do |key, (_, example)|

@@ -96,9 +96,10 @@ export function studioApi(host) {
   function advanced(scene,workspace='edit') {
     const params = new URLSearchParams({advanced:'1',workspace});
     if (site) params.set('site_id',site);
-    return prefix + '/workspace/' + scene + '?' + params;
+    return prefix + '/workspace' + (scene ? '/' + scene : '') + '?' + params;
   }
   return {call,upload,converse,onActivity,dashboard:!!host,site,advanced,pipeline:"/studio/pipeline"+query,
+    characterBuilder:host?advanced(null,'stage')+'#/studio/rigged':'#/studio/rigged',
     native:(scene,workspace)=>host?advanced(scene,workspace):`#/studio/${scene}/${workspace}`,
     editor:(kind,scene)=>{
       if(!host || !['photo','video'].includes(kind))return null;

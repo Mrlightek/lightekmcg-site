@@ -16,6 +16,30 @@ class StudioStarterCastTest < StudioProductionTest
     assert_raises(ActiveRecord::RecordNotFound){action("starter_scene_status",asset_id:first[:asset_id],site_id:@other_site.id)}
     assert_raises(ArgumentError){start_cast(name:"Different request")}
   end
+  def test_starter_cast_saves_character_options_and_rejects_reusing_a_key_for_other_edits
+    character={rig:"snow_v4",height:1.15,facing:-30,tint:"#B08050"}
+    result=start_cast(character:character)
+    assert result[:variant]
+    assert_equal ["snow_v4",1.15,-30,"#b08050"],
+      StudioAsset.find(result[:asset_id]).metadata.dig("starter_cast","character").values_at("rig","height","facing","tint")
+    assert_equal result,start_cast(character:character)
+    assert_raises(ArgumentError) { start_cast(character:character.merge(height:0.49)) }
+    assert_raises(ArgumentError) { start_cast(character:character.merge(rig:"rain_v3")) }
+  end
+
+  def test_starter_cast_pins_the_uploaded_rig_and_checks_site_and_armature
+    source=StudioAsset.create!(owner:@alice,site:@site,name:"Library rig",kind:"blend",status:"ready",
+      request_key:SecureRandom.uuid,metadata:{"scenes"=>[{"name"=>"Rig scene","objects"=>[{"definition"=>{"native_type"=>"ARMATURE"}}]}]})
+    source.native.attach(io:StringIO.new("fixture"),filename:"rig.blend",content_type:"application/x-blender",identify:false)
+    character={rig:"library",asset_id:source.id}
+    assert_raises(ActiveRecord::RecordNotFound) { start_cast(character:character,site_id:@other_site.id) }
+    result=start_cast(character:character)
+    saved=StudioAsset.find(result[:asset_id]).metadata.dig("starter_cast","character")
+    assert_equal [source.id,source.native.blob.id,"Rig scene"],saved.values_at("asset_id","blob_id","scene")
+    source.update!(metadata:{"scenes"=>[{"name"=>"Mesh only","objects"=>[{"definition"=>{"native_type"=>"MESH"}}]}]})
+    assert_raises(ArgumentError) { start_cast(character:character) }
+  end
+
   def test_starter_cast_reports_old_worker_and_can_retry
     id=start_cast[:asset_id]
     Studio::NativeBlender::Runtime.stub(:status,{ready:true,version:"4.0.2"}){StudioStarterCastJob.perform_now(id)}

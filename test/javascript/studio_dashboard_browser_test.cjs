@@ -6,7 +6,7 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  const browser=await chromium.launch({headless:true,...(process.env.STUDIO_CHROMIUM_EXECUTABLE?{executablePath:process.env.STUDIO_CHROMIUM_EXECUTABLE}:{}),args:['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
  const page=await browser.newPage(),errors=[];let handoffRequests=0;page.on('pageerror',e=>errors.push(e.message));
- let projectCreations=0,starterRequests=0,starterPolls=0,photoUploads=0,photoBuilds=0,editUploads=0,editAssetReads=0,editSaves=0;
+ let projectCreations=0,starterRequests=0,starterPolls=0,variantRequests=0,variantPolls=0,photoUploads=0,photoBuilds=0,editUploads=0,rigUploads=0,editAssetReads=0,editSaves=0;
  const scene={id:1,name:'Episode one',settings:{},objects:[{id:10,name:'Hero',object_type:'cube',definition:{location:[0,0,1],scale:[1,1,2],material:{color:'#c9a35d'}}}],lock_version:0},second={id:2,name:'Scene two',settings:{},objects:[],lock_version:0},project={id:1,name:'Lightek Sessions',productions:[],unassigned_scenes:[scene,second],scenes:[scene,second]};
  const modules=['nevaeh-client','studio-dashboard','studio-app','studio-native','studio-authoring','studio-media','studio-create','studio-performance','studio-visual','vendor/tone/Tone-15.1.22','vendor/tone/Midi-2.0.28','studio-music-core','studio-music-audio','studio-music','studio-production','studio-edit-workbench','studio-ai','studio-delivery'];
  const html=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:16px;background:#080b12}*{box-sizing:border-box}</style>${['studio-visual','studio-authoring','studio-music','studio-dashboard','studio-edit-workbench','studio-ai','studio-delivery'].map(n=>`<link rel="stylesheet" href="/lightek/${n}.css">`).join('')}<main id="lightek-studio-dashboard" class="media-studio-focus" data-site-id="2" data-user-id="42" data-scene-id="1" data-csrf-token="csrf"><div id="studio-root"></div></main>${modules.map(n=>`<script defer src="/lightek/${n}.js"></script>`).join('')}<script type="importmap">{"imports":{"three":"/lightek/vendor/three/three.module.js"}}</script><script type="module" src="/lightek/studio-viewport.js"></script>`;
@@ -14,6 +14,10 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  const u=new URL(route.request().url());
  if(u.pathname.endsWith('/uploads')){
    assert.match(route.request().headers()['content-type'],/multipart\/form-data/);
+   if(route.request().postData().includes('guest-rig.blend')){
+     rigUploads++;
+     return route.fulfill({json:{signed_id:'rig-upload-token'}});
+   }
    if(route.request().postData().includes('opening-photo.png')){
      editUploads++;
      return route.fulfill({json:{signed_id:'edit-upload-token'}});
@@ -25,13 +29,25 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  if(u.pathname.endsWith('/execute')){const req=route.request().postDataJSON();let result={};if(req.capability.endsWith('cast.create')){
    assert.equal(req.payload.photo_signed_id,'portrait-test-token');assert.equal(req.payload.name,'Photo lead');
    photoBuilds++;result={asset_id:41,status:'processing'};
- }else if(req.capability.endsWith('starter.scene.create')){starterRequests++;assert.equal(req.payload.name,'Rain and Snow');result={asset_id:99,status:'uploaded',phase:'queued'};}else if(req.capability.endsWith('starter.scene.status')){result=starterRequests?{asset_id:99,status:++starterPolls>1?'ready':'processing',phase:starterPolls>1?'ready':'importing_rain_v3',scene_id:3,project_id:2}:null;}else if(req.capability.endsWith('project.create')){projectCreations++;if(req.payload.studio_entry==='stage')scene.settings.studio_entry='stage';result={project_id:1,scene_id:1};}else if(req.capability==='studio.pwa.bootstrap')result={projects:[project,...(starterPolls>1?[{id:2,name:'Rain and Snow',productions:[],unassigned_scenes:[{id:3,name:'Rain and Snow',settings:{},objects:[],lock_version:0}]}]:[])]};else if(req.capability.endsWith('ai.status'))result={connected:true,device:{type:'cuda',vram_total:24*1073741824,vram_free:18*1073741824},recipes:[{id:'wan22_video',name:'Wan 2.2',kind:'video',steps:20,ready:true}],performances:[{id:'musetalk',name:'MuseTalk',action:'Lip sync a performance',configured:false}]};else if(req.capability.endsWith('ai.jobs'))result=[{asset_id:12,status:'ready',kind:'video',name:'Latest shot',prompt:'Portrait close-up',seed:42,steps:20,preview_url:'/shot.mp4'}];else if(req.capability.endsWith('ai.setup.status'))result={can_manage:false};else if(req.capability.endsWith('asset.import')){
-   assert.equal(req.payload.signed_id,'edit-upload-token');
-   editAssetReads=0;
-   result={asset_id:171,status:'uploaded'};
+ }else if(req.capability.endsWith('starter.scene.create')){if(req.payload.character){
+    variantRequests++;
+    assert.equal(req.payload.name,'Detective Avery');
+    assert.deepEqual(req.payload.character,{rig:'snow_v4',height:1.15,facing:30,tint:'#b08050'});
+    result={asset_id:100,name:'Detective Avery',variant:true,status:'uploaded',phase:'queued'};
+   }else{
+     starterRequests++;assert.equal(req.payload.name,'Rain and Snow');result={asset_id:99,name:'Rain and Snow',status:'uploaded',phase:'queued'};
+   }}else if(req.capability.endsWith('starter.scene.status')){result=variantRequests?{asset_id:100,name:'Detective Avery',variant:true,status:++variantPolls>1?'ready':'processing',phase:variantPolls>1?'ready':'building_scene',scene_id:4,project_id:3}:starterRequests?{asset_id:99,name:'Rain and Snow',status:++starterPolls>1?'ready':'processing',phase:starterPolls>1?'ready':'importing_rain_v3',scene_id:3,project_id:2}:null;}else if(req.capability.endsWith('project.create')){projectCreations++;if(req.payload.studio_entry==='stage')scene.settings.studio_entry='stage';result={project_id:1,scene_id:1};}else if(req.capability==='studio.pwa.bootstrap')result={projects:[project,...(starterPolls>1?[{id:2,name:'Rain and Snow',productions:[],unassigned_scenes:[{id:3,name:'Rain and Snow',settings:{},objects:[],lock_version:0}]}]:[]),...(variantPolls>1?[{id:3,name:'Detective Avery',productions:[],unassigned_scenes:[{id:4,name:'Detective Avery',settings:{rigged_character:true},objects:[],lock_version:0}]}]:[])]};else if(req.capability.endsWith('ai.status'))result={connected:true,device:{type:'cuda',vram_total:24*1073741824,vram_free:18*1073741824},recipes:[{id:'wan22_video',name:'Wan 2.2',kind:'video',steps:20,ready:true}],performances:[{id:'musetalk',name:'MuseTalk',action:'Lip sync a performance',configured:false}]};else if(req.capability.endsWith('ai.jobs'))result=[{asset_id:12,status:'ready',kind:'video',name:'Latest shot',prompt:'Portrait close-up',seed:42,steps:20,preview_url:'/shot.mp4'}];else if(req.capability.endsWith('ai.setup.status'))result={can_manage:false};else if(req.capability.endsWith('asset.import')){
+   if(req.payload.signed_id==='rig-upload-token')result={asset_id:172,status:'uploaded'};
+   else{
+     assert.equal(req.payload.signed_id,'edit-upload-token');
+     editAssetReads=0;
+     result={asset_id:171,status:'uploaded'};
+   }
+ }else if(req.capability.endsWith('blender.preview')&&req.payload.scene_id===4){
+   result={status:'completed',url:'/preview.png'};
  }else if(req.capability.endsWith('assets.list')){
    const editPhoto={id:171,name:'opening-photo.png',kind:'image',status:++editAssetReads>1?'ready':'uploaded',proxy_url:'/preview.png',metadata:{width:1,height:1}};
-   result={assets:[{id:7,name:'Opening shot',kind:'video',status:'ready',metadata:{duration:2}},...(editUploads?[editPhoto]:[])],media_presets:[],creation_recipes:[]};
+   result={assets:[{id:7,name:'Opening shot',kind:'video',status:'ready',metadata:{duration:2}},...(editUploads?[editPhoto]:[]),...(rigUploads?[{id:172,name:'guest-rig.blend',kind:'blend',status:'ready',native_url:'/rig.blend',metadata:{scenes:[{objects:[{definition:{native_type:'ARMATURE'}}]}]}}]:[])],media_presets:[],creation_recipes:[]};
  }else if(req.capability.endsWith('operations.list'))result={operations:[{id:20,type:'build_scene',status:'completed',draft_preview:false,artifacts:[{id:30,kind:'video',filename:'Finished shot.mp4',url:'/shot'}]},{id:21,type:'build_scene',status:'completed',draft_preview:true,artifacts:[{id:31,kind:'video',filename:'Draft.mp4',url:'/draft'}]}],publications:[]};else if(req.capability.endsWith('artifact.use')){assert.equal(req.payload.scene_id,1);assert.equal(req.payload.artifact_id,30);handoffRequests++;if(handoffRequests%2===1)result={status:'uploaded',asset_id:7};else{scene.lock_version++;scene.settings.timeline={output:'video',width:1280,height:720,clips:[{asset_id:7,in:0,out:2,start:0,track:0}]};result={status:'ready',asset_id:7,lock_version:scene.lock_version,timeline:scene.settings.timeline};}}else if(req.capability.endsWith('timeline.save')){if(req.payload.timeline.clips.some(clip=>clip.asset_id===171))editSaves++;scene.settings.timeline=req.payload.timeline;scene.lock_version++;result={timeline:scene.settings.timeline,lock_version:scene.lock_version};}else if(req.capability.endsWith('scene.save')){scene.settings.workspace=req.payload.workspace;scene.lock_version++;result={workspace:scene.settings.workspace,lock_version:scene.lock_version};}else if(req.capability.endsWith('music.save')){scene.settings.music=req.payload.composition;scene.settings.music_revision=(scene.settings.music_revision||0)+1;scene.lock_version++;result={composition:scene.settings.music,revision:scene.settings.music_revision,lock_version:scene.lock_version};}return route.fulfill({json:{status:'completed',result}});}
  if(u.pathname.startsWith('/lightek/')){const f=path.join(repo,'public',u.pathname);return route.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.css')?'text/css':'application/javascript'});}
  if(u.pathname==='/preview.png')return route.fulfill({body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64'),contentType:'image/png'});
@@ -108,8 +124,29 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  await page.keyboard.type('Writing through background updates');await page.evaluate(()=>A.studioAssetsReload());
  assert.equal(await page.locator('[data-studio-script]').evaluate(el=>document.activeElement===el),true,'script refresh must preserve focus');
  await page.keyboard.type(' without clicking');assert.equal(await page.locator('[data-studio-script]').inputValue(),'Writing through background updates without clicking');
- await page.goto('http://localhost:18447/dashboard/studio-broadcasting/workspace/1?site_id=2#/studio');await page.getByText('Try an example scene',{exact:true}).click();await page.locator('[data-vw=starter-cast]').click();
+ await page.goto('http://localhost:18447/dashboard/studio-broadcasting/workspace/1?site_id=2#/studio');await page.getByText('Try an example scene',{exact:true}).click();await page.locator('[data-vw=starter-example]').click();
  await page.getByRole('link',{name:'Open character scene →'}).waitFor({timeout:12000});assert.equal(starterRequests,1);await page.getByRole('link',{name:'Open character scene →'}).click();await page.waitForFunction(()=>location.hash==='#/studio/3/stage');await page.locator('[data-studio-viewport-mounted]').waitFor();assert.equal(await page.evaluate(()=>studioSceneRecord(3).project.name),'Rain and Snow','ready starter refreshes the project inventory before opening');
+ await page.goto('http://localhost:18447/dashboard/studio-broadcasting/workspace?site_id=2&workspace=stage&advanced=1#/studio/rigged');
+ const builder=page.getByRole('region',{name:'Character builder'});
+ await builder.locator('[data-vw-rig-upload]').setInputFiles({name:'guest-rig.blend',mimeType:'application/x-blender',buffer:Buffer.from('fixture')});
+ try{await builder.getByText('guest-rig.blend is ready. Choose it under Base rig.').waitFor({timeout:8000});}
+ catch(error){throw Error((await builder.innerText())+' · upload requests '+rigUploads+' · '+error.message);}
+ await builder.getByRole('button',{name:'Create a rigged character'}).click();
+ const character=page.getByRole('dialog');
+ await character.getByLabel('Character name').fill('Detective Avery');
+ assert.equal(await character.getByLabel('Base rig').inputValue(),'library:172');
+ await character.getByLabel('Base rig').selectOption('snow_v4');
+ await character.getByLabel('Height').fill('115');
+ await character.getByLabel('Facing').selectOption('30');
+ await character.getByLabel('Apply a palette tint').check();
+ await character.getByLabel('Palette tint',{exact:true}).fill('#b08050');
+ await character.getByRole('button',{name:'Create character',exact:true}).click();
+ await builder.getByText('Detective Avery · Building your rigged scene').waitFor();
+ await builder.getByRole('link',{name:'Open character scene →'}).click({timeout:12000});
+ await page.waitForFunction(()=>location.hash==='#/studio/4/stage');
+ await page.locator('[data-vw-guide]').getByRole('button',{name:'Render camera preview'}).click();
+ await page.getByRole('img',{name:'Rendered camera preview'}).waitFor();
+ assert.equal(variantRequests,1);
  scene.settings.timeline={output:'video',width:1280,height:720,clips:[]};
  editAssetReads=0;
  const editUrl='http://localhost:18447/dashboard/studio-broadcasting/workspace/1?site_id=2';

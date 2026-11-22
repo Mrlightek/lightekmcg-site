@@ -5,6 +5,8 @@ gem 'minitest', '~>5.0'
 require 'minitest/mock'
 require_relative 'site_content_checks'
 ActiveRecord::Schema.define do
+  create_table(:nevaeh_goals) { |t| t.references :user; t.string :title; t.string :request_key; t.string :status, default: 'draft'; t.string :error; t.timestamps }
+  create_table(:lightek_marketing_deliveries) { |t| t.references :campaign }
   create_table(:lightek_agency_site_memberships) { |t| t.references :site; t.references :user; t.references :granted_by; t.string :role }
 end
 require Rails.root.join('app/models/lightek_agency/site_membership')
@@ -48,6 +50,17 @@ require Rails.root.join('app/models/lightek_growth/website_change')
 require Rails.root.join('app/services/nevaeh_os/website_marketing')
 require Rails.root.join('app/services/nevaeh_os/website_journal')
 require Rails.root.join('app/services/nevaeh_os/goals')
+require Rails.root.join('app/services/nevaeh_os/journal_editorial')
+require Rails.root.join('app/services/nevaeh_os/web_document')
+require Rails.root.join('app/models/nevaeh_goal')
+require Rails.root.join('db/migrate/20261028173000_create_lightek_marketing_campaigns')
+CreateLightekMarketingCampaigns.new.migrate(:up)
+ActiveRecord::Schema.define { add_column :lightek_marketing_campaigns, :media_url, :string }
+require Rails.root.join('db/migrate/20261115160000_add_campaign_content_review')
+AddCampaignContentReview.new.migrate(:up)
+require Rails.root.join('app/models/lightek_marketing/campaign')
+require Rails.root.join('app/models/lightek_marketing/content_variant')
+require Rails.root.join('app/services/lightek_marketing/content_workbench')
 require Rails.root.join('app/services/nevaeh_intelligences/writing_engine')
 require Rails.root.join('app/services/nevaeh_intelligences/editorial_direction')
 require Rails.root.join('app/controllers/dashboard/website_audits_controller')
@@ -79,6 +92,76 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def test_audit_editorial_schedule_selects_new_approved_material_and_prepares_public_sharing
+    marketing = NevaehOs::WebsiteMarketing
+    editorial = NevaehOs::JournalEditorial
+    @site.update!(manifest: @site.manifest.merge(marketing::KEY => { 'actor_id' => @user.id, 'key' => 'editorial-grant' }))
+    source = 'https://journal-source.test/updates'
+    config = { topics: "Studio
+Payroll", sources: source, cadence: 'weekly', article_status: 'published', social_draft: '1' }
+    patch '/dashboard/blog/configure_editorial', params: { site_id: @site.id, editorial: config }, headers: headers
+    assert_response :see_other
+    schedule = LightekBlog::EditorialSchedule.find_by!(site: @site)
+    assert schedule.enabled?
+    assert schedule.social_draft?
+    assert_operator schedule.next_run_at, :<=, Time.current
+
+    now = Time.current
+    plan = NevaehGoal.create!(user: @user, title: 'Editorial cycle', request_key: 'editorial-fixture')
+    captures = []
+    create = ->(actor:, values:, request_key:) { captures << [actor, values, request_key]; plan }
+    start = ->(goal:, actor:, operation:) { assert_equal [plan, @user, 'start'], [goal, actor, operation]; goal.update!(status: 'running') }
+    NevaehOs::Goals.stub(:create!, create) do
+      NevaehOs::Goals.stub(:control!, start) do
+        editorial.dispatch!(schedule, now: now)
+        editorial.dispatch!(schedule, now: now)
+      end
+    end
+    assert_equal 1, captures.length
+    assert_in_delta (now + 1.week).to_f, schedule.reload.next_run_at.to_f, 0.001
+    steps = captures.first[1].fetch('steps')
+    assert_equal %w[research article promote], steps.pluck('key')
+    assert_equal({ '$step' => 'research', 'path' => 'result.story' }, steps[1].dig('command', 'values', 'story'))
+
+    read = ->(url, follow_redirects:) do
+      assert_equal source, url
+      refute follow_redirects
+      { url: source, title: 'Creator tools update', sha256: 'source-digest', body: "Unrelated
+Lightek Studio now helps creators record and edit interviews together from their own computers." }
+    end
+    research = marketing.bind(@user, steps[0].fetch('command'))
+    NevaehOs::WebDocument.stub(:fetch, read) do
+      story = marketing.perform!(actor: @user, command: research, action_id: 201).fetch('story')
+      assert_equal 'Studio', story.fetch('topic')
+      write = marketing.bind(@user, steps[1].fetch('command'))
+      write['values']['story'] = story
+      saved = marketing.perform!(actor: @user, command: write, action_id: 202)
+      assert saved.fetch('published')
+      assert_equal source, saved.fetch('source_url')
+      get saved.fetch('path')
+      assert_response :success
+      assert_includes response.body, 'href="https://journal-source.test/updates"'
+      assert_includes response.body, 'Share to'
+      assert_includes response.body, 'linkedin.com/sharing/share-offsite'
+      assert_raises(ArgumentError) { marketing.perform!(actor: @user, command: research, action_id: 203) }
+
+      promote = marketing.bind(@user, steps[2].fetch('command'))
+      promote['values']['entry_id'] = saved.fetch('entry_id')
+      promotion = marketing.perform!(actor: @user, command: promote, action_id: 204)
+      assert_equal 'draft', promotion.fetch('campaign_status')
+      assert_equal promotion, marketing.perform!(actor: @user, command: promote, action_id: 204)
+      draft = LightekMarketing::ContentVariant.find(promotion.fetch('variant_id'))
+      assert_equal "https://#{@site.host}#{saved.fetch('path')}", draft.cta_url
+      assert_equal saved.fetch('entry_id'), draft.source_snapshot.fetch('journal_entry_id')
+      workbench = LightekMarketing::ContentWorkbench.new(actor: @user, site: @site)
+      workbench.send(:validate_source!, draft)
+      draft.cta_url = 'https://different.test/article'
+      assert_raises(ArgumentError) { workbench.send(:validate_source!, draft) }
+      editorial.pause!(site: @site, actor: @user)
+      assert_raises(ArgumentError) { marketing.perform!(actor: @user, command: write, action_id: 205) }
+    end
+  end
+
   def test_audit_delegated_marketing_writes_and_publishes_native_journal_articles
     operator = NevaehOs::WebsiteMarketing
     grant = { 'actor_id' => @user.id, 'key' => 'fixture-grant' }

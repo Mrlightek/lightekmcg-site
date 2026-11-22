@@ -84,6 +84,9 @@ require Rails.root.join('app/helpers/lightek_design/studio_helper')
 require Rails.root.join('db/migrate/20261112170000_create_lightek_blog_entries')
 CreateLightekBlogEntries.new.migrate(:up)
 require Rails.root.join('app/models/lightek_blog/entry')
+require Rails.root.join('db/migrate/20261122090200_schedule_nevaeh_journal_editorial')
+ScheduleNevaehJournalEditorial.new.migrate(:up)
+require Rails.root.join('app/models/lightek_blog/editorial_schedule')
 require Rails.root.join('app/services/lightek_blog/editor')
 require Rails.root.join('app/services/lightek_blog/images')
 module DymondDash
@@ -108,6 +111,7 @@ Rails.application.routes.append do
   namespace :dashboard do
     resources :blog,only:%i[index create update],controller:'blog' do
       post :assign_nevaeh, on: :collection
+      patch :configure_editorial, on: :collection
       get :preview,on: :member
       get 'images/:attachment_id',to:'blog#image',on: :member,as: :image
     end

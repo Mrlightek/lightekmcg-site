@@ -5,6 +5,7 @@ class Dashboard::BlogController < ApplicationController
   before_action :load_site
   rescue_from ActiveRecord::RecordNotUnique,ActiveRecord::RecordInvalid,ActiveRecord::StaleObjectError,ArgumentError,KeyError,with: :invalid_article
   def index
+    @editorial_schedule = LightekBlog::EditorialSchedule.find_by(site: @site, actor: current_user)
     @entries=LightekBlog::Entry.where(site:@site).includes(post: :user).order(updated_at: :desc).limit(100)
     @entry ||= params[:entry_id].present? ? @entries.find(params[:entry_id]) : LightekBlog::Entry.new(site:@site,post:Post.new(user:current_user),status:"draft")
   end
@@ -32,6 +33,20 @@ class Dashboard::BlogController < ApplicationController
       notice: "Journal goal ##{goal.id} assigned. Follow it in Nevaeh Goals."
   rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
     redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other, alert: error.message
+  end
+  def configure_editorial
+    editorial = NevaehOs::JournalEditorial
+    if params[:operation] == 'pause'
+      editorial.pause!(site: @site, actor: current_user)
+      notice = 'Nevaeh editorial schedule paused.'
+    else
+      fields = params.require(:editorial).permit(:topics, :sources, :cadence, :article_status, :social_draft).to_h
+      editorial.configure!(site: @site, actor: current_user, attributes: fields)
+      notice = 'Nevaeh editorial schedule saved. The first cycle will start shortly.'
+    end
+    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'editorial-schedule'), status: :see_other, notice: notice
+  rescue ArgumentError, ActiveRecord::RecordNotFound, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'editorial-schedule'), status: :see_other, alert: error.message
   end
   def preview
     @entry=LightekBlog::Entry.where(site:@site).includes(:post).find(params[:id])

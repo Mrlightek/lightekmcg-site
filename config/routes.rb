@@ -49,6 +49,7 @@ Rails.application.routes.draw do
     resources :blog, only: %i[index create update], controller: "blog" do
       get :preview, on: :member
       post :assign_nevaeh, on: :collection
+      patch :configure_editorial, on: :collection
       get "images/:attachment_id", to: "blog#image", on: :member, as: :image
     end
   end

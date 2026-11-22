@@ -10,7 +10,10 @@ module NevaehOs
       'appearance' => 'website.marketing.appearance',
       'restore' => 'website.marketing.restore',
       'journal_inspect' => 'website.marketing.journal_inspect',
-      'journal_write' => 'website.marketing.journal_write'
+      'journal_write' => 'website.marketing.journal_write',
+      'journal_research' => 'website.marketing.journal_research',
+      'journal_editorial_write' => 'website.marketing.journal_editorial_write',
+      'journal_social_draft' => 'website.marketing.journal_social_draft'
     }.freeze
 
     module_function
@@ -71,6 +74,10 @@ module NevaehOs
       site = authorize!(actor, command)
       operation = command.fetch('operation')
       values = command.fetch('values')
+      if operation == 'journal_research'
+        return JournalEditorial.research!(site, actor, command).merge('site_id' => site.id, 'status' => 'completed', 'operation' => operation)
+      end
+
       site.with_lock do
         authorize!(actor, command)
         receipts = LightekGrowth::WebsiteChange.where(site_id: site.id)
@@ -85,6 +92,8 @@ module NevaehOs
         when 'inspect' then inspect_site(site, values)
         when 'journal_inspect' then WebsiteJournal.inspect_entries(site, values)
         when 'journal_write' then WebsiteJournal.write!(site, actor, values)
+        when 'journal_editorial_write' then JournalEditorial.write!(site, actor, command)
+        when 'journal_social_draft' then JournalEditorial.social_draft!(site, actor, command)
         when 'compose' then compose(site, actor, values)
         when 'publication' then publication(site, values)
         when 'appearance' then appearance(site, actor, values)

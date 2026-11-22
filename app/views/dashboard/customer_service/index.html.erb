@@ -1,0 +1,101 @@
+<% content_for :page_title, "Customer Service & Billing" %>
+<%= stylesheet_link_tag "/lightek/people-workspace.css" %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div><h1>Customer Service & Billing</h1><p>Ask Nevaeh about a service, check an invoice or subscription, and track your cases.</p></div>
+    <nav aria-label="Workspace sections">
+      <%= link_to "Cases", "#cases", class: "lp-button secondary" %>
+      <%= link_to "Billing", "#billing", class: "lp-button secondary" %>
+      <% if current_user.role == "super_admin" %>
+        <%= link_to "Outbound mailbox", dashboard_customer_service_sender_path, class: "lp-button secondary" %>
+      <% end %>
+      <% if current_user.employee? %>
+        <%= link_to "Customer service queue", employee_tickets_path(queue: "customer_service"), class: "lp-button secondary" %>
+      <% end %>
+    </nav>
+  </header>
+
+  <section class="lp-card" id="cases">
+    <h2>Open a case</h2>
+    <div class="lp-actions">
+      <% %w[find_services sign_in_help].each do |topic| %>
+        <%= button_to NevaehCustomerService::Cases::TOPICS.fetch(topic).first, dashboard_customer_cases_path,
+          params: {support_case: {topic: topic}}, class: "lp-button secondary" %>
+      <% end %>
+    </div>
+    <%= form_with url: dashboard_customer_cases_path, scope: :support_case, class: "lp-form" do |form| %>
+      <div class="lp-grid">
+        <label>Topic <%= form.select :topic, NevaehCustomerService::Cases::TOPICS.slice("general", "technical", "billing").map { |key, (label, *)| [label, key] } %></label>
+        <label>Subject <%= form.text_field :title, required: true, maxlength: 160 %></label>
+      </div>
+      <label>How can we help? <%= form.text_area :description, rows: 4, required: true, maxlength: 4_000 %></label>
+      <small>Keep passwords, payment card numbers and bank details out of your message.</small>
+      <%= form.submit "Open case", class: "lp-button" %>
+    <% end %>
+  </section>
+
+  <section class="lp-card">
+    <h2>Recent cases</h2>
+    <% if @tickets.empty? %><p>You have no support cases.</p><% end %>
+    <% @tickets.each do |ticket| %>
+      <p><%= link_to "#{ticket.number} · #{ticket.title}", dashboard_customer_case_path(ticket) %> · <%= ticket.status.humanize %></p>
+    <% end %>
+  </section>
+
+  <% if @installations.any? %>
+    <section class="lp-card">
+      <h2>Application setup</h2>
+      <% @installations.each do |order| %>
+        <article class="lp-election">
+          <strong><%= link_to LightekCommerce::Installations.hostname(order), installation_path(order) %></strong>
+          <%= button_to "Check setup status", dashboard_customer_cases_path, params: {support_case: {topic: "installation_status", record_id: order.id}}, class: "lp-button secondary" %>
+        </article>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="lp-card" id="billing">
+    <h2>Billing</h2>
+    <% if @overdue_invoices.any? %>
+      <h3>Payment overdue</h3>
+      <ul>
+        <% @overdue_invoices.each do |invoice| %>
+          <li><%= invoice.number.presence || "Invoice ##{invoice.id}" %> · Due <%= l(invoice.due_date) %> · <%= billing_balance(invoice) %></li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <h3>Recent invoices</h3>
+    <% if @invoices.empty? %><p>You have no issued invoices in Dymond Bank.</p><% end %>
+    <% @invoices.each do |invoice| %>
+      <article class="lp-election">
+        <div><strong><%= invoice.number.presence || "Invoice ##{invoice.id}" %></strong>
+          <p><%= invoice.status.humanize %> · <%= billing_balance(invoice) %> balance<% if invoice.due_date %> · Due <%= l(invoice.due_date) %><% end %></p></div>
+        <%= button_to "Ask about this invoice", dashboard_customer_cases_path, params: {support_case: {topic: "invoice_status", record_id: invoice.id}}, class: "lp-button secondary" %>
+      </article>
+    <% end %>
+
+    <% if @refundable_installations.any? %>
+      <details>
+        <summary>Request an installation refund</summary>
+        <%= form_with url: dashboard_customer_cases_path, scope: :support_case, class: "lp-form" do |form| %>
+          <%= form.hidden_field :topic, value: "refund_request" %>
+          <label>Installation <%= form.collection_select :record_id, @refundable_installations, :id,
+            ->(order) { LightekCommerce::Installations.hostname(order) } %></label>
+          <label>Reason <%= form.text_area :description, required: true, maxlength: 4_000 %></label>
+          <%= form.submit "Request refund", class: "lp-button secondary" %>
+        <% end %>
+      </details>
+    <% end %>
+
+    <h3>Subscriptions</h3>
+    <% if @subscriptions.empty? %><p>You have no subscriptions in Dymond Bank.</p><% end %>
+    <% @subscriptions.each do |subscription| %>
+      <article class="lp-election">
+        <div><strong><%= subscription.plan&.name || "Subscription ##{subscription.id}" %></strong>
+          <p><%= subscription.status.humanize %><% if subscription.current_period_end %> · Period ends <%= l(subscription.current_period_end.to_date) %><% end %></p></div>
+        <%= button_to "Ask about this subscription", dashboard_customer_cases_path, params: {support_case: {topic: "subscription_status", record_id: subscription.id}}, class: "lp-button secondary" %>
+      </article>
+    <% end %>
+  </section>
+</main>

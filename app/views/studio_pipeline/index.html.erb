@@ -15,6 +15,7 @@
       <div><%= link_to "Lightek Studio", "/lightek/#/studio", class: "pipeline-brand" %>
       <h1>Pipeline Hub</h1><p><%= @site.name %></p></div>
       <nav aria-label="Pipeline tools">
+        <%= link_to "Scene Animation", studio_animation_scenes_path(site_id: @site.id) %>
         <button type="button" data-action="watcher">Connect export folder</button>
         <button type="button" data-action="upload" class="primary">Ingest &amp; normalize</button>
       </nav>

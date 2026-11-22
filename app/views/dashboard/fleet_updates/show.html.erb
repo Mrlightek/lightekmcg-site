@@ -21,7 +21,7 @@
 <div class="dd-card" style="padding:24px;margin-top:24px;overflow-x:auto">
   <table style="width:100%;text-align:left"><thead><tr><th>Installation</th><th>Group</th><th>Status</th><th>Previous version</th><th>Attempts</th><th>Evidence</th></tr></thead><tbody>
     <% @targets.each do |target| %><tr>
-      <td><%= target.gatekeeper_installation.domain %></td><td><%= target.canary? ? "Canary" : "Fleet" %></td><td><%= target.status.humanize %></td>
+      <td><%= target.gatekeeper_installation.domain %><br>Target #<%= target.id %></td><td><%= target.canary? ? "Canary" : "Fleet" %></td><td><%= target.status.humanize %></td>
       <td><%= target.previous_version %></td><td><%= target.attempts %></td><td>
       <% if target.gatekeeper_operation_id %>Operation #<%= target.gatekeeper_operation_id %><% end %>
       <% if target.receipt["database_backup"] %><br>Backup: <code><%= target.receipt["database_backup"] %></code><% end %>

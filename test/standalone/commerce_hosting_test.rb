@@ -61,7 +61,13 @@ ActiveRecord::Schema.define do
     t.string :merchant_transfer_ref; t.integer :merchant_transfer_amount_cents; t.boolean :stock_reserved, default: true; t.string :payment_namespace; t.string :payment_reference; t.string :payment_provider
     t.datetime :fulfilled_at; t.string :fulfillment_reference; t.string :fulfillment_note; t.datetime :paid_at; t.datetime :canceled_at; t.datetime :provisioned_at; t.string :purpose
   end
-  create_table(:lightek_commerce_refunds) { |t| t.references :order; t.string :status; t.integer :amount_cents }
+  create_table(:lightek_commerce_refunds) do |t|
+    t.references :order
+    t.string :status, default: "pending"
+    t.string :idempotency_key, :processor_ref
+    t.integer :amount_cents
+    t.index :idempotency_key, unique: true
+  end
   create_table(:lightek_commerce_order_items) do |t|
     t.references :order; t.references :product; t.references :variant
     t.string :name; t.integer :quantity; t.integer :unit_price_cents; t.integer :line_total_cents
@@ -125,6 +131,9 @@ end
 module Stripe
   class StripeError < StandardError; end
   class << self; attr_accessor :api_key; end
+  class Refund
+    def self.create(*) = raise("Unexpected processor refund")
+  end
   class Transfer
     def self.create_reversal(*) = raise("Unexpected transfer reversal")
   end
@@ -398,6 +407,31 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_customer_service_refund_reuses_durable_key_without_sending_a_second_refund
+    order = order_for(product)
+    order.update!(status: "paid", payment_provider: "stripe_invoice", payment_reference: "in_renewal")
+    key = "customer-service-refund-79"
+    calls = []
+    processor = lambda do |params, options|
+      calls << [params.fetch(:amount), options.fetch(:idempotency_key)]
+      OpenStruct.new(id: "re_refund", status: "succeeded")
+    end
+
+    LightekCommerce::ProcessorPayment.stub(:intent!, "pi_renewal") do
+      Stripe::Refund.stub(:create, processor) do
+        refund = LightekCommerce::Refunds.issue!(order: order, amount_cents: 700, idempotency_key: key)
+        assert_equal "succeeded", refund.status
+        assert_equal refund.id, LightekCommerce::Refunds.issue!(order: order, amount_cents: 700, idempotency_key: key).id
+        assert_raises(LightekCommerce::Refunds::Invalid) do
+          LightekCommerce::Refunds.issue!(order: order, amount_cents: 900, idempotency_key: key)
+        end
+      end
+    end
+
+    assert_equal [[700, key]], calls
+    assert_equal 700, order.reload.refunded_cents
+  end
+
   def test_subscription_refund_uses_invoice_payment_instead_of_checkout_payment_intent
     order = order_for(product)
     order.update!(payment_provider: "stripe", payment_reference: "cs_1")

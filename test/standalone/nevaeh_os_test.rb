@@ -109,7 +109,7 @@ class Nevaeh
     args[:subject] ? item : OpenStruct.new(work_item:item)
   end
 end
-%w[helpers/nevaeh_help_helper services/nevaeh_os/watch_contract services/nevaeh_os/watch_sensors services/nevaeh_os/watch_engine services/nevaeh_os/watch_reaction services/nevaeh_os/guide services/nevaeh_intelligences/software_library models/nevaeh_watcher models/nevaeh_watch_event models/nevaeh_agent_worker models/nevaeh_agent_run models/nevaeh_application_adapter models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
+%w[helpers/nevaeh_help_helper services/nevaeh_os/watch_contract services/nevaeh_os/watch_sensors services/nevaeh_os/watch_engine services/nevaeh_os/watch_reaction services/nevaeh_os/guide services/nevaeh_os/executive_brief services/lightek_people/lifecycle_access services/nevaeh_intelligences/software_library models/nevaeh_watcher models/nevaeh_watch_event models/nevaeh_agent_worker models/nevaeh_agent_run models/nevaeh_application_adapter models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
  services/nevaeh_os/website_pages services/nevaeh_os/specialist_tasks services/nevaeh_os/agents services/nevaeh_os/agent_workforce services/nevaeh_os/ubuntu_packages services/nevaeh_os/applications services/nevaeh_os/process_runner services/nevaeh_os/rails_console services/nevaeh_os/resources services/nevaeh_os/command services/nevaeh_os/web_document services/nevaeh_os/executor services/nevaeh_os/dispatch services/nevaeh_os/worker
  services/gatekeeper/authorization_decision services/gatekeeper/authorization_service services/gatekeeper].each { |f| require File.join(ROOT,'app',f) }
 require File.join(ROOT,'db/migrate/20261115233000_create_nevaeh_workspaces')
@@ -394,6 +394,20 @@ class NevaehOsWebDocumentTest < Minitest::Test
       Net::HTTP.stub(:new,http) { assert_raises(ArgumentError) { NevaehOs::WebDocument.fetch('https://example.com/manual') } }
     end
   end
+  def test_approved_editorial_fetch_never_follows_a_redirect
+    redirect = Net::HTTPFound.new('1.1', '302', 'Found')
+    redirect['location'] = 'https://unapproved.example.test/other'
+    reads = []
+    resolver = ->(host) { reads << host; ['8.8.8.8', '2001:4860:4860::8888'] }
+    Resolv.stub(:getaddresses, resolver) do
+      Net::HTTP.stub(:new, HTTPAdapter.new(redirect)) do
+        error = assert_raises(ArgumentError) { NevaehOs::WebDocument.fetch('https://example.com/manual', follow_redirects: false) }
+        assert_match(/Approve the final source URL/, error.message)
+      end
+    end
+    assert_equal ['example.com'], reads
+  end
+
   def test_non_document_and_oversized_responses_are_rejected
     [response(content_type:'application/zip'),response(body:'x'*(NevaehOs::WebDocument::MAX_BYTES+1))].each do |result|
       Resolv.stub(:getaddresses,['8.8.8.8']) do
@@ -966,7 +980,11 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 27,topics.size
+    assert_equal 31,topics.size
+    assert_includes topics.map { |topic| topic[:id] }, "executive_assistant"
+    assert_includes topics.map { |topic| topic[:id] }, 'customer_service'
+    assert_includes topics.map { |topic| topic[:id] }, 'billing'
+    assert_includes topics.map { |topic| topic[:id] }, 'live_broadcast_producer'
     assert_includes topics.map { |topic| topic[:id] }, 'pwa_business_model'
     refute_includes topics.map { |topic| topic[:id] }, 'marketing_copilot' # No authorized business context in this fixture.
     assert_includes topics.map { |topic| topic[:id] }, 'task_builder'

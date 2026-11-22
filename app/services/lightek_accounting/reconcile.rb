@@ -27,7 +27,36 @@ module LightekAccounting
         'cleared_difference_cents'=>starting + cleared_sum - ending,'book_difference_cents'=>ending + deposits - checks - book_balance,
         'uncleared_ids'=>uncleared.map(&:id).sort }
     end
-    def self.finalize!(access:,account:,first:,last:,starting:,ending:,selected:)
+    def self.finalize_statement!(access:, record:, first:, last:, starting:, ending:)
+      access.require!(:review)
+      account = record.bank_account
+      raise Access::Denied unless account.book.employer_id == access.employer.id && account.book_id == record.book_id
+
+      account.with_lock do
+        record.reload
+        raise ArgumentError, 'Use a committed statement' unless record.status == 'committed'
+        if (existing = account.reconciliations.find_by(status: 'final', starts_on: first, ends_on: last))
+          evidence = existing.data
+          if evidence.values_at('statement_import_id', 'starting_cents', 'ending_cents') == [record.id, starting, ending]
+            return existing
+          end
+          raise ArgumentError, 'This statement period has already been finalized'
+        end
+
+        statement_rows = record.data.fetch('preview')
+        rows = account.transactions.where(statement_import_id: record.id, reconciliation_id: nil, posted_on: first..last).to_a
+        # Imports can skip prior or duplicate rows. Require an exact match here
+        # before treating a committed import as evidence of cleared activity.
+        observed = rows.map { |row| [row.posted_on.iso8601, row.amount_cents, row.data['reference'], row.data['description']] }
+        expected = statement_rows.map { |row| row.values_at('date', 'amount_cents', 'reference', 'description') }
+        unless expected.any? && observed.tally == expected.tally
+          raise ArgumentError, 'Some statement rows need manual matching before reconciliation'
+        end
+        finalize!(access: access, account: account, first: first, last: last, starting: starting, ending: ending,
+          selected: rows.map(&:id), evidence: {'statement_import_id'=>record.id, 'source_digest'=>record.source_digest})
+      end
+    end
+    def self.finalize!(access:,account:,first:,last:,starting:,ending:,selected:,evidence: {})
       access.require!(:review)
       raise Access::Denied unless account.book.employer_id == access.employer.id
       account.with_lock do
@@ -35,7 +64,7 @@ module LightekAccounting
         values = proof(account: account,first: first,last: last,starting: starting,ending: ending,selected: ids)
         raise ArgumentError, 'Reconciliation differences must both be zero before finalizing' unless values['cleared_difference_cents'].zero? && values['book_difference_cents'].zero?
         record = Reconciliation.new(book: account.book,bank_account: account,actor: access.actor,starts_on: first,ends_on: last,status: 'final')
-        record.data = values
+        record.data = values.merge(evidence.slice('statement_import_id', 'source_digest'))
         record.save!
         account.transactions.where(id: ids).each { |row| row.update!(reconciliation: record) }
         AuditEvent.record!(actor: access.actor,record: record,action: 'reconciliation_finalized')

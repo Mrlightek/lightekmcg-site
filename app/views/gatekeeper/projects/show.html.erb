@@ -6,6 +6,10 @@
   <%= button_to "Deploy via GitHub Actions", deploy_github_gatekeeper_project_path(@project), method: :post %>
   <%= button_to "Healthcheck", healthcheck_gatekeeper_project_path(@project), method: :post %>
 </p>
+<% monitor = Gatekeeper::ProjectHealthMonitor.status(@project) %>
+<p>Automatic health checks · <%= monitor["monitoring_enabled"] ? "Enabled" : "Paused" %></p>
+<%= button_to(monitor["monitoring_enabled"] ? "Pause automatic health checks" : "Enable automatic health checks",
+      monitor_gatekeeper_project_path(@project), params: {enabled: !monitor["monitoring_enabled"]}, method: :post) %>
 <h2>Recent Operations</h2>
 <% @operations.each do |operation| %>
   <p><%= operation.capability %> — <%= operation.status %> — <%= operation.created_at %></p>

@@ -2,7 +2,8 @@ module LightekMail
   class Access
     class Denied < StandardError; end
     def self.authorize!(user)
-      raise Denied, "Mail access is not enabled for this account." unless user && (user.role.to_s.in?(%w[admin super_admin employee]) || user.can_access_feature?("mail") || Account.mailboxes.where(user: user, brand_member: true).exists?)
+      raise Denied, "Mail access is not enabled for this account." unless user && (user.role.to_s.in?(%w[admin super_admin employee]) || user.can_access_feature?("mail") || Account.mailboxes.where(user: user, brand_member: true).exists? ||
+        Account.mailboxes.where(user: user).where.not(installation_peer_id: nil).exists?)
     end
     def self.accounts(user)
       authorize!(user)

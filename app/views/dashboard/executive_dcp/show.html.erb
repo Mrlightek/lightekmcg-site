@@ -1,0 +1,21 @@
+<% content_for :page_title, "Theater delivery" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <h1>Theater delivery</h1>
+  <section class="network-pane">
+    <h2><%= @delivery.executive_case.title %></h2>
+    <p>Access expires <%= l(@delivery.expires_at, format: :long) %>.</p>
+    <%= link_to "Download DCP ZIP", download_executive_dcp_delivery_path(@delivery.key), class: "dd-topbar-btn dd-btn-primary" %>
+    <p>SHA-256 <code><%= @delivery.sha256 %></code></p>
+    <% if @delivery.received_at? %>
+      <p>Receipt recorded <%= l(@delivery.received_at, format: :short) %>.</p>
+    <% else %>
+      <%= form_with url: acknowledge_executive_dcp_delivery_path(@delivery.key) do |form| %>
+        <%= form.label :sha256, "SHA-256 calculated from your download" %>
+        <%= form.text_field :sha256, required: true, minlength: 64, maxlength: 64 %>
+        <%= form.submit "Acknowledge receipt", class: "dd-topbar-btn dd-btn-ghost" %>
+      <% end %>
+    <% end %>
+  </section>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=2">

@@ -1,0 +1,87 @@
+<% content_for :page_title, "CEO agenda" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<style>
+  .ceo-agenda { max-width: 1120px; margin: 0 auto; }
+  .agenda-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); align-items: start; gap: 16px; }
+  .agenda-panel { background: var(--dd-bg-elevated, var(--dd-card-bg)); border: 1px solid var(--dd-border); border-radius: 12px; padding: 18px; }
+  .agenda-panel h2 { margin-top: 0; }
+  .agenda-panel label, .agenda-panel form > input:not([type=hidden]), .agenda-panel select, .agenda-panel textarea { display: block; }
+  .agenda-panel label { margin-top: 10px; }
+  .agenda-panel input:not([type=hidden],[type=submit]), .agenda-panel select, .agenda-panel textarea {
+    color: var(--dd-text-primary); background: var(--dd-bg-elevated, var(--dd-card-bg)); border: 1px solid var(--dd-border);
+    border-radius: 6px; padding: 8px; box-sizing: border-box; max-width: 100%;
+  }
+  .agenda-panel input[type=text], .agenda-panel textarea { width: 100%; }
+  .agenda-panel textarea { margin-bottom: 12px; }
+  .agenda-items { padding: 0; list-style: none; }
+  .agenda-items > li { border-top: 1px solid var(--dd-border); padding: 12px 0; overflow-wrap: anywhere; }
+  .agenda-meta { color: var(--dd-text-secondary); display: block; margin-top: 4px; }
+  .agenda-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+  .agenda-notes { white-space: pre-wrap; }
+</style>
+<main class="ceo-agenda" data-turbo="false">
+  <%= link_to "← CEO Desk", dashboard_nevaeh_executive_path %>
+  <h1>CEO agenda</h1>
+  <p>Private to your account. Times are shown in <%= Time.zone.name %>.</p>
+  <div class="agenda-grid">
+    <section class="agenda-panel">
+      <h2>Open agenda</h2>
+      <% if @upcoming.empty? && @overdue.empty? %><p>No open entries.</p><% end %>
+      <% {"Upcoming" => @upcoming, "Past due" => @overdue}.each do |label, items| %>
+        <% next if items.empty? %>
+        <h3><%= label %></h3>
+        <ol class="agenda-items" aria-label="<%= label %>">
+          <% items.each do |item| %>
+            <li>
+              <strong><%= item.title %></strong>
+              <small class="agenda-meta">
+                <%= item.category_label %> · <%= l(item.starts_at, format: :short) %> to <%= l(item.ends_at, format: :short) %>
+              </small>
+              <% if item.notes.present? %><details><summary>Notes</summary><p class="agenda-notes"><%= item.notes %></p></details><% end %>
+              <div class="agenda-actions">
+                <%= link_to "Download calendar file", calendar_dashboard_nevaeh_agenda_item_path(item) %>
+                <%= link_to "Edit", dashboard_nevaeh_agenda_path(edit: item.id, anchor: "agenda-entry"), aria: {label: "Edit #{item.title}"} %>
+                <%= button_to "Close entry", close_dashboard_nevaeh_agenda_item_path(item), method: :patch,
+                  class: "dd-topbar-btn dd-btn-ghost", aria: {label: "Close #{item.title}"} %>
+              </div>
+              <%= render "calendar_delivery", item: item %>
+            </li>
+          <% end %>
+        </ol>
+      <% end %>
+      <% if @recently_closed.any? %>
+        <details>
+          <summary>Recently closed</summary>
+          <ul><% @recently_closed.each do |item| %><li>
+            <%= item.title %> · <%= l(item.closed_at, format: :short) %>
+            <%= render "calendar_delivery", item: item %>
+          </li><% end %></ul>
+        </details>
+      <% end %>
+    </section>
+    <section class="agenda-panel" id="agenda-entry">
+      <h2><%= @item.persisted? ? "Edit entry" : "Add an entry" %></h2>
+      <% if @item.errors.any? %>
+        <ul role="alert"><% @item.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+      <% end %>
+      <%= form_with model: @item, scope: :executive_item,
+        url: (@item.persisted? ? dashboard_nevaeh_agenda_item_path(@item) : dashboard_nevaeh_agenda_items_path) do |form| %>
+        <%= form.hidden_field :lock_version if @item.persisted? %>
+        <%= form.label :title %>
+        <%= form.text_field :title, required: true, maxlength: 160 %>
+        <%= form.label :category %>
+        <%= form.select :category, NevaehAgendaItem::CATEGORIES.invert.to_a %>
+        <%= form.label :starts_at, "Starts" %>
+        <%= form.datetime_local_field :starts_at, required: true %>
+        <%= form.label :ends_at, "Ends" %>
+        <%= form.datetime_local_field :ends_at, required: true %>
+        <%= form.label :notes, "Private notes" %>
+        <%= form.text_area :notes, rows: 4, maxlength: 4_000 %>
+        <div class="agenda-actions">
+          <%= form.submit "Save entry", class: "dd-topbar-btn dd-btn-primary" %>
+          <%= link_to "Cancel edit", dashboard_nevaeh_agenda_path if @item.persisted? %>
+        </div>
+      <% end %>
+    </section>
+  </div>
+</main>

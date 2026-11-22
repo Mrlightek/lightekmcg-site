@@ -1,0 +1,14 @@
+<section class="panel">
+  <h2>Your asset library</h2>
+  <% if @library.empty? %><p>Upload an asset or prepare a starter rig in Character Builder.</p><% end %>
+  <ul>
+    <% @library.each do |asset| %>
+      <li><%= link_to asset.name, studio_animation_asset_path(asset, site_id: @site.id) %>
+        · <%= asset.animation_role || "Starter rig" %> · ID <%= asset.id %></li>
+    <% end %>
+  </ul>
+</section>
+<section class="panel">
+  <h2>Upload an asset</h2>
+  <%= render "form", asset: StudioAsset.new(animation_role: "character", dimension_mode: "2d") %>
+</section>

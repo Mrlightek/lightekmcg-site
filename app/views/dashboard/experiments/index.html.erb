@@ -1,0 +1,62 @@
+<% content_for :page_title, 'A/B testing' %>
+<%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
+<main class="sales-workspace">
+  <%= render 'dashboard/shared/business_workspace', active: 'Growth' %>
+  <header class="sales-header">
+    <h1>A/B testing</h1>
+    <%= link_to 'Back to Growth', dashboard_growth_path(site_id: @site.id) %>
+  </header>
+
+  <section class="sales-panel">
+    <details <%= 'open' if @experiments.empty? %>>
+      <summary>Start an experiment</summary>
+      <%= form_with url: dashboard_experiments_path(site_id: @site.id), scope: :experiment, local: true, class: 'sales-form' do |form| %>
+        <label>Name <%= form.text_field :name, required: true, maxlength: 160 %></label>
+        <label>Surface <%= form.select :surface, LightekExperiments::Surfaces::RULES.map { |key, (label, _)| [label, key] } %></label>
+        <label>Hero section for website tests <%= form.select :target, @heroes, include_blank: 'Choose a hero for a website test' %></label>
+        <label>Walkthrough for demo button tests <%= form.select :showcase_target, @walkthroughs, include_blank: 'Choose a demo walkthrough' %></label>
+        <label>Control copy <%= form.text_field :control, required: true, maxlength: 160 %></label>
+        <label>Challenger copy <%= form.text_field :challenger, required: true, maxlength: 160 %></label>
+        <%= form.submit 'Start A/B test', class: 'sales-button' %>
+      <% end %>
+    </details>
+  </section>
+
+  <% if @selected %>
+    <div class="sales-two-col">
+      <section class="sales-panel">
+        <h2>Experiments</h2>
+        <% @experiments.each do |experiment| %>
+          <p><%= link_to experiment.name, dashboard_experiments_path(site_id: @site.id, experiment_id: experiment.id) %> · <%= experiment.finished_at ? 'Closed' : 'Running' %></p>
+        <% end %>
+      </section>
+      <section class="sales-panel">
+        <h2><%= @selected.name %></h2>
+        <p><%= LightekExperiments::Surfaces::RULES.fetch(@selected.surface)[0] %></p>
+        <div class="sales-two-col">
+          <% @report.fetch('arms').each do |arm| %>
+            <article>
+              <h3><%= arm.fetch('arm').humanize %></h3>
+              <p><%= arm.fetch('copy') %></p>
+              <p><strong><%= arm.fetch('visitors') %></strong> assigned browsers</p>
+              <dl>
+                <% arm.fetch('outcomes').each do |event, count| %>
+                  <dt><%= event.humanize %></dt>
+                  <dd><%= count %><%= " · #{arm.fetch('rates')[event]}%" if arm.fetch('rates')[event] %></dd>
+                <% end %>
+              </dl>
+            </article>
+          <% end %>
+        </div>
+        <% if @selected.finished_at %>
+          <p><%= @selected.winner ? "Rollout: #{@selected.winner.humanize}" : 'Original copy restored' %></p>
+        <% else %>
+          <%= form_with url: finish_dashboard_experiment_path(@selected, site_id: @site.id), method: :patch, local: true, class: 'sales-form' do %>
+            <label>After closing the test <%= select_tag :winner, options_for_select([['Restore original copy', ''], ['Roll out control', 'control'], ['Roll out challenger', 'challenger']]) %></label>
+            <%= submit_tag 'Close experiment', class: 'sales-button' %>
+          <% end %>
+        <% end %>
+      </section>
+    </div>
+  <% end %>
+</main>

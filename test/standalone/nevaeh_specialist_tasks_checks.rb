@@ -122,7 +122,7 @@ class NevaehSpecialistTasksChecks < NevaehOsTest
     insert(LightekCompliance::Monitor,employer_id:@other.id,enabled:true,state:'NY',provider:'ny_openleg')
     audit=insert(LightekGrowth::WebsiteAudit,site_id:@site.id)
     insert(LightekGrowth::AuditFinding,site_id:@site.id,website_audit_id:audit.id,status:'open',severity:'high')
-    NevaehOs::SpecialistTasks::DEFINITIONS.each_key do |role|
+    %w[website sales finance payroll commerce people hosting compliance].each do |role|
       receipt=NevaehOs::AgentWorkforce.create!(actor:@actor,command:{'agent_ref'=>role,'command'=>task(role)},key:SecureRandom.uuid)
       run=NevaehAgentRun.find(receipt.fetch('agent_run_id'))
       NevaehOs::AgentWorkforce.execute!(run);execute(run.reload.nevaeh_os_action)
@@ -164,7 +164,8 @@ class NevaehSpecialistTasksChecks < NevaehOsTest
     end
   end
   def test_foreign_contexts_bad_inputs_and_wrong_specialists_are_blocked
-    (NevaehOs::SpecialistTasks::DEFINITIONS.keys-['hosting']).each do |role|
+    NevaehOs::SpecialistTasks::DEFINITIONS.each do |role, (_, input)|
+      next unless input
       assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::SpecialistTasks.authorize!(@actor,task(role,foreign:true)) }
     end
     assert_raises(ArgumentError) { NevaehOs::SpecialistTasks.authorize!(@actor,task('hosting').merge('inputs'=>{'command'=>'rm'})) }

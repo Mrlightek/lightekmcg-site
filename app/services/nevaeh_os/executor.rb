@@ -15,6 +15,12 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'live_show'
+        LiveShow.authorize!(actor, command)
+      when 'public_relations'
+        PublicRelations.authorize!(actor, command)
+      when 'website_marketing'
+        WebsiteMarketing.authorize!(actor, command)
       when 'website_page'
         WebsitePages.authorize!(actor,command)
       when 'specialist_review'
@@ -62,6 +68,12 @@ module NevaehOs
         else
           raise ArgumentError, 'Unknown campaign production action'
         end
+      when 'backlink_draft'
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        LightekGrowth::Workspace.new(actor: actor, site: site)
+        LightekAgency::PackagePolicy.authorize!(site.tenant, 'nevaeh')
+        LightekGrowth::Backlink.where(site: site, status: 'prospect').find(command.fetch('backlink_id'))
+        raise ArgumentError, 'Use the reviewed prospect version.' unless command['record_version'].to_s.match?(/\A\d{4}-\d{2}-\d{2}T/)
       when 'growth_plan', 'growth_review', 'marketing_kit', 'marketing_execute', 'feature_showcase', 'marketing_follow_up'
         raise ArgumentError, 'Choose a positive business website ID.' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         site = DymondSite::Site.find(command.fetch('site_id'))
@@ -146,6 +158,12 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'live_show'
+        LiveShow.prepare!(actor, command, action.id)
+      when 'public_relations'
+        PublicRelations.perform!(actor: actor, command: command, action_id: action.id)
+      when 'website_marketing'
+        WebsiteMarketing.perform!(actor: actor, command: command, action_id: action.id)
       when 'website_page'
         WebsitePages.create!(actor:actor,command:command)
       when 'specialist_review'
@@ -192,8 +210,17 @@ module NevaehOs
         workspace = LightekGrowth::Performance::Workspace.new(actor: actor, site: site)
         workspace.receipt(workspace.review!(comparison_id: command.fetch('comparison_id'), request_key: "nevaeh-action-#{action.id}"))
       when 'marketing_kit'
-        copilot = LightekGrowth::MarketingCopilot.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
-        copilot.receipt(copilot.prepare!(values: command.fetch('values', {}), request_key: "marketing-#{action.id}"))
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        copilot = LightekGrowth::MarketingCopilot.new(actor: actor, site: site)
+        if command['execute_demo'] == true
+          raise ArgumentError, 'Enable the site’s public demo requests before preparing this campaign.' unless LightekGrowth::DemoShowcase.demo_booking?(site)
+
+          planner = LightekGrowth::MarketingExecutionPlan.new(actor: actor, site: site)
+          kit = copilot.prepare!(values: command.fetch('values'), request_key: "marketing-#{action.id}")
+          planner.receipt(planner.start!(kit_id: kit.id))
+        else
+          copilot.receipt(copilot.prepare!(values: command.fetch('values', {}), request_key: "marketing-#{action.id}"))
+        end
       when 'feature_showcase'
         builder = LightekGrowth::ShowcaseBuilder.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
         builder.receipt(builder.start!(kit_id: command.fetch('kit_id')))
@@ -204,6 +231,11 @@ module NevaehOs
       when 'marketing_execute'
         planner = LightekGrowth::MarketingExecutionPlan.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
         planner.receipt(planner.start!(kit_id: command.fetch('kit_id')))
+      when 'backlink_draft'
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        backlink = LightekGrowth::BacklinkWork.new(actor: actor, site: site)
+          .authorize_draft!(id: command.fetch('backlink_id'), version: command.fetch('record_version'))
+        { 'status' => 'completed', 'backlink_id' => backlink.id, 'site_id' => site.id }
       when 'growth_plan'
         site = DymondSite::Site.find(command.fetch('site_id'))
         planner = LightekGrowth::DailyPlanner.new(actor: actor, site: site)

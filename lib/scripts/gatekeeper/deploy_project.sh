@@ -209,6 +209,23 @@ else
 fi
 
 SHA="$(git -C "${APP_ROOT}" rev-parse HEAD)"
+if [[ "${LIGHTEK_PRIMARY_WATCHDOG:-0}" == "1" ]]; then
+  [[ "$APP_ROOT" == "/var/www/lightekmcg-site" && "$APP_DOMAIN" == "lightekmcg.com" && "$SIDEKIQ_SERVICE" == "lightekmcg-site-sidekiq" ]]
+  watchdog_state=/var/lib/lightek/primary-worker-watchdog
+  install -d -m 0700 "$watchdog_state"
+  install -d -m 0755 /usr/local/lib/lightek
+  install -m 0755 "$APP_ROOT/lib/scripts/gatekeeper/primary_worker_watchdog.sh" /usr/local/lib/lightek/primary_worker_watchdog.sh
+  for unit in lightek-primary-worker-watchdog.service lightek-primary-worker-watchdog.timer; do
+    install -m 0644 "$APP_ROOT/lib/scripts/gatekeeper/$unit" "/etc/systemd/system/$unit"
+  done
+  systemctl daemon-reload
+  systemctl enable --now lightek-primary-worker-watchdog.timer
+  systemctl is-active --quiet lightek-primary-worker-watchdog.timer
+  release_marker="$(mktemp "$watchdog_state/verified-release.XXXXXXXX")"
+  printf '%s\n' "$SHA" > "$release_marker"
+  mv -f -- "$release_marker" "$watchdog_state/verified-release"
+  echo "GATEKEEPER_PRIMARY_WATCHDOG_ACTIVE=1"
+fi
 echo "GATEKEEPER_DEPLOYED_SHA=${SHA}"
 echo "GATEKEEPER_HTTP_STATUS=${HTTP_CODE}"
 echo "DEPLOYMENT SUCCESSFUL"

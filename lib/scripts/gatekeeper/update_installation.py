@@ -112,6 +112,9 @@ class Updater:
             raise ValueError("Environment ownership mismatch")
         previous = env_value(values, "LIGHTEK_RELEASE")
         self.receipt["previous_version"] = previous
+        expected = self.config.get("expected_previous_sha")
+        if expected and re.fullmatch(r"[a-f0-9]{40}", expected) and previous not in (expected, self.config["source_sha"]):
+            raise ValueError("Installed release changed since Gatekeeper last verified it")
         old_override = self.override.read_text() if self.override.exists() else None
         old_current = (self.root / "current-release").read_text()
         backups = self.root / "backups"

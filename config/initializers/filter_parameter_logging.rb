@@ -26,4 +26,15 @@ Rails.application.config.filter_redirect += [%r{[?&](?:code_challenge|state)=}]
 
 Rails.application.config.filter_parameters += [:view_session]
 
-Rails.application.config.filter_parameters += [:vast_tag, :decision_key, :viewing_code]
+Rails.application.config.filter_parameters += [:vast_tag, :decision_key, :viewing_code, :executive_item, :team_message, :network_team_message, :installation_message, /\Aq\z/]
+
+Rails.application.config.filter_parameters += [/\A(?:actor_name|body|text|subject_line)\z/]
+
+Rails.application.config.filter_parameters += [:calendar_delivery, :executive_case, :executive_delivery, :executive_phone,
+  :office_file, :signing_secret, /\A(?:caller|summary|review_note)\z/]
+
+Rails.application.config.filter_parameters += [:travel_person, :dcp_delivery, :network_office_file, /\Acontent\z/]
+# Customer support messages may contain sensitive account details.
+Rails.application.config.filter_parameters += [:support_case, :support_reply, :starting_amount, :ending_amount]
+Rails.application.config.filter_parameters += ['show.brief']
+Rails.application.config.filter_parameters += %w[brief.recipient brief.email brief.contact_basis brief.facts brief.response brief.notes]

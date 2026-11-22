@@ -4,6 +4,9 @@
 <a class="brand" href="/dashboard" data-tour-step="nevaeh" data-tour-title="Back to Dashboard" data-tour-body="Open Dashboard any time to get to the rest of your Lightek tools."><span class="brand-mark">L</span>LIGHTEK <span class="back">/</span></a>
 <div class="workspace-label">YOUR WORKSPACE</div>
 <a class="nav-item active" href="/dashboard/nevaeh" aria-current="page">◈ <span>Shared workspace</span></a>
+<% if NevaehOs::ExecutiveBrief.available_to?(current_user) %>
+  <%= link_to dashboard_nevaeh_executive_path, class: "nav-item" do %>▦ <span>CEO Desk</span><% end %>
+<% end %>
 <button class="nav-item" data-stage-kind="guide">▤ <span>Guide &amp; capabilities</span></button>
 <button class="nav-item" id="stage-studio">▣ <span>Studio library</span></button>
 <button class="nav-item" data-command="/produce personalities">◇ <span>Character personalities</span></button>

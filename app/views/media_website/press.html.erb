@@ -12,4 +12,16 @@
     <h2>How the network grows</h2>
     <p>Creators can bring audiences and programming into the network. Stations can bring lineups and local markets. Agencies can help client businesses launch and grow. Each can open opportunities for the others.</p>
   </section>
+  <% if @press_releases.present? %>
+    <section>
+      <h2>Press releases</h2>
+      <ul>
+        <% @press_releases.each do |entry| %>
+          <li><%= link_to entry.post.title, website_blog_path(entry.slug) %>
+            <time datetime="<%= entry.published_at.iso8601 %>"><%= l(entry.published_at.to_date, format: :long) %></time>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
 <% end %>

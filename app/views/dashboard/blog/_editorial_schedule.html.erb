@@ -1,0 +1,31 @@
+<% grant = site.manifest.to_h['nevaeh_website_marketing'] %>
+<% if grant&.fetch('actor_id') == current_user.id %>
+  <% active = schedule&.enabled? && schedule.delegation_id == grant['key'] %>
+  <section id="editorial-schedule" class="content-card">
+    <details <%= 'open' if active %>>
+      <summary>Nevaeh editorial schedule <%= '· Active' if active %></summary>
+      <p>Choose topics and source pages once. Nevaeh looks for new material, cites the source, and writes a Journal update each cycle when she finds a match.</p>
+      <% if active %><p>Next check <%= l(schedule.next_run_at, format: :short) %></p><% end %>
+      <% if (goal = schedule&.last_goal) %>
+        <p>Latest cycle <%= link_to "Goal ##{goal.id}", dashboard_nevaeh_os_path %> · <%= goal.status %></p>
+        <% if goal.error.present? %><p><%= goal.error %></p><% end %>
+        <% if (campaign_id = goal.steps.find_by(key: 'promote', status: 'completed')&.evidence&.dig('result', 'campaign_id')) %>
+          <p><%= link_to 'Review the social campaign', dashboard_campaign_content_path(site_id: site.id, campaign_id: campaign_id) %></p>
+        <% end %>
+      <% end %>
+      <% if schedule&.last_error.present? %><p role="alert"><%= schedule.last_error %></p><% end %>
+      <%= form_with url: configure_editorial_dashboard_blog_index_path(site_id: site.id), scope: :editorial, method: :patch, local: true, class: 'content-form' do |form| %>
+        <label>Topics to follow <%= form.text_area :topics, value: Array(schedule&.topics).join("\n"), rows: 4, maxlength: 972, required: true, placeholder: 'One topic or phrase per line' %></label>
+        <label>Approved source pages <%= form.text_area :sources, value: Array(schedule&.sources).join("\n"), rows: 4, maxlength: 6005, required: true, placeholder: 'One public HTTPS URL per line' %></label>
+        <label>Check for articles <%= form.select :cadence, [['Weekly', 'weekly'], ['Daily', 'daily']], selected: schedule&.cadence %></label>
+        <label>Publication <%= form.select :article_status, [['Save private drafts', 'draft'], ['Publish automatically', 'published']], selected: schedule&.article_status %></label>
+        <label><%= form.check_box :social_draft, checked: schedule&.social_draft? %> Prepare a social campaign draft for each published article</label>
+        <%= form.submit 'Save and start schedule', class: 'content-button primary' %>
+      <% end %>
+      <% if active %>
+        <%= button_to 'Pause schedule', configure_editorial_dashboard_blog_index_path(site_id: site.id), method: :patch,
+          params: { operation: 'pause' }, class: 'content-button' %>
+      <% end %>
+    </details>
+  </section>
+<% end %>

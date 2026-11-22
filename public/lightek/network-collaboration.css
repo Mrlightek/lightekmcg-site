@@ -1,0 +1,34 @@
+.network-collaboration { max-width: 1120px; margin: auto; }
+.network-columns { display: grid; grid-template-columns: minmax(220px, 310px) minmax(0, 1fr); gap: 16px; }
+.network-pane { padding: 18px; border: 1px solid var(--dd-border); border-radius: 12px; background: var(--dd-bg-elevated, var(--dd-card-bg)); overflow-wrap: anywhere; }
+.network-pane h2 { margin-top: 0; }
+.network-pane ul { padding-left: 18px; }
+.network-pane li { margin: 8px 0; }
+.network-pane small { color: var(--dd-text-secondary); }
+.network-pane nav { display: flex; gap: 12px; }
+.network-pane form { margin: 10px 0; }
+.network-pane label { display: block; margin-top: 10px; }
+.network-pane textarea, .network-pane input:not([type=hidden],[type=submit]), .network-pane select {
+  display: block; max-width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; border-radius: 6px;
+  border: 1px solid var(--dd-border); background: var(--dd-bg-elevated, var(--dd-card-bg)); color: var(--dd-text-primary);
+}
+.network-pane textarea { width: 100%; }
+.network-messages { list-style: none; padding: 0; }
+.network-messages li { border-top: 1px solid var(--dd-border); padding: 9px 0; }
+.network-text { white-space: pre-wrap; }
+@media (max-width: 720px) { .network-columns { grid-template-columns: 1fr; } }
+.office-sheet { overflow-x: auto; margin: 16px 0; }
+.office-sheet table { width: 100%; border-collapse: collapse; }
+.office-sheet td, .office-sheet th { border: 1px solid var(--dd-border); padding: 6px 10px; text-align: left; }
+.office-slide { min-height: 220px; display: grid; align-content: center; padding: clamp(20px, 5vw, 50px); margin: 12px 0; border: 1px solid var(--dd-border); border-radius: 12px; }
+.office-slide h3 { font-size: clamp(1.3rem, 4vw, 2.4rem); margin: 0; }
+.network-pane nav { flex-wrap: wrap; }
+.office-document { margin-block: 1rem; }
+.network-pane trix-editor {
+  background: var(--dd-bg-elevated, var(--dd-card-bg));
+  min-height: 14rem;
+  margin: .5rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+.network-pane trix-toolbar { margin-top: .5rem; }
+.network-pane trix-toolbar .trix-button-group--file-tools { display: none; }

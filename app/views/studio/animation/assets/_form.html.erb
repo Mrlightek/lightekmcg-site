@@ -1,0 +1,11 @@
+<% destination = asset.persisted? ? studio_animation_asset_path(asset, site_id: @site.id) : studio_animation_assets_path(site_id: @site.id) %>
+<%= form_with model: asset, scope: :asset, url: destination, local: true do |form| %>
+  <div class="fields">
+    <label>Name <%= form.text_field :name, required: true, maxlength: 160 %></label>
+    <label>Role <%= form.select :animation_role, [["Character", "character"], ["Prop", "prop"], ["Background", "background"], ["Audio", "audio"], ["Mouth artwork", "viseme"]] %></label>
+    <label>Dimension <%= form.select :dimension_mode, [["2D", "2d"], ["2.5D", "2_5d"], ["3D", "3d"]], include_blank: "Audio" %></label>
+    <label><%= asset.persisted? ? "Replace file" : "File" %> <%= form.file_field :file, required: !asset.persisted?, accept: ".png,.webp,.svg,.glb,.gltf,.fbx,.blend,.wav,.mp3,.m4a,.aac,.ogg,.flac" %></label>
+  </div>
+  <p>Images use PNG, WebP or SVG. Models use GLB, self-contained glTF, FBX or Blender. Audio uses WAV, MP3, M4A, AAC, OGG or FLAC. Maximum file size is 64 MB.</p>
+  <%= form.submit asset.persisted? ? "Save asset" : "Upload asset", class: "primary" %>
+<% end %>

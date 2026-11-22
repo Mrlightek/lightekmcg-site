@@ -1,0 +1,14 @@
+<% if site.manifest.to_h.dig('nevaeh_website_marketing', 'actor_id') == current_user.id %>
+  <details class="content-card">
+    <summary>Assign an article to Nevaeh</summary>
+    <%= form_with url: assign_nevaeh_dashboard_blog_index_path(site_id: site.id), scope: :assignment, local: true, class: 'content-form' do |form| %>
+      <%= hidden_field_tag :request_key, SecureRandom.uuid %>
+      <label>Title <%= form.text_field :title, required: true, maxlength: 160 %></label>
+      <label>Category <%= form.text_field :category, maxlength: 80 %></label>
+      <label>Facts to cover <%= form.text_area :facts, required: true, rows: 5, maxlength: 4000 %></label>
+      <label>Call to action <%= form.text_field :call_to_action, maxlength: 300 %></label>
+      <label>Publication <%= form.select :status, [['Save as a draft', 'draft'], ['Publish when ready', 'published']] %></label>
+      <%= form.submit 'Assign article', class: 'content-button primary' %>
+    <% end %>
+  </details>
+<% end %>

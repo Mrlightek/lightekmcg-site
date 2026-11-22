@@ -10,13 +10,14 @@ module LightekAgency
       'payments' => %w[dymond_bank dashboard/bank], 'knowledge' => %w[dymond_kb],
       'commerce' => %w[sales_quotes dashboard/sales dymond_catalog dashboard/commerce commerce stores dashboard/customers marketplace dashboard/marketplace catalogs],
       'marketing' => %w[dashboard/campaign_performance dashboard/website_audits campaign_media dashboard/publication_calendar dashboard/campaign_content growth_links dashboard/growth dashboard/marketing_ dashboard/social_connections dashboard/meta_connections dashboard/tiktok_connections dashboard/connect_shopify_settings marketing_subscriptions],
-      'mail' => %w[dashboard/mail api/lightek_mail], 'accounting' => %w[dashboard/accounting dashboard/financial_operations],
+      'messaging' => %w[dashboard/team_channels dashboard/network_team dashboard/network_office dashboard/team_office dashboard/shared_drives dashboard/shared_calendars],
+      'mail' => %w[dashboard/mail dashboard/installation_mail api/lightek_mail], 'accounting' => %w[dashboard/accounting dashboard/financial_operations],
       'people' => %w[dashboard/people departments employee/users employee/timesheets], 'directory' => %w[dashboard/directory],
       'compliance' => %w[dashboard/compliance], 'community' => %w[dymond_social communities community_ profiles posts storyline_],
       'susu' => %w[susu_ dashboard/susu], 'pwa' => %w[dashboard/pwa],
       'ott' => %w[gatekeeper kitchen_sink channels episodes shows],
       'agency' => %w[dymond_connect dashboard/agencies dashboard/agency_ dashboard/demos demo_requests dashboard/reseller_packages dashboard/hosting_packages resellers connect_management connect_shopify dashboard/connect],
-      'nevaeh' => %w[dashboard/nevaeh employee/nevaeh employee/software_library employee/tickets employee/projects nevaehs system_jobs job_items],
+      'nevaeh' => %w[dashboard/nevaeh dashboard/executive_work dashboard/executive_travel dashboard/executive_dcp employee/nevaeh employee/software_library employee/tickets employee/projects nevaehs system_jobs job_items],
       'design' => %w[dashboard/design_studio dashboard/website_designs dashboard/authentication_branding dymond_dash/templates dashboard/blog lightek_blog website_template_inquiries],
       'website' => %w[dashboard/website_settings dymond_dash/pages dymond_dash/sites pages homes abouts architectures]
     }.freeze

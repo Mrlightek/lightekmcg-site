@@ -29,6 +29,12 @@ gatekeeper_hosting_recovery:
   queue: default
   active_job: true
 
+gatekeeper_project_health_monitoring:
+  cron: "*/5 * * * *"
+  class: "Gatekeeper::ProjectHealthSweepJob"
+  queue: default
+  active_job: true
+
 susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"
@@ -139,6 +145,12 @@ pwa_member_capacity_alerts:
   active_job: true
   description: 'Notify the pool operator before free-member hosting fills; never resize automatically'
 
+studio_scene_render_sweep:
+  cron: "* * * * *"
+  class: "StudioSceneRenderSweepJob"
+  queue: default
+  active_job: true
+
 studio_channel_playout_sweep:
   cron: "* * * * *"
   class: "Studio::Broadcasting::PlayoutSweepJob"
@@ -154,5 +166,29 @@ studio_broadcast_monthly_reports:
 broadcast_delivery_storage:
   cron: '17 23 * * *'
   class: 'Studio::Broadcasting::DeliveryStorageSnapshotJob'
+  queue: default
+  active_job: true
+
+executive_follow_through:
+  cron: "*/5 * * * *"
+  class: "ExecutiveFollowThroughJob"
+  queue: default
+  active_job: true
+
+lightek_accounting_automation_recovery:
+  cron: "*/5 * * * *"
+  class: "AccountingAutomationSweepJob"
+  queue: default
+  active_job: true
+
+nevaeh_customer_operations:
+  cron: "*/15 * * * *"
+  class: "NevaehCustomerOperationsJob"
+  queue: default
+  active_job: true
+
+nevaeh_journal_editorial:
+  cron: "*/5 * * * *"
+  class: "NevaehOs::JournalEditorialSweepJob"
   queue: default
   active_job: true

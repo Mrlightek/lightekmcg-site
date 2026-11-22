@@ -2,7 +2,14 @@
   <% entry = LightekDesign::Catalog.section_definition(record.kind) %>
   <% next if studio_theme_section?(entry) %>
   <% if entry && entry["designer"] %>
-    <%= studio_render_section(entry, record.data) %>
+    <% data = record.data %>
+    <% if entry['block'] == 'hero' && @page.published? && !@preview && respond_to?(:experiment_text) %>
+      <% data = data.dup %>
+      <% { 'heading' => 'website_headline', 'cta_label' => 'website_cta' }.each do |key, surface| %>
+        <% data[key] = experiment_text(surface, data[key], target: record.id) if data[key].present? %>
+      <% end %>
+    <% end %>
+    <%= studio_render_section(entry, data) %>
   <% elsif entry %>
     <%= render "lightek_design/sections/#{record.kind}", section: record.presenter %>
   <% else %>

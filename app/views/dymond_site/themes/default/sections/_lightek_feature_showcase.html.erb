@@ -1,14 +1,38 @@
-<%= stylesheet_link_tag '/lightek/feature-showcase.css?v=1' %>
-<% showcase = LightekGrowth::FeatureShowcase.where(site: @site).includes(clips: {file_attachment: :blob}).find_by(id: section.data['showcase_id']) %>
+<%= stylesheet_link_tag '/lightek/feature-showcase.css?v=2' %>
+<% showcase = LightekGrowth::FeatureShowcase.where(site: @site).includes(clips: {file_attachment: :blob, screenshots_attachments: :blob}).find_by(id: section.data['showcase_id']) %>
 <% if showcase %>
 <section class="feature-showcase" aria-label="Product features">
   <header><span class="feature-eyebrow"><%= @site.name %> / FEATURES</span><h1><%= section.data['heading'].presence || "Explore #{@site.name}" %></h1><p><%= section.data['intro'] %></p></header>
   <nav aria-label="Feature categories"><% showcase.clips.map(&:category).uniq.each_with_index do |category,index| %><%= link_to category, "#feature-category-#{showcase.id}-#{index}" %><% end %></nav>
   <% showcase.clips.group_by(&:category).each_with_index do |(category,clips),index| %>
   <section id="feature-category-<%= showcase.id %>-<%= index %>"><h2><%= category %></h2><div class="feature-grid"><% clips.each do |clip| %><article><div class="feature-art" aria-hidden="true"><span><%= category %></span><strong><%= clip.title %></strong></div><h3><%= clip.title %></h3><p><%= clip.body %></p>
+    <% if showcase.approved_at && showcase.status == 'completed' %>
+      <% clip.screenshots_attachments.each do |image| %>
+        <% caption = image.blob.metadata.fetch('caption', clip.title) %>
+        <figure class="feature-screenshot">
+          <%= image_tag Rails.application.routes.url_helpers.feature_showcase_screenshot_path(token: showcase.token, position: clip.position, attachment_id: image.id), alt: caption, loading: 'lazy', decoding: 'async' %>
+          <figcaption><%= caption %></figcaption>
+        </figure>
+      <% end %>
+    <% end %>
     <% if showcase.approved_at && showcase.status=='completed' && clip.ready? %><video controls playsinline preload="none" aria-label="<%= clip.title %> · captioned overview"><source src="<%= Rails.application.routes.url_helpers.feature_showcase_video_path(token: showcase.token, position: clip.position) %>" type="video/mp4"></video><small>Captioned feature overview</small><% end %>
   </article><% end %></div></section><% end %>
   <% campaign = showcase.marketing_kit.campaign %>
-  <footer><h2>Find the right fit for your business.</h2><p>Explore the offer, ask your questions and choose your next step.</p><%= link_to campaign.cta_label.presence || 'Learn more', LightekDesign::Catalog.safe_url(campaign.cta_url), class: 'feature-cta' %></footer>
+  <% demo_walkthrough = showcase.snapshot['demo_promotion_link_id'].present? %>
+  <footer><h2>Find the right fit for your business.</h2><p>Explore the offer, ask your questions and choose your next step.</p><% if demo_walkthrough %>
+    <% if LightekGrowth::DemoShowcase.demo_booking?(@site) %>
+      <% if showcase.demo_experiment_started_at && controller&.respond_to?(:cookies) && request %>
+        <% controller.response.set_header('Cache-Control', 'private, no-store') %>
+        <% visit = LightekGrowth::Tracking.from_request(site: @site, cookies: controller.cookies, request: request) %>
+      <% end %>
+      <% label = LightekGrowth::DemoCampaign.cta(showcase, visit) %>
+      <% if !showcase.demo_experiment_started_at && showcase.approved_at && showcase.page.published? && !@preview && respond_to?(:experiment_text) %>
+        <% label = experiment_text('demo_walkthrough', label, target: showcase.id) %>
+      <% end %>
+      <%= link_to label, '/request-demo', class: 'feature-cta' %>
+    <% end %>
+  <% else %>
+    <%= link_to campaign.cta_label.presence || 'Learn more', LightekDesign::Catalog.safe_url(campaign.cta_url), class: 'feature-cta' %>
+  <% end %></footer>
 </section>
 <% end %>

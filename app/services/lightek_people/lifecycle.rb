@@ -7,6 +7,20 @@ module LightekPeople
       'agency_onboarding' => {'business' => ['owner', 'Verify agency identity, terms and billing arrangements'], 'brand' => ['owner', 'Review branding, packages and client support ownership'], 'access' => ['owner', 'Confirm MFA, Connect access and client-management responsibilities']},
       'agency_offboarding' => {'clients' => ['owner', 'Confirm ongoing client service ownership and upstream continuity'], 'access' => ['owner', 'Verify external integration and client-instance credential revocation'], 'billing' => ['owner', 'Review remaining subscriptions, payouts and retained business records']}
     }.freeze
+
+    def self.employers_for(actor)
+      actor.role == 'super_admin' ? User.where(role: Access::BUSINESS_ROLES) : Access.employers_for(actor)
+    end
+
+    def self.authorize_review!(actor:, employer:)
+      raise Access::Denied, 'Account access suspended' unless LifecycleAccess.active?(actor)
+      return if actor.role == 'super_admin'
+
+      access = Access.new(actor: actor, employer: employer)
+      access.require_active!
+      raise Access::Denied unless access.people_admin? || access.directory_admin?
+    end
+
     def initialize(actor:, employer:)
       @actor, @employer = actor, employer
       raise Access::Denied, 'Account access suspended' unless LifecycleAccess.active?(actor)

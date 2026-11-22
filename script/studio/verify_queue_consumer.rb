@@ -3,6 +3,10 @@
 require "sidekiq/api"
 require "socket"
 
+unless defined?(Rails)
+  Sidekiq.configure_client { |config| config.redis = {url: ENV.fetch("REDIS_URL")} }
+end
+
 pid = Integer(ENV.fetch("LIGHTEK_STUDIO_SIDEKIQ_PID"), 10)
 raise ArgumentError, "Expected a positive Sidekiq PID" unless pid.positive?
 

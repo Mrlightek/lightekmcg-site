@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   skip_before_action :require_settings_operator!
+  protect_from_forgery with: :exception, only: %i[nevaeh_delegation nevaeh_landing_page]
   before_action :set_design_site, except: %i[manifest starter_preview]
   before_action :set_design, only: %i[preview apply import start]
   helper DymondDash::TemplateSchemaHelper
@@ -10,6 +11,36 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
     @site_themes = @site ? DymondSite::SiteTemplate.where(id: @site.manifest.to_h.fetch("lightek_site_themes", {}).values).order(updated_at: :desc) : []
     @html_imports = @site ? LightekDesign::HtmlImport.records_for(user: current_user, site: @site) : []
     @template_inquiries = @site ? WebsiteTemplateInquiry.where(site: @site).order(created_at: :desc).limit(50) : []
+  end
+
+  def nevaeh_delegation
+    enabled = params[:enabled] == '1'
+    NevaehOs::WebsiteMarketing.configure!(actor: current_user, site_id: @site.id, enabled: enabled)
+    redirect_to dashboard_website_designs_path(site_id: @site.id, anchor: 'nevaeh-website'),
+      notice: enabled ? 'Nevaeh can now design and publish this website.' : 'Nevaeh website delegation revoked.', status: :see_other
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_website_designs_path(site_id: @site.id, anchor: 'nevaeh-website'), alert: error.message, status: :see_other
+  end
+
+  def nevaeh_landing_page
+    fields = params.require(:landing_page).permit(:title, :slug, :heading, :body, :cta_label, :cta_url, :description)
+    values = fields.slice(:title, :slug, :description).to_h
+    values['sections'] = [{ 'block' => 'hero', 'data' => fields.slice(:heading, :body, :cta_label, :cta_url).to_h }]
+    values['published'] = true
+    command = { 'kind' => 'website_marketing', 'operation' => 'compose', 'site_id' => @site.id, 'values' => values }
+    key = params[:request_key].to_s
+    raise ArgumentError, 'Reload the form before assigning this work.' unless key.match?(/\A[0-9a-f-]{36}\z/)
+    NevaehOs::WebsiteMarketing.page_document(values.fetch('title'), values.fetch('sections'))
+    goal = NevaehOs::Goals.create!(actor: current_user, request_key: "website-#{@site.id}-#{key}",
+      values: { 'title' => "Design and publish #{values.fetch('title').first(100)}", 'steps' => [{
+        'key' => 'publish_page', 'label' => 'Design and publish the landing page', 'agent' => 'marketing_strategy',
+        'command' => command, 'expectations' => [{ 'path' => 'result.published', 'equals' => true }]
+      }] })
+    NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
+    redirect_to dashboard_website_designs_path(site_id: @site.id, anchor: 'nevaeh-website'),
+      notice: "Website goal ##{goal.id} saved. Follow its progress in Nevaeh Goals.", status: :see_other
+  rescue ArgumentError, KeyError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_website_designs_path(site_id: @site.id, anchor: 'nevaeh-website'), alert: error.message, status: :see_other
   end
 
   def install_theme

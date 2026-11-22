@@ -7,6 +7,33 @@
       <ul><% Array(backlog['blockers']).each do |blocker| %><li><%= blocker %></li><% end %></ul>
     <% end %>
     <p><strong>KB articles:</strong> <%= Array(backlog['knowledge_article_ids']).join(', ').presence || 'No matching procedure recorded' %></p>
+    <% if (triage = backlog['incident_triage']) %>
+      <h3 style="font-size:15px;">Gatekeeper incident triage</h3>
+      <% case triage['status']
+         when 'unverified_ticket_link', 'missing_operation', 'target_mismatch' %>
+        <p>Nevaeh could not verify the Gatekeeper operation linked to this ticket.</p>
+      <% when 'operation_state_changed' %>
+        <p>The linked operation has changed since the ticket was opened.</p>
+      <% when 'failure_confirmed' %>
+        <p>The linked operation confirms the reported failure.</p>
+      <% when 'follow_up_recorded' %>
+        <% if ticket.extra_fields.to_h.dig('nevaeh', 'verification_mode') == 'gatekeeper_project_health_recovery' %>
+          <% if ticket.extra_fields.to_h.dig('nevaeh', 'verification', 'worker_recovered') %>
+            <p>Nevaeh restarted the failed Sidekiq worker, verified the project health check, and closed this incident.</p>
+          <% else %>
+            <p>Nevaeh verified the successful Gatekeeper health check and closed this incident.</p>
+          <% end %>
+        <% else %>
+          <p>A later operation started on the same node and project. Incident resolution still requires verification.</p>
+        <% end %>
+      <% end %>
+      <% if (operation = triage['operation']) %>
+        <p><strong>Original operation:</strong> #<%= operation['id'] %> · <%= operation['capability'].humanize %> · <%= operation['status'].humanize %></p>
+      <% end %>
+      <% if (follow_up = triage['follow_up']) %>
+        <p><strong>Latest follow-up:</strong> #<%= follow_up['id'] %> · <%= follow_up['status'].humanize %></p>
+      <% end %>
+    <% end %>
     <% if backlog['engineering_plan'].present? %>
       <details><summary>Engineering plan and acceptance requirements</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= JSON.pretty_generate(backlog['engineering_plan']) %></pre></details>
     <% end %>

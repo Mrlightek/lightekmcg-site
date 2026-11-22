@@ -1,0 +1,106 @@
+<% content_for :page_title, "Executive work" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <% if @executive %><%= link_to "← CEO Desk", dashboard_nevaeh_executive_path %><% end %>
+  <h1>Executive work</h1>
+  <div class="network-columns">
+    <aside class="network-pane">
+      <h2>Work queue</h2>
+      <% if @records.empty? %><p>No work items.</p><% end %>
+      <ul>
+        <% @records.each do |entry| %>
+          <li><%= link_to entry.title, dashboard_executive_work_path(item: entry.id) %>
+            <small><%= entry.kind_label %> · <%= entry.status.humanize %><%= " · Follow-up due" if entry.reminded_at? && entry.status != "closed" %></small></li>
+        <% end %>
+      </ul>
+      <% if @executive %>
+        <details>
+          <summary>Connect phone intake</summary>
+          <% if @phone_route %>
+            <p><small>Callback path</small> <code><%= executive_phone_intake_path(@phone_route.key) %></code></p>
+          <% end %>
+          <%= form_with url: configure_dashboard_executive_phone_path, scope: :executive_phone do |form| %>
+            <%= form.label :signing_secret, "Gateway signing secret" %>
+            <%= form.password_field :signing_secret, required: true, minlength: 32, maxlength: 200, autocomplete: "new-password" %>
+            <%= form.label :assignee_id, "Route new calls to" %>
+            <%= form.collection_select :assignee_id, @staff, :id, :full_name, {include_blank: "Keep private", selected: @phone_route&.assignee_id} %>
+            <%= form.submit "Save phone intake", class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        </details>
+        <details<%= " open" unless @record %>>
+          <summary>Add work item</summary>
+          <%= form_with url: dashboard_executive_work_path, scope: :executive_case do |form| %>
+            <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
+            <%= form.label :kind, "Type" %><%= form.select :kind, NevaehExecutiveCase::KINDS.invert.to_a %>
+            <%= form.label :due_at, "Follow up by" %><%= form.datetime_local_field :due_at, required: true %>
+            <%= form.label :assignee_id, "Route to" %><%= form.collection_select :assignee_id, @staff, :id, :full_name, include_blank: "Keep private" %>
+            <%= form.label :details, "Notes and next action" %><%= form.text_area :details, maxlength: 8_000 %>
+            <%= form.label :material, "Supporting file" %><%= form.file_field :material %>
+            <%= form.submit "Save work item", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+      <% end %>
+    </aside>
+    <% if @record %>
+      <section class="network-pane">
+        <h2><%= @record.title %></h2>
+        <p><%= @record.kind_label %> · <%= @record.status.humanize %> · Follow up <%= l(@record.due_at, format: :short) %></p>
+        <% if @mailboxes && @record.kind == "travel" %><p><%= link_to "Direct flight and hotel booking", dashboard_executive_travel_path(@record) %></p><% end %>
+        <% if @mailboxes && @record.kind == "screening" %><p><%= link_to "Theater DCP delivery", dashboard_executive_dcp_path(@record) %></p><% end %>
+        <% if @record.assignee %><p>Assigned to <%= @record.assignee.full_name %></p><% end %>
+        <p class="network-text"><%= @record.details %></p>
+        <% if @record.material.attached? %><p><%= link_to "Download supporting file", material_dashboard_executive_case_path(@record) %></p><% end %>
+        <% if @record.review_note? %><h3>Review notes</h3><p class="network-text"><%= @record.review_note %></p><% end %>
+        <% if @record.reviewer %><p><small>Reviewed by <%= @record.reviewer.full_name %> · <%= l(@record.reviewed_at, format: :short) %></small></p><% end %>
+        <% if @record.completion_material.attached? %><p><%= link_to "Download completion file", material_dashboard_executive_case_path(@record, completion: "1") %></p><% end %>
+        <% if @record.reference? %><p>Completion reference <strong><%= @record.reference %></strong></p><% end %>
+        <% if @mailboxes && @record.delivery_message %><p>Last handoff <strong><%= @record.delivery_message.state.humanize %></strong></p><% end %>
+        <% unless @record.status == "closed" %>
+          <details>
+            <summary>Record a review</summary>
+            <%= form_with url: review_dashboard_executive_case_path(@record) do |form| %>
+              <%= form.label :decision %><%= form.select :decision, [["Reviewed", "reviewed"], ["Needs changes", "needs_changes"]] %>
+              <%= form.label :review_note, "Review notes" %><%= form.text_area :review_note, maxlength: 8_000, required: true %>
+              <%= form.submit "Save review", class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+          </details>
+          <% if @mailboxes %>
+            <% if @staff.any? %>
+              <details>
+                <summary>Route to a teammate</summary>
+                <%= form_with url: route_dashboard_executive_case_path(@record) do |form| %>
+                  <%= form.label :assignee_id, "Active teammate" %><%= form.collection_select :assignee_id, @staff, :id, :full_name %>
+                  <%= form.submit "Assign", class: "dd-topbar-btn dd-btn-ghost" %>
+                <% end %>
+              </details>
+            <% end %>
+            <% if %w[travel screening].include?(@record.kind) && @mailboxes.any? %>
+              <details>
+                <summary><%= @record.kind == "travel" ? "Send booking request" : "Send licensed screening" %></summary>
+                <%= form_with url: dispatch_material_dashboard_executive_case_path(@record), scope: :executive_delivery do |form| %>
+                  <%= form.label :mailbox_id, "Send from" %><%= form.collection_select :mailbox_id, @mailboxes, :id, :address %>
+                  <%= form.label :recipient, "Recipient email" %><%= form.email_field :recipient, required: true %>
+                  <% if @record.kind == "travel" %>
+                    <%= form.label :instructions, "Booking instructions" %><%= form.text_area :instructions, maxlength: 4_000, required: true %>
+                  <% else %>
+                    <%= form.label :license_id, "Available web license" %><%= form.collection_select :license_id, @screenings, :id, :title, {prompt: "Choose a licensed program"}, required: true %>
+                  <% end %>
+                  <%= form.submit "Send via Lightek Mail", class: "dd-topbar-btn dd-btn-primary" %>
+                <% end %>
+              </details>
+            <% end %>
+            <details>
+              <summary>Close work item</summary>
+              <%= form_with url: close_dashboard_executive_case_path(@record) do |form| %>
+                <%= form.label :reference, "Confirmation or review reference" %><%= form.text_field :reference, maxlength: 240 %>
+                <%= form.label :completion_material, "Confirmation or review file" %><%= form.file_field :completion_material %>
+                <%= form.submit "Close item", class: "dd-topbar-btn dd-btn-ghost" %>
+              <% end %>
+            </details>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=1">

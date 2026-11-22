@@ -6,7 +6,7 @@ module NevaehOs
     def for(action)
       value = {id:action.id,status:action.status,result:action.result,error:action.error,created_at:action.created_at,kind:action.command['kind']}
       return value unless action.status == 'completed'
-      if action.command['kind']=='marketing_execute' && action.result['goal_id']
+      if (action.command['kind'] == 'marketing_execute' || action.command['execute_demo'] == true) && action.result['goal_id']
         site = DymondSite::Site.find(action.command.fetch('site_id'))
         goal = NevaehGoal.where(user: action.user).find(action.result.fetch('goal_id'))
         receipt = LightekGrowth::MarketingExecutionPlan.new(actor: action.user, site: site).receipt(goal)

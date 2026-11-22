@@ -98,3 +98,22 @@ Deploy migration `20261116040000_add_campaign_performance_comparisons.rb` before
 Structured log events are `lightek.growth.comparison_created`, `performance_reviewed` and `performance_draft_prepared`, containing actor/site/comparison/review/campaign IDs without copy, tracking tokens or customer information. Review the saved comparison, measured timestamp, source health, action receipt and structured worker report in the existing IT tools. For missing counts, verify placement link use, date/time zone, enabled state and attribution rather than assuming zero total traffic. For changed creative, prepare a fresh comparison; for stale reviews, measure again; for revoked access/package, resolve authorization before resubmitting. Publication remains governed by its own provider receipts and reconciliation controls.
 
 Acceptance: `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_performance_checks.rb` exercises native schema/models/services, scoped HTTP/CSRF, measured cohorts, immutable reviews, guarded drafts and current worker documentation/UUID/journal integration. The inherited host fixtures replace private engine authentication/records and provider IO. Full installed/private-engine boot, real user placement/link usage, deployed publication and business results remain separate acceptance.
+
+## Search, backlinks and marketing decisions
+
+Open **Dashboard → Business → Growth → Search & backlinks**. The website's verified Google Search Console property may be the HTTPS URL prefix or the exact-host domain property. In Vault, configure `growth-search-console-SITE_ID` for consumer `LightekGrowth::SearchConsole` and purpose `search_console_read`. Provide Google OAuth `client_id`, `client_secret`, and a `refresh_token` with the `https://www.googleapis.com/auth/webmasters.readonly` scope. The Google account needs access to the property. Refresh records up to 250 page/query pairs from 28 finalized days and can inspect one same-host HTTPS URL. Search Console returns limited rows. An inspection describes Google's indexed version of the page.
+
+Import a paired source/target CSV or save an external prospect manually. Review sources yourself before marking a link verified or lost. The prospect's **Authorize Nevaeh to draft outreach** button creates an approved goal for the Marketing SME, which prepares the draft and records the approving operator. Follow it in Nevaeh Goals. Review it before using your usual outreach workflow. CSV imports treat unverified rows as reported and preserve verified and lost decisions.
+
+Use these decisions when reviewing the daily Growth plan or handing work to the Marketing copilot:
+
+| Evidence | Marketing decision |
+| --- | --- |
+| Search impressions with low click-through | Review title and description against the observed query, search position, and page intent. Compare later snapshots after indexing. |
+| Credible partner, review or editorial mention | Identify the specific benefit to their readers and prepare a relevant outreach draft for review. |
+| Existing leads or expiring quotes | Address the open sales opportunity before spending more on acquisition. |
+| Visits with weak inquiry or payment evidence | Check the promise, offer, form and checkout. Change one variable and measure the next cohort. |
+| Paid campaign opportunity | Document the audience, offer, conversion event, spend ceiling and stopping criteria. Use campaign tracking to compare verified purchases and refunds. |
+| Repeat customers | Segment existing customers by demonstrated need and use consented channels for retention and follow-up. |
+
+The daily plan cites recorded data. Preparing and authorizing marketing work uses the existing campaign, CMS and goal workflows for their supported actions.

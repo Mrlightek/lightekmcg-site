@@ -62,6 +62,12 @@ module NevaehOs
         else
           raise ArgumentError, 'Unknown campaign production action'
         end
+      when 'backlink_draft'
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        LightekGrowth::Workspace.new(actor: actor, site: site)
+        LightekAgency::PackagePolicy.authorize!(site.tenant, 'nevaeh')
+        LightekGrowth::Backlink.where(site: site, status: 'prospect').find(command.fetch('backlink_id'))
+        raise ArgumentError, 'Use the reviewed prospect version.' unless command['record_version'].to_s.match?(/\A\d{4}-\d{2}-\d{2}T/)
       when 'growth_plan', 'growth_review', 'marketing_kit', 'marketing_execute', 'feature_showcase', 'marketing_follow_up'
         raise ArgumentError, 'Choose a positive business website ID.' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         site = DymondSite::Site.find(command.fetch('site_id'))
@@ -204,6 +210,11 @@ module NevaehOs
       when 'marketing_execute'
         planner = LightekGrowth::MarketingExecutionPlan.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
         planner.receipt(planner.start!(kit_id: command.fetch('kit_id')))
+      when 'backlink_draft'
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        backlink = LightekGrowth::BacklinkWork.new(actor: actor, site: site)
+          .authorize_draft!(id: command.fetch('backlink_id'), version: command.fetch('record_version'))
+        { 'status' => 'completed', 'backlink_id' => backlink.id, 'site_id' => site.id }
       when 'growth_plan'
         site = DymondSite::Site.find(command.fetch('site_id'))
         planner = LightekGrowth::DailyPlanner.new(actor: actor, site: site)

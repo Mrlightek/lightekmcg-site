@@ -28,6 +28,20 @@ AddWebsiteGrowthAudits.new.migrate(:up)
 %w[access source renderer analyzer runner fixes recommendations].each { |file| require Rails.root.join("app/services/lightek_growth/audits/#{file}") }
 require Rails.root.join('app/services/lightek_growth/playbook')
 require Rails.root.join('app/controllers/lightek_growth/audit_pages_controller')
+require Rails.root.join('db/migrate/20261122090000_add_growth_search_evidence')
+AddGrowthSearchEvidence.new.migrate(:up)
+ActiveRecord::Schema.define do
+  create_table(:lightek_growth_briefs) { |t| t.bigint :site_id; t.text :offering }
+end
+require Rails.root.join('app/models/lightek_growth/brief')
+%w[backlink search_snapshot].each { |file| require Rails.root.join("app/models/lightek_growth/#{file}") }
+%w[workspace backlink_work search_console].each { |file| require Rails.root.join("app/services/lightek_growth/#{file}") }
+require Rails.root.join('app/controllers/dashboard/search_growth_controller')
+Dashboard::SearchGrowthController.layout false
+Rails.application.routes.append do
+  eval(File.readlines(Rails.root.join('config/routes/growth.rb')).grep(/dashboard\/growth\/search/).join, binding)
+end
+Rails.application.reload_routes!
 require Rails.root.join('app/controllers/dashboard/website_audits_controller')
 Dashboard::WebsiteAuditsController.layout false
 DymondSite::Page.has_one :growth_page_metadata, class_name: 'LightekGrowth::PageMetadata', foreign_key: :page_id, dependent: :destroy
@@ -57,6 +71,60 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def test_audit_search_growth_import_and_draft_permissions
+    work = LightekGrowth::BacklinkWork.new(actor: @user, site: @site)
+    target = "https://#{@site.host}/site/home"
+    source = 'https://publication.test/article'
+    prospect = work.record!(source: source, target: target, status: 'prospect')
+    assert_raises(ArgumentError) { work.authorize_draft!(id: prospect.id, version: 'outdated') }
+    assert_raises(ActiveRecord::RecordNotFound) do
+      LightekGrowth::BacklinkWork.new(actor: @other, site: @foreign).authorize_draft!(id: prospect.id, version: prospect.updated_at.iso8601(6))
+    end
+    draft = work.authorize_draft!(id: prospect.id, version: prospect.updated_at.iso8601(6))
+    assert_equal @user.id, draft.approved_by_id
+    assert_includes draft.outreach_draft, target
+
+    work.record!(source: source, target: target, status: 'lost')
+    csv = "Source URL,Target URL\n#{source},#{target}\n"
+    assert_equal 1, work.import!(StringIO.new(csv))
+    assert_equal 'lost', prospect.reload.status
+    assert_nil prospect.approved_at
+    assert_equal 1, LightekGrowth::Backlink.where(site: @site).count
+
+    get dashboard_search_growth_path(site_id: @site.id), headers: headers
+    assert_response :success
+    assert_includes response.body, 'Search &amp; backlinks'
+    assert_includes response.body, source
+  end
+
+  def test_audit_search_console_scopes_results_and_records_observed_metrics
+    sync = LightekGrowth::SearchConsole.new(actor: @user, site: @site)
+    requests = []
+    page = "https://#{@site.host}/site/home"
+    sync.define_singleton_method(:post) do |uri, data, token: nil|
+      requests << [uri, data, token]
+      case uri.host
+      when 'oauth2.googleapis.com' then { 'access_token' => 'fixture' }
+      when 'www.googleapis.com'
+        row = { 'keys' => [page, 'business software'], 'clicks' => 2, 'impressions' => 200, 'ctr' => 0.01, 'position' => 5 }
+        { 'rows' => [row, row.merge('keys' => ['https://other.test/', 'unrelated'])] }
+      else
+        { 'inspectionResult' => { 'indexStatusResult' => { 'verdict' => 'PASS' } } }
+      end
+    end
+    credential = { 'client_id' => 'example', 'client_secret' => 'example', 'refresh_token' => 'example' }
+    LightekVault::Service.stub(:checkout!, credential) do
+      assert_raises(ArgumentError) { sync.sync!(inspection_url: 'https://other.test/') }
+      snapshot = sync.sync!(inspection_url: page)
+      assert_equal 3, requests.size
+      assert_equal "https://#{@site.host}/", snapshot.property
+      assert_equal 28, (snapshot.ends_on - snapshot.starts_on).to_i + 1
+      assert_equal 1, snapshot.rows.size
+      assert_equal page, snapshot.review_candidate.fetch('page')
+      assert_equal 'PASS', snapshot.inspection.fetch('verdict')
+    end
+  end
+
   def test_audit_native_output_has_evidence_and_only_published_site_pages
     @site.pages.create!(title: 'Draft', slug: 'draft', published: false)
     @foreign.pages.create!(title: 'Foreign', slug: 'secret', published: true)

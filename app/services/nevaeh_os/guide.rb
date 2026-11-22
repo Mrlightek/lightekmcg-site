@@ -54,6 +54,7 @@ module NevaehOs
       'growth.marketing_kit'=>['Prepare a seven-day marketing kit','/marketing SITE_ID','marketing_copilot','growth'],
       'growth.marketing_execute'=>['Execute a saved marketing kit','/marketing execute SITE_ID KIT_ID','marketing_copilot','growth'],
       'site.features.create'=>['Build a feature-showcase draft and overview videos','/features SITE_ID KIT_ID','marketing_copilot','growth'],
+      'growth.backlink.draft'=>['Draft outreach for an approved backlink prospect','Growth → Search & backlinks','growth','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],

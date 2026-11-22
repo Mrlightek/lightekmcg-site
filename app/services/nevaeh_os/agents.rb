@@ -28,6 +28,7 @@ module NevaehOs
       when 'feature_showcase' then 'site.features.create'
       when 'marketing_follow_up' then 'sales.follow_up.prepare'
       when 'marketing_kit' then 'growth.marketing_kit'
+      when 'backlink_draft' then 'growth.backlink.draft'
       when 'growth_plan' then 'growth.plan'
       when 'growth_review' then 'growth.review'
       when 'capability', 'platform_action' then command['intent']

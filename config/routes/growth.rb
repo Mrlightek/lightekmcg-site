@@ -14,3 +14,8 @@ patch '/dashboard/growth/links/:id', to: 'dashboard/growth#toggle', as: :dashboa
 post '/dashboard/growth/plans', to: 'dashboard/growth#prepare_plan', as: :prepare_dashboard_growth_plan
 patch '/dashboard/growth/plans/:plan_id/steps/:id/resolve', to: 'dashboard/growth#resolve_step', as: :resolve_dashboard_growth_step
 post '/dashboard/growth/plans/:plan_id/steps/:id/draft', to: 'dashboard/growth#draft_step', as: :draft_dashboard_growth_step
+get '/dashboard/growth/search', to: 'dashboard/search_growth#show', as: :dashboard_search_growth
+post '/dashboard/growth/search/sync', to: 'dashboard/search_growth#sync', as: :sync_dashboard_search_growth
+post '/dashboard/growth/search/backlinks', to: 'dashboard/search_growth#record', as: :record_dashboard_search_backlink
+post '/dashboard/growth/search/backlinks/import', to: 'dashboard/search_growth#import', as: :import_dashboard_search_backlinks
+post '/dashboard/growth/search/backlinks/:id/draft', to: 'dashboard/search_growth#draft', as: :draft_dashboard_search_backlink

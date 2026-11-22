@@ -20,6 +20,9 @@ module NevaehControlCenterHelper
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
       item.call("journal", "Journal & Articles", main_app.dashboard_blog_index_path, "ti-article"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
+    if LightekTeam::Workspace.employers_for(current_user).exists?
+      rows << item.call("team-chat", "Team Chat", main_app.dashboard_team_channels_path, "ti-messages")
+    end
     if current_user.role.in?(%w[admin super_admin]) || current_user.can_access_feature?("studio")
       rows << item.call("studio", "Studio & Broadcasting", main_app.dashboard_media_studio_path, "ti-video")
     end
@@ -60,7 +63,7 @@ module NevaehControlCenterHelper
       "Start" => %w[overview ceo-desk],
       "Business & money" => %w[business sales commerce shipping accounting finance],
       "Create & publish" => %w[design journal studio pwa],
-      "Bookings & email" => %w[reservations rooms my-reservations mail],
+      "Bookings & email" => %w[reservations rooms my-reservations mail team-chat],
       "Clients & agencies" => %w[agency white-label demos reseller-packages connect],
       "Team & administration" => %w[people directory compliance settings],
       "Technical tools" => %w[servers infrastructure vault]

@@ -26,4 +26,4 @@ Rails.application.config.filter_redirect += [%r{[?&](?:code_challenge|state)=}]
 
 Rails.application.config.filter_parameters += [:view_session]
 
-Rails.application.config.filter_parameters += [:vast_tag, :decision_key, :viewing_code]
+Rails.application.config.filter_parameters += [:vast_tag, :decision_key, :viewing_code, :executive_item, :team_message, /\Aq\z/]

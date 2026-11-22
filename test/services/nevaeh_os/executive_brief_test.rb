@@ -44,6 +44,38 @@ class NevaehOs::ExecutiveBriefTest < ActiveSupport::TestCase
     assert_equal({'kind' => 'briefing'}, NevaehOs::Command.parse('/briefing'))
   end
 
+  test 'agenda actions record the appointment and report conflicts without exposing notes' do
+    attributes = {'category' => 'meeting', 'title' => 'Studio review',
+      'starts_at' => '2026-11-30T14:00-05:00', 'ends_at' => '2026-11-30T14:30-05:00'}
+    assert_raises(ArgumentError) { NevaehOs::AgendaActions.authorize!(@client, attributes) }
+    assert_raises(ArgumentError) { NevaehOs::AgendaActions.authorize!(@owner, attributes.merge('starts_at' => '2026-02-31T14:00')) }
+    assert_raises(ArgumentError) { NevaehOs::AgendaActions.authorize!(@owner, attributes.merge('ends_at' => attributes['starts_at'])) }
+
+    item = NevaehOs::AgendaActions.authorize!(@owner, attributes)
+    result = NevaehOs::AgendaActions.perform!(item)
+    assert_equal @owner, NevaehAgendaItem.find(result.fetch('agenda_item_id')).user
+    assert_equal 0, result.fetch('overlap_count')
+    second = NevaehOs::AgendaActions.authorize!(@owner, attributes.merge('title' => 'Partner review'))
+    assert_equal 1, NevaehOs::AgendaActions.perform!(second).fetch('overlap_count')
+
+    travel_to Time.zone.parse('2026-11-27 10:00') do
+      item.update!(notes: 'Confidential notes')
+      NevaehAgendaItem.create!(user: @client, category: 'personal', title: 'Other account appointment',
+        starts_at: item.starts_at, ends_at: item.ends_at)
+      response = NevaehOs::ExecutiveBrief.new(@owner).agenda_reply.fetch('text')
+      assert_includes response, 'Studio review'
+      refute_includes response, 'Confidential notes'
+      refute_includes response, 'Other account appointment'
+    end
+  end
+
+  test 'chat recognizes reading and adding executive agenda entries' do
+    assert_equal({'kind' => 'executive_brief', 'view' => 'agenda'}, NevaehOs::Command.parse('What is on my CEO agenda?'))
+    command = NevaehOs::Command.parse('Add a meeting called "Launch review" to my CEO agenda from 2026-11-30T14:00 to 2026-11-30T14:30')
+    assert_equal 'executive.agenda.create', command.fetch('intent')
+    assert_equal 'Launch review', command.fetch('payload').fetch('title')
+  end
+
   private
 
   def create_user(role)

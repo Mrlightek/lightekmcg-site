@@ -5,7 +5,7 @@ module NevaehOs
     ROW_LIMIT = 5
 
     def self.available_to?(actor)
-      actor&.role == 'super_admin'
+      actor&.role == 'super_admin' && LightekPeople::LifecycleAccess.active?(actor)
     end
 
     def initialize(actor)
@@ -17,7 +17,8 @@ module NevaehOs
     end
 
     def sections
-      [provisioning_approvals, blocked_goals, urgent_tickets, due_follow_ups, paid_orders, upcoming_bookings]
+      [provisioning_approvals, blocked_goals, urgent_tickets, due_follow_ups, paid_orders,
+        executive_agenda, executive_mail, upcoming_bookings]
     end
 
     def reply
@@ -31,6 +32,14 @@ module NevaehOs
       end
       lines << "Open CEO Desk in the Dashboard for the records and links."
       {'text' => lines.join("\n"), 'status' => 'ready', 'executive_brief' => current}
+    end
+
+    def agenda_reply
+      agenda = executive_agenda
+      lines = agenda.fetch(:rows).map { |row| "#{row.fetch(:title)} · #{row.fetch(:detail)}" }
+      lines.unshift("#{agenda.fetch(:count)} open agenda entries through the next 7 days.")
+      lines << "Open your private CEO agenda for the full list and notes."
+      {'text' => lines.join("\n"), 'status' => 'ready'}
     end
 
     private
@@ -79,6 +88,30 @@ module NevaehOs
         {title: "Order ##{order.id}", detail: "#{order.site.name} · paid #{timestamp(order.paid_at)}",
           path: @routes.dashboard_commerce_orders_path(site_id: order.site_id)}
       end
+    end
+
+    def executive_agenda
+      entries = NevaehAgendaItem.where(user: @actor).open_items.where('starts_at < ?', @now + 7.days)
+      order = Arel.sql('CASE WHEN ends_at <= ? THEN 1 ELSE 0 END', @now)
+      section('Open CEO agenda through the next 7 days', entries.order(order, :starts_at, :id)) do |entry|
+        status = entry.ends_at <= @now ? 'Past due' : timestamp(entry.starts_at)
+        {title: entry.title, detail: "#{entry.category_label} · #{status}",
+          path: @routes.dashboard_nevaeh_agenda_path(edit: entry.id, anchor: 'agenda-entry')}
+      end
+    end
+
+    def executive_mail
+      mailboxes = LightekMail::Access.accounts(@actor).where(user: @actor)
+      unread = LightekMail::MessageFolder.scope_messages(
+        LightekMail::Message.where(account_id: mailboxes.select(:id)), 'unread'
+      ).group(:account_id).count
+      rows = mailboxes.where(id: unread.keys).order(:address).limit(ROW_LIMIT).map do |mailbox|
+        amount = unread.fetch(mailbox.id)
+        {title: mailbox.address, detail: "#{amount} unread",
+          path: @routes.dashboard_mail_path(account_id: mailbox.id, folder: 'unread')}
+      end
+      {label: 'Unread messages in your mailboxes', count: unread.values.sum, rows: rows, row_count: unread.size,
+        path: @routes.dashboard_mail_path}
     end
 
     def upcoming_bookings

@@ -1,4 +1,5 @@
 <% content_for :page_title, "CEO Desk" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
 <style>
   .ceo-desk { max-width: 1120px; margin: 0 auto; }
   .ceo-desk-header, .ceo-desk-section header {
@@ -40,6 +41,9 @@
     </div>
     <nav class="ceo-desk-actions" aria-label="Work with Nevaeh">
       <%= link_to "Ask for my brief", dashboard_nevaeh_os_path(command: "/ceo"), class: "dd-topbar-btn dd-btn-primary" %>
+      <%= link_to "Private agenda", dashboard_nevaeh_agenda_path, class: "dd-topbar-btn dd-btn-ghost" %>
+      <%= link_to "Team Chat", dashboard_team_channels_path, class: "dd-topbar-btn dd-btn-ghost" %>
+      <%= link_to "Executive assistant guide", dashboard_nevaeh_guide_path(topic: "executive_assistant"), class: "dd-topbar-btn dd-btn-ghost" %>
       <%= link_to "Review Nevaeh goals", dashboard_nevaeh_os_path(command: "/goal list"), class: "dd-topbar-btn dd-btn-ghost" %>
     </nav>
   </header>
@@ -59,12 +63,14 @@
               </li>
             <% end %>
           </ul>
-          <% if section.fetch(:count) > section.fetch(:rows).size %>
-            <p class="ceo-desk-detail">Showing <%= section.fetch(:rows).size %> of <%= section.fetch(:count) %>.</p>
+          <% row_count = section.fetch(:row_count, section.fetch(:count)) %>
+          <% if row_count > section.fetch(:rows).size %>
+            <p class="ceo-desk-detail">Showing <%= section.fetch(:rows).size %> of <%= row_count %>.</p>
           <% end %>
         <% else %>
           <p class="ceo-desk-detail">No items in this queue.</p>
         <% end %>
+        <% if section[:path] %><%= link_to "Open Lightek Mail", section.fetch(:path), class: "ceo-desk-detail" %><% end %>
       </section>
     <% end %>
   </div>

@@ -11,6 +11,10 @@ module NevaehOs
     SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
     QUOTE_ITEM = /([1-9]\d{0,2}) of (?:product |item )?#?([1-9]\d{0,17})/i
     PHRASES = {
+      'executive.agenda.create' => [
+        /add (?:a )?(?<category>meeting|personal|travel|screening|follow_up) (?:called|named) (?<title>#{QUOTED}) to my CEO agenda from (?<starts_at>#{TIMESTAMP}) to (?<ends_at>#{TIMESTAMP})/i,
+        'Add a meeting called "Launch review" to my CEO agenda from 2026-11-30T14:00 to 2026-11-30T14:30'
+      ],
       'accounting.workspace.open' => [
         /open (?:the )?(?:books|accounting|books and accounting) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
         'Open accounting for employer #42'
@@ -187,6 +191,7 @@ module NevaehOs
         payload['confirmed'] = true if %w[sales.quote.accept mail.draft.send hosting.fleet.rollout.control].include?(intent)
         payload['currency']&.upcase!
         payload['folder']&.downcase!
+        payload['category']&.downcase! if intent == 'executive.agenda.create'
         payload['operation']&.downcase!
         if intent == 'mail.message.flag'
           payload['flag'].downcase!

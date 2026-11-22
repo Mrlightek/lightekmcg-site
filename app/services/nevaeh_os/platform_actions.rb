@@ -3,6 +3,7 @@
 require_relative 'mail_actions'
 require_relative 'hosting_actions'
 require_relative 'room_actions'
+require_relative 'agenda_actions'
 
 module NevaehOs
   # Explicit OS bindings. These commands run through the saved-action worker
@@ -57,7 +58,7 @@ module NevaehOs
                                            'scheduled_at'=>40, 'time_zone'=>100}.freeze,
       'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
       'marketing.publication.cancel' => {'site_id'=>:id, 'slot_id'=>:id, 'lock_version'=>:version}.freeze
-    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS).freeze
+    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS, AgendaActions::INPUTS).freeze
 
     module_function
 
@@ -108,6 +109,7 @@ module NevaehOs
       validate!(key, values)
       return MailActions.authorize!(actor, key, values) if MailActions::INPUTS.key?(key)
       return HostingActions.authorize!(actor, key, values) if HostingActions::INPUTS.key?(key)
+      return AgendaActions.authorize!(actor, values) if key == AgendaActions::CREATE
       return RoomActions.authorize!(actor, values) if RoomActions::INPUTS.key?(key)
 
       case key
@@ -203,6 +205,7 @@ module NevaehOs
       target = authorize!(actor, command)
       return MailActions.perform!(key, target, values, action_id: action_id) if MailActions::INPUTS.key?(key)
       return HostingActions.perform!(key, target, values) if HostingActions::INPUTS.key?(key)
+      return AgendaActions.perform!(target) if key == AgendaActions::CREATE
       return RoomActions.perform!(actor, key, target, values) if RoomActions::INPUTS.key?(key)
 
       case key

@@ -1,0 +1,26 @@
+<div id="team-timeline" data-message-ids="<%= @messages.map(&:id).join(',') %>">
+  <% if @older_than %>
+    <%= link_to "Older messages", dashboard_team_channel_path(@channel, employer_id: @employer.id, before: @older_than, q: @query.presence) %>
+  <% end %>
+  <% if @messages.empty? %>
+    <p class="team-muted"><%= @query.present? ? "No messages match this search." : "No messages yet." %></p>
+  <% end %>
+  <ol class="team-messages">
+    <% @messages.each do |message| %>
+      <li id="team-message-<%= message.id %>">
+        <div class="team-message-header">
+          <strong><%= message.author.full_name %></strong>
+          <time datetime="<%= message.created_at.iso8601 %>"><%= l(message.created_at, format: :short) %></time>
+        </div>
+        <% if message.reply_to %>
+          <%= link_to "In reply to #{truncate(message.reply_to.body, length: 90)}",
+            dashboard_team_channel_path(@channel, employer_id: @employer.id, before: message.reply_to_id + 1, anchor: "team-message-#{message.reply_to_id}"),
+            class: "team-reply-reference" %>
+        <% end %>
+        <div class="team-message-body"><%= message.body %></div>
+        <%= link_to "Reply", dashboard_team_channel_path(@channel, employer_id: @employer.id, reply_to: message.id, anchor: "team-compose"),
+          aria: {label: "Reply to message from #{message.author.full_name}"} %>
+      </li>
+    <% end %>
+  </ol>
+</div>

@@ -166,7 +166,8 @@ module NevaehOs
         rows = rows.uniq { |row| row[:slug] }
         {'text'=>rows.map { |r| "#{r[:slug]} · #{r[:name]}" }.join("\n"), 'capabilities'=>rows,'status'=>'ready'}
       when 'executive_brief'
-        ExecutiveBrief.new(@actor).reply
+        brief = ExecutiveBrief.new(@actor)
+        command['view'] == 'agenda' ? brief.agenda_reply : brief.reply
       when 'status','briefing'
         actions = NevaehOsAction.where(user: @actor).order(id: :desc).limit(12)
         workers = Ability.new(@actor).can?(:manage, NevaehWorkflow) ? NevaehWorkflow.where(status:'active').count : nil

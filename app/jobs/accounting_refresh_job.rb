@@ -19,13 +19,17 @@ class AccountingRefreshJob < ApplicationJob
           access = accounting_access!(record)
           output = work!(record, data, access, now)
           record.data = data.merge("latest" => output)
-          record.update!(last_run_at: now, next_run_at: now + interval, error_code: nil)
+          record.update!(last_run_at: now, next_run_at: now + interval, error_code: nil,
+            enabled: data["action"] != "reconcile_statement")
           LightekAccounting::AuditEvent.record!(actor: access.actor, record: record, action: "accounting_worker_completed")
         end
       rescue LightekAccounting::Access::Denied => error
         record.reload.update!(enabled: false, last_run_at: now, error_code: error.class.name.demodulize)
       rescue StandardError => error
         record.reload.update!(last_run_at: now, next_run_at: now + interval, error_code: error.class.name.demodulize)
+        if error.is_a?(ArgumentError) && data["action"] == "reconcile_statement"
+          record.update!(enabled: false)
+        end
         Rails.logger.error("Accounting worker #{record.id} failed (#{error.class})")
       end
     end
@@ -46,7 +50,17 @@ class AccountingRefreshJob < ApplicationJob
 
   def work!(record, data, access, now)
     output = {"calculated_at" => now.iso8601}
-    if data["action"] == "categorize"
+    case data["action"]
+    when "reconcile_statement"
+      import = LightekAccounting::Import.where(book: record.book).find(data.fetch("import_id"))
+      result = LightekAccounting::Reconcile.finalize_statement!(access: access, record: import,
+        first: Date.iso8601(data.fetch("starts_on")), last: Date.iso8601(data.fetch("ends_on")),
+        starting: data.fetch("starting_cents"), ending: data.fetch("ending_cents"))
+      return output.merge("reconciliation_id" => result.id)
+    when "filing_workpaper"
+      access.require!(:review)
+      return output.merge(LightekAccounting::FilingWorkpaper.build(book: record.book, year: data.fetch("year")))
+    when "categorize"
       access.require!(:admin)
       return output.merge(LightekAccounting::Rules.apply_saved!(access: access, book: record.book))
     end

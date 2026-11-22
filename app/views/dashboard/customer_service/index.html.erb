@@ -14,6 +14,12 @@
 
   <section class="lp-card" id="cases">
     <h2>Open a case</h2>
+    <div class="lp-actions">
+      <% %w[find_services sign_in_help].each do |topic| %>
+        <%= button_to NevaehCustomerService::Cases::TOPICS.fetch(topic).first, dashboard_customer_cases_path,
+          params: {support_case: {topic: topic}}, class: "lp-button secondary" %>
+      <% end %>
+    </div>
     <%= form_with url: dashboard_customer_cases_path, scope: :support_case, class: "lp-form" do |form| %>
       <div class="lp-grid">
         <label>Topic <%= form.select :topic, NevaehCustomerService::Cases::TOPICS.slice("general", "technical", "billing").map { |key, (label, *)| [label, key] } %></label>
@@ -64,6 +70,19 @@
           <p><%= invoice.status.humanize %> · <%= billing_balance(invoice) %> balance<% if invoice.due_date %> · Due <%= l(invoice.due_date) %><% end %></p></div>
         <%= button_to "Ask about this invoice", dashboard_customer_cases_path, params: {support_case: {topic: "invoice_status", record_id: invoice.id}}, class: "lp-button secondary" %>
       </article>
+    <% end %>
+
+    <% if @refundable_installations.any? %>
+      <details>
+        <summary>Request an installation refund</summary>
+        <%= form_with url: dashboard_customer_cases_path, scope: :support_case, class: "lp-form" do |form| %>
+          <%= form.hidden_field :topic, value: "refund_request" %>
+          <label>Installation <%= form.collection_select :record_id, @refundable_installations, :id,
+            ->(order) { LightekCommerce::Installations.hostname(order) } %></label>
+          <label>Reason <%= form.text_area :description, required: true, maxlength: 4_000 %></label>
+          <%= form.submit "Request refund", class: "lp-button secondary" %>
+        <% end %>
+      </details>
     <% end %>
 
     <h3>Subscriptions</h3>

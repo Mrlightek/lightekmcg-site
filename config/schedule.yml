@@ -156,3 +156,9 @@ lightek_accounting_automation_recovery:
   class: "AccountingAutomationSweepJob"
   queue: default
   active_job: true
+
+nevaeh_customer_operations:
+  cron: "*/15 * * * *"
+  class: "NevaehCustomerOperationsJob"
+  queue: default
+  active_job: true

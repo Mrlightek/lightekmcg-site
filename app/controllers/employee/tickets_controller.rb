@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 module Employee
   class TicketsController < Employee::ApplicationController
-    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh resume_nevaeh edit_nevaeh revise_nevaeh]
+    include LightekIdentity::SensitiveSession
+
+    before_action :require_sensitive_session!, only: :approve_refund
+    before_action :set_ticket, only: %i[show reply resolve approve_refund execute_nevaeh resume_nevaeh edit_nevaeh revise_nevaeh]
 
     def index
       authorize! :read, Marlon::Ticket
@@ -111,6 +114,15 @@ module Employee
       redirect_to employee_ticket_path(@ticket), notice: "Reply logged."
     rescue NevaehCustomerService::Cases::Invalid => error
       redirect_to employee_ticket_path(@ticket), alert: error.message
+    end
+
+    def approve_refund
+      authorize! :resolve, @ticket
+      NevaehCustomerService::Refunds.approve!(ticket: @ticket, actor: current_user, amount_cents: params[:amount_cents])
+      redirect_to employee_ticket_path(@ticket), notice: "Refund approved. Nevaeh will submit it and check the receipt."
+    rescue NevaehCustomerService::Cases::Invalid, ActiveRecord::RecordNotFound => error
+      message = error.is_a?(ActiveRecord::RecordNotFound) ? "Refund order unavailable to this operator." : error.message
+      redirect_to employee_ticket_path(@ticket), alert: message
     end
 
     def resolve

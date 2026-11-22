@@ -129,6 +129,40 @@ class EnterpriseAccountingChecks < PeoplePayrollChecks
     assert_nil record.data['latest']
   end
 
+  def test_enterprise_nevaeh_finalizes_imported_statement_once_when_proofs_match
+    record = LightekAccounting::Imports.preview!(access: @accounting_access, account: @account,
+      raw: "Date,Description,Amount,Reference\n2026-01-05,Vendor,40.00,proof-1\n",
+      mapping: {'date'=>'0','description'=>'1','amount'=>'2','reference'=>'3','mode'=>'signed','date_format'=>'iso'})
+    LightekAccounting::Imports.commit!(access: @accounting_access, record: record)
+    request = {access: @accounting_access, record: record, first: Date.new(2026, 1, 1),
+      last: Date.new(2026, 1, 31), starting: 100_000, ending: 104_000}
+
+    assert_raises(ArgumentError) { LightekAccounting::Reconcile.finalize_statement!(**request.merge(ending: 105_000)) }
+    assert_empty @account.reconciliations
+    proof = LightekAccounting::Reconcile.finalize_statement!(**request)
+    assert_equal proof.id, LightekAccounting::Reconcile.finalize_statement!(**request).id
+    assert_equal record.source_digest, proof.data.fetch('source_digest')
+    assert_equal proof.id, @account.transactions.sole.reconciliation_id
+  end
+
+  def test_enterprise_workpaper_only_becomes_ready_for_preparer_after_year_end_and_reconciliation
+    category = @income
+    category.update!(schedule_code: 'gross_receipts')
+    row = entry(100, '2026-01-02', 'Income', category)
+    first = Date.new(2026, 1, 1)
+    last = Date.new(2026, 12, 31)
+    options = {book: @book, year: 2026, today: last.next_day}
+    assert_equal 'needs_attention', LightekAccounting::FilingWorkpaper.build(**options)['status']
+
+    LightekAccounting::Reconcile.finalize!(access: @accounting_access, account: @account, first: first,
+      last: last, starting: 100_000, ending: 100_100, selected: [row.id])
+    workpaper = LightekAccounting::FilingWorkpaper.build(**options)
+    assert_equal 'ready_for_preparer', workpaper.fetch('status')
+    assert_equal 'provider_required', workpaper.fetch('filing_status')
+    assert_equal 100, workpaper.dig('report', 'tax_profit_cents')
+    assert_equal 'needs_attention', LightekAccounting::FilingWorkpaper.build(**options.merge(today: last))['status']
+  end
+
   def test_enterprise_nevaeh_accounting_handoff_does_not_expose_the_ledger
     command = NevaehOs::PlatformActions.command('accounting.workspace.open', {'employer_id'=>@employer.id})
     assert_raises(ArgumentError) do

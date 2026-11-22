@@ -11,3 +11,17 @@ Nevaeh processes new cases from the ticket backlog. She routes account or produc
 Employees can open the Customer Service queue from Tickets. Choose “Show this reply to the customer” to publish a reply in the case. Ordinary employee notes and execution evidence are internal.
 
 Ask Nevaeh to “review customer support cases” or run `/operations customer_service`. This staff-only review returns unresolved case IDs, categories, teams, and dates. Case intake does not grant Nevaeh authority to run arbitrary commands from customer messages.
+
+## Guided resolution and follow-up
+
+Customer Service & Billing offers guided answers for finding purchased services and managing sign-in security. Nevaeh records which guide she used, posts the answer, and closes the case. Customers can reply to reopen it and reach the Customer Service queue.
+
+Set `NEVAEH_SUPPORT_MAILBOX_ID` to the authorized, sending-ready Lightek Mail mailbox for this installation to enable outbound case updates. The worker scans recent replies every 15 minutes and queues a generic sign-in link for the latest customer-visible update. It checks the account and recipient again before submission. The Mail Studio message status shows whether the notification queued, sent, failed, or needs review. Case text and billing amounts stay in the Dashboard.
+
+## Find purchased services
+
+Open Your workspace → Your services. My applications lists purchased installations, and My reservations shows your bookings.
+
+## Manage sign-in security
+
+Open Your workspace → Your account → Sign-in security to manage your authenticator. Use a saved recovery code if you lose access to the authenticator.

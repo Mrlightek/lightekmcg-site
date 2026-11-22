@@ -13,6 +13,7 @@ class Dashboard::CustomerServiceController < ApplicationController
   def index
     @tickets = cases.order(updated_at: :desc, id: :desc).limit(50)
     @installations = support.installations(current_user).order(id: :desc).limit(20)
+    @refundable_installations = support.refundable_installations(current_user).order(id: :desc).limit(20)
     @invoices = support.invoices(current_user).order(id: :desc).limit(50)
     @subscriptions = support.subscriptions(current_user).includes(:plan).order(id: :desc).limit(50)
     @overdue_invoices = support.invoices(current_user).where(status: "open")

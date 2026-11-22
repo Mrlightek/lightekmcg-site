@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module NevaehCustomerService
   module Cases
     SOURCE = "nevaeh_customer_service"
@@ -9,11 +11,18 @@ module NevaehCustomerService
     PUBLIC_EVENTS = [CUSTOMER_UPDATE, CUSTOMER_REPLY, STAFF_REPLY].freeze
     TOPICS = {
       "general" => ["General support", "customer_service", "Customer Service"],
+      "find_services" => ["Find my purchased services", "customer_service", "Customer Service"],
+      "sign_in_help" => ["Get sign-in and authenticator help", "customer_service", "Customer Service"],
+      "refund_request" => ["Request an installation refund", "billing", "Accounting & Billing"],
       "technical" => ["Technical support", "technical", "Technical"],
       "installation_status" => ["Check an installation", "technical", "Technical"],
       "billing" => ["Billing question or dispute", "billing", "Accounting & Billing"],
       "invoice_status" => ["Check an invoice", "billing", "Accounting & Billing"],
       "subscription_status" => ["Check a subscription", "billing", "Accounting & Billing"]
+    }.freeze
+    GUIDED_HEADINGS = {
+      "find_services" => "Find purchased services",
+      "sign_in_help" => "Manage sign-in security"
     }.freeze
     INVOICE_STATES = %w[open paid void uncollectible].freeze
     SUBSCRIPTION_STATES = %w[trialing active past_due canceled unpaid incomplete incomplete_expired paused].freeze
@@ -45,23 +54,41 @@ module NevaehCustomerService
       LightekCommerce::Installations.scope_for(actor)
     end
 
+    def refundable_installations(actor)
+      installations(actor).where(customer_email: actor.email_address, payment_provider: %w[stripe stripe_invoice],
+        status: %w[paid fulfilled partially_refunded]).where("total_cents > refunded_cents")
+    end
+
     def open!(actor:, topic:, title:, description:, record_id:)
       raise Invalid, "Sign in to an active account" unless LightekPeople::LifecycleAccess.active?(actor) && actor.persisted?
       label, category, team = TOPICS.fetch(topic) { raise Invalid, "Choose a support topic" }
       reference = case topic
       when "installation_status" then installations(actor).find(record_id)
+      when "refund_request" then refundable_installations(actor).find(record_id)
       when "invoice_status" then invoices(actor).find(record_id)
       when "subscription_status" then subscriptions(actor).find(record_id)
       end
-      if reference
+      if reference || GUIDED_HEADINGS.key?(topic)
         title = label
-        description = nil
+        description = topic == "refund_request" ? message!(description) : nil
       else
         title = title.to_s.strip
         description = message!(description)
         raise Invalid, "Enter a subject from 1 to 160 characters" unless title.length.between?(1, 160)
       end
 
+      if topic == "refund_request"
+        return reference.with_lock do
+          current = customer_scope(actor).where(related: reference, status: %w[open in_progress])
+            .where("extra_fields->'customer_service'->>'topic' = ?", topic).first
+          current || create_case!(actor, topic, title, description, category, team, reference)
+        end
+      end
+
+      create_case!(actor, topic, title, description, category, team, reference)
+    end
+
+    def create_case!(actor, topic, title, description, category, team, reference)
       Marlon::Ticket.transaction do
         ticket = Marlon::Ticket.create!(
           number: "LT-CS-#{SecureRandom.hex(8).upcase}", title: title, description: description,
@@ -82,7 +109,10 @@ module NevaehCustomerService
         end
 
         fields = ticket.extra_fields
-        fields.fetch("customer_service").merge!("topic" => handoff_topic(ticket), "state" => "queued")
+        state = fields.fetch("customer_service")
+        unless state.fetch("topic") == "refund_request"
+          state.merge!("topic" => handoff_topic(ticket), "state" => "queued")
+        end
         ticket.update!(status: "in_progress", resolved_at: nil, extra_fields: fields)
         ticket.log!(action: CUSTOMER_REPLY, detail: message, actor: actor)
       end
@@ -105,7 +135,10 @@ module NevaehCustomerService
 
         # A live staff reply fulfills any pending automatic acknowledgment.
         fields = ticket.extra_fields
-        fields.fetch("customer_service").merge!("topic" => handoff_topic(ticket), "state" => "staff_replied")
+        state = fields.fetch("customer_service")
+        unless state.fetch("topic") == "refund_request"
+          state.merge!("topic" => handoff_topic(ticket), "state" => "staff_replied")
+        end
         ticket.update!(status: ticket.status == "open" ? "in_progress" : ticket.status, extra_fields: fields)
         ticket.log!(action: STAFF_REPLY, detail: message, actor: actor)
       end
@@ -134,6 +167,8 @@ module NevaehCustomerService
 
     def verified_answer(ticket, actor, state)
       case state.fetch("topic")
+      when "find_services", "sign_in_help"
+        guided_answer(state)
       when "installation_status"
         return unless ticket.related_type == "LightekCommerce::Order"
         order = installations(actor).find_by(id: ticket.related_id)
@@ -166,6 +201,21 @@ module NevaehCustomerService
         end
         "Dymond Bank shows subscription ##{subscription.id} as #{subscription.status.humanize.downcase}.#{period}"
       end
+    end
+
+    def guided_answer(state)
+      path = "docs/nevaeh/tutorials/customer_service.md"
+      guide = Rails.root.join(path).read
+      topic = state.fetch("topic")
+      heading = GUIDED_HEADINGS.fetch(topic)
+      section = guide.split(/^## /).find { |part| part.lines.first&.strip == heading }
+      answer = section&.lines&.drop(1)&.join&.strip
+      return if answer.blank?
+
+      state["receipt"] = {"guide" => path, "topic" => topic, "sha256" => Digest::SHA256.hexdigest(guide)}
+      answer
+    rescue Errno::ENOENT
+      nil
     end
 
     def handoff_topic(ticket)

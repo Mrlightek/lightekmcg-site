@@ -4,6 +4,7 @@
 # engines: ruby test/standalone/nevaeh_backlog_test.rb
 # SQLite/ActiveRecord + ActiveJob exercise real app code, not production acceptance.
 require "minitest/autorun"
+require "minitest/mock"
 require "active_record"
 require "active_job"
 require "active_support/all"
@@ -16,7 +17,7 @@ DATABASE = File.join(Dir.tmpdir, "nevaeh-backlog-#{Process.pid}.sqlite3")
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: DATABASE)
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
-  create_table(:users) { |t| t.string :role; t.datetime :access_suspended_at }
+  create_table(:users) { |t| t.string :role, :email_address; t.datetime :access_suspended_at }
   create_table(:dymond_bank_invoices) do |t|
     t.references :billable, polymorphic: true
     t.string :number, :status
@@ -194,7 +195,7 @@ end
    jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service
    services/lightek_people/lifecycle_access services/lightek_people/access services/lightek_accounting/access
    services/gatekeeper/hosting/access services/lightek_agency/package_policy
-   services/nevaeh_customer_service/cases services/nevaeh_os/specialist_tasks].each do |file|
+   services/nevaeh_customer_service/cases services/nevaeh_customer_service/outbound services/nevaeh_customer_service/refunds services/nevaeh_os/specialist_tasks].each do |file|
   require File.join(ROOT, "app", "#{file}.rb")
 end
 %w[models/nevaeh_intelligence services/gatekeeper services/gatekeeper/authorization_decision
@@ -204,6 +205,11 @@ end
    services/nevaeh_intelligences/structured_ticket services/nevaeh_intelligences/structured_actions
    services/nevaeh_intelligences/structured_repository services/nevaeh_intelligences/structured_execution
    services/nevaeh_intelligences/structured_ticket_worker services/nevaeh_orchestration/escalation].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
+module LightekCommerce
+  class Refund
+    def self.find_by(**) = nil
+  end
+end
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 Minitest.after_run do
@@ -329,6 +335,68 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     review = NevaehOs::SpecialistTasks.perform!(actor: staff, command: command)
     assert_equal [row.id], review.dig("result", "records").pluck("id")
     refute review.dig("result", "records").first.key?("description")
+  end
+
+  def test_nevaeh_closes_safe_general_support_requests_with_documented_help
+    customer = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    row = support.open!(actor: customer, topic: "find_services", record_id: nil, title: nil, description: nil)
+    assert_equal "answered", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "resolved", row.reload.status
+    assert_includes row.events.where(action: support::CUSTOMER_UPDATE).sole.detail, "My applications"
+  end
+
+  def test_billing_reminder_is_invalidated_by_dispute_payment_and_recipient_change
+    customer = User.create!(role: "client", email_address: "customer@example.test")
+    invoice = customer.invoices.create!(status: "open", due_date: 3.days.ago.to_date, amount_remaining_cents: 7_500)
+    support = NevaehCustomerService::Cases
+    outbound = NevaehCustomerService::Outbound
+    mailbox_id = 73
+    message = Struct.new(:idempotency_key, :account_id, :to_addresses).new(
+      "billing_reminder_#{invoice.id}_#{invoice.due_date.strftime('%Y%m%d')}_3", mailbox_id, [customer.email_address]
+    )
+    ENV["NEVAEH_COLLECTIONS_ENABLED"] = "1"
+    ENV["NEVAEH_SUPPORT_MAILBOX_ID"] = mailbox_id.to_s
+    assert outbound.current?(message)
+    customer.update!(email_address: "changed@example.test")
+    refute outbound.current?(message)
+    message.to_addresses = [customer.email_address]
+    row = support.open!(actor: customer, topic: "billing", title: "Question", description: "Please check my invoice", record_id: nil)
+    refute outbound.current?(message)
+    row.resolve!
+    invoice.update!(status: "paid")
+    refute outbound.current?(message)
+  ensure
+    ENV.delete("NEVAEH_COLLECTIONS_ENABLED")
+    ENV.delete("NEVAEH_SUPPORT_MAILBOX_ID")
+  end
+
+  def test_refund_case_stays_open_until_the_matching_refund_receipt_succeeds
+    support = NevaehCustomerService::Cases
+    refunds = NevaehCustomerService::Refunds
+    customer = User.create!(role: "client")
+    row = ticket(submitted_by: customer, category: "billing", related_type: "LightekCommerce::Order", related_id: 51,
+      extra_fields: {"source" => support::SOURCE, "customer_service" => {
+        "topic" => "refund_request", "state" => "needs_specialist", "refund" => {"phase" => "submitting", "amount_cents" => 1500}
+      }})
+    receipt = Struct.new(:id, :amount_cents, :status).new(61, 1500, "pending")
+    lookup = lambda do |order_id:, idempotency_key:|
+      assert_equal 51, order_id
+      assert_equal "customer-service-refund-#{row.id}", idempotency_key
+      receipt
+    end
+
+    refunds.reconcile!(row)
+    assert_equal "open", row.reload.status
+    LightekCommerce::Refund.stub(:find_by, lookup) do
+      refunds.reconcile!(row)
+      assert_equal "open", row.reload.status
+      assert_equal "pending", row.extra_fields.dig("customer_service", "refund", "phase")
+      receipt.status = "succeeded"
+      2.times { refunds.reconcile!(row) }
+    end
+    assert_equal "resolved", row.reload.status
+    assert_equal 1, row.events.where(action: support::CUSTOMER_UPDATE).count
   end
 
   def test_unknown_ticket_is_escalated_with_actual_blocker_and_plan_never_closed

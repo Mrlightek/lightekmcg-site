@@ -7,13 +7,19 @@ module LightekCommerce
       issue!(order: order, amount_cents: order.total_cents - order.refunded_cents)
     end
 
-    def self.issue!(order:, amount_cents:)
+    def self.issue!(order:, amount_cents:, idempotency_key: nil)
       amount_cents = Integer(amount_cents)
       if order.payment_provider == "network"
+        raise Invalid, "A site-local refund is required for this workflow" if idempotency_key
         NetworkCheckout.action!(order: order, action: "refund", attributes: {amount_cents: amount_cents})
         return order
       end
       order.with_lock do
+        if idempotency_key && (existing = order.refunds.find_by(idempotency_key: idempotency_key))
+          raise Invalid, "The refund amount differs from the recorded request" if existing.amount_cents != amount_cents
+
+          return existing
+        end
         raise Invalid, "Order is not refundable" unless %w[paid fulfilled partially_refunded].include?(order.status)
         pending = order.refunds.where(status: "pending").exists?
         raise Invalid, "Resolve the pending refund before another request" if pending
@@ -25,7 +31,7 @@ module LightekCommerce
         payment_intent = ProcessorPayment.intent!(order: order)
 
         record = order.refunds.create!(amount_cents: amount_cents,
-          idempotency_key: "commerce-refund-#{order.id}-#{SecureRandom.uuid}")
+          idempotency_key: idempotency_key || "commerce-refund-#{order.id}-#{SecureRandom.uuid}")
         response = Stripe::Refund.create({payment_intent: payment_intent, amount: amount_cents,
           reason: "requested_by_customer"}, {idempotency_key: record.idempotency_key})
         record.update!(processor_ref: response.id, status: "pending")

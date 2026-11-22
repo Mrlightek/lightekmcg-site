@@ -441,7 +441,7 @@
       renderLook(previewContext, draft);
     }
 
-    panel.querySelector('[data-apply-broadcast-look]').addEventListener('click', async () => {
+    async function applyLook() {
       const pending = ++revision;
       const next = {
         ...frameDraft(),
@@ -468,7 +468,13 @@
       } catch (error) {
         if (pending === revision) status.textContent = error.message;
       }
-    });
+    }
+    panel.querySelector('[data-apply-broadcast-look]').addEventListener('click', applyLook);
+    if (validFrame(panel.dataset.preparedFrame) || panel.dataset.preparedFrame === 'off') {
+      frameChoice.value = panel.dataset.preparedFrame;
+      frameChoice.dispatchEvent(new Event('change'));
+      applyLook();
+    }
 
     function clear() {
       revision++;

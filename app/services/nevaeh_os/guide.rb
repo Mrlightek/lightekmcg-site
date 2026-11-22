@@ -2,10 +2,14 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'executive_assistant'=>['CEO Desk, private agenda and Team Chat','host'],
+      'live_broadcast_producer'=>['Prepare and host a Live Studio broadcast','all'],
       'pwa_business_model'=>['PWA memberships, hosting, YouTube earnings and creator payouts','all'],
       'marketing_copilot'=>['Marketing copilot: offers, campaigns and follow-through','growth'],
       'task_builder'=>['Build, test and activate your own operating tasks','admin'],
       'ten_tasks'=>['Ten tasks, follow-up questions and reviewed learning','all'],
+      'customer_service'=>['Customer service intake, support cases and handoffs','all'],
+      'billing'=>['Dymond Bank invoices, subscription status and billing cases','all'],
       'specialist_tasks'=>['Scheduled specialist operational reviews','all'],
       'reporting_system'=>['Structured reporting convention and documentation-page SMEs','all'],
       'worker_reports'=>['SME reports, lessons and management experience','all'],
@@ -17,6 +21,7 @@ module NevaehOs
       'social_delivery'=>['Studio TikTok and Instagram video delivery','all'],
       'production_director'=>['Direct episodes, characters, story workers and delivery','all'],
       'campaign_producer'=>['Produce a campaign in Studio','growth'],
+      'public_relations'=>['Public relations and media outreach','growth'],
       'growth'=>['Daily business growth plans','growth'],
       'start'=>['Meet your operating workspace','all'], 'commands'=>['Commands, inputs and capability discovery','all'],
       'agents'=>['Agents, delegation and scheduled workers','all'], 'memory'=>['Memory, voice and personas','all'],
@@ -37,6 +42,7 @@ module NevaehOs
       'studio.project.create'=>{'name'=>'string'}
     }.freeze
     BUILTINS={
+      'studio.live.prepare'=>['Prepare a Live Studio host package','/live prepare SITE_ID {"title":"Lightek Live","brief":"What we shipped"}','live_broadcast_producer','all'],
       'site.page.create'=>['Create a draft website page','/website page {"site_id":1,"title":"About us"}','specialist_tasks','all'],
       'nevaeh.documentation_question'=>['Ask a documentation-page SME','/page agents How do I delegate?','reporting_system','all'],
       'nevaeh.goal'=>['Save and run a delegated goal with completion checks','/goal list','workforce','all'],
@@ -54,8 +60,28 @@ module NevaehOs
       'growth.marketing_kit'=>['Prepare a seven-day marketing kit','/marketing SITE_ID','marketing_copilot','growth'],
       'growth.marketing_execute'=>['Execute a saved marketing kit','/marketing execute SITE_ID KIT_ID','marketing_copilot','growth'],
       'site.features.create'=>['Build a feature-showcase draft and overview videos','/features SITE_ID KIT_ID','marketing_copilot','growth'],
+      'website.marketing.demo_publish'=>['Publish the approved demo walkthrough','/website demo_publish SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_launch'=>['Publish and schedule a reviewed demo campaign','/website demo_launch SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_schedule'=>['Schedule approved demo promotion','/website demo_schedule SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_experiment'=>['Start a demo button wording experiment','/website demo_experiment SITE_ID {…}','growth','growth'],
+      'website.marketing.demo_report'=>['Report demo visits, requests, and experiments','/website demo_report SITE_ID {…}','growth','growth'],
+      'website.marketing.ab_start'=>['Start a site A/B test','/website ab_start SITE_ID {…}','growth','growth'],
+      'website.marketing.ab_report'=>['Compare A/B test outcomes','/website ab_report SITE_ID {…}','growth','growth'],
+      'website.marketing.ab_finish'=>['Finish an A/B test and choose the rollout','/website ab_finish SITE_ID {…}','growth','growth'],
+      'website.marketing.inspect'=>['Inspect a delegated website','/website inspect SITE_ID','growth','growth'],
+      'website.marketing.compose'=>['Create or redesign a native CMS page','/website compose SITE_ID {…}','growth','growth'],
+      'website.marketing.publication'=>['Set publication on a delegated CMS page','/website publication SITE_ID {…}','growth','growth'],
+      'website.marketing.restore'=>['Restore the prior CMS page version','/website restore SITE_ID {…}','growth','growth'],
+      'website.marketing.appearance'=>['Change a delegated website’s appearance','/website appearance SITE_ID {…}','growth','growth'],
+      'website.marketing.journal_inspect'=>['Inspect Journal articles for a delegated website','/website journal_inspect SITE_ID','growth','growth'],
+      'website.marketing.journal_write'=>['Write, edit or publish a Journal article','/website journal_write SITE_ID {…}','growth','growth'],
+      'website.marketing.press_release'=>['Write or publish a press release','/website press_release SITE_ID {…}','growth','growth'],
+      'website.marketing.media_pitch'=>['Draft an outlet-specific media pitch','/website media_pitch SITE_ID {…}','growth','growth'],
+      'growth.backlink.draft'=>['Draft outreach for an approved backlink prospect','Growth → Search & backlinks','growth','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
+      'executive.brief'=>['CEO briefing','/ceo','executive_assistant','host'],
+      'executive.agenda.read'=>['Read your private agenda','/ceo agenda','executive_assistant','host'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],
       'agent.delegate'=>['Delegate an instruction','/delegate sage susu.list','agents','all'],
       'agent.schedule'=>['Schedule an agent worker','/agent schedule warden 60 susu.list','agents','all'],
@@ -98,8 +124,17 @@ module NevaehOs
         next unless allowed?(permission,actor)
         entry(key,title,topic,permission,example:example,source:'built-in command',coverage:'tutorial')
       end
+      if defined?(PublicRelations) && allowed?('growth', actor)
+        PublicRelations::OPERATIONS.each do |operation, (label, fields, _)|
+          rows << entry(PublicRelations.capability(operation), label, 'public_relations', 'growth',
+            example: "/pr #{operation} SITE_ID#{' {…}' if fields.any?}", source: 'built-in command', coverage: 'tutorial')
+        end
+      end
       if defined?(PlatformActions)
         PlatformLanguage::PHRASES.each do |key, (_, example)|
+          executive = [AgendaActions::CREATE, ExecutiveCaseActions::CREATE].include?(key)
+          next if executive && !ExecutiveBrief.available_to?(actor)
+
           fields = PlatformActions::INPUTS.fetch(key).transform_values do |type|
             case type
             when :id, :version then 'integer'
@@ -108,12 +143,14 @@ module NevaehOs
             else 'string'
             end
           end
-          rows << entry(key, key.tr('.', ' ').humanize, 'commands', 'current site and domain permissions',
+          topic = executive ? 'executive_assistant' : 'commands'
+          permission = executive ? 'platform super administrator' : 'current site and domain permissions'
+          rows << entry(key, key.tr('.', ' ').humanize, topic, permission,
             example: example, source: 'platform action', coverage: 'fields', inputs: fields)
         end
       end
       SpecialistTasks::DEFINITIONS.each do |role,(title,input)|
-        rows << entry(SpecialistTasks.capability(role),title,'specialist_tasks','domain account access',
+        rows << entry(SpecialistTasks.capability(role),title,SpecialistTasks.topic(role),'domain account access',
           example:SpecialistTasks.example(role),source:'built-in command',coverage:'fields',inputs:input ? {input=>'integer'} : {})
       end
       Resources.catalog(actor).each do |resource|

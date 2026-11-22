@@ -64,7 +64,10 @@ module NevaehOs
       # A recognized business task goes to its executor even when a different
       # chat specialist is selected. Explicit /delegate retains its named worker.
       routed_to=language&.fetch('worker_ref', nil) || case command['kind']
+      when 'live_show' then 'live_broadcast_producer'
       when 'website_page' then 'website'
+      when 'public_relations' then 'public_relations'
+      when 'website_marketing' then 'marketing_strategy'
       when 'campaign_produce' then 'campaign'
       when 'marketing_kit', 'marketing_execute' then 'campaign'
       when 'feature_showcase' then 'website'
@@ -75,7 +78,7 @@ module NevaehOs
         recipient=Agents.resolve!(routed_to,@actor)
         command={'kind'=>'agent_task','agent_ref'=>recipient.id.to_s,'command'=>command}
       end
-      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe code_knowledge goals goal_show].include?(command['kind'])
+      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe code_knowledge goals goal_show executive_brief].include?(command['kind'])
       if command['kind']=='agent_task'
         inner = command['command'] || Command.parse(command.delete('instruction'))
         if inner['kind'] == 'search' && defined?(Language)
@@ -90,7 +93,7 @@ module NevaehOs
         WorkerReports.context(actor:@actor,agent:specialist,command:command['command'])
       end
       command['persona_id']=persona.id if command['kind']=='model'
-      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe code_knowledge goals goal_show].include?(command['kind'])
+      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe code_knowledge goals goal_show executive_brief].include?(command['kind'])
       result = if language && language['status'] == 'needs_clarification'
         language.slice('text', 'status', 'sources', 'language_request')
       elsif planning
@@ -165,6 +168,9 @@ module NevaehOs
         rows << {slug:'agents.list',name:'Agent workforce',domain:'agents',invoke:'/agents'}
         rows = rows.uniq { |row| row[:slug] }
         {'text'=>rows.map { |r| "#{r[:slug]} · #{r[:name]}" }.join("\n"), 'capabilities'=>rows,'status'=>'ready'}
+      when 'executive_brief'
+        brief = ExecutiveBrief.new(@actor)
+        command['view'] == 'agenda' ? brief.agenda_reply : brief.reply
       when 'status','briefing'
         actions = NevaehOsAction.where(user: @actor).order(id: :desc).limit(12)
         workers = Ability.new(@actor).can?(:manage, NevaehWorkflow) ? NevaehWorkflow.where(status:'active').count : nil
@@ -218,6 +224,8 @@ module NevaehOs
       {'text'=>text,'status'=>'ready','guide_url'=>'/dashboard/nevaeh/guide','task_choices'=>(defined?(TaskCatalog) ? TaskCatalog.manifest : []),'capabilities'=>examples.map { |entry| {slug:entry[:key],name:entry[:title],invoke:entry[:example]} }}
     end
     def prepare_command(command)
+      return PublicRelations.bind(@actor, command) if command['kind'] == 'public_relations'
+      return WebsiteMarketing.bind(@actor, command) if command['kind'] == 'website_marketing'
       if command['kind'] == 'capability' && defined?(PlatformActions) && PlatformActions.supported?(command['intent'])
         command = PlatformActions.command(command.fetch('intent'), command.fetch('payload'))
       end

@@ -7,6 +7,48 @@ Rails.application.routes.append do
 end
 class StudioLiveProductionHttpTest < BroadcastControlTest
   BroadcastControlTest.instance_methods(false).grep(/^test_/).each{|method|undef_method(method)}
+  def test_prepared_package_is_private_and_prefills_the_host_workspace
+    project = StudioProject.create!(owner: @alice, site: @site, name: 'CEO show')
+    scene = project.studio_scenes.first
+    Studio::Live::ProductionPreset.new(user: @alice, site: @site).save(scene.id,
+      preset: { version: 1, layout: 'camera' }, lock_version: scene.lock_version)
+    command = { 'kind' => 'live_show', 'site_id' => @site.id, 'values' => {
+      'title' => 'CEO update', 'brief' => "Launch roadmap\nPrivate <cue>", 'scene_id' => scene.id, 'destination' => 'restream',
+      'house_look' => 'cinema', 'subtitle' => 'Build in public'
+    } }
+    action = NevaehOsAction.create!(user: @alice, request_key: SecureRandom.uuid, status: 'pending', command: command)
+    result = NevaehOs::LiveShow.prepare!(@alice, command, action.id)
+    action.update!(status: 'completed', result: result)
+    assert_equal %w[Open Close], result.fetch('cues').values_at(0, -1).pluck('label')
+    assert_equal scene.reload.lock_version, result.fetch('scene_revision')
+    assert_equal ['cinema', 'CEO update', 'Build in public'], result.fetch('look').values_at('frame', 'headline', 'subtitle')
+    assert_raises(ArgumentError) do
+      NevaehOs::LiveShow.prepare!(@alice, command.merge('values' => command['values'].merge('house_look' => 'unknown')), action.id)
+    end
+    assert_raises(ArgumentError) do
+      NevaehOs::LiveShow.prepare!(@alice, command.merge('values' => { 'title' => 'Show', 'brief' => 'a', 'destination' => 'arbitrary' }), action.id)
+    end
+
+    client = session_for
+    Studio::Live::Destination.stub(:configured?, false) do
+      client.get result.fetch('host_path'), headers: headers.merge('Accept' => 'text/html')
+      assert_equal 200, client.response.status
+      assert_equal 'private, no-store', client.response.headers['Cache-Control']
+      assert_includes client.response.body, 'Private &lt;cue&gt;'
+      assert_includes client.response.body, 'The prepared destination is unavailable.'
+      assert_includes client.response.body, 'data-host-freestyle'
+      assert_includes client.response.body, 'data-host-script'
+      assert_includes client.response.body, 'data-host-speed'
+      assert_includes client.response.body, 'data-host-text-size'
+      assert_includes client.response.body, 'data-prepared-frame="cinema"'
+      assert_includes client.response.body, 'value="Build in public"'
+      assert_includes client.response.body, "data-prepared-revision=\"#{scene.lock_version}\""
+      client.get '/dashboard/live', headers: headers.merge('Accept' => 'text/html'), params: { site_id: @other_site.id, show_id: action.id }
+      assert_equal 404, client.response.status
+      assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::LiveShow.for_host!(@bob, @site, action.id) }
+    end
+  end
+
   def test_live_production_routes_preserve_site_scope_lock_and_csrf
     project=StudioProject.create!(owner:@alice,site:@site,name:"Reusable live show")
     scene=project.studio_scenes.first

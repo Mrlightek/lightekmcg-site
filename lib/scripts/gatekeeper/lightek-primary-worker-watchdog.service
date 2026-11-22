@@ -1,0 +1,15 @@
+[Unit]
+Description=Lightek primary Sidekiq recovery
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/lightek/primary-worker-watchdog/verified-release
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /usr/local/lib/lightek/primary_worker_watchdog.sh
+TimeoutStartSec=90
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full

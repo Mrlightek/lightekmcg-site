@@ -11,7 +11,11 @@ ActiveRecord::Schema.define do
   add_column :lightek_people_employments, :directory_principal, :string
   add_column :lightek_people_employments, :accounting_access, :string, default: 'none'
   add_column :lightek_people_employments, :compliance_access, :string, default: 'none'
-  create_table(:sessions) { |t| t.references :user; t.timestamps }
+  create_table(:sessions) { |t| t.references :user; t.references :identity_connection; t.timestamps }
+  create_table(:lightek_identity_connections) do |t|
+    t.references :employer
+    %i[slug client_id issuer authorization_endpoint token_endpoint jwks_uri].each { |key| t.string key }
+  end
   create_table(:gatekeeper_nodes) { |t| t.references :owner, polymorphic: true }
   create_table(:lightek_identity_resource_grants) { |t| t.references :employer; t.references :subject, polymorphic: true; t.references :resource, polymorphic: true; t.string :permission }
 end
@@ -41,6 +45,8 @@ module LightekIdentity
   end
 end
 require ROOT.join('app/models/lightek_identity/resource_grant')
+require ROOT.join('app/models/lightek_identity/connection')
+require ROOT.join('app/services/lightek_identity/session_containment')
 require ROOT.join('app/models/lightek_people/department')
 require ROOT.join('app/models/lightek_people/employment')
 require ROOT.join('app/services/lightek_people/access')
@@ -100,7 +106,7 @@ end
 SalesCrmChecks.prepend(Module.new do
   def setup
     [LightekPeople::AuditEvent, LightekPeople::LifecycleCase, LightekIdentity::ResourceGrant, LightekPeople::Employment, LightekPeople::Department,
-     LightekConnect::Event, LightekConnect::Connection, Session, GatekeeperNode].each(&:delete_all)
+     LightekConnect::Event, LightekConnect::Connection, Session, LightekIdentity::Connection, GatekeeperNode].each(&:delete_all)
     super
   end
 end)
@@ -110,6 +116,26 @@ class LifecycleQuoteChecks < SalesCrmChecks
     LightekPeople::Employment.create!({employer: @owner, worker: worker, title: 'Sales specialist', starts_on: Date.current - 10, active: true, lifecycle_activation: true}.merge(values))
   end
   def workflow(actor = @owner) = LightekPeople::Lifecycle.new(actor: actor, employer: @owner)
+
+  def test_workflow_session_containment_only_revokes_sessions_for_the_selected_employer
+    member = employment
+    attributes = {client_id: 'test-client', issuer: 'https://id.example.test', authorization_endpoint: 'https://id.example.test/auth',
+      token_endpoint: 'https://id.example.test/token', jwks_uri: 'https://id.example.test/keys'}
+    own = LightekIdentity::Connection.create!(**attributes, employer: @owner, slug: 'company-identity')
+    foreign = LightekIdentity::Connection.create!(**attributes, employer: @member, slug: 'other-identity')
+    targeted = @member.sessions.create!(identity_connection_id: own.id)
+    retained = @member.sessions.create!(identity_connection_id: foreign.id)
+    local = @member.sessions.create!
+
+    service = LightekIdentity::SessionContainment
+    assert_raises(LightekPeople::Access::Denied) { service.revoke!(actor: @member, employer: @owner, membership_id: member.id) }
+    assert_equal 1, service.revoke!(actor: @owner, employer: @owner, membership_id: member.id)
+    refute Session.exists?(targeted.id)
+    assert Session.exists?(retained.id)
+    assert Session.exists?(local.id)
+    assert LightekPeople::AuditEvent.exists?(employer: @owner, actor: @owner,
+      action: 'directory_sso_sessions_revoked', record_id: member.id)
+  end
   def offer(**values)
     LightekCommerce::Product.create!({site: @site, name: 'Managed website', slug: SecureRandom.hex(4), price_cents: 25000, product_type: 'service', billing_interval: 'one_time', published: true}.merge(values))
   end

@@ -1,0 +1,19 @@
+<% content_for :page_title, "Shared calendars" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <h1>Shared calendars</h1>
+  <%= render "dashboard/shared_workspace/organization", destination: dashboard_shared_calendars_path %>
+  <section class="network-pane">
+    <% if @calendars.empty? %><p>No shared calendars yet.</p><% end %>
+    <ul><% @calendars.each do |calendar| %>
+      <li><%= link_to calendar.name, dashboard_shared_calendar_path(calendar, employer_id: @employer.id) %></li>
+    <% end %></ul>
+    <% if @owner %>
+      <%= form_with url: dashboard_shared_calendars_path(employer_id: @employer.id) do |form| %>
+        <%= form.label :name, "New calendar name" %><%= form.text_field :name, required: true, maxlength: 120 %>
+        <%= form.submit "Create calendar", class: "dd-topbar-btn dd-btn-primary" %>
+      <% end %>
+    <% end %>
+  </section>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

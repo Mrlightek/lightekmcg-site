@@ -7,7 +7,7 @@ require 'nokogiri'
 module NevaehOs
   # HTTPS only, public IPv4 only, DNS pinned per hop; source text is inert data.
   class WebDocument
-    BLOCKED = %w[0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.168.0.0/16 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4].map { |s| IPAddr.new(s) }.freeze
+    BLOCKED = %w[0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 168.63.129.16/32 172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4].map { |s| IPAddr.new(s) }.freeze
     MAX_BYTES = 1_000_000
     def self.public_address!(address)
       ip = IPAddr.new(address)
@@ -16,11 +16,13 @@ module NevaehOs
     rescue IPAddr::InvalidAddressError
       raise ArgumentError, 'Invalid documentation host'
     end
-    def self.fetch(url)
+    def self.fetch(url, follow_redirects: true)
       4.times do
         uri = URI.parse(url)
         raise ArgumentError, 'Use a public HTTPS documentation URL on port 443' unless uri.is_a?(URI::HTTPS) && uri.host && uri.port == 443 && !uri.userinfo && url.bytesize <= 2000
         addresses = Resolv.getaddresses(uri.host)
+        # Editorial fetches pin approved sources to an IPv4 connection even for dual-stack hosts.
+        addresses = addresses.reject { |address| address.include?(':') } unless follow_redirects
         raise ArgumentError, 'Documentation host has no address' if addresses.empty?
         # Reject mixed public/private answers rather than selecting a convenient answer.
         addresses.each { |address| public_address!(address) }
@@ -36,6 +38,7 @@ module NevaehOs
         http.start do |connection|
           connection.request(Net::HTTP::Get.new(uri.request_uri, {'User-Agent'=>'Lightek-Nevaeh-Documentation/1.0', 'Accept'=>'text/html,text/plain', 'Accept-Encoding'=>'identity'})) do |response|
             if response.is_a?(Net::HTTPRedirection)
+              raise ArgumentError, 'Approve the final source URL directly' unless follow_redirects
               redirect = URI.join(url, response.fetch('location')).to_s
               next
             end

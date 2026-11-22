@@ -8,6 +8,6 @@
       <div class="auth-field"><%= f.label field, label %><%= f.text_field field, type: field == :email_address ? 'email' : 'text', class: 'auth-input auth-input-plain', required: true, maxlength: 254 %></div>
     <% end %>
     <div hidden aria-hidden="true"><%= text_field_tag :website_url, nil, tabindex: -1, autocomplete: 'off' %></div>
-    <%= f.submit 'Request my demo', class: 'auth-submit' %>
+    <%= f.submit(respond_to?(:experiment_text) ? experiment_text('demo_request', 'Request my demo', site: @setting.public_site) : 'Request my demo', class: 'auth-submit') %>
   <% end %>
 </div></section></main>

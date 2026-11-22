@@ -5,7 +5,11 @@ module LightekMail
     NAMES = %w[inbox unread junk starred sent draft outbox archived all trash].freeze
 
     def self.scope(account, folder)
-      messages = account.messages.where(trashed: folder == 'trash')
+      scope_messages(account.messages, folder)
+    end
+
+    def self.scope_messages(messages, folder)
+      messages = messages.where(trashed: folder == 'trash')
       case folder
       when 'inbox' then messages.where(direction: 'inbound', archived: false, junk: false)
       when 'unread' then messages.where(direction: 'inbound', archived: false, junk: false, read_at: nil)

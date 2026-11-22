@@ -8,6 +8,8 @@ module Gatekeeper
         related_id: operation.id
       )
       return existing if existing
+      existing = open_monitor_incident(operation)
+      return existing if existing
 
       ticket = Marlon::Ticket.new(
         category: "technical",
@@ -42,6 +44,16 @@ module Gatekeeper
 
       ticket
     end
+
+    def self.open_monitor_incident(operation)
+      monitor_id = operation.parameters.to_h["health_monitor_id"]
+      return unless operation.capability == "healthcheck_project" && monitor_id.present?
+
+      probes = ProjectHealthMonitor.operations(operation.gatekeeper_project_id, operation.gatekeeper_node_id, monitor_id)
+      Marlon::Ticket.where(related_type: "GatekeeperOperation", related_id: probes.where(status: "failed").select(:id))
+        .where.not(status: "resolved").order(:id).first
+    end
+    private_class_method :open_monitor_incident
 
     def self.record_event!(ticket, action:, detail:, actor_id: nil)
       Marlon::TicketEvent.create!(

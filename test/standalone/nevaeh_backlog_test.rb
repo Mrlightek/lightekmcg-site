@@ -4,9 +4,11 @@
 # engines: ruby test/standalone/nevaeh_backlog_test.rb
 # SQLite/ActiveRecord + ActiveJob exercise real app code, not production acceptance.
 require "minitest/autorun"
+require "minitest/mock"
 require "active_record"
 require "active_job"
 require "active_support/all"
+require "active_support/testing/time_helpers"
 require "tmpdir"
 require "logger"
 require "securerandom"
@@ -16,10 +18,27 @@ DATABASE = File.join(Dir.tmpdir, "nevaeh-backlog-#{Process.pid}.sqlite3")
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: DATABASE)
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
-  create_table(:users) { |t| t.string :role }
+  create_table(:lightek_mail_sending_policies) { |t| t.json :nevaeh_support_sender, default: {} }
+  create_table(:users) { |t| t.string :role, :email_address; t.datetime :access_suspended_at }
+  create_table(:dymond_bank_invoices) do |t|
+    t.references :billable, polymorphic: true
+    t.string :number, :status
+    t.integer :amount_remaining_cents, default: 0
+    t.date :due_date
+    t.datetime :paid_at
+    t.timestamps
+  end
+  create_table(:dymond_bank_subscriptions) do |t|
+    t.references :subscriber, polymorphic: true
+    t.string :status
+    t.datetime :current_period_end
+    t.timestamps
+  end
   create_table :marlon_tickets do |t|
-    %i[number title category priority status assigned_team assigned_rep description related_type].each { |c| t.string c }
-    t.integer :urgency
+    %i[number title category assigned_team assigned_rep description related_type organization_name].each { |c| t.string c }
+    t.string :priority, default: "medium"
+    t.string :status, default: "open"
+    t.integer :urgency, default: 5
     t.integer :submitted_by_id
     t.integer :related_id
     t.json :extra_fields
@@ -71,7 +90,34 @@ ActiveRecord::Schema.define do
   create_table :gatekeeper_operations do |t|
     t.string :capability
     t.string :status
+    t.string :requested_by
+    t.integer :gatekeeper_node_id
+    t.integer :gatekeeper_project_id
+    t.integer :exit_status
+    t.string :command
+    t.text :output
+    t.string :error_class
+    t.text :error_message
+    t.datetime :started_at
+    t.datetime :completed_at
+    t.json :parameters
     t.json :result
+  end
+  create_table :gatekeeper_nodes do |t|
+    t.string :name
+    t.string :status
+    t.datetime :last_healthcheck_at
+  end
+  create_table :gatekeeper_projects do |t|
+    t.integer :gatekeeper_node_id
+    t.string :name
+    t.string :domain
+    t.string :app_root
+    t.string :apache_service_name
+    t.string :deployed_sha
+    t.string :status
+    t.json :metadata, default: {}
+    t.datetime :last_healthcheck_at
   end
   create_table :dymond_dispatch_work_items do |t|
     t.string :kind
@@ -100,7 +146,20 @@ class ApplicationRecord < ActiveRecord::Base
 end
 class ApplicationJob < ActiveJob::Base; end
 # Minimal host adapters. Real ticket models/services/jobs below are loaded intact.
+module DymondBank
+  class Invoice < ApplicationRecord
+    self.table_name = "dymond_bank_invoices"
+    belongs_to :billable, polymorphic: true
+  end
+
+  class Subscription < ApplicationRecord
+    self.table_name = "dymond_bank_subscriptions"
+    belongs_to :subscriber, polymorphic: true
+  end
+end
 class User < ApplicationRecord
+  has_many :invoices, as: :billable, class_name: "DymondBank::Invoice"
+  def full_name = "Support operator"
   def can_access_feature?(_feature) = false # Host feature-assignment boundary.
   def employee? = %w[employee admin super_admin].include?(role)
 end
@@ -142,7 +201,16 @@ module DymondDispatch
     self.table_name = "dymond_dispatch_work_items"
   end
 end
-class GatekeeperOperation < ApplicationRecord; end
+class GatekeeperOperation < ApplicationRecord
+  belongs_to :gatekeeper_node, optional: true
+  belongs_to :gatekeeper_project, optional: true
+end
+class GatekeeperNode < ApplicationRecord; end
+class GatekeeperProject < ApplicationRecord
+  belongs_to :gatekeeper_node, optional: true
+
+  def sidekiq_service = "#{name}-sidekiq"
+end
 class StudioProject < ApplicationRecord; end
 class Production < ApplicationRecord; end
 class StudioScene < ApplicationRecord; end
@@ -163,7 +231,10 @@ end
    services/nevaeh_intelligences/dispatch services/nevaeh_intelligences/ticket_execution
    services/nevaeh_intelligences/studio_capability_plan_resolution_v7a
    services/nevaeh_intelligences/github_development_plan_v7a services/nevaeh_intelligences/ticket_backlog
-   jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service].each do |file|
+   jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service
+   services/lightek_people/lifecycle_access services/lightek_people/access services/lightek_accounting/access
+   services/gatekeeper/hosting/access services/lightek_agency/package_policy
+   models/lightek_mail/sending_policy services/nevaeh_customer_service/cases services/nevaeh_customer_service/sender_settings services/nevaeh_customer_service/outbound services/nevaeh_customer_service/refunds services/nevaeh_os/specialist_tasks].each do |file|
   require File.join(ROOT, "app", "#{file}.rb")
 end
 %w[models/nevaeh_intelligence services/gatekeeper services/gatekeeper/authorization_decision
@@ -173,6 +244,17 @@ end
    services/nevaeh_intelligences/structured_ticket services/nevaeh_intelligences/structured_actions
    services/nevaeh_intelligences/structured_repository services/nevaeh_intelligences/structured_execution
    services/nevaeh_intelligences/structured_ticket_worker services/nevaeh_orchestration/escalation].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
+module LightekCommerce
+  class Refund
+    def self.find_by(**) = nil
+  end
+end
+%w[services/gatekeeper/capabilities/healthcheck_project services/gatekeeper/capability_registry services/gatekeeper/executor
+   services/gatekeeper/hosting/access services/gatekeeper/knowledge_service services/gatekeeper/support_ticket_service
+   services/gatekeeper/command_runner services/gatekeeper/project_health_monitor
+   jobs/gatekeeper/healthcheck_project_job jobs/gatekeeper/project_health_sweep_job
+   services/nevaeh_os/platform_actions services/lightek_people/lifecycle_access
+   services/lightek_people/access].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 Minitest.after_run do
@@ -181,11 +263,13 @@ Minitest.after_run do
 end
 
 class NevaehBacklogPersistenceTest < Minitest::Test
+  include ActiveSupport::Testing::TimeHelpers
+
   def setup
     Rails.env = "test"
     ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
     ENV.delete("NEVAEH_BACKLOG_ACTOR_ID")
-    [Marlon::TicketEvent, Marlon::Ticket, NevaehIntelligence, DymondSite::Section, DymondSite::Page, DymondSite::Site, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, StudioScene, Production, StudioProject, User].each(&:delete_all)
+    [Marlon::TicketEvent, Marlon::Ticket, DymondBank::Invoice, DymondBank::Subscription, NevaehIntelligence, DymondSite::Section, DymondSite::Page, DymondSite::Site, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, GatekeeperProject, GatekeeperNode, StudioScene, Production, StudioProject, User].each(&:delete_all)
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
   end
 
@@ -196,6 +280,34 @@ class NevaehBacklogPersistenceTest < Minitest::Test
 
   def backlog(ticket) = ticket.reload.extra_fields.fetch("nevaeh_backlog")
 
+  def test_owner_confirmation_closes_only_the_owned_unstructured_technical_ticket
+    customer = User.create!(role: "client")
+    outsider = User.create!(role: "client")
+    owned = ticket(submitted_by: customer, extra_fields: {"source" => "support_hub"})
+    assert_raises(ArgumentError) { owned.confirm_customer_resolution!(actor: outsider) }
+    assert_equal "open", owned.reload.status
+    owned.confirm_customer_resolution!(actor: customer)
+    owned.confirm_customer_resolution!(actor: customer)
+    assert_equal "resolved", owned.reload.status
+    assert_equal 1, owned.events.where(action: "Customer confirmed resolution").count
+
+    execution = ticket(submitted_by: customer, extra_fields: {"nevaeh_work_order" => {"kind" => "internal"}})
+    assert_raises(ArgumentError) { execution.confirm_customer_resolution!(actor: customer) }
+    assert_equal "open", execution.reload.status
+  end
+
+  def test_support_operator_can_post_a_reply_and_customer_cannot_use_the_operator_action
+    customer = User.create!(role: "client")
+    operator = User.create!(role: "admin")
+    owned = ticket(submitted_by: customer, number: "LT-1042")
+    action = NevaehOs::PlatformActions.command("support.ticket.reply",
+      {"ticket_number"=>"LT-1042", "detail"=>"Please check incoming mail again."})
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: customer, command: action, action_id: 10) }
+    result = NevaehOs::PlatformActions.perform!(actor: operator, command: action, action_id: 11)
+    assert_equal "in_progress", result.fetch("status")
+    assert_equal "Please check incoming mail again.", owned.events.find(result.fetch("event_id")).detail
+  end
+
   def test_intake_enqueues_after_commit_and_sweep_discovers_historical_records
     old = ticket
     done = ticket(status: "resolved")
@@ -205,6 +317,161 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal 1, NevaehIntelligences::ProcessBacklogJob.perform_now
     assert_equal [old.id], queued.map { |job| job[:args].first["ticket_id"] }
     refute_includes queued.map { |job| job[:args].first["ticket_id"] }, done.id
+  end
+
+  def test_customer_service_resolves_verified_invoice_once_and_reopens_for_finance
+    customer = User.create!(role: "client")
+    other = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    invoice = customer.invoices.create!(number: "INV-001", status: "paid", paid_at: Time.current)
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      support.open!(actor: other, topic: "invoice_status", record_id: invoice.id, title: nil, description: nil)
+    end
+
+    row = support.open!(actor: customer, topic: "invoice_status", record_id: invoice.id, title: nil, description: nil)
+    assert_equal "answered", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "resolved", row.reload.status
+    assert_equal invoice.id, row.extra_fields.dig("customer_service", "receipt", "id")
+    assert_match(/INV-001 as paid/, row.events.where(action: support::CUSTOMER_UPDATE).sole.detail)
+    refute_includes support.customer_scope(other), row
+
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal 1, row.events.where(action: support::CUSTOMER_UPDATE).count
+    assert_raises(ActiveRecord::RecordNotFound) { support.reply!(ticket: row, actor: other, message: "Open this case") }
+    support.reply!(ticket: row, actor: customer, message: "Please review this charge")
+    assert_nil row.reload.resolved_at
+    assert_equal "needs_specialist", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "in_progress", row.reload.status
+    assert_equal "Accounting & Billing", row.assigned_team
+    assert_equal "Please review this charge", row.events.where(action: support::CUSTOMER_REPLY).sole.detail
+  end
+
+  def test_customer_service_rechecks_ownership_on_execution
+    customer = User.create!(role: "client")
+    other = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    invoice = customer.invoices.create!(number: "PRIVATE", status: "open")
+    row = support.open!(actor: customer, topic: "invoice_status", record_id: invoice.id, title: nil, description: nil)
+    invoice.update!(billable: other)
+    assert_equal "needs_specialist", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_nil row.reload.extra_fields.dig("customer_service", "receipt")
+    refute_includes row.events.where(action: support::CUSTOMER_UPDATE).sole.detail, "PRIVATE"
+  end
+
+  def test_customer_service_recovers_queued_subscription_and_routes_general_cases
+    customer = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    subscription = DymondBank::Subscription.create!(subscriber: customer, status: "past_due")
+    billing = support.open!(actor: customer, topic: "subscription_status", record_id: subscription.id, title: nil, description: nil)
+    general = support.open!(actor: customer, topic: "general", record_id: nil, title: "Getting started", description: "Please help")
+    queue = ActiveJob::Base.queue_adapter.enqueued_jobs
+    queue.clear
+
+    assert_equal 2, NevaehIntelligences::ProcessBacklogJob.perform_now
+    assert_equal [billing.id, general.id], queue.map { |job| job[:args].first.fetch("ticket_id") }
+    assert_equal "answered", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: billing.id)
+    assert_equal "needs_specialist", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: general.id)
+    assert_equal "in_progress", general.reload.status
+    assert_equal 0, NevaehIntelligences::ProcessBacklogJob.perform_now
+  end
+
+  def test_customer_service_keeps_internal_notes_and_pending_auto_acknowledgment_out_of_public_reply
+    customer = User.create!(role: "client")
+    staff = User.create!(role: "admin")
+    support = NevaehCustomerService::Cases
+    row = support.open!(actor: customer, topic: "technical", record_id: nil, title: "Setup issue", description: "Please help")
+    row.log!(action: "Internal note", detail: "Private", actor: staff)
+
+    support.staff_reply!(ticket: row, actor: staff, message: "We are checking the setup")
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+
+    assert_equal ["We are checking the setup"], row.events.where(action: support::PUBLIC_EVENTS).pluck(:detail)
+    assert_equal "staff_replied", row.reload.extra_fields.dig("customer_service", "state")
+  end
+
+  def test_billing_review_is_account_scoped_and_support_review_requires_staff
+    customer = User.create!(role: "client")
+    other = User.create!(role: "client")
+    staff = User.create!(role: "admin")
+    support = NevaehCustomerService::Cases
+    row = support.open!(actor: customer, topic: "billing", record_id: nil, title: "Invoice dispute", description: "Please look into this")
+    own = customer.invoices.create!(status: "open", due_date: Date.yesterday, amount_remaining_cents: 1_200)
+    other.invoices.create!(status: "open", due_date: Date.yesterday, amount_remaining_cents: 3_400)
+    customer.invoices.create!(status: "paid", due_date: Date.yesterday)
+
+    billing = NevaehOs::SpecialistTasks.perform!(actor: customer, command: {"role" => "billing"})
+    assert_equal [own.id], billing.dig("result", "overdue_invoices", "records").pluck("id")
+    assert_equal [row.id], billing.dig("result", "open_cases", "records").pluck("id")
+    refute billing.dig("result", "overdue_invoices", "records").first.key?("amount_remaining_cents")
+
+    command = {"role" => "customer_service"}
+    assert_raises(ArgumentError) { NevaehOs::SpecialistTasks.perform!(actor: customer, command: command) }
+    review = NevaehOs::SpecialistTasks.perform!(actor: staff, command: command)
+    assert_equal [row.id], review.dig("result", "records").pluck("id")
+    refute review.dig("result", "records").first.key?("description")
+  end
+
+  def test_nevaeh_closes_safe_general_support_requests_with_documented_help
+    customer = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    row = support.open!(actor: customer, topic: "find_services", record_id: nil, title: nil, description: nil)
+    assert_equal "answered", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "resolved", row.reload.status
+    assert_includes row.events.where(action: support::CUSTOMER_UPDATE).sole.detail, "My applications"
+  end
+
+  def test_billing_reminder_is_invalidated_by_dispute_payment_and_recipient_change
+    customer = User.create!(role: "client", email_address: "customer@example.test")
+    invoice = customer.invoices.create!(status: "open", due_date: 3.days.ago.to_date, amount_remaining_cents: 7_500)
+    support = NevaehCustomerService::Cases
+    outbound = NevaehCustomerService::Outbound
+    mailbox_id = 73
+    message = Struct.new(:idempotency_key, :account_id, :to_addresses).new(
+      "billing_reminder_#{invoice.id}_#{invoice.due_date.strftime('%Y%m%d')}_3", mailbox_id, [customer.email_address]
+    )
+    ENV["NEVAEH_COLLECTIONS_ENABLED"] = "1"
+    ENV["NEVAEH_SUPPORT_MAILBOX_ID"] = mailbox_id.to_s
+    assert outbound.current?(message)
+    customer.update!(email_address: "changed@example.test")
+    refute outbound.current?(message)
+    message.to_addresses = [customer.email_address]
+    row = support.open!(actor: customer, topic: "billing", title: "Question", description: "Please check my invoice", record_id: nil)
+    refute outbound.current?(message)
+    row.resolve!
+    invoice.update!(status: "paid")
+    refute outbound.current?(message)
+  ensure
+    ENV.delete("NEVAEH_COLLECTIONS_ENABLED")
+    ENV.delete("NEVAEH_SUPPORT_MAILBOX_ID")
+  end
+
+  def test_refund_case_stays_open_until_the_matching_refund_receipt_succeeds
+    support = NevaehCustomerService::Cases
+    refunds = NevaehCustomerService::Refunds
+    customer = User.create!(role: "client")
+    row = ticket(submitted_by: customer, category: "billing", related_type: "LightekCommerce::Order", related_id: 51,
+      extra_fields: {"source" => support::SOURCE, "customer_service" => {
+        "topic" => "refund_request", "state" => "needs_specialist", "refund" => {"phase" => "submitting", "amount_cents" => 1500}
+      }})
+    receipt = Struct.new(:id, :amount_cents, :status).new(61, 1500, "pending")
+    lookup = lambda do |order_id:, idempotency_key:|
+      assert_equal 51, order_id
+      assert_equal "customer-service-refund-#{row.id}", idempotency_key
+      receipt
+    end
+
+    refunds.reconcile!(row)
+    assert_equal "open", row.reload.status
+    LightekCommerce::Refund.stub(:find_by, lookup) do
+      refunds.reconcile!(row)
+      assert_equal "open", row.reload.status
+      assert_equal "pending", row.extra_fields.dig("customer_service", "refund", "phase")
+      receipt.status = "succeeded"
+      2.times { refunds.reconcile!(row) }
+    end
+    assert_equal "resolved", row.reload.status
+    assert_equal 1, row.events.where(action: support::CUSTOMER_UPDATE).count
   end
 
   def test_unknown_ticket_is_escalated_with_actual_blocker_and_plan_never_closed
@@ -415,7 +682,7 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal 0, DymondKb::Article.count
   end
 
-  def test_native_gatekeeper_metadata_matches_real_registry_alias_and_links_related_operations
+  def test_native_gatekeeper_metadata_prefers_the_exact_registration_and_links_related_operations
     capability = NevaehCapability.create!(name: "Deploy", slug: "gatekeeper.deploy", domain: "infrastructure",
       intent_name: "deploy", handler: "Gatekeeper::Capabilities::DeployProject", queue: "default", priority: 5,
       enabled: true, gatekeeper_capability: "deploy_project")
@@ -426,13 +693,243 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     row = ticket(extra_fields: {"source" => "gatekeeper", "gatekeeper" => source})
     assert_equal "escalated", NevaehIntelligences::TicketBacklog.process!(ticket: row)
     state = backlog(row)
-    assert_equal "gatekeeper.deploy", state.fetch("required_capability")
+    assert_equal "deploy_project", state.fetch("required_capability")
     assert_equal "operational_execution", state.fetch("classification")
     assert_equal [related.id], state.fetch("related_ticket_ids")
     assert_equal [article.id], state.fetch("knowledge_article_ids")
     assert_equal 14, state.dig("engineering_plan", "source_evidence", "operation_id")
     assert_equal "open", related.reload.status, "related operations are not automatically duplicates"
     assert_equal "open", row.status
+  end
+
+  def test_recurring_job_updates_triage_from_the_latest_same_target_attempt
+    failure_time = Time.current
+    target = {capability: "deploy_project", gatekeeper_node_id: 2, gatekeeper_project_id: 1}
+    original = GatekeeperOperation.create!(**target, status: "failed", exit_status: 1, completed_at: failure_time,
+      result: {"internal_output" => "must stay on the operation"})
+    row = ticket(related_type: "GatekeeperOperation", related_id: original.id, extra_fields: {"source" => "gatekeeper",
+      "gatekeeper" => {"operation_id" => original.id, "capability" => original.capability, "node_id" => 2, "project_id" => 1}})
+
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    triage = backlog(row).fetch("incident_triage")
+    assert_equal "failure_confirmed", triage.fetch("status")
+    assert_equal original.id, triage.dig("operation", "id")
+    assert_equal 1, triage.dig("operation", "exit_status")
+    refute_includes triage.to_json, "must stay on the operation"
+
+    GatekeeperOperation.create!(**target, status: "succeeded", started_at: failure_time - 1.minute,
+      completed_at: failure_time + 2.minutes)
+    GatekeeperOperation.create!(**target.merge(gatekeeper_project_id: 9), status: "succeeded",
+      started_at: failure_time + 6.minutes)
+    GatekeeperOperation.create!(**target.merge(gatekeeper_node_id: 8), status: "succeeded",
+      started_at: failure_time + 7.minutes)
+    GatekeeperOperation.create!(**target.merge(capability: "healthcheck_project"), status: "succeeded",
+      started_at: failure_time + 8.minutes)
+    GatekeeperOperation.create!(**target, status: "succeeded", started_at: failure_time + 1.minute,
+      completed_at: failure_time + 2.minutes)
+    follow_up = GatekeeperOperation.create!(**target, status: "running", started_at: failure_time + 3.minutes)
+
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    triage = backlog(row).fetch("incident_triage")
+    assert_equal "follow_up_recorded", triage.fetch("status")
+    assert_equal follow_up.id, triage.dig("follow_up", "id")
+    assert_equal "running", triage.dig("follow_up", "status")
+
+    follow_up.update!(status: "succeeded", completed_at: failure_time + 4.minutes)
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "succeeded", backlog(row).dig("incident_triage", "follow_up", "status")
+    assert_equal "open", row.reload.status
+    assert_equal "failed", original.reload.status
+
+    analysis_count = row.events.where(action: "nevaeh_backlog_escalated").count
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal analysis_count, row.events.where(action: "nevaeh_backlog_escalated").count
+  end
+
+  def test_triage_omits_receipts_when_ticket_reference_and_target_disagree
+    original = GatekeeperOperation.create!(capability: "deploy_project", status: "failed",
+      gatekeeper_node_id: 2, gatekeeper_project_id: 1)
+    fields = {"source" => "gatekeeper",
+      "gatekeeper" => {"operation_id" => original.id, "capability" => original.capability, "node_id" => 2, "project_id" => 9}}
+    row = ticket(extra_fields: fields)
+
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal({"status" => "unverified_ticket_link"}, backlog(row).fetch("incident_triage"))
+
+    row.update!(related_type: "GatekeeperOperation", related_id: original.id)
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal({"status" => "target_mismatch"}, backlog(row).fetch("incident_triage"))
+  end
+
+  def project_health_incident
+    failure_time = 5.minutes.ago
+    project = GatekeeperProject.create!(gatekeeper_node_id: 2, status: "degraded", last_healthcheck_at: failure_time)
+    target = {capability: "healthcheck_project", gatekeeper_node_id: 2, gatekeeper_project_id: project.id}
+    original = GatekeeperOperation.create!(**target, status: "failed", completed_at: failure_time)
+    row = ticket(related_type: "GatekeeperOperation", related_id: original.id, extra_fields: {"source" => "gatekeeper",
+      "gatekeeper" => {"operation_id" => original.id, "capability" => original.capability, "node_id" => 2, "project_id" => project.id}})
+    check = GatekeeperOperation.create!(**target, status: "succeeded", exit_status: 0,
+      started_at: failure_time + 1.minute, completed_at: failure_time + 2.minutes)
+    [row, original, check, project]
+  end
+
+  def test_recurring_job_closes_only_after_gatekeeper_and_project_both_verify_health
+    row, original, check, project = project_health_incident
+    job = NevaehIntelligences::ProcessBacklogJob
+    assert_equal "escalated", job.perform_now(ticket_id: row.id)
+    order = NevaehIntelligences::WorkOrder.read!(ticket: row.reload)
+    assert_equal NevaehIntelligences::GatekeeperIncidentTriage::HEALTH_ACCEPTANCE, order.fetch("acceptance_criteria")
+
+    check.update!(result: {"healthy" => true})
+    assert_equal "escalated", job.perform_now(ticket_id: row.id)
+    project.update!(status: "healthy")
+    assert_equal "escalated", job.perform_now(ticket_id: row.id), "a healthy state older than the probe is stale"
+
+    project.update!(last_healthcheck_at: check.completed_at)
+    assert_equal "resolved", job.perform_now(ticket_id: row.id)
+    assert_equal "resolved", job.perform_now(ticket_id: row.id)
+    assert_equal "resolved", row.reload.status
+    assert_equal "verified_resolved", backlog(row).fetch("status")
+    assert_equal "gatekeeper_project_health_recovery", row.extra_fields.dig("nevaeh", "verification_mode")
+    assert_equal check.id, row.extra_fields.dig("nevaeh", "verification", "follow_up", "id")
+    assert_equal "failed", original.reload.status
+    assert_equal 1, row.events.where(action: "nevaeh_project_health_verified").count
+  end
+
+  def test_native_health_work_order_refresh_preserves_custom_acceptance
+    row, _, check, project = project_health_incident
+    NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    order = NevaehIntelligences::WorkOrder.read!(ticket: row)
+    check.update!(result: {"healthy" => true})
+    project.update!(status: "healthy", last_healthcheck_at: check.completed_at)
+
+    work_order = NevaehIntelligences::WorkOrder
+    work_order.attach!(ticket: row, attributes: order.merge("acceptance_criteria" => ["Check customer routing"]))
+    assert_equal "escalated", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal ["Check customer routing"], work_order.read!(ticket: row).fetch("acceptance_criteria")
+
+    work_order.attach!(ticket: row, attributes: order.merge(
+      "acceptance_criteria" => NevaehIntelligences::TicketBacklog::DEPLOYMENT_ACCEPTANCE))
+    assert_equal "resolved", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+  end
+
+  def test_customer_reply_updates_kb_triage_without_creating_an_executable_order
+    customer = User.create!(role: "client")
+    row = ticket(submitted_by: customer, title: "Can't receive messages", extra_fields: {"source" => "support_hub"})
+    article = DymondKb::Article.create!(title: "Mail delivery delayed in the queue")
+    job = NevaehIntelligences::ProcessBacklogJob
+    assert_equal "escalated", job.perform_now(ticket_id: row.id)
+    assert_empty backlog(row).fetch("knowledge_article_ids")
+
+    row.log!(action: "Customer replied", detail: "Mail delivery delayed", actor: customer)
+    row.log!(action: "Other reporter replied", detail: "Not the submitted evidence", actor: User.create!(role: "employee"))
+    assert_equal "escalated", job.perform_now(ticket_id: row.id)
+    assert_equal [article.id], backlog(row).fetch("knowledge_article_ids")
+    assert_nil row.extra_fields["nevaeh_work_order"]
+    assert_equal "open", row.status
+  end
+
+  def test_gatekeeper_job_rechecks_a_failed_health_probe_and_backlog_closes_its_ticket
+    operator = User.create!(role: "super_admin")
+    customer = User.create!(role: "client")
+    node = GatekeeperNode.create!(name: "Test server", status: "healthy")
+    project = GatekeeperProject.create!(gatekeeper_node: node, name: "test-app", domain: "test.example",
+      app_root: "/test/app", apache_service_name: "apache2", status: "healthy", deployed_sha: "a" * 40)
+    probe = Gatekeeper::HealthcheckProjectJob
+    runner = Gatekeeper::CommandRunner
+    failed = runner::Result.new(command: "test probe", stdout: "FAIL sidekiq", stderr: "", exit_status: 1)
+    passed = runner::Result.new(command: "test probe", stdout: "OK https 200\nGATEKEEPER_WORKER_RECOVERED=1", stderr: "", exit_status: 0)
+
+    actions = NevaehOs::PlatformActions
+    command = actions.command("hosting.project.healthcheck", {"project_id" => project.id})
+    status = actions.command("hosting.project.health.status", {"project_id" => project.id})
+    assert_raises(ArgumentError) { actions.perform!(actor: customer, command: command, action_id: 1) }
+    assert_raises(ArgumentError) { actions.perform!(actor: customer, command: status, action_id: 2) }
+    queued = actions.perform!(actor: operator, command: command, action_id: 3)
+    assert_equal "queued", queued.fetch("status")
+    enqueued_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
+    initial_job = enqueued_jobs.find { |entry| entry[:job] == probe }
+    enqueued_jobs.delete(initial_job)
+    assert_equal queued.fetch("job_id"), initial_job.fetch("job_id")
+    first_probe = ->(command:, node:) do
+      refute_includes command, project.deployed_sha
+      failed
+    end
+    runner.stub(:call, first_probe) { probe.execute(initial_job) }
+    original = GatekeeperOperation.find_by!(gatekeeper_project: project, status: "failed")
+    row = Marlon::Ticket.find_by!(related_type: "GatekeeperOperation", related_id: original.id)
+    retries = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |entry| entry[:job] == probe }
+    assert_equal 1, retries.size
+    assert_equal "open", row.status
+
+    second_probe = ->(command:, node:) do
+      assert_includes command, "EXPECTED_WORKER_RELEASE=#{project.deployed_sha}"
+      passed
+    end
+    runner.stub(:call, second_probe) { probe.execute(retries.first) }
+    assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count { |entry| entry[:job] == probe }
+    assert_equal "resolved", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "healthy", project.reload.status
+    assert_equal "failed", original.reload.status
+    assert_equal 1, Marlon::Ticket.count
+    assert_equal true, row.reload.extra_fields.dig("nevaeh", "verification", "worker_recovered")
+    result = actions.perform!(actor: operator, command: status, action_id: 4)
+    assert_equal "succeeded", result.dig("latest_check", "status")
+    assert_equal queued.fetch("job_id"), result.dig("latest_check", "job_id")
+
+    actions.perform!(actor: operator, command: command, action_id: 5)
+    operator.update!(role: "client")
+    runner.stub(:call, ->(**) { flunk("revoked operator must not run a health check") }) do
+      probe.execute(enqueued_jobs.last)
+    end
+    assert_equal 2, GatekeeperOperation.count
+  end
+
+  def test_enrolled_project_runs_automatically_and_keeps_one_open_incident
+    operator = User.create!(role: "super_admin")
+    node = GatekeeperNode.create!(name: "Monitored server", status: "healthy")
+    project = GatekeeperProject.create!(gatekeeper_node: node, name: "watched-app", domain: "test.example",
+      app_root: "/test/app", apache_service_name: "apache2", status: "healthy", deployed_sha: "a" * 40)
+    probe = Gatekeeper::HealthcheckProjectJob
+    sweep = Gatekeeper::ProjectHealthSweepJob
+    monitor = Gatekeeper::ProjectHealthMonitor
+    queue = ActiveJob::Base.queue_adapter.enqueued_jobs
+    next_probe = -> { queue.delete(queue.find { |entry| entry[:job] == probe }) }
+    actions = NevaehOs::PlatformActions
+    settings = {"project_id" => project.id, "operation" => "enable"}
+    assert actions.perform!(actor: operator, command: actions.command("hosting.project.health.monitor", settings),
+      action_id: 6).fetch("monitoring_enabled")
+    monitor_id = project.reload.metadata.dig(monitor::SETTINGS_KEY, "id")
+
+    sweep.perform_now
+    sweep.perform_now
+    assert_equal 1, queue.count { |entry| entry[:job] == probe }
+    runner = Gatekeeper::CommandRunner
+    failure = runner::Result.new(command: "test probe", stdout: "FAIL sidekiq", stderr: "", exit_status: 1)
+    runner.stub(:call, failure) do
+      probe.execute(next_probe.call)
+      probe.execute(next_probe.call)
+    end
+    assert_equal 2, GatekeeperOperation.count
+    assert_equal 1, Marlon::Ticket.count
+    refute monitor.claim_repair!(project, monitor_id)
+
+    travel 16.minutes
+    sweep.perform_now
+    passed = runner::Result.new(command: "test probe", stdout: "OK https 200", stderr: "", exit_status: 0)
+    runner.stub(:call, passed) { probe.execute(next_probe.call) }
+    assert_equal "resolved", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: Marlon::Ticket.first.id)
+    assert monitor.claim_repair!(project, monitor_id)
+    refute monitor.claim_repair!(project, monitor_id)
+
+    travel 16.minutes
+    sweep.perform_now
+    actions.perform!(actor: operator, command: actions.command("hosting.project.health.monitor", settings.merge("operation" => "pause")),
+      action_id: 7)
+    runner.stub(:call, ->(**) { flunk("paused monitoring must not run a queued probe") }) do
+      probe.execute(next_probe.call)
+    end
+    assert_equal 3, GatekeeperOperation.count
   end
 
   def test_real_incident_reference_builds_native_recovery_order_without_dispatch

@@ -1,0 +1,58 @@
+<% content_for :page_title, 'Resolution improvements' %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div>
+      <h1>Resolution improvements</h1>
+      <p>Review proposals and see whether they helped customers reach a verified outcome.</p>
+    </div>
+    <%= link_to 'Agency onboarding', dashboard_nevaeh_onboarding_path, class: 'lp-button' %>
+  </header>
+  <% @workflows.each do |workflow, title| %>
+    <section class="lp-card">
+      <h2><%= title %></h2>
+      <% revisions = @playbooks.select { |revision| revision.workflow == workflow } %>
+      <% if workflow == 'agency_onboarding' && !@agency_mail_ready %>
+        <p>Select a sending-ready support mailbox to approve email follow-ups.</p>
+      <% end %>
+      <% if workflow == 'purchased_service' && !defined?(NevaehCustomerService::Cases) %>
+        <p>Customer Service &amp; Billing must be installed before cases can be evaluated.</p>
+      <% elsif revisions.empty? %>
+        <p>Collecting verified outcomes before proposing a change.</p>
+      <% end %>
+      <% revisions.each do |revision| %>
+        <article>
+          <h3><%= {'email_24h' => 'Email after 24 hours', 'email_48h' => 'Email after 48 hours',
+                    'direct_service_link' => 'Offer a direct link to the purchased service'}.fetch(revision.strategy) %></h3>
+          <p>Version <%= revision.id %> · <%= revision.status.humanize %> ·
+            <%= revision.evidence['held_out_unresolved'] %> unresolved holdout cases eligible for this action.</p>
+          <% if (rollout = revision.evidence['rollout']) %>
+            <% rollout.each do |group, totals| %>
+              <p><strong><%= group.humanize %></strong> · <%= totals['verified'] %> of <%= totals['count'] %> verified ·
+                <%= totals['handoffs'] %> handoffs · <%= totals['reopened'] %> reopened · <%= totals['regressions'] %> regressions</p>
+            <% end %>
+          <% end %>
+          <% if revision.status == 'proposed' %>
+            <%= button_to 'Approve controlled rollout', decide_nevaeh_improvement_path(revision), params: {decision: 'approve'},
+                          disabled: workflow == 'agency_onboarding' && !@agency_mail_ready, class: 'lp-button' %>
+            <%= button_to 'Decline', decide_nevaeh_improvement_path(revision), params: {decision: 'decline'}, class: 'lp-button' %>
+          <% end %>
+        </article>
+      <% end %>
+    </section>
+  <% end %>
+  <% if @latest_observations.any? %>
+    <section class="lp-card">
+      <h2>Recent case evidence</h2>
+      <ul>
+        <% @latest_observations.each do |row| %>
+          <li><%= @workflows.fetch(row.workflow) %> #<%= row.subject_id %> ·
+            <%= row.measured_at? ? (row.outcome['verified'] ? 'Verified' : 'Verification pending at end of observation') : 'In observation' %>
+            <% if (status = row.receipt['mail_status']) %> · Mail <%= status.humanize.downcase %><% end %>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+</main>

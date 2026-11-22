@@ -1,0 +1,47 @@
+<% content_for :page_title, "Installation mailbox" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <%= link_to "← Mail Studio and custom domains", dashboard_mail_path %>
+  <h1>Installation mailbox</h1>
+  <% if @mailbox %>
+    <p><strong><%= @mailbox.fetch("address") %></strong></p>
+    <div class="network-columns">
+      <section class="network-pane">
+        <nav aria-label="Mailbox folders">
+          <% %w[inbox sent outbox].each do |folder| %>
+            <%= link_to folder.humanize, dashboard_installation_mail_path(folder: folder), aria: {current: ("page" if folder == @folder)} %>
+          <% end %>
+        </nav>
+        <% if @mailbox.fetch("messages").empty? %><p>No messages in this folder.</p><% end %>
+        <ul>
+          <% @mailbox.fetch("messages").each do |message| %>
+            <li><%= link_to message["subject"].presence || "(No subject)", dashboard_installation_mail_path(folder: @folder, message: message.fetch("id")) %>
+              <small><%= message.fetch("status").humanize %><%= " · Unread" if message.fetch("unread") %></small></li>
+          <% end %>
+        </ul>
+      </section>
+      <section class="network-pane">
+        <% if @message %>
+          <h2><%= @message["subject"].presence || "(No subject)" %></h2>
+          <p>From <%= @message["from"] %></p>
+          <p>To <%= @message.fetch("to").join(", ") %></p>
+          <p class="network-text"><%= @message.fetch("text") %></p>
+        <% end %>
+        <% if @mailbox.fetch("sending_ready") %>
+          <h2>Compose</h2>
+          <%= render "composer" %>
+        <% else %>
+          <p>Sending is currently unavailable for this mailbox.</p>
+        <% end %>
+      </section>
+    </div>
+  <% elsif @draft %>
+    <section class="network-pane">
+      <h2>Message to retry</h2>
+      <%= render "composer" %>
+    </section>
+  <% else %>
+    <p><%= link_to "Check mailbox again", dashboard_installation_mail_path %></p>
+  <% end %>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=1">

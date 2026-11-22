@@ -1,0 +1,169 @@
+<% content_for :page_title, "Team Chat" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<style>
+  .team-chat { max-width: 1160px; margin: 0 auto; }
+  .team-layout { display: grid; grid-template-columns: minmax(210px, 260px) minmax(0, 1fr); gap: 16px; }
+  .team-panel { padding: 18px; border: 1px solid var(--dd-border); border-radius: 12px; background: var(--dd-bg-elevated, var(--dd-card-bg)); }
+  .team-panel h2 { margin-top: 0; }
+  .team-panel nav a { display: block; padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+  .team-panel nav a[aria-current=page] { background: var(--dd-border); font-weight: 600; }
+  .team-muted, .team-message-header time { color: var(--dd-text-secondary); }
+  .team-chat form { margin: 10px 0; }
+  .team-chat input:not([type=checkbox],[type=submit]), .team-chat textarea, .team-chat select {
+    color: var(--dd-text-primary); background: var(--dd-bg-elevated, var(--dd-card-bg)); border: 1px solid var(--dd-border);
+    border-radius: 6px; padding: 7px 9px; max-width: 100%;
+  }
+  .team-chat textarea { display: block; width: 100%; box-sizing: border-box; margin: 6px 0 10px; }
+  .team-create label { display: block; margin: 7px 0; }
+  .team-messages { padding: 0; margin: 10px 0 20px; list-style: none; }
+  .team-messages li { border-top: 1px solid var(--dd-border); padding: 12px 0; overflow-wrap: anywhere; }
+  .team-message-header { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .team-message-body { white-space: pre-wrap; margin: 6px 0; }
+  .team-reply-reference { display: block; margin-top: 5px; }
+  .team-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+  .team-roster li form { display: inline-block; margin: 2px 0 2px 8px; }
+  @media (max-width: 720px) { .team-layout { grid-template-columns: 1fr; } }
+</style>
+<main class="team-chat" data-turbo="false">
+  <h1>Team Chat</h1>
+  <% if LightekTeam::Installation.site %><p><%= link_to "Network channels", dashboard_network_team_path %></p><% end %>
+  <% if @employer %>
+    <nav aria-label="Team workspace">
+      <%= link_to "Shared drives", dashboard_shared_drives_path(employer_id: @employer.id) %>
+      <%= link_to "Shared calendars", dashboard_shared_calendars_path(employer_id: @employer.id) %>
+    </nav>
+    <div class="team-layout">
+      <aside class="team-panel">
+        <% if @employers.size > 1 %>
+          <%= form_with url: dashboard_team_channels_path, method: :get do %>
+            <%= label_tag :employer_id, "Organization" %>
+            <%= select_tag :employer_id, options_from_collection_for_select(@employers, :id, :full_name, @employer.id) %>
+            <%= submit_tag "Switch", class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        <% end %>
+        <h2>Channels</h2>
+        <nav aria-label="Team channels">
+          <% @channels.each do |channel| %>
+            <%= link_to dashboard_team_channel_path(channel, employer_id: @employer.id), aria: {current: ("page" if channel == @channel)} do %>
+              #<%= channel.name %><%= " · Shared" if channel.partnership %><%= " · Private" if channel.private_channel? && !channel.partnership %>
+            <% end %>
+          <% end %>
+        </nav>
+        <details class="team-create">
+          <summary>Create a channel</summary>
+          <%= form_with url: dashboard_team_channels_path(employer_id: @employer.id), scope: :team_channel do |form| %>
+            <%= form.label :name, "Name" %>
+            <%= form.text_field :name, required: true, minlength: 2, maxlength: 60, placeholder: "production" %>
+            <%= form.label :description %>
+            <%= form.text_field :description, maxlength: 240 %>
+            <%= form.label :private_channel do %>
+              <%= form.check_box :private_channel, checked: true %> Invite-only
+            <% end %>
+            <p class="team-muted">Company-wide channels are visible to everyone active in this organization.</p>
+            <%= form.submit "Create channel", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+        <% if @can_manage_sharing %>
+          <details class="team-create">
+            <summary>Create shared channel</summary>
+            <%= form_with url: share_dashboard_team_channels_path(employer_id: @employer.id), scope: :team_channel do |form| %>
+              <%= form.label :name, "Channel name", for: "shared-channel-name" %>
+              <%= form.text_field :name, required: true, minlength: 2, maxlength: 60, placeholder: "screening-partners", id: "shared-channel-name" %>
+              <%= form.label :partner_email, "Partner organization owner’s Lightek email" %>
+              <%= form.email_field :partner_email, required: true, maxlength: 254, autocomplete: "off" %>
+              <%= form.submit "Create and invite", class: "dd-topbar-btn dd-btn-primary" %>
+            <% end %>
+          </details>
+        <% end %>
+        <% if @shared_invitations&.any? %>
+          <h2>Shared channel invitations</h2>
+          <ul class="team-roster">
+            <% @shared_invitations.each do |invitation| %>
+              <li><strong>#<%= invitation.channel.name %></strong> · <%= invitation.channel.employer.full_name %>
+                <%= button_to "Accept", accept_share_dashboard_team_channels_path(employer_id: @employer.id),
+                  params: {invitation_id: invitation.id}, class: "dd-topbar-btn dd-btn-ghost" %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </aside>
+      <section class="team-panel" aria-label="Channel">
+        <% if @channel %>
+          <h2>#<%= @channel.name %></h2>
+          <%= link_to "Shared files", dashboard_team_office_path(@channel, employer_id: @employer.id) %>
+          <% if @partnership %>
+            <p class="team-muted">Shared with <%= @channel.employer_id == @employer.id ? @partnership.partner.full_name : @channel.employer.full_name %> · <%= @partnership.status_label %></p>
+            <details>
+              <summary>Channel participants</summary>
+              <% @participants.each do |organization, people| %>
+                <p><strong><%= organization.full_name %></strong></p>
+                <ul><% people.each do |person| %><li><%= person.full_name %></li><% end %></ul>
+              <% end %>
+            </details>
+            <% if @manage_members && !@partnership.closed_at? %>
+              <%= button_to (@partnership.connected? ? "Disconnect organization" : "Withdraw invitation"),
+                disconnect_dashboard_team_channel_path(@channel, employer_id: @employer.id), method: :delete,
+                class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+          <% else %>
+            <p class="team-muted"><%= @channel.private_channel? ? "Invite-only" : "Company-wide" %><%= " · #{@channel.description}" if @channel.description.present? %></p>
+          <% end %>
+          <% if @manage_members %>
+            <details>
+              <summary>Manage channel members</summary>
+              <%= form_with url: invite_dashboard_team_channel_path(@channel, employer_id: @employer.id) do %>
+                <%= label_tag :user_id, "Active teammate" %>
+                <%= select_tag :user_id, options_from_collection_for_select(@invitees, :id, :full_name), prompt: "Choose teammate", required: true %>
+                <%= submit_tag "Add", class: "dd-topbar-btn dd-btn-ghost" %>
+              <% end %>
+              <ul class="team-roster">
+                <% @memberships.each do |membership| %>
+                  <li><%= membership.user.full_name %>
+                    <% if membership.user_id != @protected_member_id %>
+                      <%= button_to "Remove", remove_dashboard_team_channel_path(@channel, employer_id: @employer.id),
+                        method: :delete, params: {user_id: membership.user_id}, class: "dd-topbar-btn dd-btn-ghost",
+                        aria: {label: "Remove #{membership.user.full_name} from this channel"} %>
+                    <% end %>
+                  </li>
+                <% end %>
+              </ul>
+            </details>
+          <% end %>
+          <div class="team-toolbar">
+            <%= form_with url: dashboard_team_channel_path(@channel), method: :get do %>
+              <%= hidden_field_tag :employer_id, @employer.id %>
+              <%= label_tag :q, "Search channel" %>
+              <%= search_field_tag :q, @query, maxlength: 100 %>
+              <%= submit_tag "Search", class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+            <%= link_to "Latest messages", dashboard_team_channel_path(@channel, employer_id: @employer.id) %>
+          </div>
+          <% poll_url = timeline_dashboard_team_channel_path(@channel, employer_id: @employer.id) if @query.blank? && params[:before].blank? %>
+          <div<% if poll_url %> data-team-timeline-url="<%= poll_url %>"<% end %>>
+            <%= render "timeline" %>
+          </div>
+          <div id="team-compose">
+            <%= form_with url: messages_dashboard_team_channel_path(@channel, employer_id: @employer.id), scope: :team_message do |form| %>
+              <%= form.hidden_field :request_key, value: @draft_key.presence || SecureRandom.uuid %>
+              <% if @reply_to %>
+                <%= form.hidden_field :reply_to_id, value: @reply_to.id %>
+                <p class="team-muted">Replying to <%= @reply_to.author.full_name %> · <%= truncate(@reply_to.body, length: 100) %>
+                  <%= link_to "Cancel reply", dashboard_team_channel_path(@channel, employer_id: @employer.id, anchor: "team-compose") %>
+                </p>
+              <% end %>
+              <%= form.label :body, @reply_to ? "Your reply" : "Your message" %>
+              <%= form.text_area :body, value: @draft_body, rows: 3, maxlength: 8_000, required: true, autofocus: @reply_to.present? %>
+              <%= form.submit (@reply_to ? "Send reply" : "Send message"), class: "dd-topbar-btn dd-btn-primary" %>
+            <% end %>
+          </div>
+          <script src="/lightek/team-chat.js?v=1" defer></script>
+        <% else %>
+          <h2>Choose a channel</h2>
+          <p class="team-muted">Choose a channel or create one for a team or project.</p>
+        <% end %>
+      </section>
+    </div>
+  <% else %>
+    <p class="team-muted">Your organization needs to activate your workforce membership before you can join its channels.</p>
+  <% end %>
+</main>

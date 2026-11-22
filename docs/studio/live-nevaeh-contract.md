@@ -2,7 +2,9 @@
 
 Nevaeh should receive capabilities, never raw platform credentials.
 
-Initial capability namespace:
+Implemented preparation capability: `studio.live.prepare`. The [Live Broadcast Producer guide](../nevaeh/tutorials/live_broadcast_producer.md) covers the private host package and browser handoff.
+
+Planned on-air capability namespace:
 
 ```text
 studio.live.start

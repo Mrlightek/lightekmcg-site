@@ -17,3 +17,6 @@ post '/dashboard/accounting/workbooks/:id/cell', to: 'dashboard/accounting#cell'
 post '/dashboard/accounting/workbooks/:id/convert', to: 'dashboard/accounting#convert', as: :convert_dashboard_accounting_workbook
 post '/dashboard/accounting/automations', to: 'dashboard/accounting#automation', as: :dashboard_accounting_automations
 delete '/dashboard/accounting/automations/:id', to: 'dashboard/accounting#stop_automation', as: :dashboard_accounting_automation
+
+post '/dashboard/accounting/reconcile-statement', to: 'dashboard/accounting#reconcile_statement', as: :dashboard_accounting_reconcile_statement
+post '/dashboard/accounting/automations/:id/filing-workpaper', to: 'dashboard/accounting#filing_workpaper', as: :dashboard_accounting_filing_workpaper

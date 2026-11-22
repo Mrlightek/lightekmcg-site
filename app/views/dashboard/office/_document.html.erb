@@ -1,0 +1,7 @@
+<% if rich_text %>
+  <article class="trix-content office-document">
+    <%= sanitize(content, tags: LightekOffice::Document::TAGS, attributes: LightekOffice::Document::ATTRIBUTES) %>
+  </article>
+<% else %>
+  <article class="network-text"><%= content %></article>
+<% end %>

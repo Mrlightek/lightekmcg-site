@@ -89,6 +89,7 @@ module DymondBank
   end
 end
 class GatekeeperProject < ApplicationRecord
+  belongs_to :gatekeeper_node, optional: true
   def sidekiq_service = "#{name}-sidekiq"
   def health_url = "https://#{domain}/up"
 end
@@ -110,8 +111,12 @@ require Rails.root.join("app/services/gatekeeper/fleet/adapters").to_s
 %w[gatekeeper_node gatekeeper_operation gatekeeper_installation gatekeeper_release gatekeeper_rollout gatekeeper_update_target].each do |file|
   require Rails.root.join("app/models", file).to_s
 end
-%w[rollouts releases inventory transport update].each { |file| require Rails.root.join("app/services/gatekeeper/fleet", file).to_s }
-%w[dispatch_job update_job sweep_job].each { |file| require Rails.root.join("app/jobs/gatekeeper/fleet", file).to_s }
+%w[rollouts releases inventory transport update recovery backup_drill].each { |file| require Rails.root.join("app/services/gatekeeper/fleet", file).to_s }
+%w[dispatch_job update_job sweep_job backup_drill_job].each { |file| require Rails.root.join("app/jobs/gatekeeper/fleet", file).to_s }
+require Rails.root.join("app/services/lightek_people/lifecycle_access").to_s
+require Rails.root.join("app/services/gatekeeper/managed_dns_repair").to_s
+require Rails.root.join("app/services/godaddy/dns_service").to_s
+require Rails.root.join("app/services/lightek_mail/receiving_status").to_s
 module Gatekeeper::KnowledgeService
   def self.find_for_failure(**) = []
 end
@@ -162,7 +167,7 @@ class FleetUpdatesTest < Minitest::Test
 
   def succeeded(target)
     record = target.gatekeeper_rollout.gatekeeper_release
-    {"status" => "succeeded", "domain" => target.gatekeeper_installation.domain,
+    {"status" => "succeeded", "domain" => target.gatekeeper_installation.domain, "target_id" => target.id, "attempt" => target.attempts,
       "source_sha" => record.source_sha, "image" => record.image, "database_backup" => "/safe/backup.sql"}
       .merge("adapter" => record.adapter, "component" => record.component)
   end
@@ -176,6 +181,99 @@ class FleetUpdatesTest < Minitest::Test
     Gatekeeper::Fleet::Transport.stub(:call!, ->(target) { succeeded(target) }) do
       record.gatekeeper_update_targets.where(status: "queued").each { |target| Gatekeeper::Fleet::Update.call!(target) }
     end
+  end
+
+  def test_rollback_uses_only_the_last_verified_targets_registered_previous_release
+    operator = User.create!(role: "super_admin")
+    prior = release(source_sha: "c" * 40, image: @release.image.sub("b" * 64, "c" * 64))
+    current = release(backward_compatible: true)
+    node = installation(current_version: prior.source_sha, current_image: prior.image)
+    rollout = Gatekeeper::Fleet::Rollouts.create!(release: current, installations: [node], requested_by: "operator")
+    Gatekeeper::Fleet::Rollouts.start!(rollout)
+    dispatch(rollout)
+    run_targets(rollout)
+    target = rollout.gatekeeper_update_targets.first
+    assert_equal "succeeded", target.status
+
+    action = NevaehOs::PlatformActions.command("hosting.fleet.rollback", {"target_id"=>target.id, "confirmed"=>true})
+    receipt = NevaehOs::PlatformActions.perform!(actor: operator, command: action, action_id: 1)
+    rollback = GatekeeperRollout.find(receipt.fetch("rollout_id"))
+    assert_equal prior.id, rollback.gatekeeper_release_id
+    assert_equal [node.id], rollback.gatekeeper_update_targets.pluck(:gatekeeper_installation_id)
+    assert_equal "running", rollback.status
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: operator, command: action, action_id: 2) }
+    dispatch(rollback)
+    run_targets(rollback)
+    assert_equal prior.source_sha, node.reload.current_version
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: operator, command: action, action_id: 3) }
+  end
+
+  def test_restore_drill_checks_the_exact_snapshot_and_reports_verified_schema
+    operator = User.create!(role: "super_admin")
+    rollout = rollout(1)
+    Gatekeeper::Fleet::Rollouts.start!(rollout)
+    dispatch(rollout)
+    target = rollout.gatekeeper_update_targets.first
+    transport = Gatekeeper::Fleet::Transport
+    run_targets(rollout)
+    target.reload
+    receipt = Gatekeeper::Fleet::BackupDrill.queue!(actor: operator, target: target)
+    assert_equal receipt, Gatekeeper::Fleet::BackupDrill.queue!(actor: operator, target: target)
+    restore = lambda do |payload:, script_name:, **_options|
+      assert_equal "verify_fleet_backup.py", script_name
+      assert_equal({"domain"=>target.gatekeeper_installation.domain, "target_id"=>target.id, "attempt"=>target.attempts}, payload)
+      payload.merge("status"=>"succeeded", "restored_schema"=>true)
+    end
+    transport.stub(:run!, restore) { Gatekeeper::Fleet::BackupDrillJob.perform_now(receipt.fetch("operation_id")) }
+    operation = GatekeeperOperation.find(receipt.fetch("operation_id"))
+    assert_equal "succeeded", operation.status
+    assert_equal true, operation.result.fetch("restored_schema")
+  end
+
+  def test_managed_dns_repair_creates_missing_records_and_preserves_conflicting_records
+    node = installation.gatekeeper_node
+    project = GatekeeperProject.create!(gatekeeper_node_id: node.id, domain: "app.example.com")
+    provider = Minitest::Mock.new
+    provider.expect(:records, [])
+    provider.expect(:create_record!, nil, name: "app", type: "A", data: node.ip_address, ttl: 600, priority: nil)
+    resolver = Object.new
+    resolver.define_singleton_method(:timeouts=) { |_| }
+    answers = [[], [Resolv::DNS::Resource::IN::A.new(node.ip_address)]]
+    resolver.define_singleton_method(:getresources) { |_host, kind| kind == Resolv::DNS::Resource::IN::A ? answers.shift : [] }
+    dns = Godaddy::DnsService
+    repair = Gatekeeper::ManagedDnsRepair
+    dns.stub(:zones, ["example.com"]) do
+      Resolv::DNS.stub(:open, ->(&block) { block.call(resolver) }) do
+        dns.stub(:new, provider) { assert_equal "verified", repair.project!(project).fetch("status") }
+        provider.verify
+        answers << []
+        conflict = Struct.new(:records).new([{"name"=>"app", "type"=>"A", "data"=>"203.0.113.99"}])
+        dns.stub(:new, conflict) { assert_raises(repair::Conflict) { repair.project!(project) } }
+      end
+    end
+  end
+
+  def test_managed_mail_repair_writes_only_to_a_verified_mail_domain
+    domain = Struct.new(:name, :verified_at?).new("example.com", false)
+    account = Struct.new(:domain, :enabled?).new(domain, true)
+    repair = Gatekeeper::ManagedDnsRepair
+    assert_raises(ArgumentError) { repair.mailbox!(account) }
+    domain[:verified_at?] = true
+    target = LightekMail::ReceivingStatus.expected_host
+    provider = Minitest::Mock.new
+    provider.expect(:records, [])
+    provider.expect(:create_record!, nil, name: "@", type: "MX", data: target, ttl: 600, priority: 10)
+    resolver = Object.new
+    resolver.define_singleton_method(:timeouts=) { |_| }
+    answers = [[], [Resolv::DNS::Resource::IN::MX.new(10, target)]]
+    resolver.define_singleton_method(:getresources) { |_host, kind| kind == Resolv::DNS::Resource::IN::MX ? answers.shift : [] }
+    dns = Godaddy::DnsService
+    dns.stub(:zones, ["example.com"]) do
+      Resolv::DNS.stub(:open, ->(&block) { block.call(resolver) }) do
+        dns.stub(:new, provider) { assert_equal "verified", repair.mailbox!(account).fetch("status") }
+      end
+    end
+    provider.verify
   end
 
   def test_nevaeh_controls_fleet_through_the_existing_operator_policy

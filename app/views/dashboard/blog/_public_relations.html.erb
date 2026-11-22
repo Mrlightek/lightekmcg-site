@@ -1,0 +1,113 @@
+<% pr = NevaehOs::PublicRelations %>
+<% grant = pr.grant_for(site, current_user) %>
+<% can_assign = site.tenant == current_user || current_user.role == 'super_admin' %>
+<% marketing_grant = site.manifest.to_h.dig(NevaehOs::WebsiteMarketing::KEY, 'actor_id') == current_user.id if defined?(NevaehOs::WebsiteMarketing) %>
+<% if can_assign || grant || marketing_grant %>
+  <section id="public-relations" class="content-card">
+    <h2>Public relations</h2>
+    <% if can_assign %>
+      <details <%= 'open' unless grant %>>
+        <summary><%= grant ? 'PR SME assignment' : 'Assign the PR SME' %></summary>
+        <%= form_with url: configure_public_relations_dashboard_blog_index_path(site_id: site.id), local: true, class: 'content-form' do %>
+          <label>Sender mailbox <%= select_tag :mailbox_id, options_from_collection_for_select(pr.mailboxes(current_user).where(enabled: true).order(:address), :id, :address, grant&.fetch('mailbox_id')), include_blank: 'Publications and drafts only' %></label>
+          <%= submit_tag grant ? 'Save PR assignment' : 'Assign PR SME', class: 'content-button primary' %>
+          <% if grant %>
+            <%= button_tag 'Pause PR assignment', name: :operation, value: 'pause', class: 'content-button' %>
+          <% end %>
+        <% end %>
+      </details>
+    <% end %>
+
+    <% if marketing_grant && !grant %>
+      <% pr.changes(site, current_user).where(operation: 'media_pitch').order(id: :desc).limit(10).each do |pitch| %>
+        <% draft = pitch.result %>
+        <details>
+          <summary><%= draft.fetch('subject') %></summary>
+          <p><%= draft.fetch('recipient') %></p>
+          <%= simple_format(h(draft.fetch('body')), {}, sanitize: false) %>
+          <% if pr.releases(site).exists?(id: draft.fetch('entry_id')) %>
+            <%= mail_to draft.fetch('recipient'), 'Review in email app', subject: draft.fetch('subject'), body: draft.fetch('body') %>
+          <% end %>
+        </details>
+      <% end %>
+    <% end %>
+
+    <% if grant %>
+      <% releases = pr.releases(site).limit(30) %>
+      <% contacts = pr.contacts(site).order(:outlet, :id).limit(100).to_a %>
+      <% changes = pr.changes(site, current_user) %>
+      <% mailbox = pr.mailboxes(current_user).find_by(id: grant['mailbox_id']) if grant['mailbox_id'] %>
+      <% context = { releases: releases, contacts: contacts.reject(&:suppressed?), mailbox_id: mailbox&.id } %>
+      <details>
+        <summary>Press releases</summary>
+        <%= render 'dashboard/blog/press_task', site: site, operation: 'press_release', label: 'Assign release', context: context %>
+        <% pr.entries(site).includes(:post).order(id: :desc).limit(20).each do |release| %>
+          <p><%= link_to release.post.title, dashboard_blog_index_path(site_id: site.id, entry_id: release.id) %> · <%= release.status.humanize %></p>
+          <% if release.status != 'published' %>
+            <%= render 'dashboard/blog/press_task', site: site, operation: 'release_status', label: 'Assign publication', context: { release: release, status: 'published' } %>
+          <% else %>
+            <%= render 'dashboard/blog/press_task', site: site, operation: 'release_status', label: 'Withdraw release', context: { release: release, status: 'archived' } %>
+          <% end %>
+        <% end %>
+      </details>
+      <details>
+        <summary>Media contacts</summary>
+        <%= render 'dashboard/blog/press_task', site: site, operation: 'contact', label: 'Save contact', context: context %>
+        <%= render 'dashboard/blog/press_task', site: site, operation: 'suppress', label: 'Stop outreach', context: context %>
+        <% contacts.each do |contact| %>
+          <p><%= contact.outlet %> · <%= contact.email %> · <%= contact.suppressed? ? 'Do not contact' : contact.contact_basis %></p>
+        <% end %>
+      </details>
+      <details>
+        <summary>Media outreach</summary>
+        <% if releases.any? && context.fetch(:contacts).any? %>
+          <%= render 'dashboard/blog/press_task', site: site, operation: 'media_pitch', label: 'Assign media pitch', context: context %>
+        <% else %>
+          <p>Publish a release and add a media contact to start outreach.</p>
+        <% end %>
+        <% changes.where(operation: 'media_pitch').order(id: :desc).limit(20).each do |pitch| %>
+          <% draft = pitch.result %>
+          <% status = pr.outreach_status(mailbox, site, pitch) %>
+          <details>
+            <summary><%= draft.fetch('subject') %> · <%= status.fetch('delivery').humanize %><%= ' · Replied' if status['replied'] %></summary>
+            <p><%= draft.fetch('recipient') %></p>
+            <%= simple_format(h(draft.fetch('body')), {}, sanitize: false) %>
+            <% if mailbox && pr.releases(site).exists?(id: draft.fetch('entry_id')) && pr.contacts(site).exists?(email: draft.fetch('recipient').downcase, suppressed: false) %>
+              <% if status['delivery'] == 'draft' %>
+                <%= render 'dashboard/blog/press_task', site: site, operation: 'send_pitch', label: 'Queue pitch', context: { pitch_id: pitch.id } %>
+              <% elsif status['can_follow_up'] %>
+                <%= render 'dashboard/blog/press_task', site: site, operation: 'follow_up', label: 'Queue follow-up', context: { pitch_id: pitch.id } %>
+              <% end %>
+            <% end %>
+            <% if status['follow_up'] %><p>Follow-up <%= status['follow_up'].humanize.downcase %></p><% end %>
+          </details>
+        <% end %>
+      </details>
+      <details>
+        <summary>Coverage and reporting</summary>
+        <% if releases.any? %>
+          <%= render 'dashboard/blog/press_task', site: site, operation: 'coverage', label: 'Log coverage', context: context %>
+        <% end %>
+        <%= render 'dashboard/blog/press_task', site: site, operation: 'monitor', label: 'Check a media source', context: context %>
+        <%= render 'dashboard/blog/press_task', site: site, operation: 'report', label: 'Assign PR activity report', context: context %>
+        <% changes.where(operation: 'monitor').order(id: :desc).limit(10).each do |item| %>
+          <% scan = item.result %>
+          <p><%= link_to scan.fetch('source_title'), scan.fetch('source_url'), rel: 'noreferrer' %> · <%= scan.fetch('matched') ? scan.fetch('excerpt') : "No mention of #{scan.fetch('phrase')}" %> · <%= l(item.created_at, format: :short) %></p>
+        <% end %>
+        <% changes.where(operation: 'coverage').order(id: :desc).limit(20).each do |item| %>
+          <p><%= link_to item.result.fetch('outlet'), item.result.fetch('url'), rel: 'noreferrer' %> · <%= item.result.fetch('notes') %></p>
+        <% end %>
+      </details>
+      <details>
+        <summary>Media response briefs</summary>
+        <%= render 'dashboard/blog/press_task', site: site, operation: 'response_brief', label: 'Prepare response brief', context: context %>
+        <% changes.where(operation: 'response_brief').order(id: :desc).limit(10).each do |brief| %>
+          <details>
+            <summary><%= brief.result.fetch('title') %></summary>
+            <%= simple_format(h(brief.result.fetch('body')), {}, sanitize: false) %>
+          </details>
+        <% end %>
+      </details>
+    <% end %>
+  </section>
+<% end %>

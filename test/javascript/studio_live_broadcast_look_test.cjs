@@ -7,7 +7,9 @@ const partial = readFileSync('app/views/dashboard/live_broadcasts/_broadcast_loo
 const themes = readFileSync('app/views/dashboard/live_broadcasts/_broadcast_themes.html.erb', 'utf8');
 const markup = partial.replace(/<%= render "dashboard\/live_broadcasts\/broadcast_themes", kind: "(frame|background)" %>/g,
   (_, kind) => themes.replace('<%= kind %>', kind));
-const dom = new JSDOM('<main>' + markup + '</main>', { runScripts: 'outside-only', url: 'https://studio.test' });
+const preparedMarkup = markup.replace(/data-prepared-frame="<%= prepared_look&\.fetch\('frame'\) %>"/, 'data-prepared-frame="cinema"')
+  .replace(/value="<%= prepared_look&\.fetch\('headline'\) %>"/, 'value="CEO update"');
+const dom = new JSDOM('<main>' + preparedMarkup + '</main>', { runScripts: 'outside-only', url: 'https://studio.test' });
 const { window } = dom;
 const createElement = window.document.createElement.bind(window.document);
 window.document.createElement = name => name === 'canvas' ? createCanvas(300, 150) : createElement(name);
@@ -22,6 +24,12 @@ const clear = () => root.querySelector('[data-clear-broadcast-look]').click();
 const program = createCanvas(1280, 720);
 const ctx = program.getContext('2d');
 const pixel = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
+
+assert.equal(field('frame').value, 'cinema');
+assert.equal(field('headline').value, 'CEO update');
+look.drawFrame(ctx);
+assert.ok(ctx.getImageData(0, 0, 1280, 720).data.some((value, index) => index % 4 === 3 && value > 0));
+clear();
 
 for (const style of Array.from(field('frame').options, option => option.value).filter(style => style !== 'off')) {
   ctx.clearRect(0, 0, 1280, 720);

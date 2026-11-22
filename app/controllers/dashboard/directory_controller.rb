@@ -75,6 +75,13 @@ class Dashboard::DirectoryController < Dashboard::SettingsHomeController
     end
     back!('Permission revoked; active application checks change immediately and server login reconciliation is queued')
   end
+  def revoke_sso_sessions
+    it_admin!
+    raise ArgumentError, 'Confirm session revocation first' unless params[:confirmed] == '1'
+
+    count = LightekIdentity::SessionContainment.revoke!(actor: current_user, employer: @employer, membership_id: params[:id])
+    back!("#{count} existing company SSO sessions revoked.")
+  end
   def realm
     it_admin!
     @employer.with_lock do

@@ -3,3 +3,8 @@
 end %>
 <title><%= metadata&.title_tag.presence || "#{@page.title} · #{@site.name}" %></title>
 <% if metadata&.description.present? %><meta name="description" content="<%= metadata.description %>"><% end %>
+<% if !@preview && @page.is_a?(DymondSite::Page) && @page.published? %>
+  <% if (canonical = LightekGrowth::SearchDiscovery.canonical_page(@site, @page.slug)) %>
+    <%= tag.link rel: "canonical", href: canonical %>
+  <% end %>
+<% end %>

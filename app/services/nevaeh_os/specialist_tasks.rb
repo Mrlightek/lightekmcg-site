@@ -5,6 +5,8 @@ module NevaehOs
     DEFINITIONS={
       'website'=>['Review open website audit findings','site_id'],
       'sales'=>['Find overdue sales follow-ups','site_id'],
+      'customer_service'=>['Review unresolved customer cases',nil],
+      'billing'=>['Review my overdue invoices and billing cases',nil],
       'finance'=>['Find uncategorized accounting transactions','employer_id'],
       'payroll'=>['Find payroll drafts due for approval','employer_id'],
       'commerce'=>['Find paid orders awaiting fulfillment','site_id'],
@@ -14,6 +16,10 @@ module NevaehOs
     }.freeze
     LIMIT=30
     module_function
+    def topic(role)
+      %w[customer_service billing].include?(role) ? role : 'specialist_tasks'
+    end
+
     def capability(role) = "operations.#{role}.review"
     def example(role)
       input=DEFINITIONS.fetch(role)[1]
@@ -28,6 +34,12 @@ module NevaehOs
       raise ArgumentError,'Use only the named review input' unless values.is_a?(Hash) && (values.keys-[input].compact).empty?
       raise ArgumentError,"Choose a positive #{input}" if input && !values[input].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
       case role
+      when 'customer_service'
+        raise ArgumentError,'Active Lightek staff access required' unless actor.employee? && LightekPeople::LifecycleAccess.active?(actor)
+        NevaehCustomerService::Cases.scope
+      when 'billing'
+        raise ArgumentError,'Active billing account required' unless LightekPeople::LifecycleAccess.active?(actor)
+        actor
       when 'website'
         site=LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
         LightekGrowth::Audits::Access.new(actor:actor,site:site).read!
@@ -60,6 +72,14 @@ module NevaehOs
       context=authorize!(actor,command) # Re-resolve domain access at execution, never trust a saved scope.
       role=command.fetch('role')
       data=case role
+      when 'customer_service'
+        summary(context.where(status: %w[open in_progress]), %w[id category assigned_team status created_at])
+      when 'billing'
+        overdue = NevaehCustomerService::Cases.invoices(context).where(status: "open")
+          .where("amount_remaining_cents > 0 AND due_date < ?", Date.current)
+        cases = NevaehCustomerService::Cases.customer_scope(context).where(category: "billing", status: %w[open in_progress])
+        {'overdue_invoices'=>summary(overdue, %w[id number due_date status]),
+         'open_cases'=>summary(cases, %w[id number status created_at])}
       when 'website'
         audits=LightekGrowth::WebsiteAudit.where(site:context)
         latest=audits.order(id: :desc).first

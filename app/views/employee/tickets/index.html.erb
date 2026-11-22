@@ -4,6 +4,11 @@
 <% end %>
 
 <div class="dd-card">
+  <nav aria-label="Ticket queues">
+    <%= link_to "All tickets", employee_tickets_path, class: "dd-topbar-btn dd-btn-ghost" %>
+    <%= link_to "Customer Service", employee_tickets_path(queue: "customer_service"), class: "dd-topbar-btn dd-btn-ghost" %>
+    <%= link_to "Accounting & Billing", employee_tickets_path(queue: "customer_service", category: "billing"), class: "dd-topbar-btn dd-btn-ghost" %>
+  </nav>
   <% if @tickets.any? %>
     <% @tickets.each do |t| %>
       <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--dd-border);">

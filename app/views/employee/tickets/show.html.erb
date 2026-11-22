@@ -18,6 +18,23 @@
 
 <%= render "nevaeh_execution", ticket: @ticket %>
 
+<% customer_state = @ticket.extra_fields.to_h["customer_service"] %>
+<% if customer_state && customer_state["topic"] == "refund_request" %>
+  <section class="dd-card">
+    <div class="dd-card-title">Refund request</div>
+    <% if (approval = customer_state["refund"]) %>
+      <p><%= approval.fetch("phase").humanize %> · <%= approval.fetch("amount_cents") %> cents</p>
+    <% elsif @ticket.status != "resolved" && current_user.admin? %>
+      <%= form_with url: approve_refund_employee_ticket_path(@ticket) do |form| %>
+        <label>Approved amount in cents <%= form.number_field :amount_cents, min: 1, step: 1, required: true %></label>
+        <%= form.submit "Approve refund", class: "dd-topbar-btn dd-btn-primary",
+          data: {turbo_confirm: "Approve this refund to the original payment method?"} %>
+      <% end %>
+    <% end %>
+  </section>
+<% end %>
+
+
 <div class="dd-card" style="margin-bottom:16px;">
   <div class="dd-card-title">Timeline</div>
   <% @events.each do |e| %>
@@ -31,8 +48,12 @@
 <div class="dd-card">
   <div class="dd-card-title">Reply</div>
   <%= form_with url: reply_employee_ticket_path(@ticket), method: :patch do %>
-    <textarea name="detail" rows="3" class="fg-input" placeholder="Add a reply to this ticket's timeline..." style="width:100%;"></textarea>
+    <%= text_area_tag(NevaehCustomerService::Cases.customer_case?(@ticket) ? :support_reply : :detail,
+      nil, rows: 3, class: "fg-input", placeholder: "Add a reply to this ticket's timeline...", style: "width:100%;") %>
     <div style="margin-top:8px;">
+      <% if NevaehCustomerService::Cases.customer_case?(@ticket) %>
+        <label><%= check_box_tag :customer_visible, "1" %> Show this reply to the customer</label>
+      <% end %>
       <%= submit_tag "Send Reply", class: "dd-topbar-btn dd-btn-primary" %>
     </div>
   <% end %>

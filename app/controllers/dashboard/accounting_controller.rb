@@ -105,6 +105,39 @@ class Dashboard::AccountingController < ApplicationController
       render :index
     end
   end
+  def reconcile_statement
+    require_book!
+    @access.require!(:review)
+    import = LightekAccounting::Import.where(book: @book, status: 'committed').find(params[:import_id])
+    first = Date.iso8601(params[:starts_on].to_s)
+    last = Date.iso8601(params[:ends_on].to_s)
+    raise ArgumentError, 'Choose a closed statement period' unless first <= last && last <= Date.current
+
+    worker = LightekAccounting::Automation.new(book: @book, actor: current_user, next_run_at: Time.current)
+    worker.data = {'action'=>'reconcile_statement', 'cadence'=>'daily', 'import_id'=>import.id,
+      'starts_on'=>first.iso8601, 'ends_on'=>last.iso8601,
+      'starting_cents'=>LightekAccounting::Money.cents!(params[:starting_amount]),
+      'ending_cents'=>LightekAccounting::Money.cents!(params[:ending_amount])}
+    worker.save!
+    audit!('accounting_worker_scheduled', worker)
+    AccountingRefreshJob.perform_later(worker.id)
+    back!('Nevaeh queued the statement proof', tab: 'reports')
+  end
+
+  def filing_workpaper
+    require_book!
+    @access.require!(:review)
+    worker = LightekAccounting::Automation.where(book: @book).find(params[:id])
+    workpaper = worker.data['latest']
+    unless worker.data['action'] == 'filing_workpaper' && workpaper&.fetch('status') == 'ready_for_preparer' &&
+      LightekAccounting::FilingWorkpaper.build(book: @book, year: workpaper.fetch('tax_year')) == workpaper.except('calculated_at')
+      raise ArgumentError, 'Refresh and review the workpaper before exporting'
+    end
+    audit!('filing_workpaper_exported', worker)
+    send_data JSON.pretty_generate(workpaper), filename: "schedule-c-workpaper-#{workpaper.fetch('tax_year')}.json",
+      type: 'application/json', disposition: 'attachment'
+  end
+
   def reopen
     require_book!
     LightekAccounting::Reconcile.reopen!(access: @access,record: LightekAccounting::Reconciliation.where(book: @book).find(params[:id]))
@@ -183,10 +216,16 @@ class Dashboard::AccountingController < ApplicationController
     require_book!
     @access.require!(:admin)
     action = params[:action_kind]
-    raise ArgumentError, 'Choose report refresh or reviewed tax reserve refresh' unless %w[reports tax_reserve].include?(action)
+    raise ArgumentError, 'Choose an accounting task' unless %w[reports tax_reserve categorize filing_workpaper].include?(action)
     cadence = params[:cadence]
     raise ArgumentError, 'Choose a daily or weekly cadence' unless %w[daily weekly].include?(cadence)
     values = {'action'=>action,'cadence'=>cadence}
+    if action == 'filing_workpaper'
+      year = Integer(params[:filing_year].to_s, 10)
+      raise ArgumentError, 'Choose a tax year from 2000 through the current year' unless (2000..Date.current.year).cover?(year)
+
+      values['year'] = year
+    end
     if action == 'tax_reserve'
       raise ArgumentError, 'Confirm the reviewed estimate inputs' unless params[:tax_reviewed] == '1'
       values['tax_inputs'] = tax_inputs
@@ -275,6 +314,7 @@ class Dashboard::AccountingController < ApplicationController
     end
     @imports = LightekAccounting::Import.where(book: @book).order(id: :desc).limit(20)
     @import = @imports.find_by(id: params[:import_id]) || @imports.first
+    @statement_imports = LightekAccounting::Import.where(book: @book, status: 'committed').includes(:bank_account).order(id: :desc).limit(50) if @tab == 'reconcile'
     @rules = LightekAccounting::Rule.where(book: @book).includes(:category).order(:priority,:id)
     @reconciliations = LightekAccounting::Reconciliation.where(book: @book).includes(:bank_account).order(ends_on: :desc).limit(30)
     @reconcile_account = params[:account_id].present? ? @accounts.find(params[:account_id]) : @accounts.first

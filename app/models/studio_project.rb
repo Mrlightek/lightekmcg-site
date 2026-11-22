@@ -5,9 +5,12 @@ class StudioProject < ApplicationRecord
   has_many :studio_scenes, dependent: :destroy
   has_many :studio_assets, dependent: :nullify
   has_many :creation_jobs, through: :studio_scenes
+  has_many :studio_scene_renders, through: :studio_scenes
   has_many :studio_operations, dependent: :destroy
   has_many :studio_publications, dependent: :destroy
   has_many :studio_live_operations, dependent: :destroy
+
+  scope :shared_studio_projects, -> { where(animation_workspace: false) }
 
   validates :name, presence: true, length: { maximum: 120 }
 
@@ -19,6 +22,8 @@ class StudioProject < ApplicationRecord
   def ensure_inactive_before_deletion
     message = if studio_operations.where(status: %w[pending running]).exists? || creation_jobs.where(status: %w[pending running]).exists? || studio_assets.where(status: %w[uploaded processing]).exists?
       "Wait for queued renders, exports and media processing to finish before deleting this project."
+    elsif studio_scene_renders.active.exists?
+      "Wait for this project’s video renders to finish before deleting it."
     elsif studio_live_operations.where(status: %w[scheduled connecting live ending]).exists?
       "End or cancel this project's broadcasts before deleting it."
     elsif studio_publications.where(status: %w[scheduled publishing]).exists?

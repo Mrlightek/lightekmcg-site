@@ -20,6 +20,14 @@ module NevaehControlCenterHelper
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
       item.call("journal", "Journal & Articles", main_app.dashboard_blog_index_path, "ti-article"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
+    if current_user.role == "super_admin" || NevaehExecutiveCase.visible_to(current_user).exists?
+      rows << item.call("executive-work", "Executive work", main_app.dashboard_executive_work_path, "ti-list-details", "Nevaeh")
+    end
+    if LightekTeam::Workspace.employers_for(current_user).exists?
+      rows << item.call("team-chat", "Team Chat", main_app.dashboard_team_channels_path, "ti-messages")
+      rows << item.call("shared-drives", "Shared drives", main_app.dashboard_shared_drives_path, "ti-folders")
+      rows << item.call("shared-calendars", "Shared calendars", main_app.dashboard_shared_calendars_path, "ti-calendar-event")
+    end
     if current_user.role.in?(%w[admin super_admin]) || current_user.can_access_feature?("studio")
       rows << item.call("studio", "Studio & Broadcasting", main_app.dashboard_media_studio_path, "ti-video")
     end
@@ -40,7 +48,8 @@ module NevaehControlCenterHelper
       rows << item.call("pwa", "Mobile app", main_app.dashboard_pwa_path, "ti-device-mobile")
     end
     if current_user.role == "super_admin"
-      rows += [item.call("infrastructure", "Infrastructure", main_app.dashboard_infrastructure_path, "ti-server"),
+      rows += [item.call("ceo-desk", "CEO Desk", main_app.dashboard_nevaeh_executive_path, "ti-briefcase"),
+        item.call("infrastructure", "Infrastructure", main_app.dashboard_infrastructure_path, "ti-server"),
         item.call("finance", "Finance", main_app.dashboard_bank_path, "ti-wallet"),
         item.call("vault", "Vault", main_app.dashboard_vault_path, "ti-lock")]
     end
@@ -56,10 +65,10 @@ module NevaehControlCenterHelper
     end
     rows << item.call("settings", "Settings", main_app.dashboard_settings_home_path, "ti-settings", "System")
     groups = {
-      "Start" => %w[overview],
+      "Start" => %w[overview ceo-desk],
       "Business & money" => %w[business sales commerce shipping accounting finance],
       "Create & publish" => %w[design journal studio pwa],
-      "Bookings & email" => %w[reservations rooms my-reservations mail],
+      "Bookings & email" => %w[reservations rooms my-reservations mail team-chat],
       "Clients & agencies" => %w[agency white-label demos reseller-packages connect],
       "Team & administration" => %w[people directory compliance settings],
       "Technical tools" => %w[servers infrastructure vault]

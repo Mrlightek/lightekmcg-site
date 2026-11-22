@@ -101,6 +101,28 @@ package access, explicit video approval and the actual saved file. A draft page
 or an approved video alone does not grant public playback. No public page is
 published or external message sent merely by executing this goal.
 
+## Build and run a demo campaign
+
+Enable the website's public demo request form in **Dashboard → Demos** and save the intended audience and offer in the business brief. Ask Nevaeh, **Get more local businesses to book a Lightek demo**. She starts a marketing kit and a goal that builds the walkthrough, prepares promotion copy and creates Sales follow-up tasks for eligible existing leads. If more than one website is available, add **for site SITE_ID**. **Prepare a demo campaign for site SITE_ID** saves a kit that you can start from Marketing Copilot.
+
+The walkthrough adds real product screenshots to every included feature. The starter screenshots show Design & Content, Studio and Live Studio, Sales & CRM, Commerce, Marketing Copilot, and the Nevaeh Guide. Fresh captures from an open demo window or an uploaded PNG can be added to individual cards. Review the images and claims before approval. The screenshot endpoint requires the approved and published page on the exact website.
+
+In **Demo campaign**, use **Publish demo walkthrough** or approve the tracked promotion copy and choose **Publish and schedule promotion**. Pick an already connected channel and its release time. The publish step checks the saved walkthrough, its screenshots, and the site's request form configuration. The publication scheduler checks account access, the approved creative and provider-specific media requirements, and rechecks that the walkthrough is still available at dispatch. The campaign calendar records the actual provider outcome.
+
+For delegated website commands, use these inputs:
+
+| Command | Inputs |
+| --- | --- |
+| `/website demo_publish SITE_ID {…}` | `showcase_id` |
+| `/website demo_launch SITE_ID {…}` | `showcase_id`, `connection_id`, `scheduled_at` with a timezone offset and optional `time_zone` |
+| `/website demo_schedule SITE_ID {…}` | The same scheduling fields for a published walkthrough |
+| `/website demo_experiment SITE_ID {…}` | `showcase_id` |
+| `/website demo_report SITE_ID {…}` | `showcase_id` |
+
+The campaign reports tracked visits, demo requests, activated demos, and paid demo upgrades. If visitors reach the walkthrough without requesting demos, ask Nevaeh to start the button wording experiment or select **Test demo button wording**. New tracked visits through the walkthrough's promotion link are split between the original button and an alternative. The report shows both variants' assigned visits, requests, conversion rates and paid upgrades as they are recorded. Direct and untracked views use the original button. The report has no automatic winner or minimum traffic requirement.
+
+Apply the demo attribution and experiment migrations on deployment. Verify the production confirmation email, connected channel and upgrade payment on the intended site. Standalone tests use sample data without live provider or payment transactions.
+
 ## Work from the kit
 
 Review the priorities first: incoming inquiries, paid delivery obligations and

@@ -2,7 +2,9 @@ class Dashboard::AgenciesController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action :require_agency_access!
+  after_action :record_onboarding_dashboard, only: :index
   rate_limit to: 5, within: 3.minutes, only: :send_setup_invitation
+  rate_limit to: 3, within: 1.hour, only: :request_onboarding_email
   def index
     response.headers['Cache-Control'] = 'private, no-store'
     @agencies = agency_scope.includes(:agency_profile, :agency).order(:email_address)
@@ -12,6 +14,13 @@ class Dashboard::AgenciesController < ApplicationController
       @agencies.find_by(id: current_user.id) || @agencies.first
     end
     return unless @agency
+
+    if @agency == current_user && current_user.white_label? && Current.session.connect_delegation.blank?
+      @paid_trial = NevaehOnboarding::StandingAssignment.paid_trial(current_user)
+      @branded_mailbox = NevaehOnboarding::StandingAssignment.branded_mailbox(current_user) if @paid_trial
+      @needs_email_confirmation = @paid_trial && !@branded_mailbox &&
+        !NevaehOnboarding::StandingAssignment.email_verified?(@paid_trial, current_user)
+    end
 
     clients = @agency.agency_clients.where(role: 'client').order(:email_address)
     @selected_client = clients.find(params[:client_id]) if params[:client_id].present?
@@ -26,6 +35,20 @@ class Dashboard::AgenciesController < ApplicationController
         .map { |order| [order, LightekCommerce::Installations.summary(order)] }
     end
   end
+  def request_onboarding_email
+    trial = NevaehOnboarding::StandingAssignment.paid_trial(current_user) if Current.session.connect_delegation.blank?
+    return head :forbidden unless trial && !current_user.password_setup_required? && trial.billing_site.host == request.host
+
+    return redirect_to dashboard_agencies_path, status: :see_other if NevaehOnboarding::StandingAssignment.branded_mailbox(current_user)
+
+    origin = "https://#{trial.billing_site.host}"
+    if MemberEmailMailer.confirmation(current_user, origin).deliver_later
+      redirect_to dashboard_agencies_path, notice: 'Check your sign-in email for the confirmation link.', status: :see_other
+    else
+      redirect_to dashboard_agencies_path, alert: 'Confirmation could not be queued. Please try again.', status: :see_other
+    end
+  end
+
   def create
     User.transaction do
       scope = current_user.role == "super_admin" ? User.where(role: "client") : current_user.agency_clients.where(role: "client")
@@ -93,6 +116,15 @@ class Dashboard::AgenciesController < ApplicationController
     redirect_to dashboard_agencies_path(agency_id: agency.id, client_id: client.id, anchor: 'client-setup'), alert: 'This account already has a chosen password. Its owner can use Forgot password.'
   end
   private
+  def record_onboarding_dashboard
+    return unless response.successful? && @agency == current_user && Current.session.connect_delegation.blank?
+    return unless current_user.white_label? && NevaehOnboardingCase.table_exists?
+
+    NevaehOnboarding::StandingAssignment.record_dashboard!(current_user)
+  rescue StandardError => error
+    Rails.logger.error("[Nevaeh onboarding] Dashboard receipt failed: #{error.class}")
+  end
+
   def require_agency_access!
     return head(:forbidden) unless current_user&.role.in?(%w[super_admin white_label]) && (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(current_user))
     head :forbidden if defined?(LightekPeople::LifecycleAccess) && !LightekPeople::LifecycleAccess.agency_ready?(current_user) && !action_name.in?(%w[index update])

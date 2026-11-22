@@ -1,0 +1,92 @@
+<% content_for :page_title, "Network channels" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="team-chat network-collaboration" data-turbo="false">
+  <%= link_to "← Team Chat", dashboard_team_channels_path %>
+  <h1>Network channels</h1>
+  <div class="network-columns">
+    <aside class="network-pane">
+      <h2>Channels and invitations</h2>
+      <% if @channels.empty? %><p>No network channels yet.</p><% end %>
+      <ul>
+        <% @channels.each do |channel| %>
+          <li><%= link_to "##{channel.fetch('name')}", dashboard_network_team_path(key: channel.fetch('key')) %>
+            <small><%= channel.fetch('partner_host') %> · <%= channel.fetch('status').humanize %></small></li>
+        <% end %>
+      </ul>
+      <% if @installation.owner? %>
+        <details>
+          <summary>Invite another installation</summary>
+          <%= form_with url: change_dashboard_network_team_path("create"), scope: :network_channel do |form| %>
+            <%= form.label :name, "Channel name" %>
+            <%= form.text_field :name, required: true, minlength: 2, maxlength: 60, placeholder: "screening-partners" %>
+            <%= form.label :address, "Partner hostname or Lightek mailbox" %>
+            <%= form.text_field :address, required: true, maxlength: 253 %>
+            <%= form.submit "Create and invite", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+      <% end %>
+    </aside>
+    <% if @channel %>
+      <% key = @channel.fetch("key") %>
+      <% state = @channel.fetch("status") %>
+      <section class="network-pane">
+        <h2>#<%= @channel.fetch("name") %></h2>
+        <p><%= @channel.fetch("partner_host") %> · <%= state.humanize %></p>
+        <% if @installation.owner? && state == "invited" %>
+          <%= button_to "Accept invitation", change_dashboard_network_team_path("accept", key: key), class: "dd-topbar-btn dd-btn-primary" %>
+        <% end %>
+        <% if @installation.owner? && %w[connected pending invited].include?(state) %>
+          <%= button_to (state == "connected" ? "Disconnect" : "Close invitation"), change_dashboard_network_team_path("disconnect", key: key), class: "dd-topbar-btn dd-btn-ghost" %>
+        <% end %>
+        <% if @users %>
+          <details>
+            <summary>Manage your teammates</summary>
+            <% members = @channel.fetch("members").map { |subject| subject.delete_prefix("user-").to_i } %>
+            <% eligible = @users.reject { |user| members.include?(user.id) } %>
+            <% if eligible.any? %>
+              <%= form_with url: change_dashboard_network_team_path("member", key: key) do %>
+                <%= label_tag :user_id, "Active teammate" %>
+                <%= select_tag :user_id, options_from_collection_for_select(eligible, :id, :full_name), required: true %>
+                <%= submit_tag "Add teammate", class: "dd-topbar-btn dd-btn-ghost" %>
+              <% end %>
+            <% end %>
+            <ul>
+              <% people = @users.index_by(&:id) %>
+              <% members.each do |id| %>
+                <li><%= people[id]&.full_name || "Former teammate ##{id}" %>
+                  <%= button_to "Remove", change_dashboard_network_team_path("member", key: key), params: {user_id: id, remove: "1"}, class: "dd-topbar-btn dd-btn-ghost" %></li>
+              <% end %>
+            </ul>
+          </details>
+        <% end %>
+        <% if @channel.fetch("participants").any? %>
+          <details><summary>Channel participants</summary>
+            <ul><% @channel.fetch("participants").each do |participant| %>
+              <li><%= participant.fetch("name") %> · <%= participant.fetch("organization") %></li>
+            <% end %></ul>
+          </details>
+        <% end %>
+        <% if %w[connected disconnected].include?(state) %>
+          <%= link_to "Shared files", dashboard_network_office_path(key) %>
+        <% end %>
+        <%= link_to "Latest messages", dashboard_network_team_path(key: key) %>
+        <% if @channel["older_than"] %><%= link_to "Older messages", dashboard_network_team_path(key: key, before: @channel["older_than"]) %><% end %>
+        <ol class="network-messages">
+          <% @channel.fetch("messages").each do |message| %>
+            <li><strong><%= message.fetch("author") %></strong> · <small><%= message.fetch("organization") %> · <%= l(Time.zone.iso8601(message.fetch("created_at")), format: :short) %></small>
+              <p class="network-text"><%= message.fetch("body") %></p></li>
+          <% end %>
+        </ol>
+        <% if state == "connected" %>
+          <%= form_with url: change_dashboard_network_team_path("post", key: key), scope: :network_team_message do |form| %>
+            <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
+            <%= form.label :body, "Your message" %>
+            <%= form.text_area :body, required: true, maxlength: 4_000, rows: 3 %>
+            <%= form.submit "Send message", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=1">

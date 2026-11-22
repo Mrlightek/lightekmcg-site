@@ -1,0 +1,4 @@
+<%= form.hidden_field :rich_text, value: "1" %>
+<%= form.label :content, "Document" %>
+<%= form.rich_textarea :content, value: LightekOffice::Document.editor_html(content, rich_text: rich_text),
+  required: true, data: {direct_upload_url: "", blob_url_template: ""} %>

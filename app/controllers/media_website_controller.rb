@@ -32,6 +32,10 @@ class MediaWebsiteController < ApplicationController
         LightekAgency::Trial::DEFAULT_ANNUAL_PRICE_CENTS
       end
     end
+    if @page == "press"
+      site = DymondSite::Site.find_by(host: request.host.downcase)
+      @press_releases = NevaehOs::PublicRelations.releases(site).limit(10) if site
+    end
     render @page
   end
 end

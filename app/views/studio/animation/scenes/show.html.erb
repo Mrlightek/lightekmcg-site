@@ -1,0 +1,30 @@
+<section class="panel">
+  <h2><%= @scene.name %></h2>
+  <% if @scene_error %><p class="notice" role="alert"><%= @scene_error %></p><% end %>
+  <%= form_with scope: :scene, url: studio_animation_scene_path(@scene, site_id: @site.id), method: :patch, local: true do |form| %>
+    <label>Name <%= form.text_field :name, value: @scene.name, required: true, maxlength: 120 %></label>
+    <label>Scene timeline (JSON) <%= form.text_area :scene_spec, value: @scene_editor_text || JSON.pretty_generate(@scene.scene_spec), rows: 22, cols: 72, spellcheck: false, style: "display:block;max-width:100%;font-family:monospace" %></label>
+    <%= form.submit "Save scene", class: "primary" %>
+  <% end %>
+  <details>
+    <summary>Timeline fields and asset IDs</summary>
+    <p>Set <code>aspect_ratio</code> to <code>9:16</code> or <code>16:9</code>, <code>fps</code> to 24 or 30, and <code>duration_ms</code> to 1,000–30,000.</p>
+    <p>Add objects to <code>layers</code> using an <code>asset_id</code> and <code>dimension_mode</code>. A default-position layer needs only those two fields. Use <code>keyframes</code> with <code>time_ms</code> to animate transforms.</p>
+    <p>Set <code>audio_asset_id</code> for sound. On artwork layers, add a <code>mouth</code> with viseme image IDs in <code>variants</code> and a list of <code>cues</code> containing <code>start_ms</code>, <code>end_ms</code> and <code>viseme</code>. Use <code>X</code> for rest.</p>
+    <ul>
+      <% (@assets.order(:name) + @starters.order(:name)).each do |asset| %>
+        <li><%= asset.name %> · ID <code><%= asset.id %></code> · <%= asset.animation_role || "Starter rig" %><%= " / #{asset.dimension_mode || '3d'}" unless asset.animation_role == "audio" %></li>
+      <% end %>
+    </ul>
+  </details>
+</section>
+<section class="panel">
+  <h2>MP4 renders</h2>
+  <%= button_to "Render saved scene", studio_animation_scene_renders_path(@scene, site_id: @site.id), class: "primary" %>
+  <ul>
+    <% @scene.studio_scene_renders.order(id: :desc).each do |item| %>
+      <li><%= link_to "Render #{item.id}", studio_animation_scene_render_path(@scene, item, site_id: @site.id) %> · <%= item.status.humanize %></li>
+    <% end %>
+  </ul>
+  <%= button_to "Delete scene", studio_animation_scene_path(@scene, site_id: @site.id), method: :delete %>
+</section>

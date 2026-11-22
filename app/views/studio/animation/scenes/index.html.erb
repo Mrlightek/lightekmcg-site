@@ -1,0 +1,19 @@
+<section class="panel">
+  <h2>Your scenes</h2>
+  <% if @documents.empty? %><p>Create a scene to start layering assets.</p><% end %>
+  <ul>
+    <% @documents.each do |scene| %>
+      <li><%= link_to scene.name, studio_animation_scene_path(scene, site_id: @site.id) %></li>
+    <% end %>
+  </ul>
+</section>
+<section class="panel">
+  <h2>Create a scene</h2>
+  <%= form_with scope: :scene, url: studio_animation_scenes_path(site_id: @site.id), local: true do |form| %>
+    <div class="fields">
+      <label>Name <%= form.text_field :name, required: true, maxlength: 120 %></label>
+      <label>Animation project <%= form.collection_select :studio_project_id, @projects.order(:name), :id, :name, include_blank: "Create an animation project" %></label>
+    </div>
+    <%= form.submit "Create scene", class: "primary" %>
+  <% end %>
+</section>

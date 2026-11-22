@@ -5,7 +5,12 @@ resources :dashboard_nevaeh_agenda_items, path: '/dashboard/nevaeh/agenda/items'
 end
 
 resources :dashboard_team_channels, path: '/dashboard/team-chat', controller: 'dashboard/team_channels', only: %i[index show create] do
+  collection do
+    post :share
+    post :accept_share
+  end
   member do
+    delete :disconnect
     get :timeline
     post :messages
     post :invite

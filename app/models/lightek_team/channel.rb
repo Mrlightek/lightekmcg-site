@@ -6,6 +6,7 @@ module LightekTeam
 
     belongs_to :employer, class_name: 'User'
     belongs_to :creator, class_name: 'User'
+    has_one :partnership, class_name: 'LightekTeam::Partnership', dependent: :restrict_with_error
     has_many :memberships, class_name: 'LightekTeam::Membership', dependent: :destroy
     has_many :messages, class_name: 'LightekTeam::Message', dependent: :restrict_with_error
 

@@ -12,3 +12,9 @@ Nevaeh supports Lightek's CEO across company operations, communications, schedul
 | Plan travel, screenings, and follow-up | Track the commitment on the private agenda and use the existing Reservations, Rooms, Studio, Sales, or Accounting workflow where applicable. |
 
 Calendar invitations and external availability, phone triage, automatic executive follow-up, supplier travel booking, receipt and contract routing, screening delivery, and general-purpose collaborative documents and spreadsheets still require connected workflows. An agenda entry records a commitment. Its presence does not verify an external booking, invitation, expense approval, or delivery.
+
+## Shared team channels
+
+An organization owner can use **Create shared channel** in Team Chat and enter the account email of another organization owner on the same Lightek installation. The receiving owner reviews and accepts the invitation in Team Chat. Each owner can add active teammates from their own workforce directory. Shared history and the participant list identify the organization for each message or teammate.
+
+Either owner can disconnect the organizations. Partner access to the channel and its history ends at disconnection. The host keeps its record. A new invitation creates a fresh channel. Offboarding also removes access through the affected organization.

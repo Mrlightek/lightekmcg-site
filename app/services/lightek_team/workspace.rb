@@ -18,13 +18,31 @@ module LightekTeam
       authorize!
       scope = Channel.where(employer: @employer)
       memberships = Membership.where(user: @actor).select(:channel_id)
+      guests = PartnerMembership.where(user: @actor).select(:partnership_id)
+      hosts = User.where(role: LightekPeople::Access::BUSINESS_ROLES, access_suspended_at: nil)
+      connections = Partnership.connected.where(partner: hosts.where(id: @employer.id), id: guests).select(:channel_id)
       scope.where(private_channel: false).or(scope.where(id: memberships))
+        .or(Channel.where(id: connections, employer: hosts, private_channel: true))
     end
 
-    def roster
-      memberships = LightekPeople::Employment.active.where(employer: @employer).select(:worker_id)
+    def roster(organization = @employer)
+      memberships = LightekPeople::Employment.active.where(employer: organization).select(:worker_id)
       active = User.where(access_suspended_at: nil)
-      active.where(id: @employer.id).or(active.where(id: memberships))
+      active.where(id: organization.id).or(active.where(id: memberships))
+    end
+
+    def participants(channel)
+      host = roster(channel.employer).where(id: channel.memberships.select(:user_id))
+      record = channel.partnership
+      guest = record&.connected? && LightekPeople::LifecycleAccess.active?(record.partner) ?
+        roster(record.partner).where(id: record.memberships.select(:user_id)) : User.none
+      {channel.employer => host.order(:first_name, :last_name)}.tap do |groups|
+        groups[record.partner] = guest.order(:first_name, :last_name) if record&.connected?
+      end
+    end
+
+    def managed_members(channel)
+      channel.employer_id == @employer.id ? channel.memberships : channel.partnership.memberships
     end
 
     def create!(attributes)
@@ -37,7 +55,10 @@ module LightekTeam
     end
 
     def owner_controls?(channel)
-      channel.private_channel? && (channel.creator_id == @actor.id || @employer.id == @actor.id)
+      return false unless channel.private_channel?
+      return @employer.id == @actor.id if channel.partnership
+
+      channel.creator_id == @actor.id || @employer.id == @actor.id
     end
 
     def change_member!(channel_id, user_id, operation:)
@@ -49,10 +70,11 @@ module LightekTeam
         case operation
         when :add
           user = roster.find(user_id)
-          channel.memberships.find_or_create_by!(user: user)
+          managed_members(channel).find_or_create_by!(user: user)
         when :remove
-          membership = channel.memberships.find_by!(user_id: user_id)
-          raise ArgumentError, 'The channel creator retains access while they belong to the organization.' if membership.user_id == channel.creator_id
+          membership = managed_members(channel).find_by!(user_id: user_id)
+          protected_id = channel.partnership ? @employer.id : channel.creator_id
+          raise ArgumentError, 'The channel owner keeps access.' if membership.user_id == protected_id
           membership.destroy!
         end
       end
@@ -68,11 +90,14 @@ module LightekTeam
         messages = channel.messages.where(author: @actor)
         existing = messages.find_by(request_key: request_key)
         if existing
-          raise ArgumentError, 'This message was already sent. Refresh to start a new message.' unless existing.body == body && existing.reply_to_id == reply&.id
+          same_organization = (existing.organization_id || channel.employer_id) == @employer.id
+          unless same_organization && existing.body == body && existing.reply_to_id == reply&.id
+            raise ArgumentError, 'This message was already sent. Refresh to start a new message.'
+          end
           return existing
         end
 
-        messages.create!(body: body, request_key: request_key, reply_to: reply)
+        messages.create!(body: body, request_key: request_key, reply_to: reply, organization: @employer)
       end
     end
 

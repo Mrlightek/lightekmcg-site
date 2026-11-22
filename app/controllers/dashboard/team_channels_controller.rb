@@ -3,7 +3,7 @@
 class Dashboard::TeamChannelsController < DymondDash::ApplicationController
   protect_from_forgery with: :exception
   before_action :load_workspace
-  before_action :load_channel, only: %i[show timeline messages invite remove]
+  before_action :load_channel, only: %i[show timeline messages invite remove disconnect]
   rescue_from LightekPeople::Access::Denied, with: -> { head :forbidden }
   rescue_from ActiveRecord::RecordNotFound, with: -> { head :not_found }
   rescue_from ArgumentError, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, with: :invalid_request
@@ -14,15 +14,20 @@ class Dashboard::TeamChannelsController < DymondDash::ApplicationController
 
   def show
     @reply_to = @channel.messages.find(params[:reply_to]) if params[:reply_to].present?
+    @partnership = @channel.partnership
+    @participants = @workspace.participants(@channel) if @partnership
     @manage_members = @workspace.owner_controls?(@channel)
     if @manage_members
-      @memberships = @channel.memberships.includes(:user).order(:id)
-      @invitees = @workspace.roster.where.not(id: @channel.memberships.select(:user_id)).order(:first_name, :last_name)
+      members = @workspace.managed_members(@channel)
+      @memberships = members.includes(:user).order(:id)
+      @invitees = @workspace.roster.where.not(id: members.select(:user_id)).order(:first_name, :last_name)
+      @protected_member_id = @partnership ? @employer.id : @channel.creator_id
     end
     load_messages
   end
 
   def timeline
+    @partnership = @channel.partnership
     load_messages
     render partial: 'timeline'
   end
@@ -31,6 +36,22 @@ class Dashboard::TeamChannelsController < DymondDash::ApplicationController
     attributes = params.require(:team_channel).permit(:name, :description, :private_channel)
     @channel = @workspace.create!(attributes.to_h)
     redirect_to channel_path, notice: 'Channel created.', status: :see_other
+  end
+
+  def share
+    attributes = params.require(:team_channel).permit(:name, :description, :partner_email)
+    @channel = @shared_channels.invite!(attributes.to_h)
+    redirect_to channel_path, notice: 'Shared channel created. The partner owner can accept the invitation in Team Chat.', status: :see_other
+  end
+
+  def accept_share
+    @channel = @shared_channels.accept!(params.require(:invitation_id))
+    redirect_to channel_path, notice: 'Invitation accepted. You can now add teammates from your organization.', status: :see_other
+  end
+
+  def disconnect
+    @shared_channels.disconnect!(@channel)
+    redirect_to dashboard_team_channels_path(employer_id: @employer.id), notice: 'Organization disconnected.', status: :see_other
   end
 
   def messages
@@ -59,7 +80,12 @@ class Dashboard::TeamChannelsController < DymondDash::ApplicationController
     @employer = params[:employer_id].present? ? @employers.find(params[:employer_id]) : @employers.find_by(id: current_user.id) || @employers.first
     if @employer
       @workspace = LightekTeam::Workspace.new(actor: current_user, employer: @employer)
-      @channels = @workspace.channels.order(:name)
+      @shared_channels = LightekTeam::SharedChannels.new(workspace: @workspace, organization: @employer, actor: current_user)
+      @channels = @workspace.channels.includes(:partnership).order(:name)
+      @can_manage_sharing = current_user.id == @employer.id
+      if %w[index show messages].include?(action_name) && @can_manage_sharing
+        @shared_invitations = @shared_channels.incoming.includes(channel: :employer).order(:created_at)
+      end
     elsif action_name != 'index'
       head :forbidden
     end
@@ -77,7 +103,7 @@ class Dashboard::TeamChannelsController < DymondDash::ApplicationController
       pattern = ActiveRecord::Base.sanitize_sql_like(@query.downcase)
       scope = scope.where('LOWER(body) LIKE ?', "%#{pattern}%")
     end
-    rows = scope.order(id: :desc).limit(41).includes(:author, :reply_to).to_a
+    rows = scope.order(id: :desc).limit(41).includes(:author, :organization, :reply_to).to_a
     @older_than = rows[39].id if rows.size > 40
     @messages = rows.first(40).reverse
   end

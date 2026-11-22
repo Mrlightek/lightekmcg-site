@@ -10,6 +10,7 @@
       <li id="team-message-<%= message.id %>">
         <div class="team-message-header">
           <strong><%= message.author.full_name %></strong>
+          <% if @partnership %><span class="team-muted"><%= (message.organization || @channel.employer).full_name %></span><% end %>
           <time datetime="<%= message.created_at.iso8601 %>"><%= l(message.created_at, format: :short) %></time>
         </div>
         <% if message.reply_to %>

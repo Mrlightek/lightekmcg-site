@@ -6,6 +6,7 @@ module LightekTeam
 
     belongs_to :channel, class_name: 'LightekTeam::Channel'
     belongs_to :author, class_name: 'User'
+    belongs_to :organization, class_name: 'User', optional: true
     belongs_to :reply_to, class_name: name, optional: true
 
     normalizes :body, with: ->(body) { body.strip }

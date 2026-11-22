@@ -39,8 +39,9 @@
         <h2>Channels</h2>
         <nav aria-label="Team channels">
           <% @channels.each do |channel| %>
-            <%= link_to "##{channel.name}", dashboard_team_channel_path(channel, employer_id: @employer.id),
-              aria: {current: ("page" if channel == @channel), label: ("Private channel #{channel.name}" if channel.private_channel?)} %>
+            <%= link_to dashboard_team_channel_path(channel, employer_id: @employer.id), aria: {current: ("page" if channel == @channel)} do %>
+              #<%= channel.name %><%= " · Shared" if channel.partnership %><%= " · Private" if channel.private_channel? && !channel.partnership %>
+            <% end %>
           <% end %>
         </nav>
         <details class="team-create">
@@ -57,11 +58,50 @@
             <%= form.submit "Create channel", class: "dd-topbar-btn dd-btn-primary" %>
           <% end %>
         </details>
+        <% if @can_manage_sharing %>
+          <details class="team-create">
+            <summary>Create shared channel</summary>
+            <%= form_with url: share_dashboard_team_channels_path(employer_id: @employer.id), scope: :team_channel do |form| %>
+              <%= form.label :name, "Channel name", for: "shared-channel-name" %>
+              <%= form.text_field :name, required: true, minlength: 2, maxlength: 60, placeholder: "screening-partners", id: "shared-channel-name" %>
+              <%= form.label :partner_email, "Partner organization owner’s Lightek email" %>
+              <%= form.email_field :partner_email, required: true, maxlength: 254, autocomplete: "off" %>
+              <%= form.submit "Create and invite", class: "dd-topbar-btn dd-btn-primary" %>
+            <% end %>
+          </details>
+        <% end %>
+        <% if @shared_invitations&.any? %>
+          <h2>Shared channel invitations</h2>
+          <ul class="team-roster">
+            <% @shared_invitations.each do |invitation| %>
+              <li><strong>#<%= invitation.channel.name %></strong> · <%= invitation.channel.employer.full_name %>
+                <%= button_to "Accept", accept_share_dashboard_team_channels_path(employer_id: @employer.id),
+                  params: {invitation_id: invitation.id}, class: "dd-topbar-btn dd-btn-ghost" %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
       </aside>
       <section class="team-panel" aria-label="Channel">
         <% if @channel %>
           <h2>#<%= @channel.name %></h2>
-          <p class="team-muted"><%= @channel.private_channel? ? "Invite-only" : "Company-wide" %><%= " · #{@channel.description}" if @channel.description.present? %></p>
+          <% if @partnership %>
+            <p class="team-muted">Shared with <%= @channel.employer_id == @employer.id ? @partnership.partner.full_name : @channel.employer.full_name %> · <%= @partnership.status_label %></p>
+            <details>
+              <summary>Channel participants</summary>
+              <% @participants.each do |organization, people| %>
+                <p><strong><%= organization.full_name %></strong></p>
+                <ul><% people.each do |person| %><li><%= person.full_name %></li><% end %></ul>
+              <% end %>
+            </details>
+            <% if @manage_members && !@partnership.closed_at? %>
+              <%= button_to (@partnership.connected? ? "Disconnect organization" : "Withdraw invitation"),
+                disconnect_dashboard_team_channel_path(@channel, employer_id: @employer.id), method: :delete,
+                class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+          <% else %>
+            <p class="team-muted"><%= @channel.private_channel? ? "Invite-only" : "Company-wide" %><%= " · #{@channel.description}" if @channel.description.present? %></p>
+          <% end %>
           <% if @manage_members %>
             <details>
               <summary>Manage channel members</summary>
@@ -73,7 +113,7 @@
               <ul class="team-roster">
                 <% @memberships.each do |membership| %>
                   <li><%= membership.user.full_name %>
-                    <% if membership.user_id != @channel.creator_id %>
+                    <% if membership.user_id != @protected_member_id %>
                       <%= button_to "Remove", remove_dashboard_team_channel_path(@channel, employer_id: @employer.id),
                         method: :delete, params: {user_id: membership.user_id}, class: "dd-topbar-btn dd-btn-ghost",
                         aria: {label: "Remove #{membership.user.full_name} from this channel"} %>

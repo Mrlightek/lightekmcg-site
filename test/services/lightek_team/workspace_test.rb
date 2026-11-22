@@ -47,6 +47,48 @@ class LightekTeam::WorkspaceTest < ActiveSupport::TestCase
     end
   end
 
+  test 'shared channels require acceptance and isolate both organizational rosters' do
+    partner = account('white_label')
+    guest = account('employee')
+    employment = LightekPeople::Employment.new(employer: partner, worker: guest, title: 'Coordinator',
+      starts_on: Date.current, active: true)
+    employment.lifecycle_activation = true
+    employment.save!
+    partner_workspace = LightekTeam::Workspace.new(actor: partner, employer: partner)
+    guest_workspace = LightekTeam::Workspace.new(actor: guest, employer: partner)
+    host_sharing = LightekTeam::SharedChannels.new(workspace: @workspace, organization: @employer, actor: @employer)
+    partner_sharing = LightekTeam::SharedChannels.new(workspace: partner_workspace, organization: partner, actor: partner)
+    guest_sharing = LightekTeam::SharedChannels.new(workspace: guest_workspace, organization: partner, actor: guest)
+    internal = @workspace.create!('name' => 'internal', 'private_channel' => false)
+    shared = host_sharing.invite!('name' => 'screening-partners', 'partner_email' => partner.email_address)
+
+    assert_includes partner_sharing.incoming, shared.partnership
+    refute partner_workspace.channels.exists?(shared.id)
+    assert_empty guest_sharing.incoming
+    assert_raises(LightekPeople::Access::Denied) { guest_sharing.accept!(shared.partnership.id) }
+    assert_raises(ActiveRecord::RecordNotFound) { host_sharing.accept!(shared.partnership.id) }
+
+    assert_equal shared, partner_sharing.accept!(shared.partnership.id)
+    assert_equal shared, partner_sharing.accept!(shared.partnership.id)
+    assert_equal 1, shared.partnership.memberships.count
+    assert partner_workspace.channels.exists?(shared.id)
+    refute partner_workspace.channels.exists?(internal.id)
+    refute guest_workspace.channels.exists?(shared.id)
+    assert_raises(ActiveRecord::RecordNotFound) { partner_workspace.change_member!(shared.id, @staff.id, operation: :add) }
+    assert_raises(ActiveRecord::RecordNotFound) { @workspace.change_member!(shared.id, guest.id, operation: :add) }
+    partner_workspace.change_member!(shared.id, guest.id, operation: :add)
+    assert_equal partner, guest_workspace.post!(shared.id, message_attributes).organization
+
+    employment.update_columns(active: false)
+    assert_raises(LightekPeople::Access::Denied) { guest_workspace.channels.load }
+    partner_sharing.disconnect!(shared)
+    refute partner_workspace.channels.exists?(shared.id)
+    assert_raises(ActiveRecord::RecordNotFound) { partner_workspace.post!(shared.id, message_attributes) }
+    assert @workspace.channels.exists?(shared.id)
+    assert_equal 1, shared.messages.count
+    assert_raises(ActiveRecord::RecordNotFound) { partner_sharing.accept!(shared.partnership.id) }
+  end
+
   private
 
   def account(role)

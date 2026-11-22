@@ -3,6 +3,7 @@
 import json
 import math
 import re
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -67,20 +68,34 @@ def animate(object_, spec, fps):
         if field not in spec:
             continue
         target = object_.data if field == "lens" else object_
-        keys = [(0, spec[field])]
-        keys.extend((item["time_ms"], item[field]) for item in spec["keyframes"] if field in item)
-        for time, value in keys:
+        keys = {0: (spec[field], "LINEAR")}
+        keys.update({
+            item["time_ms"]: (item[field], item.get("interpolation", "LINEAR"))
+            for item in spec["keyframes"] if field in item
+        })
+        for time, (value, _) in keys.items():
             if field == "rotation":
                 value = tuple(math.radians(angle) for angle in value)
             setattr(target, path, value)
             if len(keys) > 1:
                 target.keyframe_insert(data_path=path, frame=frame_at(time, fps))
-    if spec["keyframes"]:
-        for target in (object_, object_.data) if "lens" in spec else (object_,):
-            if target.animation_data and target.animation_data.action:
-                for curve in target.animation_data.action.fcurves:
-                    for key in curve.keyframe_points:
-                        key.interpolation = "LINEAR"
+        if len(keys) < 2:
+            continue
+
+        interpolation = [curve for _, curve in keys.values()]
+        for curve in target.animation_data.action.fcurves:
+            if curve.data_path != path:
+                continue
+            points = list(curve.keyframe_points)
+            for point in points:
+                point.handle_left_type = point.handle_right_type = "FREE"
+                point.handle_left = point.handle_right = point.co
+            for index, (left, right) in enumerate(zip(points, points[1:])):
+                left.interpolation = interpolation[index + 1]
+                third = (right.co.x - left.co.x) / 3
+                left.handle_right = (left.co.x + third, left.co.y)
+                right.handle_left = (right.co.x - third, right.co.y)
+            curve.update()
 
 
 def empty(bpy, name, parent=None):
@@ -175,8 +190,8 @@ def check_gltf(path):
                 walk(value)
 
     if path.suffix == ".gltf":
-        walk(json.loads(path.read_text(encoding="utf-8")))
-    elif path.suffix == ".glb":
+        document = json.loads(path.read_text(encoding="utf-8"))
+    else:
         with path.open("rb") as file:
             header = file.read(20)
             if len(header) != 20 or header[:8] != b"glTF\x02\x00\x00\x00" or header[16:] != b"JSON":
@@ -184,15 +199,102 @@ def check_gltf(path):
             size = int.from_bytes(header[12:16], "little")
             if size > path.stat().st_size - 20:
                 raise ValueError("Invalid glTF JSON size")
-            walk(json.loads(file.read(size)))
+            document = json.loads(file.read(size))
+    walk(document)
+    return document
+
+
+GLTF_EXCLUDED = "_lightek_outside_active_scene"
+
+
+def studio_gltf_source(path):
+    document = check_gltf(path)
+    scenes = document.get("scenes", [])
+    if not scenes:
+        return path, False
+    nodes = document.get("nodes", [])
+    included = set()
+    pending = list(scenes[document.get("scene", 0)].get("nodes", []))
+    while pending:
+        node = pending.pop()
+        if node not in included:
+            included.add(node)
+            pending.extend(nodes[node].get("children", []))
+    if len(included) == len(nodes):
+        return path, False
+
+    # Blender imports every glTF root. Tag the out-of-scene geometry in the
+    # worker copy so that Studio renders the same scene as GLTFLoader.
+    for index, node in enumerate(nodes):
+        extras = node.get("extras")
+        node["extras"] = {**(extras if isinstance(extras, dict) else {}), GLTF_EXCLUDED: index not in included}
+    target = path.with_name(f"studio-scene-{path.name}")
+    payload = json.dumps(document, separators=(",", ":")).encode()
+    if path.suffix == ".gltf":
+        target.write_bytes(payload)
+    else:
+        with path.open("rb") as file:
+            file.seek(12)
+            size = int.from_bytes(file.read(4), "little")
+            file.seek(20 + size)
+            remaining = file.read()
+        payload += b" " * (-len(payload) % 4)
+        header = struct.pack("<4sIII4s", b"glTF", 2, 20 + len(payload) + len(remaining), len(payload), b"JSON")
+        target.write_bytes(header + payload + remaining)
+    return target, True
+
+
+MESH_TYPES = {"MESH", "CURVE", "SURFACE", "FONT", "META"}
+
+
+def render_collection_objects(layer):
+    if layer.exclude or layer.collection.hide_render:
+        return set()
+    objects = set(layer.collection.objects)
+    for child in layer.children:
+        objects.update(render_collection_objects(child))
+    return objects
+
+
+def model_excluded(obj, starter):
+    return obj.type in {"CAMERA", "LIGHT"} or (starter and (
+        obj.get("lightek_character_floor") or obj.name.split(".")[0] == "Studio floor"))
+
+
+def link_model(bpy, parent, objects, visible, starter, *, native):
+    scene = bpy.context.scene
+    hidden = bpy.data.collections.new("Studio render exclusions")
+    hidden.hide_render = True
+    scene.collection.children.link(hidden)
+    included = set()
+    for obj in objects:
+        if obj.parent not in objects:
+            obj.parent = parent
+        # The source's viewport switches are not render switches. Keep hidden
+        # rig dependencies linked and evaluable without rendering them.
+        obj.hide_viewport = False
+        if obj in visible and not model_excluded(obj, starter):
+            destination = scene.collection
+            included.add(obj)
+        else:
+            destination = hidden
+        if obj not in destination.objects.values():
+            destination.objects.link(obj)
+        if not native:
+            for collection in list(obj.users_collection):
+                if collection != destination:
+                    collection.objects.unlink(obj)
+        obj.hide_set(False)
+    return included, hidden
 
 
 def import_model(bpy, path, parent, layer):
     before = set(bpy.data.objects)
     previous_actions = set(bpy.data.actions)
+    filtered_gltf = False
     if path.suffix in (".glb", ".gltf"):
-        check_gltf(path)
-        bpy.ops.import_scene.gltf(filepath=str(path))
+        source, filtered_gltf = studio_gltf_source(path)
+        bpy.ops.import_scene.gltf(filepath=str(source))
     elif path.suffix == ".fbx":
         bpy.ops.import_scene.fbx(filepath=str(path), use_image_search=False)
     elif path.suffix == ".blend":
@@ -200,29 +302,30 @@ def import_model(bpy, path, parent, layer):
         with bpy.data.libraries.load(str(path), link=False) as (available, loaded):
             if not available.scenes:
                 raise ValueError("The Blender file contains no scene")
-            loaded.scenes = available.scenes[:1]
+            loaded.scenes = [min(available.scenes, key=lambda name: (name.casefold(), name))]
             if wanted:
                 if wanted not in available.actions:
                     raise ValueError(f"Action {wanted!r} is missing")
                 loaded.actions = [wanted]
         source = loaded.scenes[0]
-        target = bpy.context.scene
-        for collection in source.collection.children:
-            target.collection.children.link(collection)
-        for obj in source.collection.objects:
-            target.collection.objects.link(obj)
+        primary_layer = next((view for view in source.view_layers if view.use), None)
+        objects = set(source.objects)
+        visible = render_collection_objects(primary_layer.layer_collection) if primary_layer else set()
     else:
         raise ValueError("Unsupported model file")
-    imported = sorted(set(bpy.data.objects) - before, key=lambda obj: obj.name)
-    if not any(obj.type == "MESH" for obj in imported):
-        raise ValueError("The model contains no mesh")
-    for obj in imported:
-        if obj.parent not in imported:
-            obj.parent = parent
-        if obj.type in ("CAMERA", "LIGHT") or (layer.get("starter") and
-                (obj.get("lightek_character_floor") or obj.name.split(".")[0] == "Studio floor")):
-            obj.hide_render = True
-    if layer.get("action"):
+    if path.suffix != ".blend":
+        scene = bpy.context.scene
+        objects = (set(bpy.data.objects) - before) & set(scene.objects)
+        visible = render_collection_objects(bpy.context.view_layer.layer_collection) & objects
+    imported = sorted(objects, key=lambda obj: obj.name)
+    if filtered_gltf:
+        visible = {obj for obj in visible if not obj.get(GLTF_EXCLUDED)}
+    included, hidden = link_model(bpy, parent, objects, visible, layer.get("starter", False), native=path.suffix == ".blend")
+    if not any(obj.type in MESH_TYPES or obj.is_instancer for obj in included):
+        raise ValueError("The source scene has no render-visible meshes")
+    if path.suffix in (".glb", ".gltf"):
+        apply_gltf_animation(bpy, imported, previous_actions, layer.get("action"))
+    elif layer.get("action"):
         armatures = [obj for obj in imported if obj.type == "ARMATURE"]
         action = loaded.actions[0] if path.suffix == ".blend" else next(
             (item for item in bpy.data.actions if item not in previous_actions and
@@ -239,25 +342,70 @@ def import_model(bpy, path, parent, layer):
         if slots and animation.action_slot is None:
             animation.action_slot = slots[0]
     if "pose_frame" in layer:
-        freeze_pose(bpy, imported, layer["pose_frame"])
+        return bake_pose(bpy, parent, included, hidden, layer["pose_frame"])
+    return included
 
 
-def freeze_pose(bpy, objects, frame):
+def apply_gltf_animation(bpy, objects, previous_actions, name):
+    # glTF actions import on a zero-based clock. Studio evaluates frame 1
+    # at time zero. Shift every imported channel, including shape keys.
+    for action in set(bpy.data.actions) - previous_actions:
+        bags = [bag for layer in getattr(action, "layers", []) for strip in layer.strips
+                for bag in getattr(strip, "channelbags", [])]
+        for curves in [bag.fcurves for bag in bags] or [action.fcurves]:
+            for curve in curves:
+                for point in curve.keyframe_points:
+                    point.co.x += 1
+                    point.handle_left.x += 1
+                    point.handle_right.x += 1
+                curve.update()
+    if not name:
+        return
+    matched = False
+    for obj in objects:
+        for animated in (obj, getattr(obj.data, "shape_keys", None)):
+            data = getattr(animated, "animation_data", None)
+            if not data:
+                continue
+            strip = next((track.strips[0] for track in data.nla_tracks if track.name == name and track.strips), None)
+            for track in data.nla_tracks:
+                track.mute = True
+            data.action = strip.action if strip else None
+            if strip and getattr(strip, "action_slot", None):
+                data.action_slot = strip.action_slot
+            matched = matched or bool(strip)
+    if not matched:
+        raise ValueError(f"Action {name!r} is missing from the glTF model")
+
+
+def bake_pose(bpy, parent, included, hidden, frame):
     scene = bpy.context.scene
     scene.frame_set(frame)
     depsgraph = bpy.context.evaluated_depsgraph_get()
-    snapshots = []
-    for obj in objects:
-        evaluated = obj.evaluated_get(depsgraph)
-        bones = {bone.name: bone.matrix_basis.copy() for bone in evaluated.pose.bones} if obj.pose else {}
-        snapshots.append((obj, evaluated.matrix_basis.copy(), bones))
-    for obj, matrix, bones in snapshots:
-        obj.animation_data_clear()
-        obj.matrix_basis = matrix
-        if obj.pose:
-            for bone in obj.pose.bones:
-                bone.matrix_basis = bones[bone.name]
+    relative = parent.matrix_world.inverted_safe()
+    baked = []
+    # Read the dependency graph before linking any copies, since a scene
+    # mutation can invalidate the object-instance iterator.
+    for instance in depsgraph.object_instances:
+        evaluated = instance.object
+        owner = instance.parent if instance.is_instance else evaluated
+        if not owner or owner.original not in included or owner.hide_render or evaluated.hide_render:
+            continue
+        if evaluated.type not in MESH_TYPES:
+            continue
+        mesh = bpy.data.meshes.new_from_object(evaluated, preserve_all_data_layers=True, depsgraph=depsgraph)
+        copy = bpy.data.objects.new(f"{evaluated.original.name} · pose", mesh)
+        baked.append((copy, relative @ instance.matrix_world))
+    for copy, matrix in baked:
+        scene.collection.objects.link(copy)
+        copy.parent = parent
+        copy.matrix_basis = matrix
+    # Retain dependencies but remove original geometry from the render view.
+    for obj in included:
+        hidden.objects.link(obj)
+        scene.collection.objects.unlink(obj)
     scene.frame_set(1)
+    return [copy for copy, _ in baked]
 
 
 def position_with_depth(layer):
@@ -279,9 +427,12 @@ def build(bpy, spec, root):
     fps = spec["fps"]
     scene.frame_start = 1
     scene.frame_end = spec["frame_count"]
+    scene.render.fps = fps
     camera = bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
     scene.collection.objects.link(camera)
     scene.camera = camera
+    camera.data.sensor_fit = "VERTICAL" if spec["aspect_ratio"] == "9:16" else "HORIZONTAL"
+    camera.data.sensor_width = camera.data.sensor_height = 36
     animate(camera, spec["camera"], fps)
 
     # X is horizontal, Z is vertical and positive Y recedes from the camera.
@@ -326,7 +477,6 @@ def build(bpy, spec, root):
     scene.render.resolution_x = spec["width"]
     scene.render.resolution_y = spec["height"]
     scene.render.resolution_percentage = 100
-    scene.render.fps = fps
     scene.render.image_settings.file_format = "FFMPEG"
     scene.render.ffmpeg.format = "MPEG4"
     scene.render.ffmpeg.codec = "H264"
@@ -366,6 +516,24 @@ def encode(root, spec):
     )
 
 
+def preview(bpy, spec, root):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    scene = bpy.context.scene
+    scene.render.fps = spec["fps"]
+    parent = empty(bpy, "Model")
+    layer = {**spec, "pose_frame": spec.get("pose_frame", 1)}
+    baked = import_model(bpy, input_path(root, spec["source"]), parent, layer)
+    if not baked:
+        raise ValueError("No render-visible meshes at the requested frame")
+    bpy.ops.object.select_all(action="DESELECT")
+    parent.select_set(True)
+    for obj in baked:
+        obj.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=str(root / "preview.glb"), export_format="GLB",
+                              export_yup=True, use_selection=True, export_animations=False,
+                              export_cameras=False, export_lights=False)
+
+
 def main(args):
     phase, manifest = args
     path = Path(manifest).resolve()
@@ -375,6 +543,9 @@ def main(args):
     if phase == "render":
         import bpy
         build(bpy, spec, path.parent)
+    elif phase == "preview":
+        import bpy
+        preview(bpy, spec, path.parent)
     elif phase == "encode":
         encode(path.parent, spec)
     else:

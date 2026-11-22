@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Scene Animation · Lightek Studio</title>
+  <title><%= content_for?(:animation_title) ? yield(:animation_title) : "Scene Animation" %> · Lightek Studio</title>
   <%= csrf_meta_tags %>
   <%= yield :animation_head %>
   <%= stylesheet_link_tag "/lightek/pipeline-hub.css" %>
@@ -13,7 +13,7 @@
   <header class="pipeline-header">
     <div>
       <%= link_to "Lightek Studio", studio_pipeline_path(site_id: @site.id), class: "pipeline-brand" %>
-      <h1>Scene Animation</h1>
+      <h1><%= content_for?(:animation_title) ? yield(:animation_title) : "Scene Animation" %></h1>
       <p><%= @site.name %></p>
     </div>
     <nav aria-label="Animation tools">

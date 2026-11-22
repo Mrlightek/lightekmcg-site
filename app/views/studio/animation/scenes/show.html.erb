@@ -1,30 +1,57 @@
-<section class="panel">
-  <h2><%= @scene.name %></h2>
-  <% if @scene_error %><p class="notice" role="alert"><%= @scene_error %></p><% end %>
-  <%= form_with scope: :scene, url: studio_animation_scene_path(@scene, site_id: @site.id), method: :patch, local: true do |form| %>
-    <label>Name <%= form.text_field :name, value: @scene.name, required: true, maxlength: 120 %></label>
-    <label>Scene timeline (JSON) <%= form.text_area :scene_spec, value: @scene_editor_text || JSON.pretty_generate(@scene.scene_spec), rows: 22, cols: 72, spellcheck: false, style: "display:block;max-width:100%;font-family:monospace" %></label>
-    <%= form.submit "Save scene", class: "primary" %>
-  <% end %>
-  <details>
-    <summary>Timeline fields and asset IDs</summary>
-    <p>Set <code>aspect_ratio</code> to <code>9:16</code> or <code>16:9</code>, <code>fps</code> to 24 or 30, and <code>duration_ms</code> to 1,000–30,000.</p>
-    <p>Add objects to <code>layers</code> using an <code>asset_id</code> and <code>dimension_mode</code>. A default-position layer needs only those two fields. Use <code>keyframes</code> with <code>time_ms</code> to animate transforms.</p>
-    <p>Set <code>audio_asset_id</code> for sound. On artwork layers, add a <code>mouth</code> with viseme image IDs in <code>variants</code> and a list of <code>cues</code> containing <code>start_ms</code>, <code>end_ms</code> and <code>viseme</code>. Use <code>X</code> for rest.</p>
-    <ul>
-      <% (@assets.order(:name) + @starters.order(:name)).each do |asset| %>
-        <li><%= asset.name %> · ID <code><%= asset.id %></code> · <%= asset.animation_role || "Starter rig" %><%= " / #{asset.dimension_mode || '3d'}" unless asset.animation_role == "audio" %></li>
-      <% end %>
-    </ul>
+<% content_for :animation_title, "Visual Studio" %>
+<% content_for :animation_head do %>
+  <%= stylesheet_link_tag "/lightek/visual-studio/studio.css" %>
+  <script type="importmap">{"imports":{"three":"/lightek/vendor/three/three.module.js"}}</script>
+  <%= javascript_include_tag "/lightek/visual-studio/studio.js", type: "module" %>
+<% end %>
+<div class="visual-studio" id="visual-studio"
+     data-scene-url="<%= studio_animation_scene_path(@scene, site_id: @site.id) %>"
+     data-assets-url="<%= studio_animation_assets_path(site_id: @site.id) %>"
+     data-renders-url="<%= studio_animation_scene_renders_path(@scene, site_id: @site.id) %>"
+     data-library-url="<%= studio_animation_scenes_path(site_id: @site.id) %>">
+  <section class="vs-toolbar" aria-label="Scene">
+    <label>Scene name<input data-name value="<%= @scene.name %>" required maxlength="120"></label>
+    <label>Format<select data-format><option>9:16</option><option>16:9</option></select></label>
+    <label>Frame rate<select data-fps><option value="24">24 fps</option><option value="30">30 fps</option></select></label>
+    <label>Duration (s)<input data-duration type="number" min="1" max="30" step=".001"></label>
+    <span data-save-status role="status"></span>
+    <button type="button" data-save>Save</button>
+    <button class="primary" type="button" data-render>Render MP4</button>
+  </section>
+  <p data-message role="status" class="vs-message"><%= @scene_error || "Loading Visual Studio…" %></p>
+  <noscript><p>Enable JavaScript to edit and render scenes.</p></noscript>
+  <div class="vs-workspace">
+    <aside class="vs-panel vs-library"><h2>Assets</h2><div data-library></div></aside>
+    <section class="vs-viewport" aria-label="Camera preview">
+      <div class="vs-stage-tools">
+        <button type="button" data-camera>Camera</button>
+        <span>Drag to move · Scroll to zoom camera</span>
+        <output data-frame></output>
+      </div>
+      <div class="vs-stage" data-stage></div>
+      <p data-preview-message role="status"></p>
+    </section>
+    <aside class="vs-panel vs-inspector"><h2>Inspector</h2><div data-inspector></div></aside>
+  </div>
+  <section class="vs-panel vs-timeline" aria-label="Timeline">
+    <div class="vs-timeline-tools">
+      <button type="button" data-play>Play</button>
+      <span data-time></span>
+      <button type="button" data-add-key>Add keyframe</button>
+      <button type="button" data-add-cue>Add mouth cue</button>
+      <button type="button" data-import-cues>Import Rhubarb cues</button>
+      <input data-cue-file type="file" accept=".json,application/json" aria-label="Rhubarb cue file" hidden>
+      <input data-scrub type="range" min="1" value="1" aria-label="Playhead frame">
+    </div>
+    <div data-tracks></div>
+  </section>
+  <details class="vs-panel vs-renders" data-renders>
+    <summary>MP4 renders <span data-render-status></span></summary>
+    <p data-render-connection role="status" class="vs-message"></p>
+    <button type="button" data-refresh-renders hidden>Refresh render status</button>
+    <div data-render-list></div>
+    <video data-video controls playsinline preload="metadata" hidden></video>
+    <a data-download hidden>Download MP4</a>
   </details>
-</section>
-<section class="panel">
-  <h2>MP4 renders</h2>
-  <%= button_to "Render saved scene", studio_animation_scene_renders_path(@scene, site_id: @site.id), class: "primary" %>
-  <ul>
-    <% @scene.studio_scene_renders.order(id: :desc).each do |item| %>
-      <li><%= link_to "Render #{item.id}", studio_animation_scene_render_path(@scene, item, site_id: @site.id) %> · <%= item.status.humanize %></li>
-    <% end %>
-  </ul>
-  <%= button_to "Delete scene", studio_animation_scene_path(@scene, site_id: @site.id), method: :delete %>
-</section>
+  <button type="button" data-delete-scene>Delete scene</button>
+</div>

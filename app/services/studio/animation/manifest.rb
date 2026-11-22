@@ -20,7 +20,7 @@ module Studio
               (mode == layer["dimension_mode"] || (mode == "2d" && layer["dimension_mode"] == "2_5d"))
             raise ArgumentError, "Asset #{asset.id} does not match the requested layer type"
           end
-          layer.except("mouth").merge("source" => register(asset.animation_role? ? asset.file : asset.native)).tap do |entry|
+          layer.except("mouth").merge("source" => register(asset.animation_source)).tap do |entry|
             entry["starter"] = true unless asset.animation_role?
             if (mouth = layer["mouth"])
               entry["mouth"] = mouth.merge("variants" => mouth.fetch("variants").transform_values { |id| role_source(id, "viseme") })

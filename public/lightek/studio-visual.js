@@ -1,7 +1,7 @@
 /* One scene, one stage. This view reuses the native viewport and saved media APIs. */
 (() => {
   const esc=v=>E(String(v??'')).replaceAll("'",'&#39;'), call=async(action,payload={})=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
-  const state={starter:null,starterKey:null,starterLoaded:false,starterLoading:false,starterTimer:null,advanced:new URL(location.href).searchParams.get('workspace')==='publish',tab:'characters',assets:[],presets:[],loaded:false,loading:false,busy:false,message:'',sceneId:null,clip:null,preview:null,poll:0,mode:'layout'};
+  const state={starter:null,starterLoaded:false,starterLoading:false,starterTimer:null,starterError:null,rigUpload:null,advanced:new URL(location.href).searchParams.get('workspace')==='publish',tab:'characters',assets:[],presets:[],loaded:false,loading:false,busy:false,message:'',sceneId:null,clip:null,preview:null,poll:0,mode:'layout'};
   const animationStart=()=>{
     const root=document.querySelector('#lightek-studio-dashboard');
     return !root||(root.dataset.workspace==='stage'&&!root.dataset.sceneId);
@@ -24,19 +24,95 @@
   async function load(more=false){
     if(state.loading)return;state.loading=true;
     try{const result=await call('assets.list',{surface:'visual',...(more&&state.next?{before:state.next}:{})});state.assets=more?[...state.assets,...result.assets.filter(a=>!state.assets.some(b=>a.id===b.id))]:result.assets;window.LightekStudioTimeline.assets(state.assets);state.next=result.next_before;state.presets=result.media_presets||[];state.loaded=true;}
-    catch(e){notice(e.message);}finally{state.loading=false;if(app.querySelector('.vw-home'))updateHomeSection('.vw-template-grid', productionTemplates());else refresh(true);}
+    catch(e){notice(e.message);}finally{state.loading=false;if(app.querySelector('.vw-home')){updateHomeSection('.vw-template-grid', productionTemplates());updateHomeSection('.vw-starter-cast',starterPanel());}else refresh(true);}
     placeReadyCharacter();
     clearTimeout(state.assetTimer);
     if(location.hash.startsWith('#/studio')&&state.assets.some(a=>['uploaded','processing'].includes(a.status)||(a.metadata?.performer_build&&a.status==='ready'&&!a.metadata.character_profile)))state.assetTimer=setTimeout(()=>load(),4000);
   }
   function starterPanel(){
-    const job=state.starter,labels={queued:'Waiting for the Studio worker',delayed:'The Studio worker has not started this import. Retry to submit the same scene again.',checking_worker:'Checking the character worker',importing_rain_v3:'Importing Rain and her rig',importing_snow_v4:'Importing Snow and his rig',building_scene:'Building your first shot',preparing_editor:'Preparing the editor',ready:'Your character scene is ready',failed:'Scene preparation failed'};
-    return `<section class="vw-starter-cast"><h2>Start with real characters</h2><p>Try a ready-made scene with Rain and Snow, a camera, lights and movement you can edit.</p>${job?`<p role="status">${esc(labels[job.phase]||job.phase)}</p>${job.error?`<p role="alert">${esc(job.error)}</p>`:''}`:''}${!state.starterLoaded?'<button class="vw-btn" disabled>Checking starter scenes…</button>':job?.phase==='ready'?`<a class="vw-btn primary" href="#/studio/${job.scene_id}${window.LightekStudioProduction?'/stage':''}">Open character scene →</a>`:job&&job.status!=='failed'&&job.phase!=='delayed'?'<button class="vw-btn" disabled>Preparing your scene…</button>':button('starter-cast',job?'Retry starter scene':'Use Rain & Snow')}<small>Rain Rig / Snow Rig (CC) Blender Foundation · CC-BY 4.0</small></section>`;
+    const job=state.starter,labels={queued:'Waiting for the Studio worker',delayed:'The Studio worker has not started this import. Retry to submit the same scene again.',checking_worker:'Checking the character worker',importing_rain_v3:'Importing Rain and her rig',importing_snow_v4:'Importing Snow and his rig',importing_ellie_v2:'Importing Ellie and her poses',importing_human_base_meshes:'Importing the human base mesh',building_scene:'Building your character scene',preparing_editor:'Preparing the editor',ready:'Your character scene is ready',failed:'Scene preparation failed'};
+    const pending=job&&job.status!=='failed'&&!['delayed','ready'].includes(job.phase);
+    const ready=job?.phase==='ready';
+    const upload=state.rigUpload;
+    const imported=upload&&state.assets.find(asset=>asset.id===upload.id);
+    const uploadedReady=imported&&riggedAsset(imported);
+    const uploadStatus=!upload?'':upload.error||imported?.error||(uploadedReady
+      ? `${upload.name} is ready. Choose it under Starting point.`
+      : imported?.status==='ready'?'This file has no prepared, self-contained rigged scene.'
+      : `Preparing ${upload.name} for the character library…`);
+    return `<section class="vw-starter-cast" aria-labelledby="rigged-character-title">
+      <h2 id="rigged-character-title">Character builder</h2>
+      <p>Start with an animation rig or a human base mesh. Customize it and build a scene you can edit and render.</p>
+      ${button('rigged-character','Create a character',pending?'disabled':'')}
+      <label class="vw-btn vw-add">Import a rigged Blender file<input type="file" data-vw-rig-upload hidden accept=".blend"></label>
+      ${uploadStatus?`<p role="status">${esc(uploadStatus)}</p>`:''}
+      ${state.starterError?`<p role="alert">${esc(state.starterError)}</p>`:''}
+      ${!state.starterLoaded?'<p role="status">Checking for saved character builds…</p>':''}
+      ${job?`<p role="status">${esc(`${job.name} · ${labels[job.phase]||job.phase}`)}</p>`:''}
+      ${job?.error?`<p role="alert">${esc(job.error)}</p>`:''}
+      ${ready?`<a class="vw-btn primary" href="#/studio/${job.scene_id}${window.LightekStudioProduction?'/stage':''}">Open character scene →</a>`:''}
+      ${job&&(job.status==='failed'||job.phase==='delayed')?button('starter-cast','Retry character build'):''}
+      ${ready?'<p>Open the scene to edit the character or render a camera preview.</p>':''}
+      <a href="https://studio.blender.org/training/animation-fundamentals/5d69ab4dea6789db11ee65d1/" target="_blank" rel="noopener noreferrer">Blender Studio animation practice rigs ↗</a>
+    </section>`;
+  }
+  function riggedAsset(asset){
+    return asset.kind==='blend'&&asset.status==='ready'&&asset.native_url&&!asset.bundle_url&&
+      !asset.metadata?.missing_dependencies?.length&&asset.metadata?.scenes?.some(scene=>
+        scene.objects?.some(object=>object.definition?.native_type==='ARMATURE'));
+  }
+  async function checkRigUpload(upload){
+    if(upload!==state.rigUpload)return;
+    try{
+      const result=await call('assets.list',{asset_ids:[upload.id],surface:'visual'});
+      if(upload!==state.rigUpload)return;
+      const asset=result.assets?.find(item=>item.id===upload.id);
+      if(asset)state.assets=[asset,...state.assets.filter(item=>item.id!==asset.id)];
+      if(!asset||['uploaded','processing'].includes(asset.status)){
+        if(++upload.polls<150)setTimeout(()=>checkRigUpload(upload),4000);
+        else upload.error='The import is still waiting on the Studio worker. Check the Asset Library for its status.';
+      }
+    }catch(error){upload.error=error.message;}
+    updateHomeSection('.vw-starter-cast',starterPanel());
+  }
+  function riggedCharacterForm(){
+    const saved=state.assets.filter(riggedAsset);
+    return `<form data-vw-form="rigged-character">
+      <h2>Create a character</h2>
+      <p>Save a new editable Blender scene with lights and a camera.</p>
+      <label class="vw-field"><span>Character name</span><input name="name" required maxlength="120" placeholder="Character name"></label>
+      <label class="vw-field"><span>Starting point</span><select name="rig" aria-describedby="vw-base-help">
+        <optgroup label="Animation rigs">
+          <option value="rain_v3">Rain</option><option value="snow_v4">Snow</option><option value="ellie_v2">Ellie</option>
+          ${saved.map(asset=>`<option value="library:${Number(asset.id)}" ${asset.id===state.rigUpload?.id?'selected':''}>${esc(asset.name)} · Library</option>`).join('')}
+        </optgroup>
+        <optgroup label="Human base meshes">
+          <option value="human_female_realistic">Realistic female</option><option value="human_male_realistic">Realistic male</option>
+          <option value="human_female_stylized">Stylized female</option><option value="human_male_stylized">Stylized male</option>
+        </optgroup>
+      </select></label>
+      <p id="vw-base-help" class="vw-help" aria-live="polite">Animation rig for posing and animation.</p>
+      <div data-vw-ellie-pose hidden>
+        <label class="vw-field"><span>Starting pose</span><select name="pose">
+          <option value="relaxed">Relaxed</option><option value="cheerful">Cheerful</option>
+          <option value="angry">Angry</option><option value="scared">Scared</option><option value="waving">Waving</option>
+        </select></label>
+      </div>
+      <div class="vw-row">
+        <label class="vw-field"><span>Height</span><input name="height" type="number" min="75" max="125" step="1" value="100" required></label>
+        <label class="vw-field"><span>Facing</span><select name="facing"><option value="0">Forward</option><option value="-30">Left</option><option value="30">Right</option></select></label>
+      </div>
+      <p class="vw-help">Height is a percentage of the selected character’s size.</p>
+      <label><input type="checkbox" name="apply_tint"> Apply a palette tint</label>
+      ${field('tint','Palette tint','#e8bfa6','color')}
+      <p data-rigged-error role="alert"></p>
+      <div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">Create character</button></div>
+    </form>`;
   }
   async function starterPoll(){
     if(state.starterLoading)return;state.starterLoading=true;
-    try{const result=await call('starter.scene.status',state.starter?{asset_id:state.starter.asset_id}:{});state.starter=result?.asset_id?result:null;state.starterLoaded=true;if(state.starter?.phase==='ready'&&!studioSceneRecord(state.starter.scene_id))await A.studioLoad(true);}
-    catch(error){state.starterLoaded=true;notice(error.message);}
+    try{const result=await call('starter.scene.status',state.starter?{asset_id:state.starter.asset_id}:{});state.starter=result?.asset_id?result:null;state.starterLoaded=true;state.starterError=null;if(state.starter?.phase==='ready'&&!studioSceneRecord(state.starter.scene_id))await A.studioLoad(true);}
+    catch(error){state.starterLoaded=true;state.starterError=error.message;}
     finally{state.starterLoading=false;updateHomeSection('.vw-starter-cast',starterPanel());}
     clearTimeout(state.starterTimer);
     if(app.querySelector('.vw-home')&&state.starter&&state.starter.phase!=='ready'&&state.starter.status!=='failed')state.starterTimer=setTimeout(starterPoll,4000);
@@ -66,6 +142,8 @@
   }
   function refresh(preserve=false){if(!enabled())return;if(preserve&&window.LightekStudioForms?.composing()){LightekStudioForms.defer();return;}const editing=preserve?window.LightekStudioForms?.capture():null;const form=preserve?app.querySelector('[data-vw-inspector] form'):null,saved=form?{kind:form.dataset.vwForm,values:Object.fromEntries(new FormData(form))}:null;const left=app.querySelector('[data-vw-assets]'),right=app.querySelector('[data-vw-inspector]'),tracks=app.querySelector('[data-vw-lanes]');if(left)left.innerHTML=assetsPanel();if(right){right.innerHTML=inspector();if(saved){const restored=right.querySelector(`[data-vw-form="${saved.kind}"]`);if(restored)for(const [name,value] of Object.entries(saved.values)){const input=restored.elements.namedItem(name);if(input)input.value=value;}}}if(tracks)tracks.innerHTML=lanes();const range=app.querySelector('[data-vw-playhead]');if(range)range.max=duration();const guide=app.querySelector('[data-vw-guide]');if(guide&&current())guide.innerHTML=sceneGuide(current().scene);if(preserve)window.LightekStudioForms?.restore(editing);}
   function sceneGuide(scene){
+    if(scene.settings?.character_base_mesh)return `<p>Your human base mesh is ready for modeling. Edit its geometry and materials, or render a camera preview.</p><div>${button('advanced','Edit mesh & materials')} ${button('preview','Render camera preview')}</div>`;
+    if(scene.settings?.rigged_character)return `<p>Your Blender rig is in this scene. Edit its native objects and materials, or render the camera view.</p><div>${button('advanced','Edit rig & materials')} ${button('preview','Render camera preview')}</div>`;
     const cast=scene.objects.find(object=>object.definition?.character_profile);
     const hasAction=scene.objects.some(object=>object.definition?.motion_clips?.length||object.definition?.performance);
     if(!cast)return `<p>Who’s in your scene?</p><div>${button('create-character','Pick a character')} ${button('create-photo','Use a photo')}</div>`;
@@ -148,7 +226,7 @@
   }
   const priorStudio=R.studio;
   R.studio=id=>{
-    const home=!id||['create','templates'].includes(id);
+    const home=!id||['create','templates','rigged'].includes(id);
     const dashboard=document.querySelector('#lightek-studio-dashboard');
     if(!dashboard)document.body.classList.toggle('lt-visual',enabled()&&(home||/^\d+$/.test(String(id))));
     if(!enabled()||!home||(!ST.loaded&&!app.querySelector('.vw-home')))return priorStudio(id);
@@ -161,11 +239,12 @@
       <p class="vw-home-intro">${animation?'Add a character, give them something to do, and watch your scene.':'Start a production or continue working on one below.'}</p>
       <form class="vw-start" data-vw-form="new" ${animation?'data-animation':''}>
         <button class="vw-btn primary" type="submit">${animation?'Start a scene':'Start editing'}</button>
-        <details class="vw-start-options"><summary>${animation?'Name your scene or change its format':'Project name and format'}</summary><label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" placeholder="Optional" maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}${animation?'':'<option value="audio">Audio</option>'}</select></label></details>
+          <details class="vw-start-options"><summary>${animation?'Name your scene or change its format':'Project name and format'}</summary><label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" placeholder="Optional" maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}${animation?'':'<option value="audio">Audio</option>'}</select></label></details>
       </form>
       <div class="vw-message" data-vw-message role="status" ${state.message?'':'hidden'}>${esc(state.message)}</div>
+      ${starterPanel()}
       <section class="vw-continue"><h2>Continue a scene</h2><div class="vw-projects">${projects.map(({scene,project})=>`<a class="vw-project" href="${sceneUrl(scene.id,window.LightekStudioProduction&&scene.settings?.studio_entry==='stage'?'stage':'')}"><h3>${esc(project.name)}</h3><small>${esc(scene.name)}</small><span>Open →</span></a>`).join('')||'<p class="vw-help">Scenes you make will appear here.</p>'}</div></section>
-      <details class="vw-home-extra"><summary>Try an example scene</summary>${starterPanel()}</details>
+      <details class="vw-home-extra"><summary>Try an example scene</summary><p>Open a ready-made two-character scene with lights and editable movement.</p>${button('starter-example','Use Rain & Snow',state.starter&&!['ready','delayed','failed'].includes(state.starter.phase)?'disabled':'')}<small>Rain Rig / Snow Rig (CC) Blender Foundation · CC-BY 4.0</small></details>
       <details class="vw-home-extra"><summary>Start from a show template</summary>${[...new Map(studioSceneRecords().filter(r=>r.project.is_template).map(r=>[r.project.id,r.project])).values()].map(p=>`<article class="vw-template"><h3>${esc(p.name)}</h3>${button('episode','Create episode',`data-id="${p.id}"`)}</article>`).join('')}${productionTemplates()}</details>
       ${dashboard?`<a class="vw-btn" href="/dashboard/studio-broadcasting?site_id=${encodeURIComponent(dashboard.dataset.siteId)}">Production library</a>`:button('advanced','Advanced studio & publishing tools')}
     </main>`;
@@ -199,12 +278,16 @@
       const asset=action==='customize-character'?state.assets.find(item=>item.id===Number(b.dataset.id)&&item.metadata?.performer_build):null;
       dialog(characterEditor(asset,action==='create-photo'));return;
     }
+    if(action==='rigged-character'){
+      dialog(riggedCharacterForm());
+      return;
+    }
     if(action==='close'){b.closest('dialog').close();return;}
     run(async()=>{
-      if(action==='starter-cast'){
-        const retry=state.starter&&(state.starter.status==='failed'||state.starter.phase==='delayed');
+      if(action==='starter-cast'||action==='starter-example'){
+        const retry=action==='starter-cast';
         const name='Rain and Snow';
-        const payload=retry?{retry_asset_id:state.starter.asset_id}:{name,request_key:state.starterKey||=key()};
+        const payload=retry?{retry_asset_id:state.starter.asset_id}:{name,request_key:key()};
         state.starter=await call('starter.scene.create',payload);notice('');updateHomeSection('.vw-starter-cast',starterPanel(),true);await starterPoll();
       }
       if(action==='refresh'||action==='more'){await load(action==='more');notice('Assets refreshed.');}
@@ -236,6 +319,33 @@
       else preview.removeAttribute('src');
       return;
     }
+    const characterForm=input.closest('[data-vw-form="rigged-character"]');
+    if(characterForm&&input.name==='rig'){
+      const ellie=input.value==='ellie_v2';
+      characterForm.querySelector('[data-vw-ellie-pose]').hidden=!ellie;
+      characterForm.querySelector('#vw-base-help').textContent=input.value.startsWith('human_')
+        ? 'Human anatomy mesh for modeling. This starting point has no animation rig.'
+        : ellie ? 'Animation rig with selectable starting poses.' : 'Animation rig for posing and animation.';
+      return;
+    }
+    if(input.matches('[data-vw-rig-upload]')){
+      const file=input.files[0];
+      if(!file)return;
+      run(async()=>{
+        const upload=state.rigUpload={name:file.name,polls:0};
+        updateHomeSection('.vw-starter-cast',starterPanel(),true);
+        try{
+          if(!/\.blend$/i.test(file.name)||file.size>250*1024*1024)throw Error('Choose a Blender .blend file up to 250 MB.');
+          const blob=await uploadAsset(file);
+          const result=await call('asset.import',{signed_id:blob.signed_id,name:file.name,request_key:key()});
+          upload.id=result.asset_id;
+          await checkRigUpload(upload);
+        }catch(error){upload.error=error.message;}
+        updateHomeSection('.vw-starter-cast',starterPanel(),true);
+        notice('');
+      });
+      return;
+    }
     if(!input.matches('[data-vw-upload]'))return;
     const file=input.files[0];if(!file)return;
     run(async()=>{
@@ -247,6 +357,28 @@
   });
   app.addEventListener('input',e=>{if(e.target.matches('[data-vw-playhead]')){const value=Number(e.target.value);if(state.mode==='edit')window.LightekStudioTimeline.seek(value);app.querySelector('[data-vw-time]').textContent=`${Math.floor(value/60).toString().padStart(2,'0')}:${(value%60).toFixed(1).padStart(4,'0')}`;}});
   app.addEventListener('submit',e=>{const form=e.target.closest('[data-vw-form]');if(!form)return;e.preventDefault();const data=Object.fromEntries(new FormData(form)),kind=form.dataset.vwForm,scene=current()?.scene,object=selected(),clipIndex=state.clip;run(async()=>{
+    if(kind==='rigged-character'){
+      const modal=form.closest('dialog'), error=form.querySelector('[data-rigged-error]'), submit=form.querySelector('[type="submit"]');
+      const [rig,assetId]=data.rig.split(':');
+      const character={rig,height:Number(data.height)/100,facing:Number(data.facing),
+        ...(rig==='ellie_v2'?{pose:data.pose}:{}),...(assetId?{asset_id:Number(assetId)}:{}),...(data.apply_tint?{tint:data.tint}:{})};
+      const name=data.name.trim();
+      const signature=JSON.stringify([name,character]);
+      if(form.characterRequest?.signature!==signature)form.characterRequest={signature,id:key()};
+      submit.disabled=true;
+      error.textContent='';
+      try{
+        state.starter=await call('starter.scene.create',{name,character,request_key:form.characterRequest.id});
+        modal.close();
+        updateHomeSection('.vw-starter-cast',starterPanel(),true);
+        await starterPoll();
+      }catch(failure){
+        error.textContent=failure.message;
+      }finally{
+        submit.disabled=false;
+        notice('');
+      }
+    }
     if(kind==='new'){
       const native=!!window.LightekStudioProduction,animation=form.hasAttribute('data-animation');
       const name=data.name.trim()||(animation?'My scene':'Untitled video');

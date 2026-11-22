@@ -158,5 +158,31 @@
     "category": "character",
     "description": "Editable production character rig with native facial and body controls.",
     "sha256": "98d58ef3a07083ede14140bc462cccb55d317062846aa0eb652d2e4a7ac422a6"
+  },
+  {
+    "key": "ellie_v2",
+    "name": "Ellie Pose Library 2.0.0",
+    "author": "Blender Studio",
+    "credit": "Ellie Pose Library by Blender Studio (CC-BY 4.0), adapted for Lightek Studio",
+    "license": "CC-BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "url": "https://download.blender.org/demo/asset-bundles/ellie-pose-library/ellie-pose-library-v2.0.0.zip",
+    "minimum_blender": "4.0",
+    "sha256": "547a997488b91683df68eb2925423fcfbbb1b6e3e7bedd0d4cd4f67d23090231",
+    "description": "Editable Ellie character rig with body, face, and hand pose assets",
+    "source_page": "https://www.blender.org/download/demo-files/#assets"
+  },
+  {
+    "key": "human_base_meshes",
+    "name": "Human Base Meshes 1.4.1",
+    "author": "Blender Studio and contributors",
+    "credit": "Human Base Meshes by Blender Studio and contributors (CC0)",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/asset-bundles/human-base-meshes/human-base-meshes-bundle-v1.4.1.zip",
+    "minimum_blender": "4.2",
+    "sha256": "811f43accbb31a88266d932f8f5563b2d13586fca0ba2693aad1f5fe582b3515",
+    "description": "Realistic and stylized human body meshes for modeling",
+    "source_page": "https://www.blender.org/download/demo-files/#assets"
   }
 ]

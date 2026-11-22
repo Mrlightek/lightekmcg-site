@@ -6,11 +6,12 @@ require "stringio"
 module Studio
   module Assets
     class Ingestor
-      def self.call(asset, source_path: nil, source_root: nil)
-        new(asset, source_path: source_path, source_root: source_root).call
+      def self.call(asset, source_path: nil, source_root: nil, posed_viewport: false)
+        new(asset, source_path: source_path, source_root: source_root, posed_viewport: posed_viewport).call
       end
-      def initialize(asset, source_path: nil, source_root: nil)
+      def initialize(asset, source_path: nil, source_root: nil, posed_viewport: false)
         @asset, @source_path, @source_root = asset, source_path, source_root
+        @posed_viewport = posed_viewport
       end
       def call
         return BundleImport.call(@asset) if !@source_path && @asset.kind=="blend" && @asset.file.filename.extension.to_s.downcase=="zip"
@@ -81,6 +82,7 @@ module Studio
 
       def convert_model(input, root)
         script = Rails.root.join("blender/import_asset.py").to_s
+        viewport_options = @posed_viewport ? ["posed"] : []
         if Rails.env.production?
           image = Studio::NativeBlender::Runtime.image
           FileUtils.mkdir_p(File.join(root,"out"))
@@ -88,11 +90,11 @@ module Studio
           # with only this asset mounted, without application files or secrets.
           input_root=@source_root || File.dirname(input)
           input_relative=Pathname(input).relative_path_from(Pathname(input_root)).to_s
-          Studio::MediaProcess.run!(["docker","run","--rm","--name","lightek-asset-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",Studio::MediaProcess.cpu_limit,"--user", "#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{input_root}:/source:ro","-v","#{Rails.root.join("blender")}:/input:ro","-v","#{root}/out:/output:rw",image,"blender","--background","--factory-startup","--disable-autoexec", "--python-exit-code", "1","--python","/input/import_asset.py","--","/source/#{input_relative}","/output",@asset.kind], timeout:240)
+          Studio::MediaProcess.run!(["docker","run","--rm","--name","lightek-asset-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",Studio::MediaProcess.cpu_limit,"--user", "#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{input_root}:/source:ro","-v","#{Rails.root.join("blender")}:/input:ro","-v","#{root}/out:/output:rw",image,"blender","--background","--factory-startup","--disable-autoexec", "--python-exit-code", "1","--python","/input/import_asset.py","--","/source/#{input_relative}","/output",@asset.kind,*viewport_options], timeout:240)
           %w[asset.glb preview.png asset.json native.blend].each { |name| FileUtils.mv(File.join(root,"out",name),File.join(root,name)) if File.file?(File.join(root,"out",name)) }
         else
           command = ENV["STUDIO_BPY_PYTHON"].present? ? [ENV["STUDIO_BPY_PYTHON"],script] : [ENV.fetch("BLENDER_BIN","blender"),"--background","--factory-startup","--disable-autoexec", "--python-exit-code", "1","--python",script]
-          run!(command+["--",input,root,@asset.kind],timeout:240)
+          run!(command+["--",input,root,@asset.kind,*viewport_options],timeout:240)
         end
       rescue RuntimeError, Timeout::Error => error
         # A viewport conversion must not discard a successfully packed native

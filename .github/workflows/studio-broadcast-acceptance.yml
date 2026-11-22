@@ -16,6 +16,7 @@ on:
       - 'config/studio/blender_demos.json'
       - 'app/jobs/studio_starter_cast_job.rb'
       - 'blender/starter_cast.py'
+      - 'test/operations/studio_rigged_character_test.py'
       - 'docker/studio-media/**'
       - 'db/migrate/20261112040000_register_studio_starter_cast.rb'
       - 'db/migrate/20261112030000_register_studio_ai.rb'
@@ -166,6 +167,7 @@ jobs:
           test -s "$archive"
           tar -xJf "$archive" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/blender-4.5.16-linux-x64" >> "$GITHUB_PATH"
+      - run: python3 test/operations/studio_rigged_character_test.py
       - name: Official Rain and Snow download, native import and starter scene
         env:
           STUDIO_STARTER_LIVE_DOWNLOAD: '1'

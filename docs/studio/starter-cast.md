@@ -2,6 +2,12 @@
 
 Open **Dashboard → Studio & broadcasting → Media Studio**. On the production home screen, optionally enter a project name and choose **Use Rain & Snow**. Lightek downloads the official Blender Studio characters, checks their pinned SHA-256 hashes, prepares native sources, and builds a two-character project with a camera, lights, floor and editable head gestures. Progress stays on the card. **Open character scene** opens the prepared scene; failed attempts expose **Retry starter scene**. Reloading the workspace retrieves the latest request for this account and application.
 
+## Create and edit a rigged character
+
+In the Dashboard, open **Media Studio → Character builder**. In the PWA, open **Studio → Create a rigged character**. Choose **Create a rigged character**, then name it and choose Rain, Snow, or a prepared, self-contained rigged Blender file from the current site library. Use **Import a rigged Blender file** in the builder to add a packed Blender asset to your library first. Adjust height, facing, and optional palette tint. The palette tint shifts the existing material colors while retaining connected textures.
+
+The builder shows the current build, including any worker failure. When it finishes, use **Open character scene → Model & animate** to edit native objects and materials. Choose **Render camera preview** to see Blender's result and **Export** for the final output. Each build creates a new project and Blender file. For rigs built with add-ons, prepare and pack the resultant Blender asset before importing it. The worker opens the asset with script execution disabled.
+
 The first download can take several minutes. Sources are cached for the same account and application. Repeated submissions of the same request reuse its job and project. The job runs on the existing `studio` queue; it does not install an external generation service or require an API key.
 
 These are the real Rain v3 and Snow v4 meshes and rigs, rather than generated approximations. The native `.blend` keeps armatures, drivers, constraints, materials and packed textures. The browser GLB is a static proxy; it does not replace the native source. **Model & animate** exposes the existing native authoring controls. The starter's head keys are a small editable example, not a finished acting performance. Automated dialogue, rig retargeting, phoneme lip sync, likeness generation and voice generation are not supplied by this starter.

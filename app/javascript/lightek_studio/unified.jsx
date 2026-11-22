@@ -245,6 +245,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       <nav aria-label="More Studio tools">
         <a href={api.pipeline} onClick={event=>{if(busy || dirty&&!window.confirm('Open Pipeline Hub and discard unsaved timeline changes?'))event.preventDefault();}}>Pipeline Hub</a>
         <a href={api.native(scene.id,'music')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Music and discard unsaved timeline changes?'))event.preventDefault();}}>Music &amp; audio</a>
+        <a href={api.characterBuilder} onClick={event=>{if(busy || dirty&&!window.confirm('Open Character Builder and discard unsaved timeline changes?'))event.preventDefault();}}>Character builder</a>
         <a href={api.native(scene.id,'stage')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Animation and discard unsaved timeline changes?'))event.preventDefault();}}>Animation &amp; characters</a>
         {api.dashboard&&<a href={api.editor('photo')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Photo Studio and discard unsaved timeline changes?'))event.preventDefault();}}>Photo &amp; graphics</a>}
         {api.dashboard&&<a href={api.editor('video')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Video Studio and discard unsaved timeline changes?'))event.preventDefault();}}>Full video editor</a>}
@@ -329,7 +330,7 @@ export default function LightekUnifiedStudio({api,route,home}) {
   if(record)return <Workspace key={record.scene.id} {...{api,record,projects,selectScene,home,initialTab,updateScene,openCampaign,openTemplateScene,
     initialAsset:record.scene.id===route.scene?Number(new URLSearchParams(location.search).get('edit_asset'))||null:null}}/>;
   return <main className="ls-projects"><a href={home}>Exit Studio</a><h1>Lightek Studio</h1>
-    <p><a href={api.pipeline}>Open Pipeline Hub</a></p>
+    <nav className="ls-row" aria-label="Production tools"><a href={api.characterBuilder}>Create a rigged character</a><a href={api.pipeline}>Open Pipeline Hub</a></nav>
     {error&&<p role="alert" className="ls-error">{error}</p>}
     {load==='loading'?<p role="status">Opening your projects…</p>:load==='failed'?<button onClick={loadProjects}>Try again</button>:<>
       {selected&&!record&&<p role="status">The selected scene is unavailable. Choose a project below.</p>}

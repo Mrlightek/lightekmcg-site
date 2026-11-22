@@ -7,6 +7,25 @@ module Studio
   module Live
     class Encoder
       class Failure < StandardError; end
+      class InputClosed < Failure; end
+
+      # Only fixed messages leave this process. FFmpeg may include the stream
+      # key or other private destination details in its diagnostics.
+      DESTINATION_FAILURES = {
+        /(?:NetStream\.Publish\.(?:BadName|Denied|Rejected)|publish(?:ing)?[^\n]*(?:denied|rejected)|invalid stream key)/i =>
+          "The streaming destination rejected publishing. Verify the stream key and check for another active broadcast.",
+        /(?:connection refused|network is unreachable|no route to host|failed to resolve hostname)/i =>
+          "The streaming destination refused the connection. Check the saved destination and try again.",
+        /(?:certificate verify failed|TLS handshake|unexpected TLS packet)/i =>
+          "The streaming destination could not establish a secure connection.",
+        /(?:connection reset by peer|connection timed out|I\/O timeout|broken pipe)/i =>
+          "The connection to the streaming destination dropped or timed out."
+      }.freeze
+      LOCAL_FAILURES = {
+        /(?:no space left on device|disk quota exceeded)/i => "The broadcast server ran out of space while writing video.",
+        /(?:EBML header parsing failed|moov atom not found|invalid data found when processing input|matches no streams)/i =>
+          "The encoder could not read the browser capture. Reopen Live Studio and try a private recording."
+      }.freeze
       MAX_CHUNK = 1_048_576
       CAPTURE_FORMATS = { "webm" => "webm", "mp4" => "mov" }.freeze
 
@@ -33,6 +52,7 @@ module Studio
         @relay_output = relay_output
         raise Failure, "Unsupported encoder input." unless CAPTURE_FORMATS.value?(input_format)
         @input_format = input_format
+        @network_output = @relay_output || (!@test && !@hls)
         @mutex = Mutex.new
         @sequence = 0
         @started = @last_input = monotonic
@@ -59,8 +79,8 @@ module Studio
             "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-threads", "2", "-r", "24", "-g", "48", "-b:v", "1800k",
             "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-rw_timeout", "5000000", "-f", "flv", @relay_output.to_s]
         end
-        # Never send FFmpeg stderr (which can include the stream key) to application logs.
-        @input, @progress, @waiter = Open3.popen2(*args, err: File::NULL, pgroup: true)
+        @input, @progress, @stderr, @waiter = Open3.popen3(*args, pgroup: true)
+        @diagnostics = Thread.new { read_diagnostics }
         @reader = Thread.new { read_progress }
         @watchdog = Thread.new do
           loop do
@@ -85,7 +105,7 @@ module Studio
         raise Failure, "Capture chunk is empty or too large." unless bytes.bytesize.between?(1, MAX_CHUNK)
         @mutex.synchronize do
           raise Failure, "Capture sequence changed. Start a new session." unless sequence == @sequence
-          raise Failure, "The encoder has stopped." if @stopping || !@waiter&.alive?
+          raise InputClosed, "The encoder input is closed." if @stopping || !@waiter&.alive?
           deadline = monotonic + 5
           offset = 0
           while offset < bytes.bytesize
@@ -101,7 +121,9 @@ module Studio
           @sequence += 1
         end
         sequence
-      rescue ArgumentError, IOError, SystemCallError
+      rescue Errno::EPIPE, IOError
+        raise InputClosed, "The encoder input is closed."
+      rescue ArgumentError, SystemCallError
         raise Failure, "Capture data could not be sent to the encoder."
       end
       def stop!(failure: nil)
@@ -121,6 +143,20 @@ module Studio
       end
       private
       def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      def read_diagnostics
+        failure = nil
+        @stderr.each_line(4096) do |line|
+          match = LOCAL_FAILURES.find { |pattern, _message| pattern.match?(line) }
+          match ||= DESTINATION_FAILURES.find { |pattern, _message| pattern.match?(line) } if @network_output
+          failure ||= match&.last
+        end
+        failure
+      rescue IOError, SystemCallError
+        failure
+      ensure
+        @stderr.close
+      end
+
       def read_progress
         reported = false
         @progress.each_line do |line|
@@ -130,7 +166,10 @@ module Studio
           end
         end
         status = @waiter.value
-        @on_event.call(status.success? && @failure.nil? && reported ? "ended" : "failed", @failure || (status.success? && reported ? nil : "The encoder stopped before completing the stream. Check the destination and start a new session."))
+        success = status.success? && @failure.nil? && reported
+        failure = @failure || @diagnostics.value
+        fallback = "The encoder stopped before completing the stream. Check the destination and start a new session."
+        @on_event.call(success ? "ended" : "failed", success ? nil : failure || fallback)
       rescue IOError, SystemCallError
         @on_event.call("failed", "The encoder connection closed.")
       ensure

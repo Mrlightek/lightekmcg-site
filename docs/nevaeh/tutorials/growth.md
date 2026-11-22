@@ -99,6 +99,33 @@ Structured log events are `lightek.growth.comparison_created`, `performance_revi
 
 Acceptance: `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_performance_checks.rb` exercises native schema/models/services, scoped HTTP/CSRF, measured cohorts, immutable reviews, guarded drafts and current worker documentation/UUID/journal integration. The inherited host fixtures replace private engine authentication/records and provider IO. Full installed/private-engine boot, real user placement/link usage, deployed publication and business results remain separate acceptance.
 
+## A/B testing across Lightek
+
+Open **Dashboard → Business → Growth → A/B testing**. Choose a website and a surface, give the test a name, and enter the original wording as the control and the proposed wording as the challenger. Start with one change you can measure. Website hero tests use the ID of a published native hero section. Demo walkthrough tests use the ID of an approved, published showcase linked to a demo request campaign. The workspace shows eligible targets and allows one running test per target and surface.
+
+| Surface | Outcomes reported per variant |
+| --- | --- |
+| Website hero headline or button | Sales inquiries, demo requests and upgrades, store checkouts and confirmed payments, local reservation requests and confirmations |
+| Sales inquiry form button | Saved sales inquiries |
+| Demo walkthrough or demo request form button | Recorded demo requests, activations and paid upgrades |
+| Store checkout button | Checkout sessions started and orders with confirmed payment |
+| Local reservation button | Saved requests and confirmed reservations |
+| PWA member signup button | Saved membership requests |
+
+Eligible browsers are assigned to the control or challenger with equal probability. A signed first-party cookie keeps the browser on its assigned variant for up to 30 days. Preview pages, browser privacy opt-outs and prefetches use the original copy during a test. Conversion reports count distinct assigned browsers for each outcome. A saved outcome can be credited to multiple eligible surfaces that the browser saw, so read results per experiment. Conversions can arrive after the test closes. Credit goes to the most recent assignment on that surface and target within the 30-day window. Cross-device activity and browsers that lose their cookie may be counted separately. The dashboard shows observed conversion rates and the underlying counts.
+
+Review the results, then finish the test using the original site copy, the control or the challenger. Choosing an arm applies its wording for everyone on that surface. The experiment retains both variants and its outcome history. Walkthroughs with an existing legacy button experiment continue to use their original controls. Choose another eligible walkthrough for a shared-engine test.
+
+Nevaeh can start, report and finish tests through the existing website marketing capability. Start with the configured Growth website ID and use the experiment ID returned by the start command for reporting and finishing.
+
+```text
+/website ab_start SITE_ID {"name":"Demo form wording","surface":"demo_request","control":"Request a demo","challenger":"Book a walkthrough"}
+/website ab_report SITE_ID {"experiment_id":42}
+/website ab_finish SITE_ID {"experiment_id":42,"winner":"challenger"}
+```
+
+Include a `target` for the `website_headline`, `website_cta` and `demo_walkthrough` surfaces. Omit `winner` to restore the original wording. The existing website delegation, website management access for writes, and marketing package entitlement apply. Deploy migration `20261122134000_create_lightek_experiments.rb` before enabling tests.
+
 ## Search, backlinks and marketing decisions
 
 Open **Dashboard → Business → Growth → Search & backlinks**. The website's verified Google Search Console property may be the HTTPS URL prefix or the exact-host domain property. In Vault, configure `growth-search-console-SITE_ID` for consumer `LightekGrowth::SearchConsole` and purpose `search_console_read`. Provide Google OAuth `client_id`, `client_secret`, and a `refresh_token` with the `https://www.googleapis.com/auth/webmasters.readonly` scope. The Google account needs access to the property. Refresh records up to 250 page/query pairs from 28 finalized days and can inspect one same-host HTTPS URL. Search Console returns limited rows. An inspection describes Google's indexed version of the page.

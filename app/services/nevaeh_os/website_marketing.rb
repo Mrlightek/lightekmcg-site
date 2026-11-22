@@ -20,7 +20,10 @@ module NevaehOs
       'demo_launch' => 'website.marketing.demo_launch',
       'demo_schedule' => 'website.marketing.demo_schedule',
       'demo_experiment' => 'website.marketing.demo_experiment',
-      'demo_report' => 'website.marketing.demo_report'
+      'demo_report' => 'website.marketing.demo_report',
+      'ab_start' => 'website.marketing.ab_start',
+      'ab_report' => 'website.marketing.ab_report',
+      'ab_finish' => 'website.marketing.ab_finish'
     }.freeze
 
     module_function
@@ -101,6 +104,8 @@ module NevaehOs
         when 'journal_write' then WebsiteJournal.write!(site, actor, values)
         when 'journal_editorial_write' then JournalEditorial.write!(site, actor, command)
         when 'journal_social_draft' then JournalEditorial.social_draft!(site, actor, command)
+        when 'ab_start', 'ab_report', 'ab_finish'
+          experiment_work!(site, actor, operation, values)
         when 'demo_publish', 'demo_launch', 'demo_schedule', 'demo_experiment', 'demo_report'
           demo_work!(site, actor, operation, values, action_id)
         when 'press_release' then PublicRelations.release!(site, actor, values)
@@ -120,6 +125,30 @@ module NevaehOs
       end
     rescue KeyError => error
       raise ArgumentError, "Missing or unsupported website input: #{error.key}."
+    end
+
+    def experiment_work!(site, actor, operation, values)
+      workspace = LightekExperiments::Workspace.new(actor: actor, site: site)
+      id = case operation
+      when 'ab_start'
+        allowed!(values, %w[name surface target control challenger])
+        workspace.start!(values).id
+      when 'ab_finish'
+        allowed!(values, %w[experiment_id winner])
+        workspace.finish!(values.fetch('experiment_id'), winner: values['winner']).id
+      when 'ab_report'
+        allowed!(values, %w[experiment_id])
+        values.fetch('experiment_id')
+      end
+      report = workspace.report(id)
+      detail = report.fetch('arms').map do |arm|
+        outcomes = arm.fetch('outcomes').map do |event, count|
+          rate = arm.fetch('rates')[event]
+          "#{event.humanize.downcase} #{count}#{rate ? " (#{rate}%)" : ''}"
+        end
+        "#{arm.fetch('arm').humanize} — #{arm.fetch('visitors')} assigned browsers, #{outcomes.join(', ')}"
+      end
+      report.merge('text' => ([report.fetch('name')] + detail).join("\n"))
     end
 
     def demo_work!(site, actor, operation, values, action_id)

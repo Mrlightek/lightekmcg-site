@@ -25,7 +25,11 @@
         <% controller.response.set_header('Cache-Control', 'private, no-store') %>
         <% visit = LightekGrowth::Tracking.from_request(site: @site, cookies: controller.cookies, request: request) %>
       <% end %>
-      <%= link_to LightekGrowth::DemoCampaign.cta(showcase, visit), '/request-demo', class: 'feature-cta' %>
+      <% label = LightekGrowth::DemoCampaign.cta(showcase, visit) %>
+      <% if !showcase.demo_experiment_started_at && showcase.approved_at && showcase.page.published? && !@preview && respond_to?(:experiment_text) %>
+        <% label = experiment_text('demo_walkthrough', label, target: showcase.id) %>
+      <% end %>
+      <%= link_to label, '/request-demo', class: 'feature-cta' %>
     <% end %>
   <% else %>
     <%= link_to campaign.cta_label.presence || 'Learn more', LightekDesign::Catalog.safe_url(campaign.cta_url), class: 'feature-cta' %>

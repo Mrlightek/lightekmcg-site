@@ -86,12 +86,19 @@ end
 
 require ROOT.join('app/controllers/dashboard/demos_controller')
 require ROOT.join('app/controllers/demo_requests_controller')
+require ROOT.join('db/migrate/20261122134000_create_lightek_experiments')
+CreateLightekExperiments.new.migrate(:up)
+%w[experiment assignment outcome].each { |file| require ROOT.join("app/models/lightek_experiments/#{file}") }
+%w[surfaces experience].each { |file| require ROOT.join("app/services/lightek_experiments/#{file}") }
+require ROOT.join('app/controllers/concerns/lightek_experiments/controller_methods')
+DemoRequestsController.include(LightekExperiments::ControllerMethods)
 Dashboard::DemosController.layout false
 DemoRequestsController.layout false
 
 class AgencyDemoChecks < EnterpriseOnboardingChecks
   def self.runnable_methods = public_instance_methods.grep(/^test_demo_/).map(&:to_s)
   def setup
+    [LightekExperiments::Outcome, LightekExperiments::Assignment, LightekExperiments::Experiment].each(&:delete_all)
     super
     DymondSite::Section.delete_all; DymondSite::Page.delete_all
     LightekCommerce::Product.delete_all; UserFeatureEntitlement.delete_all
@@ -159,6 +166,23 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
     assert_equal({visits: 1, requests: 1, activated: 1, paid: 0}, LightekGrowth::DemoShowcase.funnel(@agency_site, 91))
     assert_raises(ActiveSupport::MessageVerifier::InvalidSignature) { LightekAgency::DemoRequest.find_by_token_for!(:confirmation, token) }
   end
+  def test_demo_request_form_assigns_a_browser_and_records_the_saved_request
+    row = LightekExperiments::Experiment.create!(site: @agency_site, created_by: @employer, name: 'Demo signup copy',
+      surface: 'demo_request', control: 'Get started', challenger: 'See my demo')
+    get request_demo_path
+    assert_response :success
+    assignment = row.assignments.sole
+    assert_includes response.body, row.copy_for(assignment.arm)
+    assert_equal 'private, no-store', response.headers['Cache-Control']
+    get request_demo_path
+    assert_includes response.body, row.copy_for(assignment.arm)
+    assert_equal 1, row.assignments.count
+    post request_demo_path, params: {demo_request: {first_name: 'Sample', last_name: 'Prospect', email_address: 'ab@example.test'}}
+    assert_redirected_to request_demo_path
+    request = LightekAgency::DemoRequest.find_by!(email_address: 'ab@example.test')
+    assert_equal ['demo_request', request.id], assignment.outcomes.sole.attributes.values_at('event', 'record_id')
+  end
+
   def test_demo_public_existing_identity_cannot_be_claimed_or_reparented
     request = LightekAgency::DemoRequest.create!(agency: @employer, first_name: 'Other', last_name: 'Owner', email_address: @other.email_address)
     token = request.generate_token_for(:confirmation)

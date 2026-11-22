@@ -16,6 +16,7 @@ class DemoRequestsController < ApplicationController
       record = LightekAgency::DemoRequest.create!(values.merge(agency: @setting.agency, growth_visit: visit))
       LightekAgency::DemoRequestMailer.confirmation(record.id).deliver_later
       record.update!(invitation_queued_at: Time.current)
+      record_platform_experiment('demo_request', record, site: @setting.public_site) if respond_to?(:record_platform_experiment, true)
     end
     redirect_to request_demo_path, notice: 'Check your email for a private confirmation link. After confirmation, your demo is created automatically.'
   end

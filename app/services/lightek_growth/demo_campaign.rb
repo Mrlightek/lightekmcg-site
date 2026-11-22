@@ -53,6 +53,10 @@ module LightekGrowth
         verify_walkthrough!(showcase, link)
         raise ArgumentError, 'Publish the walkthrough before starting its experiment.' unless showcase.page.published?
 
+        if defined?(LightekExperiments::Experiment) && LightekExperiments::Experiment.where(site: @site, surface: 'demo_walkthrough', target: showcase.id.to_s).exists?
+          raise ArgumentError, 'Manage this walkthrough’s experiment in Growth → A/B testing.'
+        end
+
         showcase.update!(demo_experiment_started_at: Time.current) unless showcase.demo_experiment_started_at
         report!(showcase_id: showcase.id)
       end

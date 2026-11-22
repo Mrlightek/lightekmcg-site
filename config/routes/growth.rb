@@ -32,3 +32,7 @@ post '/dashboard/growth/search/sync', to: 'dashboard/search_growth#sync', as: :s
 post '/dashboard/growth/search/backlinks', to: 'dashboard/search_growth#record', as: :record_dashboard_search_backlink
 post '/dashboard/growth/search/backlinks/import', to: 'dashboard/search_growth#import', as: :import_dashboard_search_backlinks
 post '/dashboard/growth/search/backlinks/:id/draft', to: 'dashboard/search_growth#draft', as: :draft_dashboard_search_backlink
+
+get '/dashboard/growth/experiments', to: 'dashboard/experiments#index', as: :dashboard_experiments
+post '/dashboard/growth/experiments', to: 'dashboard/experiments#create'
+patch '/dashboard/growth/experiments/:id', to: 'dashboard/experiments#finish', as: :finish_dashboard_experiment

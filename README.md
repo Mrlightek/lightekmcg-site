@@ -60,6 +60,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
 | Campaign performance | Pinned reviewed versions, separate placement cohorts, immutable measured reviews and editable follow-up drafts through Nevaeh; [guide](docs/nevaeh/tutorials/growth.md#campaign-performance-and-follow-up-experiments) |
+| A/B testing | Sticky traffic splits and outcome reporting for website copy, sales and demo forms, checkout, reservations, and PWA signup. Start, review and roll out variants from Growth or Nevaeh. [Guide](docs/nevaeh/tutorials/growth.md#ab-testing-across-lightek) |
 | Website growth audit | Native CMS evidence, guided metadata/CTA/alt previews, verified rechecks and guarded rollback; [operating guide](docs/sales/website-growth-audits.md) |
 | Public relations | Nevaeh manages newsroom releases, media contacts, email pitches and follow-ups, source monitoring, coverage and private response briefs; [operating guide](docs/nevaeh/tutorials/public_relations.md) |
 | Publishing calendar | Finished Studio export handoff, reviewed social schedules and provider outcome recovery; [operating guide](docs/sales/publishing-calendar.md) |

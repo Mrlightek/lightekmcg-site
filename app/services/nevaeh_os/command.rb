@@ -79,7 +79,7 @@ module NevaehOs
         return { 'kind' => 'public_relations', 'operation' => match[1], 'site_id' => match[2].to_i,
           'values' => match[3] ? JSON.parse(match[3]) : {} }
       end
-      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch|demo_publish|demo_launch|demo_schedule|demo_experiment|demo_report) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
+      if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch|demo_publish|demo_launch|demo_schedule|demo_experiment|demo_report|ab_start|ab_report|ab_finish) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
         return { 'kind' => 'website_marketing', 'operation' => match[1], 'site_id' => match[2].to_i,
           'values' => match[3] ? JSON.parse(match[3]) : {} }
       end

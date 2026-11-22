@@ -2,19 +2,25 @@ module Gatekeeper
   class HealthcheckProjectJob < ApplicationJob
     queue_as :default
 
-    def perform(project_id, requested_by: "gatekeeper", expected_node_id: nil, operator_id: nil)
+    def perform(project_id, requested_by: "gatekeeper", expected_node_id: nil, operator_id: nil, health_monitor_id: nil)
       return if operator_id && !Hosting::Access.super_admin?(User.find_by(id: operator_id))
 
       project = GatekeeperProject.find(project_id)
       return if expected_node_id && project.gatekeeper_node_id != expected_node_id
+      if health_monitor_id
+        return unless %w[healthy degraded].include?(project.status) &&
+          ProjectHealthMonitor.operator_allowed?(project, health_monitor_id, operator_id)
+      end
       Hosting::Access.active!(project.gatekeeper_node)
+      repair = operator_id.present? && executions == 2 &&
+        (!health_monitor_id || ProjectHealthMonitor.repair_available?(project, health_monitor_id))
 
       Executor.call(
         capability: "healthcheck_project",
         node: project.gatekeeper_node,
         project:,
         requested_by:,
-        parameters: { "healthcheck_job_id" => job_id, "repair_failed_worker" => operator_id.present? && executions == 2 }
+        parameters: {"healthcheck_job_id" => job_id, "repair_failed_worker" => repair, "health_monitor_id" => health_monitor_id}.compact
       )
     rescue Capabilities::HealthcheckProject::Unhealthy
       raise unless expected_node_id

@@ -39,6 +39,10 @@ module NevaehOs
         /(?:show|check) (?:the )?health status (?:of|for) project #?(?<project_id>[1-9]\d{0,17})/i,
         'Show health status for project #42'
       ],
+      'hosting.project.health.monitor' => [
+        /(?<operation>enable|pause) (?:automatic )?health (?:checks|monitoring) for project #?(?<project_id>[1-9]\d{0,17})/i,
+        'Enable automatic health checks for project #42'
+      ],
       'hosting.fleet.rollout.list' => [
         /(?:show|list) (?:me )?(?:the )?fleet rollouts/i,
         'List fleet rollouts'

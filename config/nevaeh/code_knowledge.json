@@ -580,6 +580,28 @@
       ]
     },
     {
+      "id": "hosting.project.health.monitor",
+      "title": "Manage automatic Gatekeeper health checks",
+      "summary": "Enable or pause periodic probes for one registered project using the operator’s current authority.",
+      "sources": {
+        "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
+        "implementation": ["app/services/gatekeeper/project_health_monitor.rb", "app/jobs/gatekeeper/project_health_sweep_job.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/nevaeh_backlog_test.rb"]
+      },
+      "capability": {
+        "key": "hosting.project.health.monitor",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"project_id": "PROJECT_ID", "operation": "enable"},
+        "result": "Return whether monitoring is enabled and when the next check is due."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "POST", "action": "gatekeeper/projects#monitor", "coverage": "bound"}
+      ]
+    },
+    {
       "id": "mail.mailbox.receiving.check",
       "title": "Check a mailbox’s receiving DNS",
       "summary": "Verify the enabled mailbox uses the expected MX routing for its verified domain.",

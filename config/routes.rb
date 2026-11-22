@@ -433,6 +433,7 @@ namespace :gatekeeper do
       post :deploy
       post :deploy_github
       post :healthcheck
+      post :monitor
     end
   end
 end

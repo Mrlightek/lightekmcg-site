@@ -7,6 +7,7 @@ module NevaehOs
       'hosting.server.status' => {'node_id'=>:id},
       'hosting.project.healthcheck' => {'project_id'=>:id},
       'hosting.project.health.status' => {'project_id'=>:id},
+      'hosting.project.health.monitor' => {'project_id'=>:id, 'operation'=>10},
       'hosting.fleet.rollout.list' => {},
       'hosting.fleet.rollout.status' => {'rollout_id'=>:id},
       'hosting.fleet.rollout.control' => {'rollout_id'=>:id, 'operation'=>10, 'confirmed'=>:confirmation}
@@ -19,7 +20,7 @@ module NevaehOs
       when 'hosting.server.list', 'hosting.server.status'
         nodes = server_scope(actor)
         intent == 'hosting.server.list' ? nodes : nodes.find(values.fetch('node_id'))
-      when 'hosting.project.healthcheck', 'hosting.project.health.status'
+      when 'hosting.project.healthcheck', 'hosting.project.health.status', 'hosting.project.health.monitor'
         raise ArgumentError, 'Gatekeeper operator access required' unless Gatekeeper::Hosting::Access.super_admin?(actor)
 
         project = GatekeeperProject.find(values.fetch('project_id'))
@@ -59,6 +60,11 @@ module NevaehOs
          'text'=>"Gatekeeper queued a health check for project ##{target.id}. Ask for the project’s health status to see the result."}
       when 'hosting.project.health.status'
         project_health_receipt(target)
+      when 'hosting.project.health.monitor'
+        operation = values.fetch('operation')
+        raise ArgumentError, 'Choose enable or pause' unless %w[enable pause].include?(operation)
+
+        Gatekeeper::ProjectHealthMonitor.configure!(project: target, actor: actor, enabled: operation == 'enable')
       when 'hosting.fleet.rollout.list'
         SpecialistTasks.summary(target, %w[id gatekeeper_release_id status scheduled_at])
       when 'hosting.fleet.rollout.status'
@@ -72,7 +78,7 @@ module NevaehOs
         end
         rollout_receipt(target.reload)
       end
-    rescue Gatekeeper::Fleet::Rollouts::Invalid => error
+    rescue Gatekeeper::Fleet::Rollouts::Invalid, Gatekeeper::Hosting::Access::Denied => error
       raise ArgumentError, error.message
     end
 
@@ -80,10 +86,11 @@ module NevaehOs
       operation = GatekeeperOperation.where(gatekeeper_project_id: project.id,
         gatekeeper_node_id: project.gatekeeper_node_id, capability: 'healthcheck_project')
         .order(id: :desc).first
-      {'project_id'=>project.id, 'project_status'=>project.status, 'last_healthcheck_at'=>project.last_healthcheck_at&.iso8601,
+      Gatekeeper::ProjectHealthMonitor.status(project).merge(
+        'project_status'=>project.status, 'last_healthcheck_at'=>project.last_healthcheck_at&.iso8601,
        'latest_check'=>operation && operation.attributes.slice('id', 'status', 'started_at', 'completed_at', 'exit_status')
          .merge('job_id'=>operation.parameters.to_h['healthcheck_job_id']),
-       'links'=>[{'label'=>'Open Gatekeeper project', 'url'=>"/gatekeeper/projects/#{project.id}"}]}
+       'links'=>[{'label'=>'Open Gatekeeper project', 'url'=>"/gatekeeper/projects/#{project.id}"}])
     end
 
     def rollout_receipt(rollout)

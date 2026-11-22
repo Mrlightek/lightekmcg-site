@@ -8,6 +8,7 @@ require "minitest/mock"
 require "active_record"
 require "active_job"
 require "active_support/all"
+require "active_support/testing/time_helpers"
 require "tmpdir"
 require "logger"
 require "securerandom"
@@ -98,6 +99,7 @@ ActiveRecord::Schema.define do
     t.string :apache_service_name
     t.string :deployed_sha
     t.string :status
+    t.json :metadata, default: {}
     t.datetime :last_healthcheck_at
   end
   create_table :dymond_dispatch_work_items do |t|
@@ -211,7 +213,8 @@ end
    services/nevaeh_intelligences/structured_ticket_worker services/nevaeh_orchestration/escalation].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 %w[services/gatekeeper/capabilities/healthcheck_project services/gatekeeper/capability_registry services/gatekeeper/executor
    services/gatekeeper/hosting/access services/gatekeeper/knowledge_service services/gatekeeper/support_ticket_service
-   services/gatekeeper/command_runner jobs/gatekeeper/healthcheck_project_job
+   services/gatekeeper/command_runner services/gatekeeper/project_health_monitor
+   jobs/gatekeeper/healthcheck_project_job jobs/gatekeeper/project_health_sweep_job
    services/nevaeh_os/platform_actions].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
@@ -221,6 +224,8 @@ Minitest.after_run do
 end
 
 class NevaehBacklogPersistenceTest < Minitest::Test
+  include ActiveSupport::Testing::TimeHelpers
+
   def setup
     Rails.env = "test"
     ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
@@ -656,6 +661,52 @@ class NevaehBacklogPersistenceTest < Minitest::Test
       probe.execute(enqueued_jobs.last)
     end
     assert_equal 2, GatekeeperOperation.count
+  end
+
+  def test_enrolled_project_runs_automatically_and_keeps_one_open_incident
+    operator = User.create!(role: "super_admin")
+    node = GatekeeperNode.create!(name: "Monitored server", status: "healthy")
+    project = GatekeeperProject.create!(gatekeeper_node: node, name: "watched-app", domain: "test.example",
+      app_root: "/test/app", apache_service_name: "apache2", status: "healthy", deployed_sha: "a" * 40)
+    probe = Gatekeeper::HealthcheckProjectJob
+    sweep = Gatekeeper::ProjectHealthSweepJob
+    monitor = Gatekeeper::ProjectHealthMonitor
+    queue = ActiveJob::Base.queue_adapter.enqueued_jobs
+    next_probe = -> { queue.delete(queue.find { |entry| entry[:job] == probe }) }
+    actions = NevaehOs::PlatformActions
+    settings = {"project_id" => project.id, "operation" => "enable"}
+    assert actions.perform!(actor: operator, command: actions.command("hosting.project.health.monitor", settings),
+      action_id: 6).fetch("monitoring_enabled")
+    monitor_id = project.reload.metadata.dig(monitor::SETTINGS_KEY, "id")
+
+    sweep.perform_now
+    sweep.perform_now
+    assert_equal 1, queue.count { |entry| entry[:job] == probe }
+    runner = Gatekeeper::CommandRunner
+    failure = runner::Result.new(command: "test probe", stdout: "FAIL sidekiq", stderr: "", exit_status: 1)
+    runner.stub(:call, failure) do
+      probe.execute(next_probe.call)
+      probe.execute(next_probe.call)
+    end
+    assert_equal 2, GatekeeperOperation.count
+    assert_equal 1, Marlon::Ticket.count
+    refute monitor.repair_available?(project, monitor_id)
+
+    travel 16.minutes
+    sweep.perform_now
+    passed = runner::Result.new(command: "test probe", stdout: "OK https 200", stderr: "", exit_status: 0)
+    runner.stub(:call, passed) { probe.execute(next_probe.call) }
+    assert_equal "resolved", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: Marlon::Ticket.first.id)
+    assert monitor.repair_available?(project, monitor_id)
+
+    travel 16.minutes
+    sweep.perform_now
+    actions.perform!(actor: operator, command: actions.command("hosting.project.health.monitor", settings.merge("operation" => "pause")),
+      action_id: 7)
+    runner.stub(:call, ->(**) { flunk("paused monitoring must not run a queued probe") }) do
+      probe.execute(next_probe.call)
+    end
+    assert_equal 3, GatekeeperOperation.count
   end
 
   def test_real_incident_reference_builds_native_recovery_order_without_dispatch

@@ -29,6 +29,12 @@ gatekeeper_hosting_recovery:
   queue: default
   active_job: true
 
+gatekeeper_project_health_monitoring:
+  cron: "*/5 * * * *"
+  class: "Gatekeeper::ProjectHealthSweepJob"
+  queue: default
+  active_job: true
+
 susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"

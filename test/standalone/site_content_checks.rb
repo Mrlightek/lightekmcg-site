@@ -89,6 +89,18 @@ ScheduleNevaehJournalEditorial.new.migrate(:up)
 require Rails.root.join('app/models/lightek_blog/editorial_schedule')
 require Rails.root.join('app/services/lightek_blog/editor')
 require Rails.root.join('app/services/lightek_blog/images')
+require Rails.root.join('app/services/nevaeh_os/public_relations')
+require Rails.root.join('db/migrate/20261122102000_create_press_contacts')
+CreatePressContacts.new.migrate(:up)
+require Rails.root.join('app/models/lightek_growth/press_contact')
+ActiveRecord::Schema.define { create_table(:action_mailbox_inbound_emails) }
+%w[20261026150000_create_lightek_mail_studio 20261026200000_add_lightek_mail_sending_controls 20261113140000_add_lightek_mailbox_management].each do |name|
+  migrate_session_fixture(name)
+end
+%w[domain account template message customer_suspension sending_policy send_reservation].each do |name|
+  require Rails.root.join("app/models/lightek_mail/#{name}")
+end
+require Rails.root.join('app/services/lightek_mail/access')
 module DymondDash
   module TemplateSchemaHelper
     def theme_styles(*) = ''
@@ -113,6 +125,7 @@ Rails.application.routes.append do
       post :assign_nevaeh, on: :collection
       patch :configure_editorial, on: :collection
       post :assign_public_relations, on: :collection
+      post :configure_public_relations, on: :collection
       get :preview,on: :member
       get 'images/:attachment_id',to:'blog#image',on: :member,as: :image
     end

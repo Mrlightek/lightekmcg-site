@@ -17,6 +17,7 @@ module NevaehOs
       'social_delivery'=>['Studio TikTok and Instagram video delivery','all'],
       'production_director'=>['Direct episodes, characters, story workers and delivery','all'],
       'campaign_producer'=>['Produce a campaign in Studio','growth'],
+      'public_relations'=>['Public relations and media outreach','growth'],
       'growth'=>['Daily business growth plans','growth'],
       'start'=>['Meet your operating workspace','all'], 'commands'=>['Commands, inputs and capability discovery','all'],
       'agents'=>['Agents, delegation and scheduled workers','all'], 'memory'=>['Memory, voice and personas','all'],
@@ -107,6 +108,12 @@ module NevaehOs
       rows=BUILTINS.filter_map do |key,(title,example,topic,permission)|
         next unless allowed?(permission,actor)
         entry(key,title,topic,permission,example:example,source:'built-in command',coverage:'tutorial')
+      end
+      if defined?(PublicRelations) && allowed?('growth', actor)
+        PublicRelations::OPERATIONS.each do |operation, (label, fields, _)|
+          rows << entry(PublicRelations.capability(operation), label, 'public_relations', 'growth',
+            example: "/pr #{operation} SITE_ID#{' {…}' if fields.any?}", source: 'built-in command', coverage: 'tutorial')
+        end
       end
       if defined?(PlatformActions)
         PlatformLanguage::PHRASES.each do |key, (_, example)|

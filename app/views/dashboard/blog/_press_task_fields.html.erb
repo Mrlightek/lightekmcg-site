@@ -1,0 +1,45 @@
+<% case operation
+   when 'press_release' %>
+  <label>Headline <%= form.text_field :title, required: true, maxlength: 160 %></label>
+  <label>Announcement summary <%= form.text_area :summary, required: true, maxlength: 400, rows: 3 %></label>
+  <label>Confirmed facts <%= form.text_area :facts, required: true, maxlength: 4000, rows: 5 %></label>
+  <label>Public press email <%= form.email_field :press_email, required: true, maxlength: 254 %></label>
+  <label>Publication <%= form.select :status, [['Save as a draft', 'draft'], ['Publish when ready', 'published']] %></label>
+<% when 'release_status' %>
+  <%= form.hidden_field :entry_id, value: context.fetch(:release).id, id: nil %>
+  <%= form.hidden_field :revision, value: context.fetch(:release).lock_version, id: nil %>
+  <%= form.hidden_field :status, value: context.fetch(:status), id: nil %>
+<% when 'media_pitch', 'coverage' %>
+  <label>Published release <%= form.collection_select :entry_id, context.fetch(:releases), :id, ->(entry) { entry.post.title } %></label>
+  <% if operation == 'media_pitch' %>
+    <label>Media contact <%= form.collection_select :recipient, context.fetch(:contacts), :email, ->(contact) { "#{contact.outlet} (#{contact.email})" } %></label>
+    <label>Outlet or journalist <%= form.text_field :outlet, required: true, maxlength: 120 %></label>
+    <label>Why it matters to their audience <%= form.text_area :angle, required: true, maxlength: 800, rows: 3 %></label>
+    <% if context[:mailbox_id] %>
+      <label><%= check_box_tag :send_pitch, '1', false %> Queue for delivery after drafting</label>
+    <% end %>
+  <% else %>
+    <label>Outlet <%= form.text_field :outlet, required: true, maxlength: 120 %></label>
+    <label>Coverage URL <%= form.url_field :url, required: true, maxlength: 2048 %></label>
+    <label>Notes <%= form.text_area :notes, required: true, maxlength: 800, rows: 3 %></label>
+  <% end %>
+<% when 'contact', 'suppress' %>
+  <label>Media email <%= form.email_field :email, required: true, maxlength: 254, id: "press-#{operation}-email" %></label>
+  <% if operation == 'contact' %>
+    <label>Outlet or journalist <%= form.text_field :outlet, required: true, maxlength: 120, id: 'press-contact-outlet' %></label>
+    <label>Relationship or editorial contact source <%= form.text_field :contact_basis, required: true, maxlength: 240 %></label>
+  <% end %>
+<% when 'monitor' %>
+  <label>Public HTTPS source <%= form.url_field :url, required: true, maxlength: 1200, id: 'press-monitor-url' %></label>
+  <label>Name or phrase to find <%= form.text_field :phrase, required: true, maxlength: 120 %></label>
+<% when 'response_brief' %>
+  <label>Media inquiry or issue <%= form.text_field :title, required: true, maxlength: 160, id: 'press-response-title' %></label>
+  <label>Confirmed facts <%= form.text_area :facts, required: true, maxlength: 4000, rows: 4, id: 'press-response-facts' %></label>
+  <label>Proposed response <%= form.text_area :response, required: true, maxlength: 2000, rows: 3 %></label>
+  <label>Next update <%= form.text_field :next_update, required: true, maxlength: 200 %></label>
+<% when 'send_pitch', 'follow_up' %>
+  <%= form.hidden_field :pitch_id, value: context.fetch(:pitch_id), id: nil %>
+  <% if operation == 'follow_up' %>
+    <label>Follow-up message <%= form.text_area :angle, required: true, maxlength: 800, rows: 3, id: "press-follow-up-#{context.fetch(:pitch_id)}" %></label>
+  <% end %>
+<% end %>

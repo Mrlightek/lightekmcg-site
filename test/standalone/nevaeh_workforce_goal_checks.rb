@@ -1,5 +1,6 @@
 require_relative 'nevaeh_os_test'
 require File.join(ROOT, 'app/services/nevaeh_os/website_marketing')
+require File.join(ROOT, 'app/services/nevaeh_os/public_relations')
 class NevaehWorkforceGoalChecks < NevaehOsTest
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
   def teardown
@@ -55,6 +56,43 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
             complete_current(plan)
             assert_equal 'completed', plan.reload.status
             assert_equal 'marketing_strategy', plan.steps.first.nevaeh_os_agent.system_key
+          end
+        end
+      end
+    end
+  end
+
+  def test_pr_goal_uses_the_pr_manual_and_passes_the_saved_pitch_to_delivery
+    service = NevaehOs::PublicRelations
+    bind = ->(_actor, input) { input.merge('delegation_id' => 'press-grant') }
+    execution = lambda do |actor:, command:, action_id:|
+      assert_equal @actor.id, actor.id
+      assert_operator action_id, :>, 0
+      assert_equal 'press-grant', command.fetch('delegation_id')
+      assert_equal 'docs/nevaeh/tutorials/public_relations.md', command.dig('documentation_read', 'path')
+      if command.fetch('operation') == 'media_pitch'
+        { 'change_id' => 502, 'body' => 'Pitch', 'status' => 'completed' }
+      else
+        assert_equal 502, command.dig('values', 'pitch_id')
+        { 'message_id' => 81, 'delivery_state' => 'queued', 'status' => 'completed' }
+      end
+    end
+    send_command = { 'kind' => 'public_relations', 'operation' => 'send_pitch', 'site_id' => 91,
+      'values' => { 'pitch_id' => { '$step' => 'draft', 'path' => 'result.change_id' } } }
+    NevaehOs::Guide.stub(:allowed?, ->(level, actor) { level == 'growth' && actor.id == @actor.id }) do
+      service.stub(:bind, bind) do
+        service.stub(:authorize!, true) do
+          service.stub(:perform!, execution) do
+            plan = goal({ 'title' => 'Draft and queue a pitch', 'steps' => [
+              { 'key' => 'draft', 'agent' => 'public_relations', 'command' => '/pr media_pitch 91 {}' },
+              { 'key' => 'send', 'agent' => 'public_relations', 'command' => send_command,
+                'expectations' => [{ 'path' => 'result.message_id', 'present' => true }] }
+            ] })
+            NevaehOs::Goals.control!(goal: plan, actor: @actor, operation: 'start')
+            2.times { complete_current(plan) }
+            assert_equal 'completed', plan.reload.status
+            assert plan.steps.all? { |step| step.nevaeh_os_agent.system_key == 'public_relations' }
+            assert_equal 'queued', plan.steps.last.evidence.dig('result', 'delivery_state')
           end
         end
       end

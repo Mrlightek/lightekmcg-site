@@ -8,6 +8,7 @@ module NevaehOs
       I'm Nevaeh. Tell me what you need, or use a command:
       /website page {"site_id":1,"title":"About us"} — create a draft website page
       /operations — specialist review tasks, inputs and scheduling examples
+      /guide public_relations — releases, outreach and media monitoring
       /guide — open the operating manual and tutorials
       /page commands How do I delegate? — ask the SME for one documentation page
       /describe susu.list — inputs, permissions, examples and verification
@@ -71,6 +72,13 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (match = q.match(/\A(?:review PR activity for site |\/pr report )([1-9][0-9]{0,17})\z/i))
+        return { 'kind' => 'public_relations', 'operation' => 'report', 'site_id' => match[1].to_i, 'values' => {} }
+      end
+      if (match = q.match(/\A\/pr ([a-z_]+) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
+        return { 'kind' => 'public_relations', 'operation' => match[1], 'site_id' => match[2].to_i,
+          'values' => match[3] ? JSON.parse(match[3]) : {} }
+      end
       if (match = q.match(/\A\/website (inspect|compose|publication|appearance|restore|journal_inspect|journal_write|press_release|media_pitch) ([1-9][0-9]{0,17})(?: (\{.*\}))?\z/m))
         return { 'kind' => 'website_marketing', 'operation' => match[1], 'site_id' => match[2].to_i,
           'values' => match[3] ? JSON.parse(match[3]) : {} }

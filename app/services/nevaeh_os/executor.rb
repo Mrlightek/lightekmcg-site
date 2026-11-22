@@ -15,6 +15,8 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'public_relations'
+        PublicRelations.authorize!(actor, command)
       when 'website_marketing'
         WebsiteMarketing.authorize!(actor, command)
       when 'website_page'
@@ -154,6 +156,8 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'public_relations'
+        PublicRelations.perform!(actor: actor, command: command, action_id: action.id)
       when 'website_marketing'
         WebsiteMarketing.perform!(actor: actor, command: command, action_id: action.id)
       when 'website_page'

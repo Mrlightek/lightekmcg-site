@@ -22,6 +22,10 @@ module LightekMail
             message.update!(state: "failed", error_message: "Sending paused or domain verification removed.")
             next false
           end
+          unless NevaehOs::PublicRelations.delivery_allowed?(message, account)
+            message.update!(state: "failed", error_message: "PR outreach authorization ended before submission.")
+            next false
+          end
           message.update!(state: "submitting")
           true
         end
@@ -38,7 +42,7 @@ module LightekMail
             message.update!(state: "failed", error_message: "Mail access was revoked before SMTP submission.")
             next false
           end
-          if policy.sending_enabled? && account.sending_ready?
+          if policy.sending_enabled? && account.sending_ready? && NevaehOs::PublicRelations.delivery_allowed?(message, account)
             SendingLimits.dispatch!(account, message)
             true
           else

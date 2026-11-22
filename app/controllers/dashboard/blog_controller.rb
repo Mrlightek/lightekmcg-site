@@ -2,6 +2,7 @@ class Dashboard::BlogController < ApplicationController
   skip_authorization_check
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
+  before_action { response.set_header("Cache-Control", "private, no-store") }
   before_action :load_site
   rescue_from ActiveRecord::RecordNotUnique,ActiveRecord::RecordInvalid,ActiveRecord::StaleObjectError,ArgumentError,KeyError,with: :invalid_article
   def index
@@ -34,22 +35,37 @@ class Dashboard::BlogController < ApplicationController
   rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
     redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other, alert: error.message
   end
+  def configure_public_relations
+    enabled = params[:operation] != 'pause'
+    NevaehOs::PublicRelations.configure!(site: @site, actor: current_user, enabled: enabled, mailbox_id: params[:mailbox_id])
+    NevaehOs::Workforce.install!(current_user) if enabled
+    redirect_to public_relations_path, status: :see_other, notice: 'PR delegation updated.'
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to public_relations_path, status: :see_other, alert: error.message
+  end
+
   def assign_public_relations
+    pr = NevaehOs::PublicRelations
     key = params[:request_key].to_s
     raise ArgumentError, 'Reload the form before assigning this work.' unless key.match?(/\A[0-9a-f-]{36}\z/)
 
-    operation, label, values, expectation = public_relations_assignment
-    command = { 'kind' => 'website_marketing', 'operation' => operation, 'site_id' => @site.id, 'values' => values }
+    operation = params[:operation].to_s
+    label, fields, evidence = pr::OPERATIONS.fetch(operation) { raise ArgumentError, 'Choose a PR operation.' }
+    values = fields.empty? ? {} : params.require(:brief).permit(*fields).to_h
+    steps = [press_step(operation, label, values, evidence)]
+    if operation == 'media_pitch' && params[:send_pitch] == '1'
+      grant = pr.grant_for(@site, current_user)
+      pr.mailbox!(current_user, grant&.fetch('mailbox_id'))
+      steps << press_step('send_pitch', 'Queue media pitch', { 'pitch_id' => {
+        '$step' => 'media_pitch', 'path' => 'result.change_id'
+      } }, 'message_id')
+    end
     goal = NevaehOs::Goals.create!(actor: current_user, request_key: "public-relations-#{@site.id}-#{key}",
-      values: { 'title' => label, 'steps' => [{
-        'key' => operation, 'label' => label, 'agent' => 'marketing_strategy',
-        'command' => command, 'expectations' => [expectation]
-      }] })
+      values: { 'title' => label, 'steps' => steps })
     NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
-    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'public-relations'), status: :see_other,
-      notice: "#{label} assigned to Nevaeh in Goal ##{goal.id}."
+    redirect_to public_relations_path, status: :see_other, notice: "#{label} assigned to the PR SME in Goal ##{goal.id}."
   rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
-    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'public-relations'), status: :see_other, alert: error.message
+    redirect_to public_relations_path, status: :see_other, alert: error.message
   end
 
   def configure_editorial
@@ -80,18 +96,18 @@ class Dashboard::BlogController < ApplicationController
     LightekBlog::Images.deliver(self, LightekBlog::Images.blob!(entry, params[:attachment_id]))
   end
   private
-  def public_relations_assignment
-    case params[:operation]
-    when 'press_release'
-      values = params.require(:brief).permit(:title, :summary, :facts, :press_email, :status).to_h
-      status = values['status'] == 'published' ? 'published' : 'draft'
-      ['press_release', 'Write press release', values.merge('status' => status), { 'path' => 'result.article_status', 'equals' => status }]
-    when 'media_pitch'
-      values = params.require(:brief).permit(:entry_id, :outlet, :angle, :recipient).to_h
-      ['media_pitch', 'Draft media pitch', values, { 'path' => 'result.body', 'present' => true }]
-    else
-      raise ArgumentError, 'Choose a press release or media pitch.'
+  def press_step(operation, label, values, evidence)
+    expectation = { 'path' => "result.#{evidence}", 'present' => true }
+    if evidence == 'article_status'
+      expectation = { 'path' => 'result.article_status', 'equals' => values.fetch('status') }
     end
+    { 'key' => operation, 'label' => label, 'agent' => NevaehOs::PublicRelations::ROLE,
+      'command' => { 'kind' => 'public_relations', 'operation' => operation, 'site_id' => @site.id, 'values' => values },
+      'expectations' => [expectation] }
+  end
+
+  def public_relations_path
+    dashboard_blog_index_path(site_id: @site.id, anchor: 'public-relations')
   end
 
   def load_site

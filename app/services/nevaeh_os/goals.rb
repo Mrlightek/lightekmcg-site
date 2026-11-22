@@ -2,7 +2,7 @@
 require 'digest'
 module NevaehOs
   module Goals
-    KINDS=%w[website_page website_marketing specialist_review documentation_answer production campaign_produce marketing_kit feature_showcase marketing_follow_up backlink_draft growth_plan growth_review capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].freeze
+    KINDS=%w[public_relations website_page website_marketing specialist_review documentation_answer production campaign_produce marketing_kit feature_showcase marketing_follow_up backlink_draft growth_plan growth_review capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].freeze
     FAILURES=%w[failed blocked error cancelled needs_attention needs_review evidence_unavailable stale].freeze
     WAITING=%w[pending queued running dispatched processing publishing training].freeze
     module_function
@@ -44,6 +44,7 @@ module NevaehOs
           raise ArgumentError,'Step references must name an earlier step and a bounded evidence path' unless seen.include?(ref['$step']) && ref['path'].is_a?(String) && ref['path'].match?(/\A(?:result|downstream)(?:\.[a-zA-Z0-9_]+){1,8}\z/)
         end
         # Native capabilities must retain a trusted site origin for future reference expansion.
+        command = PublicRelations.bind(actor, command.except('delegation_id')) if command['kind'] == 'public_relations'
         command = WebsiteMarketing.bind(actor, command.except('delegation_id')) if command['kind'] == 'website_marketing'
         if command['kind']=='capability'
           command['origin']=origin

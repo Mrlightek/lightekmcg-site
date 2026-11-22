@@ -50,6 +50,18 @@ require Rails.root.join('app/models/lightek_growth/website_change')
 require Rails.root.join('app/services/nevaeh_os/website_marketing')
 require Rails.root.join('app/services/nevaeh_os/website_journal')
 require Rails.root.join('app/services/nevaeh_os/public_relations')
+%w[template_renderer submission sending_limits].each { |name| require Rails.root.join("app/services/lightek_mail/#{name}") }
+module LightekMail
+  class DeliverJob
+    def self.perform_later(_id) = true
+  end
+end
+class NevaehOsAgent < ApplicationRecord
+  belongs_to :user
+end
+ActiveRecord::Schema.define do
+  create_table(:nevaeh_os_agents) { |t| t.references :user; t.string :system_key; t.boolean :enabled; t.datetime :deleted_at }
+end
 require Rails.root.join('app/controllers/media_website_controller')
 Rails.application.routes.append do
   eval(Rails.root.join('config/routes/media_website.rb').read, binding)
@@ -99,6 +111,99 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def press_work(operation, values, actor: @user, site: @site, action_id: nil)
+    pr = NevaehOs::PublicRelations
+    command = pr.bind(actor, { 'kind' => 'public_relations', 'operation' => operation, 'site_id' => site.id, 'values' => values })
+    pr.perform!(actor: actor, command: command, action_id: action_id || (LightekGrowth::WebsiteChange.maximum(:action_id).to_i + 1))
+  end
+
+  def test_audit_pr_workflow_tracks_actual_mail_state_and_guards_pending_outreach
+    pr = NevaehOs::PublicRelations
+    @user.update!(role: 'super_admin')
+    @site.update!(host: 'lightekmcg.com')
+    domain = LightekMail::Domain.create!(name: @site.host, user: @user, verified_at: Time.current)
+    mailbox = LightekMail::Account.create!(domain: domain, user: @user, display_name: 'Press', address: 'press@lightekmcg.com')
+    other_domain = LightekMail::Domain.create!(name: 'other.example', user: @marketer, verified_at: Time.current)
+    foreign = LightekMail::Account.create!(domain: other_domain, user: @marketer, display_name: 'Other', address: 'press@other.example')
+    assert_raises(ArgumentError) { pr.configure!(site: @site, actor: @user, enabled: true, mailbox_id: foreign.id) }
+    assert_raises(ArgumentError) { pr.configure!(site: @site, actor: @marketer, enabled: true, mailbox_id: foreign.id) }
+    assert_raises(ArgumentError) { press_work('report', {}) }
+    pr.configure!(site: @site, actor: @user, enabled: true, mailbox_id: mailbox.id)
+    agent = NevaehOsAgent.create!(user_id: @user.id, system_key: 'public_relations', enabled: true)
+
+    facts = { 'title' => 'Creator showcase', 'summary' => 'Independent production showcase', 'facts' => 'Creators will host a Q&A.',
+      'press_email' => mailbox.address, 'status' => 'published' }
+    release = press_work('press_release', facts)
+    attrs = { 'entry_id' => release.fetch('entry_id'), 'outlet' => 'Local Media', 'angle' => 'For your readers.',
+      'recipient' => 'editor@localmedia.example' }
+    pitch = press_work('media_pitch', attrs)
+    send_values = { 'pitch_id' => pitch.fetch('change_id') }
+    assert_raises(ArgumentError) { press_work('send_pitch', send_values) }
+    press_work('contact', { 'email' => attrs.fetch('recipient'), 'outlet' => attrs.fetch('outlet'), 'contact_basis' => 'Editorial contact page' })
+    queued = press_work('send_pitch', send_values)
+    assert_equal 'queued', queued.fetch('delivery_state')
+    message = mailbox.messages.find(queued.fetch('message_id'))
+    assert_equal [attrs.fetch('recipient')], message.to_addresses
+    assert_equal message.id, press_work('send_pitch', send_values).fetch('message_id')
+    assert_equal 1, mailbox.messages.count
+    assert pr.delivery_allowed?(message, mailbox)
+    agent.update!(enabled: false)
+    refute pr.delivery_allowed?(message, mailbox)
+    agent.update!(enabled: true)
+    assert_equal 'queued', press_work('report', {}).fetch('pitches').first.fetch('delivery')
+    assert_raises(ArgumentError) { press_work('follow_up', send_values.merge('angle' => 'Can I send more details?')) }
+
+    message.update!(state: 'sent', submitted_at: 4.days.ago)
+    followup = press_work('follow_up', send_values.merge('angle' => 'Can I send more details?'))
+    followup_message = mailbox.messages.find(followup.fetch('message_id'))
+    assert_equal "<#{message.message_id}>", followup_message.in_reply_to
+    assert pr.delivery_allowed?(followup_message, mailbox)
+    mailbox.messages.create!(direction: 'inbound', state: 'inbox', from_address: attrs.fetch('recipient'),
+      message_id: 'reply@localmedia.example', in_reply_to: message.message_id)
+    refute pr.delivery_allowed?(followup_message, mailbox)
+    assert press_work('report', {}).fetch('pitches').first.fetch('replied')
+
+    url = 'https://localmedia.example/showcase'
+    document = { url: url, title: 'Events', body: 'Local Media covered Lightek Media at the showcase.', sha256: 'source-digest' }
+    NevaehOs::WebDocument.stub(:fetch, document) do
+      scanned = press_work('monitor', { 'url' => url, 'phrase' => 'Lightek Media' })
+      assert scanned.fetch('matched')
+      assert_includes scanned.fetch('excerpt'), 'Lightek Media'
+      refute press_work('monitor', { 'url' => url, 'phrase' => 'Different brand' }).fetch('matched')
+    end
+    assert_raises(ArgumentError) { press_work('monitor', { 'url' => 'http://bad.example', 'phrase' => 'Private' }) }
+
+    coverage = press_work('coverage', attrs.slice('entry_id', 'outlet').merge('url' => 'https://localmedia.example/showcase', 'notes' => 'Event mention'))
+    assert_equal 'https://localmedia.example/showcase', coverage.fetch('url')
+    press_work('response_brief', { 'title' => 'Private inquiry', 'facts' => 'Confirmed details', 'response' => 'Proposed wording', 'next_update' => 'Tomorrow' })
+    pr_ids = NevaehOs::Command.parse('Review PR activity for site 12')
+    assert_equal ['public_relations', 'report', 12], pr_ids.values_at('kind', 'operation', 'site_id')
+
+    host! @site.host
+    get '/dashboard/blog', params: { site_id: @site.id }, headers: { 'X-Pwa-Test-User' => @user.id.to_s }
+    assert_response :success
+    assert_includes response.body, 'Private inquiry'
+    assert_includes response.body, 'Event mention'
+    assert_equal 'private, no-store', response.headers['Cache-Control']
+    get '/media/press'
+    assert_response :success
+    refute_includes response.body, 'Private inquiry'
+    refute_includes response.body, attrs.fetch('recipient')
+
+    withdrawn = press_work('release_status', release.slice('entry_id', 'revision').merge('status' => 'archived'))
+    refute withdrawn.fetch('published')
+    refute pr.delivery_allowed?(message, mailbox)
+    press_work('release_status', withdrawn.slice('entry_id', 'revision').merge('status' => 'published'))
+    assert pr.delivery_allowed?(message, mailbox)
+    press_work('suppress', { 'email' => attrs.fetch('recipient') })
+    refute pr.delivery_allowed?(message, mailbox)
+    command = pr.bind(@user, { 'site_id' => @site.id, 'operation' => 'report', 'values' => {} })
+    pr.configure!(site: @site, actor: @user, enabled: false)
+    pr.configure!(site: @site, actor: @user, enabled: true, mailbox_id: mailbox.id)
+    assert_raises(ArgumentError) { pr.authorize!(@user, command) }
+    refute pr.delivery_allowed?(message, mailbox)
+  end
+
   def test_audit_public_relations_keeps_pitch_drafts_private_and_lists_only_live_releases
     marketing = NevaehOs::WebsiteMarketing
     @site.update!(host: 'lightekmcg.com', manifest: @site.manifest.merge(marketing::KEY => { 'actor_id' => @user.id, 'key' => 'press-grant' }))

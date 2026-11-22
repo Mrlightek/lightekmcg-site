@@ -30,20 +30,20 @@
     if(location.hash.startsWith('#/studio')&&state.assets.some(a=>['uploaded','processing'].includes(a.status)||(a.metadata?.performer_build&&a.status==='ready'&&!a.metadata.character_profile)))state.assetTimer=setTimeout(()=>load(),4000);
   }
   function starterPanel(){
-    const job=state.starter,labels={queued:'Waiting for the Studio worker',delayed:'The Studio worker has not started this import. Retry to submit the same scene again.',checking_worker:'Checking the character worker',importing_rain_v3:'Importing Rain and her rig',importing_snow_v4:'Importing Snow and his rig',building_scene:'Building your rigged scene',preparing_editor:'Preparing the editor',ready:'Your character scene is ready',failed:'Scene preparation failed'};
+    const job=state.starter,labels={queued:'Waiting for the Studio worker',delayed:'The Studio worker has not started this import. Retry to submit the same scene again.',checking_worker:'Checking the character worker',importing_rain_v3:'Importing Rain and her rig',importing_snow_v4:'Importing Snow and his rig',importing_ellie_v2:'Importing Ellie and her poses',importing_human_base_meshes:'Importing the human base mesh',building_scene:'Building your character scene',preparing_editor:'Preparing the editor',ready:'Your character scene is ready',failed:'Scene preparation failed'};
     const pending=job&&job.status!=='failed'&&!['delayed','ready'].includes(job.phase);
     const ready=job?.phase==='ready';
     const upload=state.rigUpload;
     const imported=upload&&state.assets.find(asset=>asset.id===upload.id);
     const uploadedReady=imported&&riggedAsset(imported);
     const uploadStatus=!upload?'':upload.error||imported?.error||(uploadedReady
-      ? `${upload.name} is ready. Choose it under Base rig.`
+      ? `${upload.name} is ready. Choose it under Starting point.`
       : imported?.status==='ready'?'This file has no prepared, self-contained rigged scene.'
       : `Preparing ${upload.name} for the character library…`);
     return `<section class="vw-starter-cast" aria-labelledby="rigged-character-title">
       <h2 id="rigged-character-title">Character builder</h2>
-      <p>Pick a Blender rig, change its look, and make a scene you can edit and render.</p>
-      ${button('rigged-character','Create a rigged character',pending?'disabled':'')}
+      <p>Start with an animation rig or a human base mesh. Customize it and build a scene you can edit and render.</p>
+      ${button('rigged-character','Create a character',pending?'disabled':'')}
       <label class="vw-btn vw-add">Import a rigged Blender file<input type="file" data-vw-rig-upload hidden accept=".blend"></label>
       ${uploadStatus?`<p role="status">${esc(uploadStatus)}</p>`:''}
       ${state.starterError?`<p role="alert">${esc(state.starterError)}</p>`:''}
@@ -52,7 +52,8 @@
       ${job?.error?`<p role="alert">${esc(job.error)}</p>`:''}
       ${ready?`<a class="vw-btn primary" href="#/studio/${job.scene_id}${window.LightekStudioProduction?'/stage':''}">Open character scene →</a>`:''}
       ${job&&(job.status==='failed'||job.phase==='delayed')?button('starter-cast','Retry character build'):''}
-      ${ready?'<p>Open the scene to edit the rig or render a camera preview.</p>':''}
+      ${ready?'<p>Open the scene to edit the character or render a camera preview.</p>':''}
+      <a href="https://studio.blender.org/training/animation-fundamentals/5d69ab4dea6789db11ee65d1/" target="_blank" rel="noopener noreferrer">Blender Studio animation practice rigs ↗</a>
     </section>`;
   }
   function riggedAsset(asset){
@@ -77,15 +78,31 @@
   function riggedCharacterForm(){
     const saved=state.assets.filter(riggedAsset);
     return `<form data-vw-form="rigged-character">
-      <h2>Create a rigged character</h2>
-      <p>Save a new editable Blender project with a rig, lights, and a camera.</p>
+      <h2>Create a character</h2>
+      <p>Save a new editable Blender scene with lights and a camera.</p>
       <label class="vw-field"><span>Character name</span><input name="name" required maxlength="120" placeholder="Character name"></label>
-      <label class="vw-field"><span>Base rig</span><select name="rig"><option value="rain_v3">Rain</option><option value="snow_v4">Snow</option>${saved.map(asset=>`<option value="library:${Number(asset.id)}" ${asset.id===state.rigUpload?.id?'selected':''}>${esc(asset.name)} · Library</option>`).join('')}</select></label>
+      <label class="vw-field"><span>Starting point</span><select name="rig" aria-describedby="vw-base-help">
+        <optgroup label="Animation rigs">
+          <option value="rain_v3">Rain</option><option value="snow_v4">Snow</option><option value="ellie_v2">Ellie</option>
+          ${saved.map(asset=>`<option value="library:${Number(asset.id)}" ${asset.id===state.rigUpload?.id?'selected':''}>${esc(asset.name)} · Library</option>`).join('')}
+        </optgroup>
+        <optgroup label="Human base meshes">
+          <option value="human_female_realistic">Realistic female</option><option value="human_male_realistic">Realistic male</option>
+          <option value="human_female_stylized">Stylized female</option><option value="human_male_stylized">Stylized male</option>
+        </optgroup>
+      </select></label>
+      <p id="vw-base-help" class="vw-help" aria-live="polite">Animation rig for posing and animation.</p>
+      <div data-vw-ellie-pose hidden>
+        <label class="vw-field"><span>Starting pose</span><select name="pose">
+          <option value="relaxed">Relaxed</option><option value="cheerful">Cheerful</option>
+          <option value="angry">Angry</option><option value="scared">Scared</option><option value="waving">Waving</option>
+        </select></label>
+      </div>
       <div class="vw-row">
         <label class="vw-field"><span>Height</span><input name="height" type="number" min="75" max="125" step="1" value="100" required></label>
         <label class="vw-field"><span>Facing</span><select name="facing"><option value="0">Forward</option><option value="-30">Left</option><option value="30">Right</option></select></label>
       </div>
-      <p class="vw-help">Height is a percentage of the base rig.</p>
+      <p class="vw-help">Height is a percentage of the selected character’s size.</p>
       <label><input type="checkbox" name="apply_tint"> Apply a palette tint</label>
       ${field('tint','Palette tint','#e8bfa6','color')}
       <p data-rigged-error role="alert"></p>
@@ -125,6 +142,7 @@
   }
   function refresh(preserve=false){if(!enabled())return;if(preserve&&window.LightekStudioForms?.composing()){LightekStudioForms.defer();return;}const editing=preserve?window.LightekStudioForms?.capture():null;const form=preserve?app.querySelector('[data-vw-inspector] form'):null,saved=form?{kind:form.dataset.vwForm,values:Object.fromEntries(new FormData(form))}:null;const left=app.querySelector('[data-vw-assets]'),right=app.querySelector('[data-vw-inspector]'),tracks=app.querySelector('[data-vw-lanes]');if(left)left.innerHTML=assetsPanel();if(right){right.innerHTML=inspector();if(saved){const restored=right.querySelector(`[data-vw-form="${saved.kind}"]`);if(restored)for(const [name,value] of Object.entries(saved.values)){const input=restored.elements.namedItem(name);if(input)input.value=value;}}}if(tracks)tracks.innerHTML=lanes();const range=app.querySelector('[data-vw-playhead]');if(range)range.max=duration();const guide=app.querySelector('[data-vw-guide]');if(guide&&current())guide.innerHTML=sceneGuide(current().scene);if(preserve)window.LightekStudioForms?.restore(editing);}
   function sceneGuide(scene){
+    if(scene.settings?.character_base_mesh)return `<p>Your human base mesh is ready for modeling. Edit its geometry and materials, or render a camera preview.</p><div>${button('advanced','Edit mesh & materials')} ${button('preview','Render camera preview')}</div>`;
     if(scene.settings?.rigged_character)return `<p>Your Blender rig is in this scene. Edit its native objects and materials, or render the camera view.</p><div>${button('advanced','Edit rig & materials')} ${button('preview','Render camera preview')}</div>`;
     const cast=scene.objects.find(object=>object.definition?.character_profile);
     const hasAction=scene.objects.some(object=>object.definition?.motion_clips?.length||object.definition?.performance);
@@ -301,6 +319,15 @@
       else preview.removeAttribute('src');
       return;
     }
+    const characterForm=input.closest('[data-vw-form="rigged-character"]');
+    if(characterForm&&input.name==='rig'){
+      const ellie=input.value==='ellie_v2';
+      characterForm.querySelector('[data-vw-ellie-pose]').hidden=!ellie;
+      characterForm.querySelector('#vw-base-help').textContent=input.value.startsWith('human_')
+        ? 'Human anatomy mesh for modeling. This starting point has no animation rig.'
+        : ellie ? 'Animation rig with selectable starting poses.' : 'Animation rig for posing and animation.';
+      return;
+    }
     if(input.matches('[data-vw-rig-upload]')){
       const file=input.files[0];
       if(!file)return;
@@ -334,7 +361,7 @@
       const modal=form.closest('dialog'), error=form.querySelector('[data-rigged-error]'), submit=form.querySelector('[type="submit"]');
       const [rig,assetId]=data.rig.split(':');
       const character={rig,height:Number(data.height)/100,facing:Number(data.facing),
-        ...(assetId?{asset_id:Number(assetId)}:{}),...(data.apply_tint?{tint:data.tint}:{})};
+        ...(rig==='ellie_v2'?{pose:data.pose}:{}),...(assetId?{asset_id:Number(assetId)}:{}),...(data.apply_tint?{tint:data.tint}:{})};
       const name=data.name.trim();
       const signature=JSON.stringify([name,character]);
       if(form.characterRequest?.signature!==signature)form.characterRequest={signature,id:key()};

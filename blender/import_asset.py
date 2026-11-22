@@ -90,8 +90,59 @@ def scene_payload(scene):
         "compositor": scene.use_nodes, "world": scene.world.name if scene.world else None}
 
 
+def export_posed_viewport(scene, path):
+    """Export lightweight evaluated meshes while retaining the full native source."""
+    level = scene.render.simplify_subdivision
+    scene.render.simplify_subdivision = 0
+    copies, materials = [], {}
+    try:
+        bpy.context.view_layer.update()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        bpy.ops.object.select_all(action='DESELECT')
+        for source in list(scene.objects):
+            if (source.type != 'MESH' or source.get('lightek_character_floor') or not source.visible_get()
+                    or source.hide_render or all(c.hide_render for c in source.users_collection)):
+                continue
+            evaluated = source.evaluated_get(depsgraph)
+            mesh = bpy.data.meshes.new_from_object(evaluated)
+            if not mesh.polygons:
+                bpy.data.meshes.remove(mesh)
+                continue
+            for index, original in enumerate(mesh.materials):
+                if original is None:
+                    continue
+                if original not in materials:
+                    preview = bpy.data.materials.new(original.name + ' · viewport')
+                    preview.diffuse_color = original.diffuse_color
+                    if original.use_nodes and original.node_tree:
+                        surface = next((node for node in original.node_tree.nodes
+                                        if node.type == 'BSDF_PRINCIPLED'), None)
+                        if surface:
+                            preview.diffuse_color = surface.inputs['Base Color'].default_value
+                    materials[original] = preview
+                mesh.materials[index] = materials[original]
+            copy = bpy.data.objects.new(source.name + ' · viewport', mesh)
+            scene.collection.objects.link(copy)
+            copies.append(copy)
+            copy.matrix_world = evaluated.matrix_world
+            copy['lightek_object_name'] = source.name
+            copy.select_set(True)
+        if not copies:
+            raise ValueError('The character has no visible meshes for the viewport')
+        bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_extras=True,
+                                  use_selection=True, export_animations=False, export_skins=False)
+    finally:
+        for copy in copies:
+            mesh = copy.data
+            bpy.data.objects.remove(copy, do_unlink=True)
+            bpy.data.meshes.remove(mesh)
+        for material in materials.values():
+            bpy.data.materials.remove(material)
+        scene.render.simplify_subdivision = level
+
+
 def main():
-    source, output, kind = sys.argv[sys.argv.index('--') + 1:]
+    source, output, kind, *options = sys.argv[sys.argv.index('--') + 1:]
     os.makedirs(output, exist_ok=True)
     bpy.context.preferences.filepaths.use_scripts_auto_execute = False
     if kind == 'blend':
@@ -146,9 +197,13 @@ def main():
     meshes = [obj for obj in scene.objects if obj.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME', 'GPENCIL', 'GREASEPENCIL'}]
     warnings = []
     try:
-        for obj in scene.objects:
-            obj['lightek_object_name'] = obj.name
-        bpy.ops.export_scene.gltf(filepath=os.path.join(output, 'asset.glb'), export_format='GLB', export_cameras=True, export_extras=True, export_animations=False, use_renderable=True)
+        proxy = os.path.join(output, 'asset.glb')
+        if options == ['posed']:
+            export_posed_viewport(scene, proxy)
+        else:
+            for obj in scene.objects:
+                obj['lightek_object_name'] = obj.name
+            bpy.ops.export_scene.gltf(filepath=proxy, export_format='GLB', export_cameras=True, export_extras=True, export_animations=False, use_renderable=True)
     except Exception as error:
         warnings.append('Viewport proxy is unavailable: ' + str(error)[:400])
     # Thumbnail settings affect only the process after native.blend was saved.
@@ -171,6 +226,10 @@ def main():
         data = bpy.data.lights.new('Lightek Thumbnail Light', 'AREA');data.energy=1000*radius;data.size=radius
         light=bpy.data.objects.new(data.name,data);scene.collection.objects.link(light);light.location=center+Vector((0,-radius,radius))
     scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=2;scene.cycles.use_denoising=False
+    if options == ['posed']:
+        scene.render.use_simplify = True
+        scene.render.simplify_subdivision_render = 0
+        scene.cycles.texture_limit_render = '512'
     scene.render.resolution_x=scene.render.resolution_y=256;scene.render.resolution_percentage=100
     scene.render.image_settings.file_format='PNG';scene.render.filepath=os.path.join(output,'preview.png')
     try:

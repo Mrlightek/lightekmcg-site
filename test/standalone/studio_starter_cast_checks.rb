@@ -27,6 +27,46 @@ class StudioStarterCastTest < StudioProductionTest
     assert_raises(ArgumentError) { start_cast(character:character.merge(rig:"rain_v3")) }
   end
 
+  def test_starter_cast_validates_ellie_poses
+    result=start_cast(character:{rig:"ellie_v2",pose:"waving"})
+    asset=StudioAsset.find(result[:asset_id])
+    assert_equal "waving",asset.metadata.dig("starter_cast","character","pose")
+    assert_equal "CC-BY 4.0",asset.metadata.dig("source","credits",0,"license")
+    refute result[:base_mesh]
+    assert_raises(ArgumentError){start_cast(character:{rig:"ellie_v2",pose:"unknown"})}
+    assert_raises(ArgumentError){start_cast(character:{rig:"human_female_stylized",pose:"waving"})}
+  end
+
+  def test_starter_cast_builds_projects_from_official_character_bundles
+    ellie=ENV["STUDIO_ELLIE_ARCHIVE"]
+    human=ENV["STUDIO_HUMAN_MESH_ARCHIVE"]
+    skip "Set the paths to the verified Ellie and human mesh archives" unless ellie && human
+
+    [
+      [{rig:"ellie_v2",pose:"waving"},ellie,false],
+      [{rig:"human_female_stylized"},human,true]
+    ].each do |character,path,is_mesh|
+      key=SecureRandom.uuid
+      started=start_cast(character:character,request_key:key)
+      assert_equal is_mesh,started[:base_mesh]
+      download=->(_url,target,**_args){FileUtils.cp(path,target)}
+      Rails.stub(:root,Pathname(ROOT)) do
+        Studio::NativeBlender::DemoImport.stub(:download,download){StudioStarterCastJob.perform_now(started[:asset_id])}
+      end
+      result=action("starter_scene_status",asset_id:started[:asset_id])
+      assert_equal "ready",result[:phase],result[:error]
+      scene=StudioScene.find(result[:scene_id])
+      assert scene.blender_source.attached?
+      asset=StudioAsset.find(result[:asset_id])
+      assert asset.proxy.attached?,asset.metadata["warnings"].inspect
+      assert asset.thumbnail.attached?,asset.metadata["warnings"].inspect
+      assert_equal is_mesh,scene.settings["character_base_mesh"]
+      assert_equal !is_mesh,scene.scene_objects.any? { |object| object.definition["native_type"]=="ARMATURE" }
+      assert scene.scene_objects.exists?(object_type:"camera")
+      assert_equal is_mesh ? "CC0" : "CC-BY 4.0",scene.settings.dig("source_credits",0,"license")
+    end
+  end
+
   def test_starter_cast_pins_the_uploaded_rig_and_checks_site_and_armature
     source=StudioAsset.create!(owner:@alice,site:@site,name:"Library rig",kind:"blend",status:"ready",
       request_key:SecureRandom.uuid,metadata:{"scenes"=>[{"name"=>"Rig scene","objects"=>[{"definition"=>{"native_type"=>"ARMATURE"}}]}]})

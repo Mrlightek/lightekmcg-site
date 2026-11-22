@@ -32,7 +32,7 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  }else if(req.capability.endsWith('starter.scene.create')){if(req.payload.character){
     variantRequests++;
     assert.equal(req.payload.name,'Detective Avery');
-    assert.deepEqual(req.payload.character,{rig:'snow_v4',height:1.15,facing:30,tint:'#b08050'});
+    assert.deepEqual(req.payload.character,{rig:'ellie_v2',height:1.15,facing:30,tint:'#b08050',pose:'waving'});
     result={asset_id:100,name:'Detective Avery',variant:true,status:'uploaded',phase:'queued'};
    }else{
      starterRequests++;assert.equal(req.payload.name,'Rain and Snow');result={asset_id:99,name:'Rain and Snow',status:'uploaded',phase:'queued'};
@@ -129,19 +129,26 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  await page.goto('http://localhost:18447/dashboard/studio-broadcasting/workspace?site_id=2&workspace=stage&advanced=1#/studio/rigged');
  const builder=page.getByRole('region',{name:'Character builder'});
  await builder.locator('[data-vw-rig-upload]').setInputFiles({name:'guest-rig.blend',mimeType:'application/x-blender',buffer:Buffer.from('fixture')});
- try{await builder.getByText('guest-rig.blend is ready. Choose it under Base rig.').waitFor({timeout:8000});}
+ try{await builder.getByText('guest-rig.blend is ready. Choose it under Starting point.').waitFor({timeout:8000});}
  catch(error){throw Error((await builder.innerText())+' · upload requests '+rigUploads+' · '+error.message);}
- await builder.getByRole('button',{name:'Create a rigged character'}).click();
+ await builder.getByRole('button',{name:'Create a character'}).click();
  const character=page.getByRole('dialog');
  await character.getByLabel('Character name').fill('Detective Avery');
- assert.equal(await character.getByLabel('Base rig').inputValue(),'library:172');
- await character.getByLabel('Base rig').selectOption('snow_v4');
+ assert.equal(await character.getByLabel('Starting point').inputValue(),'library:172');
+ await character.getByLabel('Starting point').selectOption('ellie_v2');
+ await character.getByLabel('Starting pose').selectOption('waving');
+ await character.getByText('Animation rig with selectable starting poses.').waitFor();
+ await character.getByLabel('Starting point').selectOption('human_female_stylized');
+ await character.getByText('Human anatomy mesh for modeling. This starting point has no animation rig.').waitFor();
+ await character.getByLabel('Starting pose').waitFor({state:'hidden'});
+ await character.getByLabel('Starting point').selectOption('ellie_v2');
+ assert.equal(await character.getByLabel('Starting pose').inputValue(),'waving');
  await character.getByLabel('Height').fill('115');
  await character.getByLabel('Facing').selectOption('30');
  await character.getByLabel('Apply a palette tint').check();
  await character.getByLabel('Palette tint',{exact:true}).fill('#b08050');
  await character.getByRole('button',{name:'Create character',exact:true}).click();
- await builder.getByText('Detective Avery · Building your rigged scene').waitFor();
+ await builder.getByText('Detective Avery · Building your character scene').waitFor();
  await builder.getByRole('link',{name:'Open character scene →'}).click({timeout:12000});
  await page.waitForFunction(()=>location.hash==='#/studio/4/stage');
  await page.locator('[data-vw-guide]').getByRole('button',{name:'Render camera preview'}).click();

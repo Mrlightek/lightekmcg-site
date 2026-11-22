@@ -3,6 +3,20 @@ module Studio
   module NativeBlender
     class StarterCast
       KEYS=%w[rain_v3 snow_v4].freeze
+      BUNDLES = {
+        "ellie_v2" => "CH-ellie.anim",
+        "human_female_realistic" => "Body Female - Realistic",
+        "human_male_realistic" => "Body Male - Realistic",
+        "human_female_stylized" => "Body Female - Stylized",
+        "human_male_stylized" => "Body Male - Stylized"
+      }.freeze
+      ELLIE_POSES = {
+        "relaxed" => "Ellie full relaxed",
+        "cheerful" => "Ellie full cheerful",
+        "angry" => "Ellie full angry",
+        "scared" => "Ellie full scared",
+        "waving" => "Ellie full waving"
+      }.freeze
       QUEUE_GRACE=2.minutes
       def self.start(access:,payload:)
         if payload["retry_asset_id"].present?
@@ -18,7 +32,7 @@ module Studio
         name=payload.fetch("name","My first character scene").to_s.strip
         raise ArgumentError,"Name your scene (up to 120 characters)" unless name.length.between?(1,120)
         variant=normalize_variant(access,payload["character"])
-        keys=variant ? [variant["rig"]].intersection(KEYS) : KEYS
+        keys=variant ? [catalog_key(variant["rig"])].compact : KEYS
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)
@@ -27,7 +41,7 @@ module Studio
           else
             raise ArgumentError,"Wait for your current starter scene to finish" if StudioAsset.where(owner:access.user,site_id:access.site_id,status:%w[uploaded processing]).where("metadata ->> 'starter_cast' IS NOT NULL").exists?
             build={"name"=>name,"phase"=>"queued","character"=>variant}.compact
-            source={"name"=>variant ? "Rigged Blender character" : "Rain and Snow starter cast",
+            source={"name"=>variant ? "Blender character" : "Rain and Snow starter cast",
               "credits"=>keys.map { |id| DemoCatalog.fetch(id).slice("name","credit","license","license_url","source_page") }}
             if variant&.key?("asset_id")
               original=source_asset!(access,variant.fetch("asset_id"))
@@ -51,10 +65,17 @@ module Studio
         source
       end
 
+      def self.mesh?(key) = BUNDLES.key?(key) && key != "ellie_v2"
+
+      def self.catalog_key(key)
+        return "human_base_meshes" if mesh?(key)
+        key if KEYS.include?(key) || BUNDLES.key?(key)
+      end
+
       def self.normalize_variant(access,raw)
         return if raw.nil?
-        raise ArgumentError,"Choose an available character rig" unless raw.is_a?(Hash) &&
-          (raw.keys-%w[rig asset_id height facing tint]).empty? && (KEYS+["library"]).include?(raw["rig"])
+        raise ArgumentError,"Choose an available character starting point" unless raw.is_a?(Hash) &&
+          (raw.keys-%w[rig asset_id height facing tint pose]).empty? && (KEYS+BUNDLES.keys+["library"]).include?(raw["rig"])
 
         height=Float(raw.fetch("height",1),exception:false)
         facing=Integer(raw.fetch("facing",0).to_s,10,exception:false)
@@ -64,6 +85,13 @@ module Studio
           raise ArgumentError,"Choose a height from 75–125%, a facing angle and an optional hex palette tint"
         end
         variant={"rig"=>raw.fetch("rig"),"height"=>height,"facing"=>facing,"tint"=>tint&.downcase}.compact
+        if variant["rig"]=="ellie_v2"
+          pose=raw.fetch("pose","relaxed")
+          raise ArgumentError,"Choose an available Ellie pose" unless ELLIE_POSES.key?(pose)
+          variant["pose"]=pose
+        elsif raw.key?("pose")
+          raise ArgumentError,"Choose Ellie to use a pose from her library"
+        end
         if variant["rig"]=="library"
           source=source_asset!(access,raw.fetch("asset_id"))
           scene=Array(source.metadata["scenes"]).find do |item|
@@ -88,7 +116,7 @@ module Studio
 
       def self.receipt(asset)
         data=asset.metadata.fetch("starter_cast")
-        {asset_id:asset.id,name:asset.name,status:asset.status,phase:delayed?(asset) ? "delayed" : data["phase"],variant:data.key?("character"),scene_id:data["scene_id"],project_id:data["project_id"],error:asset.error_message}
+        {asset_id:asset.id,name:asset.name,status:asset.status,phase:delayed?(asset) ? "delayed" : data["phase"],variant:data.key?("character"),base_mesh:mesh?(data.dig("character","rig")),scene_id:data["scene_id"],project_id:data["project_id"],error:asset.error_message}
       end
       def self.status(access:,asset_id:nil)
         scope=StudioAsset.for_actor(access).where(site_id:access.site_id)

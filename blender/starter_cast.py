@@ -1,4 +1,4 @@
-"""Compose two official character sources into an editable, lit first shot.
+"""Build an editable, lit first shot from native Blender characters or meshes.
 
 No source scripts are executed. Native meshes, armatures, constraints, drivers,
 materials and textures are retained. Head gestures are ordinary editable keys.
@@ -38,12 +38,13 @@ def tint_material(materials, hex_color):
 
 def character_frame(objects):
     bpy.context.view_layer.update()
+    evaluated = bpy.context.evaluated_depsgraph_get()
     points = [obj.matrix_world @ Vector(corner) for obj in objects
               if obj.type == 'MESH' and obj.visible_get() and not obj.hide_render
               and not all(collection.hide_render for collection in obj.users_collection)
-              for corner in obj.bound_box]
+              for corner in obj.evaluated_get(evaluated).bound_box]
     if not points:
-        raise ValueError('The rigged source needs a visible mesh to frame')
+        raise ValueError('The character source needs a visible mesh to frame')
     low = Vector(tuple(min(point[i] for point in points) for i in range(3)))
     high = Vector(tuple(max(point[i] for point in points) for i in range(3)))
     return (low + high) / 2, low.z, max(.2, *(high - low))
@@ -57,23 +58,44 @@ floor_z, extent = -.015, 1.8
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.name = (params.get('name') or 'Rain and Snow · First scene')[:60]
+frame_start, frame_end = 1, 48
 for spec in params['sources']:
     before = set(bpy.data.objects)
+    collection_name = spec.get('collection')
     with bpy.data.libraries.load(spec['path'], link=False) as (available, target):
-        requested = variant.get('scene') if variant else None
-        target.scenes = [requested] if requested else available.scenes[:1]
-    source = target.scenes[0]
-    if source is None:
-        raise ValueError('The selected rigged scene could not be opened')
-    for collection in source.collection.children:
+        if collection_name:
+            target.collections = [collection_name]
+            if spec.get('pose'):
+                target.actions = [name for name in available.actions if name.startswith('Ellie ')]
+        else:
+            requested = variant.get('scene') if variant else None
+            target.scenes = [requested] if requested else available.scenes[:1]
+    if collection_name:
+        collection = target.collections[0]
+        if collection is None:
+            raise ValueError('The selected character collection could not be opened')
         scene.collection.children.link(collection)
-    for obj in source.collection.objects:
-        scene.collection.objects.link(obj)
+    else:
+        source = target.scenes[0]
+        if source is None:
+            raise ValueError('The selected rigged scene could not be opened')
+        for collection in source.collection.children:
+            scene.collection.children.link(collection)
+        for obj in source.collection.objects:
+            scene.collection.objects.link(obj)
+        if variant:
+            frame_start, frame_end = source.frame_start, source.frame_end
     imported = set(bpy.data.objects) - before
     for obj in list(imported):
         if obj.type in ('CAMERA', 'LIGHT'):
             imported.discard(obj)
             bpy.data.objects.remove(obj, do_unlink=True)
+    if collection_name and not spec.get('require_rig', True):
+        midpoint, base_z, _ = character_frame(imported)
+        origin = Vector((midpoint.x, midpoint.y, base_z))
+        for obj in imported:
+            if obj.parent not in imported:
+                obj.location -= origin
     root = bpy.data.objects.new(params['name'] if variant else spec['name'], None)
     scene.collection.objects.link(root)
     for obj in imported:
@@ -82,13 +104,28 @@ for spec in params['sources']:
             obj.parent = root
             obj.matrix_world = world
     root.location.x = spec['x']
-    rigs = sorted((obj for obj in imported if obj.type == 'ARMATURE'), key=lambda obj: obj.name)
-    if not rigs:
+    present = imported.intersection(scene.objects) if collection_name else imported
+    rigs = sorted((obj for obj in present if obj.type == 'ARMATURE'), key=lambda obj: obj.name)
+    if not rigs and spec.get('require_rig', True):
         raise ValueError('The selected Blender scene has no armature')
-    rig = next((obj for obj in rigs if obj.name.startswith('RIG-')), rigs[0])
+    rig = next((obj for obj in rigs if obj.name.startswith('RIG-')), rigs[0] if rigs else None)
+    if spec.get('pose'):
+        poses = {action.name: action for action in target.actions if action and action.asset_data}
+        pose = poses.get(spec['pose'])
+        if pose is None:
+            raise ValueError('The selected Ellie pose could not be opened')
+        for action in poses.values():
+            action.use_fake_user = True
+        animation = rig.animation_data_create()
+        animation.use_nla = False
+        animation.action = pose
+        if hasattr(pose, 'slots') and len(pose.slots) == 1:
+            animation.action_slot = pose.slots[0]
+        frame_start = int(pose.frame_range[0])
+        frame_end = frame_start + 47
     if not variant and rig.animation_data:
         rig.animation_data.action = None  # Preserve the rig drivers and constraints.
-    bone = rig.pose.bones.get('FK-Head')
+    bone = rig.pose.bones.get('FK-Head') if rig else None
     if bone and not variant:
         bone.rotation_mode = 'XYZ'
         base = bone.rotation_euler.copy()
@@ -111,10 +148,13 @@ for spec in params['sources']:
         if variant.get('tint'):
             tint_material({slot.material for obj in imported if obj.type == 'MESH'
                            for slot in obj.material_slots if slot.material}, variant['tint'])
+        scene.frame_set(frame_start)
         center, floor_z, extent = character_frame(imported)
 bpy.ops.mesh.primitive_plane_add(size=max(200, extent * 8), location=(center.x, center.y, floor_z - .002))
 floor = bpy.context.object
 floor.name = 'Studio floor'
+if any(spec.get('collection') for spec in params['sources']):
+    floor['lightek_character_floor'] = True
 material = bpy.data.materials.new('Warm charcoal')
 material.diffuse_color = (.045, .06, .08, 1)
 floor.data.materials.append(material)
@@ -129,7 +169,7 @@ for name, position, energy, size in [('Key', (2, -4, 6), 1100, 5), ('Fill', (-4,
     light.rotation_euler = (center - light.location).to_track_quat('-Z', 'Y').to_euler()
 camera = bpy.data.objects.new('Two-shot camera', bpy.data.cameras.new('Two-shot lens'))
 scene.collection.objects.link(camera)
-camera.location = center + Vector((.2, -2.75, .15)) * extent if variant else (3, -7, 2.7)
+camera.location = center + Vector((.2, -3.45, .15)) * extent if variant else (3, -7, 2.7)
 camera.rotation_euler = (center - camera.location).to_track_quat('-Z', 'Y').to_euler()
 camera.data.lens = 55
 scene.camera = camera
@@ -144,7 +184,7 @@ scene.cycles.texture_limit_render = '1024'
 scene.render.resolution_x, scene.render.resolution_y = 640, 360
 scene.render.resolution_percentage = 100
 scene.render.fps = 24
-scene.frame_start, scene.frame_end = (source.frame_start, source.frame_end) if variant else (1, 48)
+scene.frame_start, scene.frame_end = frame_start, frame_end
 scene.frame_set(scene.frame_start)
 credits = bpy.data.texts.new('Source credits')
 if variant:

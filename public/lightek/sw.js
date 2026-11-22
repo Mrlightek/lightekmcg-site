@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v131-rigged-character"
+const CACHE = "lightek-shell-v132-character-assets"
 
 const SHELL = [
   "/lightek/index.html",

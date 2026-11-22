@@ -1,0 +1,22 @@
+<% clip.screenshots_attachments.each do |image| %>
+  <% caption = image.blob.metadata.fetch('caption', clip.title) %>
+  <figure class="feature-screenshot">
+    <%= image_tag preview_dashboard_feature_screenshot_path(showcase, position: clip.position, attachment_id: image.id, site_id: site.id), alt: caption, loading: 'lazy', style: 'max-width:100%;height:auto' %>
+    <figcaption><%= caption %></figcaption>
+  </figure>
+  <% if !showcase.approved_at && showcase.status == 'completed' %>
+    <%= button_to 'Remove screenshot', remove_dashboard_feature_screenshot_path(showcase, position: clip.position, attachment_id: image.id, site_id: site.id), method: :delete, class: 'sales-button secondary' %>
+  <% end %>
+<% end %>
+<% if !showcase.approved_at && showcase.status == 'completed' && clip.screenshots_attachments.size < 4 %>
+  <details>
+    <summary>Add product screenshot</summary>
+    <%= form_with url: save_dashboard_feature_screenshot_path(showcase, position: clip.position, site_id: site.id), multipart: true, local: true, data: {demo_capture: true, turbo: false}, class: 'sales-form' do %>
+      <label>What does the image show? <%= text_field_tag :caption, nil, maxlength: 120, required: true, id: nil %></label>
+      <label>Screenshot (PNG) <%= file_field_tag :screenshot, accept: 'image/png', required: true, id: nil, data: {capture_file: true} %></label>
+      <button type="button" class="sales-button secondary" data-capture-start hidden>Capture demo window</button>
+      <p role="status" data-capture-status></p>
+      <%= submit_tag 'Save screenshot', class: 'sales-button' %>
+    <% end %>
+  </details>
+<% end %>

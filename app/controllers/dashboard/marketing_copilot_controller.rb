@@ -19,6 +19,14 @@ class Dashboard::MarketingCopilotController < Dashboard::SettingsHomeController
       @link = LightekGrowth::Link.where(site: @site, campaign_id: @kit.campaign_id).find_by(id: @kit.snapshot['link_id'])
       @follow_up_leads = LightekSales::Lead.where(site: @site, id: @kit.snapshot['follow_ups'].map { |row| row['lead_id'] }).index_by(&:id)
       @showcase = LightekGrowth::FeatureShowcase.where(site: @site, marketing_kit: @kit).includes(clips: {file_attachment: :blob}).first
+      if @showcase && (link_id = @showcase.snapshot['demo_promotion_link_id'])
+        @demo_link = LightekGrowth::Link.where(site: @site, campaign: @kit.campaign).find_by(id: link_id)
+        @demo_report = LightekGrowth::DemoCampaign.new(actor: current_user, site: @site).report!(showcase_id: @showcase.id) if @demo_link
+        if current_user.role.in?(%w[admin super_admin])
+          @demo_connections = LightekMarketing::SocialConnection.where(site: @site, enabled: true, provider: %w[facebook instagram tiktok]).order(:account_label)
+        end
+        @demo_variants = LightekMarketing::ContentVariant.where(campaign: @kit.campaign, batch_key: "demo-walkthrough-#{@showcase.id}").order(:id)
+      end
       @execution = LightekGrowth::MarketingExecution.find_by(marketing_kit: @kit)
     end
   end
@@ -46,12 +54,81 @@ class Dashboard::MarketingCopilotController < Dashboard::SettingsHomeController
     response.set_header('Cache-Control', 'private, no-store')
     send_data clip.file.download, type: 'video/mp4', disposition: 'inline', filename: "#{clip.feature_key}-overview.mp4"
   end
+  def screenshot
+    showcase = LightekGrowth::FeatureShowcase.where(site: @site).find(params[:id])
+    clip = showcase.clips.find_by!(position: params[:position])
+    LightekBlog::Images.deliver(self, LightekGrowth::DemoShowcase.image!(clip, params[:attachment_id]))
+  end
+
+  def save_screenshot
+    change_screenshot { |clip| LightekGrowth::DemoShowcase.add_capture!(clip, params[:screenshot], params[:caption]) }
+  end
+
+  def remove_screenshot
+    change_screenshot { |clip| clip.screenshots_attachments.find(params[:attachment_id]).purge_later }
+  end
+
+  def prepare_demo_promotion
+    showcase = LightekGrowth::FeatureShowcase.where(site: @site).find(params[:id])
+    link = LightekGrowth::Link.where(site: @site, campaign: showcase.marketing_kit.campaign)
+      .find(showcase.snapshot.fetch('demo_promotion_link_id'))
+    unless LightekGrowth::DemoShowcase.promotion_ready?(showcase, link)
+      raise ArgumentError, 'Publish the approved walkthrough and enable public demo requests before preparing promotion.'
+    end
+
+    LightekMarketing::ContentWorkbench.new(actor: current_user, site: @site).generate!(campaign_id: link.campaign_id,
+      request_key: "demo-walkthrough-#{showcase.id}", tracking_link_id: link.id, purpose: 'marketing_kit')
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id),
+      notice: 'Promotion copy is ready in Content review.', status: :see_other
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase&.marketing_kit_id), alert: error.message, status: :see_other
+  end
+
+  def publish_demo
+    demo_action('Walkthrough published.') { |service, showcase| service.publish!(showcase_id: showcase.id) }
+  end
+
+  def schedule_demo
+    demo_action('Walkthrough published and promotion scheduled. The calendar records delivery.') do |service, showcase|
+      scheduled_at = LightekMarketing::PublicationCalendar.parse_local(value: params[:scheduled_local], zone: params[:time_zone])
+      service.launch!(showcase_id: showcase.id, connection_id: params[:connection_id], scheduled_at: scheduled_at,
+        request_key: params[:request_key], time_zone: params[:time_zone])
+    end
+  end
+
+  def start_demo_experiment
+    demo_action('Demo button wording experiment started.') { |service, showcase| service.experiment!(showcase_id: showcase.id) }
+  end
+
   def approve_showcase
-    raise ArgumentError, 'Confirm review of these feature claims and videos' unless params[:confirmed] == '1'
+    raise ArgumentError, 'Confirm review of the feature claims, videos and screenshots' unless params[:confirmed] == '1'
     showcase = LightekGrowth::ShowcaseBuilder.new(actor: current_user, site: @site).approve!(id: params[:id])
-    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id), notice: 'Videos approved for this page. Publish the reviewed draft through the normal website editor when ready.', status: :see_other
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id), notice: 'Walkthrough media approved for this page. Publish the reviewed draft through the normal website editor when ready.', status: :see_other
   end
   private
+  def demo_action(message)
+    showcase = LightekGrowth::FeatureShowcase.where(site: @site).find(params[:id])
+    yield LightekGrowth::DemoCampaign.new(actor: current_user, site: @site), showcase
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id),
+      notice: message, status: :see_other
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase&.marketing_kit_id),
+      alert: error.message, status: :see_other
+  end
+
+  def change_screenshot
+    showcase = LightekGrowth::FeatureShowcase.where(site: @site).find(params[:id])
+    showcase.with_lock do
+      LightekGrowth::ShowcaseBuilder.new(actor: current_user, site: @site).authorize!
+      raise ArgumentError, 'Wait for the walkthrough draft to finish, then manage screenshots before approval.' unless showcase.status == 'completed' && !showcase.approved_at
+
+      yield showcase.clips.find_by!(position: params[:position])
+    end
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id), notice: 'Walkthrough screenshots updated.', status: :see_other
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase&.marketing_kit_id), alert: error.message, status: :see_other
+  end
+
   def set_copilot
     @sites = LightekSales::Access.sites_for(current_user).order(:name)
     @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.first!

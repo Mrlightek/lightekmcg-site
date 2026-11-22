@@ -19,6 +19,7 @@ on:
       - 'db/migrate/*gatekeeper_fleet*'
       - 'lib/scripts/gatekeeper/update_installation.py'
       - 'lib/scripts/gatekeeper/update_native_installation.py'
+      - 'lib/scripts/gatekeeper/verify_fleet_backup.py'
       - 'app/controllers/gatekeeper/fleet_health_controller.rb'
       - 'config/initializers/fleet_boot_revision.rb'
       - 'db/migrate/*native_fleet*'
@@ -77,6 +78,10 @@ jobs:
         run: ruby test/standalone/hosting_bootstrap_test.rb
       - name: Test remote installation updates and release packaging
         run: python3 -m unittest discover -s test/standalone -p 'fleet*_test.py'
+      - name: Restore a fixture into isolated PostgreSQL
+        run: |
+          docker pull postgres:16-bookworm
+          LIGHTEK_REAL_BACKUP_DRILL=1 python3 test/standalone/fleet_backup_drill_test.py
       - name: Check Ruby syntax
         run: |
           find app/services/gatekeeper/fleet app/jobs/gatekeeper/fleet -name '*.rb' -exec ruby -c {} \;

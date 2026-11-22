@@ -35,7 +35,7 @@
               maxlength: WebsiteTemplateInquiry::SALES_FIELD_LIMITS.fetch(:message) %>
           </div>
           <div hidden aria-hidden="true"><%= text_field_tag :website_url, nil, tabindex: -1, autocomplete: 'off' %></div>
-          <%= f.submit 'Send inquiry', class: 'auth-submit' %>
+          <%= f.submit(respond_to?(:experiment_text) ? experiment_text('sales_inquiry', 'Send inquiry') : 'Send inquiry', class: 'auth-submit') %>
         <% end %>
       <% end %>
     </div>

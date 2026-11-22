@@ -65,9 +65,8 @@ module LightekMarketing
             return variant
           end
           version!(variant, version)
-          brief = LightekGrowth::Brief.find_by(site: @site)
+          validate_source!(variant)
           source = variant.source_snapshot
-          raise ArgumentError, 'The brief changed. Generate a new content set.' unless brief && brief.id == source['brief_id'] && brief.lock_version == source['brief_revision']
           raise ArgumentError, 'The campaign copy changed. Generate a new content set.' unless campaign.content_digest == variant.baseline_digest
           if campaign.has_attribute?(:sent_at) && campaign.sent_at.present? || Delivery.where(campaign: campaign).exists? || SocialPost.where(campaign: campaign).exists?
             raise ArgumentError, 'This campaign has delivery/publication history. Create a separate campaign for new copy.'
@@ -88,6 +87,20 @@ module LightekMarketing
       end
     end
     private
+    def validate_source!(variant)
+      source = variant.source_snapshot
+      if source['journal_entry_id']
+        entry = LightekBlog::Entry.publicly_visible.find_by(site: @site, id: source['journal_entry_id'])
+        origin = LightekGrowth::SearchDiscovery.origin(@site)
+        unless entry && origin && entry.lock_version == source['journal_revision'] && variant.cta_url == "#{origin}/blog/#{entry.slug}"
+          raise ArgumentError, 'The Journal article, its address, or the campaign link changed. Prepare a new promotion.'
+        end
+      else
+        brief = LightekGrowth::Brief.find_by(site: @site)
+        raise ArgumentError, 'The brief changed. Generate a new content set.' unless brief && brief.id == source['brief_id'] && brief.lock_version == source['brief_revision']
+      end
+    end
+
     def version!(variant, version)
       raise ActiveRecord::StaleObjectError.new(variant, 'update') unless version.to_s.match?(/\A\d+\z/) && variant.lock_version == version.to_i
     end

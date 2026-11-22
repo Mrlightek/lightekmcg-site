@@ -96,6 +96,7 @@ module LightekMarketing
       raise ArgumentError, 'Destination is disconnected.' unless connection.enabled?
       raise ArgumentError, 'Choose a configured Facebook, Instagram or TikTok adapter.' unless connection.provider.in?(%w[facebook instagram tiktok])
       raise ArgumentError, 'Campaign media is unavailable or changed.' unless campaign.media_ready?
+      LightekGrowth::DemoCampaign.ensure_promotion_available!(campaign) if campaign.cta_url.to_s.match?(%r{/g/[0-9a-f]{32}\z})
       if connection.provider == 'facebook' && campaign.media_url.present?
         raise ArgumentError, 'The current Facebook adapter publishes text/link posts. Choose an image/video-capable destination for media.'
       elsif connection.provider == 'instagram'

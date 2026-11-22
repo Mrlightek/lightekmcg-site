@@ -67,6 +67,7 @@ class CommerceController < ApplicationController
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id),
       cancel_url: commerce_shop_url(site_id: @site.id))
+    record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
     session.delete(cart_key)
     redirect_to checkout.url, allow_other_host: true
   rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable, ActiveRecord::RecordInvalid => e

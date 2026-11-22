@@ -4,7 +4,7 @@ Open **Dashboard → Nevaeh → Workforce & goals**. This is the directory of sp
 
 ## Roles have jobs; tasks perform work
 
-A role is a saved specialist identity, instructions and capability assignment. An assigned task is a concrete instruction with real inputs and an execution history. A goal connects up to twelve one-time tasks in order and waits for their downstream results. The roles use the same operating engine and account authority; they are not twenty-seven separately trained language models.
+A role is a saved specialist identity, instructions and capability assignment. An assigned task is a concrete instruction with real inputs and an execution history. A goal connects up to twelve one-time tasks in order and waits for their downstream results. The roles use the same operating engine and account authority.
 
 | Department | Default roles and responsibilities |
 | --- | --- |
@@ -16,6 +16,7 @@ A role is a saved specialist identity, instructions and capability assignment. A
 | Live production | The [Live Broadcast Producer](live_broadcast_producer.md) prepares host cues and a Live Studio setup. |
 | Distribution | Publishing Coordinator delivers explicitly reviewed masters through configured destinations. |
 | Marketing | Campaign Producer builds editable ads/private previews; Growth Analyst prepares evidence-based daily plans. |
+| Public Relations | The [PR SME](public_relations.md) manages delegated releases, media outreach, scheduled source checks and response briefs. |
 | Learning | Manuals Librarian imports documentation; Language Contract Tester checks phrase source/action validity; Language Trainer runs reviewed native training. |
 | Engineering | Capability Builder compiles saved construction contracts, emits Ruby service/worker/verifier/test artifacts and runs their acceptance examples. |
 | Support | Support Coordinator creates actionable problem tickets. |

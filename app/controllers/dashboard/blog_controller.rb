@@ -2,14 +2,86 @@ class Dashboard::BlogController < ApplicationController
   skip_authorization_check
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
+  before_action { response.set_header("Cache-Control", "private, no-store") }
   before_action :load_site
   rescue_from ActiveRecord::RecordNotUnique,ActiveRecord::RecordInvalid,ActiveRecord::StaleObjectError,ArgumentError,KeyError,with: :invalid_article
   def index
+    @editorial_schedule = LightekBlog::EditorialSchedule.find_by(site: @site, actor: current_user)
     @entries=LightekBlog::Entry.where(site:@site).includes(post: :user).order(updated_at: :desc).limit(100)
     @entry ||= params[:entry_id].present? ? @entries.find(params[:entry_id]) : LightekBlog::Entry.new(site:@site,post:Post.new(user:current_user),status:"draft")
   end
   def create = save_article
   def update = save_article
+  def assign_nevaeh
+    fields = params.require(:assignment).permit(:title, :category, :facts, :call_to_action, :status).to_h
+    key = params[:request_key].to_s
+    raise ArgumentError, 'Reload the form before assigning this article.' unless key.match?(/\A[0-9a-f-]{36}\z/)
+    unless fields['title'].to_s.strip.present? && fields['facts'].to_s.strip.present?
+      raise ArgumentError, 'Enter a title and the facts Nevaeh should cover.'
+    end
+    status = fields['status'] == 'published' ? 'published' : 'draft'
+    values = fields.slice('title', 'category').merge('status' => status, 'brief' => fields.slice('facts', 'call_to_action'))
+    command = { 'kind' => 'website_marketing', 'operation' => 'journal_write', 'site_id' => @site.id, 'values' => values }
+    NevaehOs::WebsiteMarketing.authorize!(current_user, NevaehOs::WebsiteMarketing.bind(current_user, command))
+    goal = NevaehOs::Goals.create!(actor: current_user, request_key: "journal-#{@site.id}-#{key}",
+      values: { 'title' => "Write #{fields.fetch('title').first(100)}", 'steps' => [{
+        'key' => 'write_article', 'label' => 'Write the Journal article', 'agent' => 'marketing_strategy',
+        'command' => command, 'expectations' => [{ 'path' => 'result.article_status', 'equals' => status },
+          { 'path' => 'result.published', 'equals' => status == 'published' }]
+      }] })
+    NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
+    redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other,
+      notice: "Journal goal ##{goal.id} assigned. Follow it in Nevaeh Goals."
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_blog_index_path(site_id: @site.id), status: :see_other, alert: error.message
+  end
+  def configure_public_relations
+    enabled = params[:operation] != 'pause'
+    NevaehOs::PublicRelations.configure!(site: @site, actor: current_user, enabled: enabled, mailbox_id: params[:mailbox_id])
+    NevaehOs::Workforce.install!(current_user) if enabled
+    redirect_to public_relations_path, status: :see_other, notice: 'PR delegation updated.'
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to public_relations_path, status: :see_other, alert: error.message
+  end
+
+  def assign_public_relations
+    pr = NevaehOs::PublicRelations
+    key = params[:request_key].to_s
+    raise ArgumentError, 'Reload the form before assigning this work.' unless key.match?(/\A[0-9a-f-]{36}\z/)
+
+    operation = params[:operation].to_s
+    label, fields, evidence = pr::OPERATIONS.fetch(operation) { raise ArgumentError, 'Choose a PR operation.' }
+    values = fields.empty? ? {} : params.require(:brief).permit(*fields).to_h
+    steps = [press_step(operation, label, values, evidence)]
+    if operation == 'media_pitch' && params[:send_pitch] == '1'
+      grant = pr.grant_for(@site, current_user)
+      pr.mailbox!(current_user, grant&.fetch('mailbox_id'))
+      steps << press_step('send_pitch', 'Queue media pitch', { 'pitch_id' => {
+        '$step' => 'media_pitch', 'path' => 'result.change_id'
+      } }, 'message_id')
+    end
+    goal = NevaehOs::Goals.create!(actor: current_user, request_key: "public-relations-#{@site.id}-#{key}",
+      values: { 'title' => label, 'steps' => steps })
+    NevaehOs::Goals.control!(goal: goal, actor: current_user, operation: 'start') if goal.status == 'draft'
+    redirect_to public_relations_path, status: :see_other, notice: "#{label} assigned to the PR SME in Goal ##{goal.id}."
+  rescue ArgumentError, LightekAgency::PackagePolicy::Denied => error
+    redirect_to public_relations_path, status: :see_other, alert: error.message
+  end
+
+  def configure_editorial
+    editorial = NevaehOs::JournalEditorial
+    if params[:operation] == 'pause'
+      editorial.pause!(site: @site, actor: current_user)
+      notice = 'Nevaeh editorial schedule paused.'
+    else
+      fields = params.require(:editorial).permit(:topics, :sources, :cadence, :article_status, :social_draft).to_h
+      editorial.configure!(site: @site, actor: current_user, attributes: fields)
+      notice = 'Nevaeh editorial schedule saved. The first cycle will start shortly.'
+    end
+    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'editorial-schedule'), status: :see_other, notice: notice
+  rescue ArgumentError, ActiveRecord::RecordNotFound, LightekAgency::PackagePolicy::Denied => error
+    redirect_to dashboard_blog_index_path(site_id: @site.id, anchor: 'editorial-schedule'), status: :see_other, alert: error.message
+  end
   def preview
     @entry=LightekBlog::Entry.where(site:@site).includes(:post).find(params[:id])
     @page=Struct.new(:title,:theme,:sections).new(@entry.post.title,nil,[])
@@ -24,6 +96,20 @@ class Dashboard::BlogController < ApplicationController
     LightekBlog::Images.deliver(self, LightekBlog::Images.blob!(entry, params[:attachment_id]))
   end
   private
+  def press_step(operation, label, values, evidence)
+    expectation = { 'path' => "result.#{evidence}", 'present' => true }
+    if evidence == 'article_status'
+      expectation = { 'path' => 'result.article_status', 'equals' => values.fetch('status') }
+    end
+    { 'key' => operation, 'label' => label, 'agent' => NevaehOs::PublicRelations::ROLE,
+      'command' => { 'kind' => 'public_relations', 'operation' => operation, 'site_id' => @site.id, 'values' => values },
+      'expectations' => [expectation] }
+  end
+
+  def public_relations_path
+    dashboard_blog_index_path(site_id: @site.id, anchor: 'public-relations')
+  end
+
   def load_site
     @sites=LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name)
     @site=params[:site_id].present? ? @sites.find(params[:site_id]) : (@sites.find_by(id:session[:dymond_dash_site_id]) || @sites.first)

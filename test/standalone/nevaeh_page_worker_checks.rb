@@ -84,7 +84,9 @@ class NevaehPageWorkerChecks < NevaehOsTest
     @cap.update!(slug:'messages.send',name:'Send message')
     manifest=NevaehOs::PageWorkers.manifest(@actor,@context)
     assert_empty manifest[:actions]
-    assert_includes manifest[:gaps].first[:reason],'schema'
+    gap=manifest[:gaps].find { |entry| entry[:key]=='messages.send' }
+    refute_nil gap
+    assert_includes gap[:reason],'schema'
   end
   def test_inputs_are_typed_and_contracts_are_account_specific
     worker=NevaehOs::PageWorkers

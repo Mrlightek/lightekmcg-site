@@ -9,6 +9,12 @@ class StudioScene < ApplicationRecord
   has_many :studio_operations, dependent: :nullify
   has_many :studio_workstations, dependent: :destroy
 
+  has_many :studio_scene_renders, dependent: :destroy
+  scope :animation_scenes, -> { where.not(scene_spec: nil) }
+
+  before_destroy :ensure_animation_idle, prepend: true, if: :scene_spec?
+  validate :valid_animation_spec, if: :scene_spec?
+
   validates :name, presence: true
   validate :settings_must_be_an_object
 
@@ -24,6 +30,19 @@ class StudioScene < ApplicationRecord
   end
 
   private
+
+  def ensure_animation_idle
+    lock!
+    return unless studio_scene_renders.active.exists?
+    errors.add(:base, "Wait for this scene’s video renders to finish before deleting it.")
+    throw :abort
+  end
+
+  def valid_animation_spec
+    self.scene_spec = Studio::Animation::SceneSpec.normalize(scene_spec)
+  rescue ArgumentError => error
+    errors.add(:scene_spec, error.message)
+  end
 
   def settings_must_be_an_object
     errors.add(:settings, "must be a JSON object") unless settings.is_a?(Hash)

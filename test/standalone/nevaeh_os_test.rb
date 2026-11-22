@@ -394,6 +394,20 @@ class NevaehOsWebDocumentTest < Minitest::Test
       Net::HTTP.stub(:new,http) { assert_raises(ArgumentError) { NevaehOs::WebDocument.fetch('https://example.com/manual') } }
     end
   end
+  def test_approved_editorial_fetch_never_follows_a_redirect
+    redirect = Net::HTTPFound.new('1.1', '302', 'Found')
+    redirect['location'] = 'https://unapproved.example.test/other'
+    reads = []
+    resolver = ->(host) { reads << host; ['8.8.8.8', '2001:4860:4860::8888'] }
+    Resolv.stub(:getaddresses, resolver) do
+      Net::HTTP.stub(:new, HTTPAdapter.new(redirect)) do
+        error = assert_raises(ArgumentError) { NevaehOs::WebDocument.fetch('https://example.com/manual', follow_redirects: false) }
+        assert_match(/Approve the final source URL/, error.message)
+      end
+    end
+    assert_equal ['example.com'], reads
+  end
+
   def test_non_document_and_oversized_responses_are_rejected
     [response(content_type:'application/zip'),response(body:'x'*(NevaehOs::WebDocument::MAX_BYTES+1))].each do |result|
       Resolv.stub(:getaddresses,['8.8.8.8']) do

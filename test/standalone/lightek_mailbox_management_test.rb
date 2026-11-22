@@ -1,5 +1,6 @@
 gem 'minitest', '~> 5.25'
 require 'minitest/autorun'
+require 'minitest/mock'
 require 'active_support/all'
 require 'active_record'
 require 'securerandom'
@@ -24,6 +25,7 @@ ActiveRecord::Schema.define do
     t.integer :account_id
     t.string :subject
     t.string :direction, default: 'inbound'
+    t.string :state
     t.string :text_body
     %i[trashed archived starred].each { |flag| t.boolean flag, default: false }
     t.datetime :read_at
@@ -42,12 +44,15 @@ class User < ApplicationRecord
   def can_access_feature?(*) = true
 end
 module LightekMail
+  class DeliverJob
+    def self.perform_later(*) = raise("Expected a controlled delivery job")
+  end
   class Template < ApplicationRecord; self.table_name = 'lightek_mail_templates'; end
   class Message < ApplicationRecord; self.table_name = 'lightek_mail_messages'; end
   class CustomerSuspension < ApplicationRecord; self.table_name = 'lightek_mail_customer_suspensions'; end
 end
 %w[domain account group_member].each { |file| require ROOT+"/app/models/lightek_mail/#{file}" }
-%w[access mailbox_management recipient_directory spam_filter message_folder message_flag search].each { |file| require ROOT+"/app/services/lightek_mail/#{file}" }
+%w[access mailbox_management recipient_directory receiving_status spam_filter message_folder message_flag search].each { |file| require ROOT+"/app/services/lightek_mail/#{file}" }
 require ROOT+'/app/services/nevaeh_os/platform_actions'
 class LightekMailboxManagementTest < Minitest::Test
   def setup
@@ -87,6 +92,39 @@ class LightekMailboxManagementTest < Minitest::Test
     assert account.enabled?
     assert account.sending_ready?
     assert_includes LightekMail::RecipientDirectory.addresses, account.address
+  end
+  def test_nevaeh_checks_receiving_dns_only_for_an_accessible_mailbox
+    account = mailbox('andrew')
+    command = NevaehOs::PlatformActions.command('mail.mailbox.receiving.check', {'mailbox_id'=>account.id})
+    outsider = User.create!(role:'client')
+    query = Minitest::Mock.new
+    query.expect(:timeouts=, 2, [2])
+    expected_mx = ENV.fetch('LIGHTEK_MAIL_HOST', 'mail.lightekmcg.com')
+    query.expect(:getresources, [Resolv::DNS::Resource::IN::MX.new(10, expected_mx)],
+      ["#{@domain.name}.", Resolv::DNS::Resource::IN::MX])
+
+    Resolv::DNS.stub(:open, ->(&block) { block.call(query) }) do
+      assert_raises(ActiveRecord::RecordNotFound) do
+        NevaehOs::PlatformActions.perform!(actor: outsider, command: command, action_id: 1)
+      end
+      result = NevaehOs::PlatformActions.perform!(actor: @user, command: command, action_id: 2)
+      assert_equal account.id, result.fetch('mailbox_id')
+      assert_equal true, result.fetch('mx_ready')
+    end
+    query.verify
+  end
+
+  def test_resuming_mail_queues_only_outbound_messages_with_no_submission_in_progress
+    account = mailbox('outbox')
+    message = account.messages.create!(subject: 'Queued message', direction: 'outbound', state: 'queued')
+    action = NevaehOs::PlatformActions.command('mail.message.resume_queued',
+      {'mailbox_id'=>account.id, 'message_id'=>message.id})
+    job = ->(id) { assert_equal message.id, id; Struct.new(:job_id).new("queued-123") }
+    LightekMail::DeliverJob.stub(:perform_later, job) do
+      assert_equal "queued-123", NevaehOs::PlatformActions.perform!(actor: @user, command: action, action_id: 5).fetch('job_id')
+    end
+    message.update!(state: 'uncertain')
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: @user, command: action, action_id: 6) }
   end
   def test_group_resolves_to_two_individual_mailboxes_without_duplicates
     first, second = mailbox('andrew'),mailbox('marlon')

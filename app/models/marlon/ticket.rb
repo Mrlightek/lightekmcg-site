@@ -38,7 +38,35 @@ module Marlon
       log!(action: "Ticket resolved", actor: actor)
     end
 
-    private
+    def confirm_customer_resolution!(actor:)
+      with_lock do
+        raise ArgumentError, "Choose your own technical support ticket" unless customer_resolution_allowed?(actor)
+        unless status == "resolved"
+          log!(action: "Customer confirmed resolution", actor: actor)
+          resolve!(actor: actor)
+        end
+      end
+      self
+    end
+
+    def customer_resolution_allowed?(actor)
+      fields = extra_fields.to_h
+      actor&.persisted? && submitted_by_id == actor.id && related_type.blank? &&
+        [nil, "support_hub"].include?(fields["source"]) && category.in?(%w[technical deployment]) &&
+        fields["nevaeh_work_order"].blank? && fields.dig("nevaeh", "execution_status").blank?
+    end
+
+    def reply_as_support!(actor:, detail:)
+      raise ArgumentError, "Enter a reply between 1 and 8,000 characters" unless detail.is_a?(String) && detail.strip.length.between?(1, 8_000)
+
+      with_lock do
+        raise ArgumentError, "Choose an open customer support ticket" unless submitted_by_id && status != "resolved"
+
+        event = log!(action: "#{actor.full_name} replied", detail: detail.strip, actor: actor)
+        update!(status: "in_progress") if status == "open"
+        event
+      end
+    end
 
     def enqueue_nevaeh_backlog
       return if status == "resolved"
@@ -48,6 +76,8 @@ module Marlon
       # The recurring DB sweep recovers tickets committed during Redis outages.
       Rails.logger.error("Nevaeh intake enqueue failed ticket_id=#{id}: #{error.class}: #{error.message}")
     end
+
+    private
 
     def assign_number
       self.number ||= "LT-#{SecureRandom.random_number(9000) + 1000}"

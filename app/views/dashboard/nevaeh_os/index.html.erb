@@ -9,6 +9,7 @@
 <button class="nav-item" data-command="/produce personalities">◇ <span>Character personalities</span></button>
 <button class="nav-item" id="learning-link" hidden data-stage-kind="learning">◇ <span>Learning &amp; study</span></button>
 <button class="nav-item" aria-label="Workforce &amp; goals" data-stage-kind="workforce">▦ <span>Workforce &amp; goals</span></button><div class="section-heading"><h2>Coordinators</h2><button id="gen" class="icon-button" aria-label="Create an agent">+</button></div><div id="ags"></div>
+<% if current_user.role == 'super_admin' %><%= link_to 'Agency onboarding', dashboard_nevaeh_onboarding_path, class: 'nav-item' %><% end %>
 <details class="sidebar-detail"><summary>Workers &amp; schedules</summary><div class="quick"><button data-stage-kind="workforce">Roles, tasks &amp; goals</button><a href="/dashboard/nevaeh/guide?topic=agents">How to delegate</a></div><div id="agent-jobs"></div></details>
 <details class="sidebar-detail" id="watcher-tools" hidden><summary>Watchers</summary><button data-command="/watch list">All watchers</button><div id="watcher-list"></div></details>
 <details class="sidebar-detail" id="host-tools" hidden><summary>Server &amp; applications</summary><div class="quick"><button data-command="/ubuntu status">Server status</button><button data-command="/models">Data console</button></div><label class="upload-label">Add application input<input id="app-upload" type="file"></label></details>

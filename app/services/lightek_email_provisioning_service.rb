@@ -3,6 +3,9 @@ class LightekEmailProvisioningService
   class Unavailable < StandardError; end
   def self.domain!
     raise Unavailable, 'Member email is not open yet' unless LightekPwa::LaunchSettings.enabled?('member_mail_enabled')
+    verified_domain!
+  end
+  def self.verified_domain!
     domain = LightekMail::Domain.find_by(name: DOMAIN)
     raise Unavailable, 'The Lightek mail domain must be verified by the platform owner' unless domain&.verified_at && domain.user.role == 'super_admin'
     domain
@@ -11,10 +14,23 @@ class LightekEmailProvisioningService
     # Old Susu entry points may call this before email confirmation. Do not
     # advertise a usable address when no real mailbox has been provisioned.
     return nil unless user.lightek_email_confirmed_at
-    domain = domain!
+    provision!(user, domain: domain!)
+  end
+
+  def self.provision_for_paid_agency!(user, expected_email:)
+    provision!(user, domain: verified_domain!, expected_email: expected_email)
+  end
+
+  def self.provision!(user, domain:, expected_email: nil)
     account = nil
     domain.with_lock do
       user.with_lock do
+        if expected_email
+          unless user.email_address == expected_email && user.white_label? && user.access_active? && !user.password_setup_required?
+            raise Unavailable, 'The verified agency owner has changed'
+          end
+          user.update!(lightek_email_confirmed_at: Time.current) unless user.lightek_email_confirmed_at?
+        end
         account = LightekMail::Account.mailboxes.find_by(user: user, brand_member: true, domain: domain)
         unless account
           base = (user.full_name.presence || "member#{user.id}").parameterize(separator: '.').first(45)
@@ -37,6 +53,8 @@ class LightekEmailProvisioningService
     end
     account.address
   end
+  private_class_method :provision!
+
   def self.confirm!(user)
     domain!.with_lock do
       user.update!(lightek_email_confirmed_at: Time.current)

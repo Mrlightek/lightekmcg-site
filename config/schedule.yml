@@ -47,6 +47,12 @@ gatekeeper_device_heartbeat_sweep:
   queue: default
   active_job: true
 
+nevaeh_agency_onboarding:
+  cron: "*/5 * * * *"
+  class: "NevaehOnboarding::SweepJob"
+  queue: default
+  active_job: true
+
 nevaeh_workflow_sweep:
   cron: "* * * * *"
   class: "NevaehIntelligences::WorkflowSweepJob"

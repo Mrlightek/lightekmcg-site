@@ -1,0 +1,59 @@
+<% content_for :page_title, 'Agency onboarding' %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main>
+  <header>
+    <h1>Agency onboarding</h1>
+    <p><%= @in_progress %> in progress · <%= @complete %> verified complete</p>
+  </header>
+
+  <section>
+    <h2>Needs attention</h2>
+    <% if @attention.empty? %>
+      <p>No agencies need an operator decision.</p>
+    <% else %>
+      <ul>
+        <% @attention.each do |entry| %>
+          <li>
+            <%= link_to "Order ##{entry.order_id}", dashboard_commerce_orders_path(site_id: entry.trial.billing_site_id) %>
+            <%= {
+              'agency_access_review' => 'Review the agency’s access lifecycle.',
+              'waiting_for_dashboard' => 'The owner has not opened the Agency Dashboard.',
+              'mailbox_unavailable' => 'Review the existing branded mailbox in Mail Studio.',
+              'email_verification_required' => 'The owner needs to verify their email before mailbox setup.',
+              'mailbox_configuration' => 'Verify the Lightek mail domain and review mailbox provisioning.',
+              'workflow_error' => 'Review the onboarding job log for this case.'
+            }.fetch(entry.blocker, 'Review this onboarding case.') %>
+            <% if entry.followed_up_at? %>Dashboard reminder posted.<% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+
+  <section>
+    <h2>Playbook improvements</h2>
+    <p>Nevaeh compares when to flag an agency that hasn’t opened its Dashboard. A lower replay score means fewer premature reviews or less time waiting on cases that need help.</p>
+    <% if @playbooks.empty? %>
+      <p>Collecting onboarding receipts. Proposals require at least 12 cases with a 72-hour observation window.</p>
+    <% else %>
+      <ul>
+        <% @playbooks.each do |playbook| %>
+          <% evidence = playbook.evaluation %>
+          <li>
+            <strong>Version <%= playbook.id %> · <%= playbook.status.humanize %></strong>
+            <p>Flag after <%= playbook.escalate_after_hours %> hours.
+               Replay score <%= evidence['baseline_loss'] %> → <%= evidence['candidate_loss'] %> over <%= Array(evidence['holdout_ids']).size %> held-out cases.</p>
+            <% if (rollout = evidence['rollout']) %>
+              <p>Average rollout score <%= rollout['candidate_average_loss'] %> across <%= rollout['candidate_cases'] %> cases.
+                 Comparison group <%= rollout['control_average_loss'] %> across <%= rollout['control_cases'] %> cases.</p>
+            <% end %>
+            <% if playbook.status == 'proposed' %>
+              <%= button_to 'Approve controlled rollout', approve_nevaeh_onboarding_playbook_path(playbook), class: 'dd-topbar-btn dd-btn-primary' %>
+              <%= button_to 'Decline proposal', reject_nevaeh_onboarding_playbook_path(playbook), class: 'dd-topbar-btn dd-btn-ghost' %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+</main>

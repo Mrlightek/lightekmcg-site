@@ -6,19 +6,28 @@ module NevaehOs
     ROLE = 'live_broadcast_producer'
     DESTINATIONS = { 'test' => 'Private test', 'lightek' => 'Lightek', 'restream' => 'Restream',
       'simulcast' => 'Lightek + Restream', 'tiktok' => 'TikTok' }.freeze
+    HOUSE_LOOKS = {
+      'studio' => 'Studio signature', 'news' => 'News desk', 'breaking' => 'Breaking news',
+      'sports' => 'Sports desk', 'local' => 'Local newsroom', 'cinema' => 'Lightek Originals',
+      'entertainment' => 'Entertainment live', 'gaming' => 'Gamecast', 'affiliate' => 'Affiliate station',
+      'sponsor' => 'Sponsor credit', 'off' => 'No frame'
+    }.freeze
     module_function
 
     def authorize!(actor, command)
       ::Gatekeeper::StudioLivePolicy.authorize!(user: actor)
       site = LightekPwa::Policy.sites_for(actor).find(command.fetch('site_id'))
       values = command.fetch('values')
-      unless values.is_a?(Hash) && (values.keys - %w[title brief scene_id destination]).empty?
-        raise ArgumentError, 'Use a title, show brief, destination and optional scene.'
+      unless values.is_a?(Hash) && (values.keys - %w[title brief scene_id destination house_look subtitle]).empty?
+        raise ArgumentError, 'Use a title, show brief, destination, house look, optional subtitle and scene.'
       end
       field!(values, 'title', 120)
       field!(values, 'brief', 2400)
       destination = values.fetch('destination', 'test')
       raise ArgumentError, 'Choose a supported broadcast destination.' unless DESTINATIONS.key?(destination)
+
+      raise ArgumentError, 'Choose a Live Studio house look.' unless HOUSE_LOOKS.key?(values.fetch('house_look', 'studio'))
+      field!(values, 'subtitle', 80) if values['subtitle'].present?
 
       LightekPwa::Policy.new(user: actor, site: site).authorize!('watch') if %w[lightek simulcast].include?(destination)
       site
@@ -41,6 +50,8 @@ module NevaehOs
         'cues' => [{ 'label' => 'Open', 'text' => "Welcome viewers to #{title}. Introduce what you're covering today." }] +
           points.map { |point| { 'label' => 'Talking point', 'text' => point } } +
           [{ 'label' => 'Close', 'text' => 'Recap what you covered, tell viewers where to follow the next update, and sign off.' }],
+        'look' => { 'frame' => values.fetch('house_look', 'studio'), 'brand' => site.name.to_s.first(40),
+          'headline' => title.first(90), 'subtitle' => values['subtitle'].to_s.strip },
         'scene_id' => setup&.fetch(:scene_id), 'scene_revision' => setup&.fetch(:lock_version),
         'host_path' => "/dashboard/live?site_id=#{site.id}&show_id=#{action_id}" }
     end

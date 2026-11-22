@@ -317,7 +317,7 @@ Guides: [basic editors](docs/studio/open-source-editors.md), [Blender engine](do
 | Audience comment graphics | Operator-selected community/room/TikTok/SSN chat excerpts drawn into the captured program; explicit clear and holding/session-end cleanup. |
 | Guest program controls | Per-participant video visibility, stable ordering/featured selection and independent program audio level; local preview, host-only room saves and holding mute. |
 | Program composition | Combined presentation canvas and audio mix, holding-screen behavior and prepared Blender/GLB-stage presentation surfaces. |
-| Nevaeh Live Broadcast Producer | Prepares a private host package with cue cards, a freestyle pause, a pinned saved scene and a destination. The host opens the prepared show in Live Studio and uses its existing capture and transmission controls. [Guide](docs/nevaeh/tutorials/live_broadcast_producer.md) |
+| Nevaeh Live Broadcast Producer | Prepares a private host package with cue cards, a freestyle pause, a pinned saved scene, a selected house look with on-air titles and a destination. The host opens the prepared show in Live Studio and uses its existing capture and transmission controls. [Guide](docs/nevaeh/tutorials/live_broadcast_producer.md) |
 | Native and Restream output | Existing Live Studio output paths to Lightek community and configured Restream destinations. |
 | Lightek audience desk | Authorized playback activity and existing community replies under the site's access rules. |
 | Restream chat | Configured chat embed for supported platforms; distinct from the outgoing stream connection. |

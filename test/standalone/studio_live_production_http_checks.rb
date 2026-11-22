@@ -13,13 +13,18 @@ class StudioLiveProductionHttpTest < BroadcastControlTest
     Studio::Live::ProductionPreset.new(user: @alice, site: @site).save(scene.id,
       preset: { version: 1, layout: 'camera' }, lock_version: scene.lock_version)
     command = { 'kind' => 'live_show', 'site_id' => @site.id, 'values' => {
-      'title' => 'CEO update', 'brief' => "Launch roadmap\nPrivate <cue>", 'scene_id' => scene.id, 'destination' => 'restream'
+      'title' => 'CEO update', 'brief' => "Launch roadmap\nPrivate <cue>", 'scene_id' => scene.id, 'destination' => 'restream',
+      'house_look' => 'cinema', 'subtitle' => 'Build in public'
     } }
     action = NevaehOsAction.create!(user: @alice, request_key: SecureRandom.uuid, status: 'pending', command: command)
     result = NevaehOs::LiveShow.prepare!(@alice, command, action.id)
     action.update!(status: 'completed', result: result)
     assert_equal %w[Open Close], result.fetch('cues').values_at(0, -1).pluck('label')
     assert_equal scene.reload.lock_version, result.fetch('scene_revision')
+    assert_equal ['cinema', 'CEO update', 'Build in public'], result.fetch('look').values_at('frame', 'headline', 'subtitle')
+    assert_raises(ArgumentError) do
+      NevaehOs::LiveShow.prepare!(@alice, command.merge('values' => command['values'].merge('house_look' => 'unknown')), action.id)
+    end
     assert_raises(ArgumentError) do
       NevaehOs::LiveShow.prepare!(@alice, command.merge('values' => { 'title' => 'Show', 'brief' => 'a', 'destination' => 'arbitrary' }), action.id)
     end
@@ -32,6 +37,8 @@ class StudioLiveProductionHttpTest < BroadcastControlTest
       assert_includes client.response.body, 'Private &lt;cue&gt;'
       assert_includes client.response.body, 'The prepared destination is unavailable.'
       assert_includes client.response.body, 'data-host-freestyle'
+      assert_includes client.response.body, 'data-prepared-frame="cinema"'
+      assert_includes client.response.body, 'value="Build in public"'
       assert_includes client.response.body, "data-prepared-revision=\"#{scene.lock_version}\""
       client.get '/dashboard/live', headers: headers.merge('Accept' => 'text/html'), params: { site_id: @other_site.id, show_id: action.id }
       assert_equal 404, client.response.status

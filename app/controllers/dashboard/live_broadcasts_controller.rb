@@ -72,7 +72,7 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     request_key = params[:request_key].to_s
     raise ArgumentError, 'Reload the show form before assigning it.' unless request_key.match?(/\A[0-9a-f-]{36}\z/)
 
-    fields = params.require(:show).permit(:title, :brief, :destination, :scene_id).to_h
+    fields = params.require(:show).permit(:title, :brief, :destination, :scene_id, :house_look, :subtitle).to_h
     command = { 'kind' => 'live_show', 'site_id' => site.id, 'values' => fields }
     NevaehOs::LiveShow.authorize!(current_user, command)
     goal = NevaehOs::Goals.create!(actor: current_user, request_key: "live-show-#{request_key}",

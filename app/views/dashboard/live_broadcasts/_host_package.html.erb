@@ -2,6 +2,9 @@
   <section class="ll-panel ll-host-cues" data-host-cues aria-label="Host rundown">
     <h2><%= @host_package.fetch('title') %></h2>
     <p>Destination <strong><%= NevaehOs::LiveShow::DESTINATIONS.fetch(@host_package.fetch('destination')) %></strong></p>
+    <% if @host_package['look'] %>
+      <p>House look <strong><%= NevaehOs::LiveShow::HOUSE_LOOKS.fetch(@host_package.dig('look', 'frame')) %></strong></p>
+    <% end %>
     <% if @host_destination != @host_package.fetch('destination') %>
       <p role="alert">The prepared destination is unavailable. The broadcast controls are set to private test.</p>
     <% end %>
@@ -33,6 +36,8 @@
       <label>Show title <%= form.text_field :title, required: true, maxlength: 120 %></label>
       <label>Talking points <%= form.text_area :brief, required: true, maxlength: 2400, rows: 4, placeholder: "One talking point per line" %></label>
       <label>Saved scene <%= form.collection_select :scene_id, @production_scenes, :id, :name, include_blank: 'Camera only' %></label>
+      <label>House look <%= form.select :house_look, NevaehOs::LiveShow::HOUSE_LOOKS.invert %></label>
+      <label>On-air subtitle <%= form.text_field :subtitle, maxlength: 80 %></label>
       <label>Destination <%= form.select :destination, NevaehOs::LiveShow::DESTINATIONS.invert %></label>
       <%= form.submit 'Assign show to Nevaeh' %>
     <% end %>

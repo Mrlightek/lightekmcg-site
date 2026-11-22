@@ -156,6 +156,8 @@ Rails.application.routes.append do
   get '/site/:slug',to:'gatekeeper/hosted_sites#show'
   get '/robots.txt', to: 'website_search_discovery#robots', format: false
   get '/sitemap.xml', to: 'website_search_discovery#sitemap', format: false
+  patch '/dashboard/website/designs/nevaeh', to: 'dashboard/website_designs#nevaeh_delegation', as: :delegate_dashboard_website_designs
+  post '/dashboard/website/designs/nevaeh/landing-page', to: 'dashboard/website_designs#nevaeh_landing_page', as: :publish_nevaeh_landing_page
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
   post '/dashboard/website/designs/upload',to:'dashboard/website_designs#upload_html',as: :upload_dashboard_website_designs

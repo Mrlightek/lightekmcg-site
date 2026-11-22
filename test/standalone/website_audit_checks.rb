@@ -42,6 +42,10 @@ Rails.application.routes.append do
   eval(File.readlines(Rails.root.join('config/routes/growth.rb')).grep(/dashboard\/growth\/search/).join, binding)
 end
 Rails.application.reload_routes!
+require Rails.root.join('db/migrate/20261122090100_record_nevaeh_website_changes')
+RecordNevaehWebsiteChanges.new.migrate(:up)
+require Rails.root.join('app/models/lightek_growth/website_change')
+require Rails.root.join('app/services/nevaeh_os/website_marketing')
 require Rails.root.join('app/controllers/dashboard/website_audits_controller')
 Dashboard::WebsiteAuditsController.layout false
 DymondSite::Page.has_one :growth_page_metadata, class_name: 'LightekGrowth::PageMetadata', foreign_key: :page_id, dependent: :destroy
@@ -71,6 +75,55 @@ class WebsiteAuditChecks < SiteContentChecks
     fixer.prepare!(finding_id: finding(rule).id, value: value)
   end
   def html = LightekGrowth::Audits::Renderer.call(@page.reload)
+  def test_audit_delegated_marketing_renders_public_copy_and_rejects_stale_or_revoked_work
+    operator = NevaehOs::WebsiteMarketing
+    @site.update!(manifest: @site.manifest.merge(operator::KEY => { 'actor_id' => @user.id, 'key' => 'fixture-grant' }))
+    values = { 'title' => 'Book Studio', 'slug' => 'book-studio', 'published' => true, 'description' => 'Book a production session.',
+      'sections' => [{ 'block' => 'hero', 'data' => { 'heading' => 'Make your next show', 'body' => 'Record, edit and publish.' } }] }
+    command = operator.bind(@user, { 'site_id' => @site.id, 'operation' => 'compose', 'values' => values })
+    receipt = operator.perform!(actor: @user, command: command, action_id: 1)
+    assert receipt.fetch('published')
+    assert_equal receipt, operator.perform!(actor: @user, command: command, action_id: 1)
+
+    @site.update!(manifest: @site.reload.manifest.merge('hosted_application_key' => 'test'))
+    get '/site/book-studio'
+    assert_response :success
+    assert_includes response.body, 'Make your next show'
+    assert_includes response.body, 'Book a production session.'
+
+    page = @site.pages.find(receipt.fetch('page_id'))
+    updated = command.merge('values' => values.merge('page_id' => page.id, 'revision' => receipt.fetch('revision'), 'title' => 'Updated page'))
+    update_receipt = operator.perform!(actor: @user, command: updated, action_id: 2)
+    restore = command.merge('operation' => 'restore', 'values' => {
+      'page_id' => page.id, 'revision' => update_receipt.fetch('revision'), 'change_id' => update_receipt.fetch('change_id')
+    })
+    restored = operator.perform!(actor: @user, command: restore, action_id: 3)
+    assert_equal 'Book Studio', page.reload.title
+    assert restored.fetch('published')
+
+    inspected = operator.perform!(actor: @user, command: command.merge('operation' => 'inspect', 'values' => {}), action_id: 4)
+    appearance = command.merge('operation' => 'appearance', 'values' => {
+      'revision' => inspected.fetch('appearance_revision'), 'design' => 'vinylctrl', 'colors' => { 'color_primary' => '#112233' }
+    })
+    result = operator.perform!(actor: @user, command: appearance, action_id: 5)
+    assert_equal '#112233', @site.reload.active_template.settings.dig('tokens', 'color_primary')
+    refute_equal inspected.fetch('appearance_revision'), result.fetch('appearance_revision')
+
+    page.update!(title: 'A newer edit')
+    publish = command.merge('operation' => 'publication', 'values' => {
+      'page_id' => page.id, 'revision' => receipt.fetch('revision'), 'published' => false
+    })
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: publish, action_id: 6) }
+    assert page.reload.published?
+    assert_raises(ActiveRecord::RecordNotFound) do
+      operator.perform!(actor: @user, command: command.merge('site_id' => @foreign.id), action_id: 7)
+    end
+
+    operator.configure!(actor: @user, site_id: @site.id, enabled: false)
+    assert_raises(ArgumentError) { operator.perform!(actor: @user, command: command, action_id: 8) }
+    assert_equal 4, LightekGrowth::WebsiteChange.where(site_id: @site.id).count
+  end
+
   def test_audit_search_growth_import_and_draft_permissions
     work = LightekGrowth::BacklinkWork.new(actor: @user, site: @site)
     target = "https://#{@site.host}/site/home"

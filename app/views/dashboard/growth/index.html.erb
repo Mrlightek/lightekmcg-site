@@ -5,6 +5,9 @@
   <%= render 'dashboard/shared/business_workspace', active: 'Growth' %>
   <header class="sales-header"><div><span class="sales-eyebrow">LIGHTEK / FROM ATTENTION TO DELIVERY</span><h1>Growth & attribution</h1><p>Know your audience. Trace your campaigns to real business results.</p></div>
     <%= form_with url: dashboard_growth_path, method: :get, class: 'sales-site' do %><%= label_tag :site_id, 'Business website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch', class: 'sales-button secondary' %><% end %>
+    <% if LightekSettings::WebsiteIdentity.sites_for(current_user).exists?(id: @site.id) %>
+      <%= link_to 'Website design & content', dashboard_website_designs_path(site_id: @site.id), class: 'sales-button secondary' %>
+    <% end %>
     <%= link_to "Search & backlinks", dashboard_search_growth_path(site_id: @site.id), class: "sales-button secondary" %>
   </header>
   <% if flash[:alert] %><div class="sales-errors" role="alert"><%= flash[:alert] %></div><% end %>

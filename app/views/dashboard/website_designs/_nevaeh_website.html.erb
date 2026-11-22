@@ -1,0 +1,33 @@
+<section class="card" id="nevaeh-website">
+  <h2>Nevaeh website delegation</h2>
+  <% delegation = @site.manifest.to_h['nevaeh_website_marketing'] %>
+  <% if delegation&.fetch('actor_id') == current_user.id %>
+    <p>Nevaeh can manage design, content, appearance and publication for this website. Revoking access blocks queued changes that have yet to run.</p>
+    <%= button_to 'Revoke website delegation', delegate_dashboard_website_designs_path(site_id: @site.id), method: :patch,
+      params: { enabled: '0' }, class: 'content-button' %>
+
+    <details class="content-library">
+      <summary>Assign a landing page to Nevaeh</summary>
+      <%= form_with url: publish_nevaeh_landing_page_path(site_id: @site.id), scope: :landing_page, local: true do |form| %>
+        <%= hidden_field_tag :request_key, SecureRandom.uuid %>
+        <p>Assign a page using the details below. Nevaeh will publish it when the goal runs.</p>
+        <p><%= form.label :title, 'Page title' %> <%= form.text_field :title, required: true, maxlength: 120 %></p>
+        <p><%= form.label :slug, 'URL slug' %> <%= form.text_field :slug, required: true, maxlength: 160, pattern: '[a-z0-9]+(-[a-z0-9]+)*' %></p>
+        <p><%= form.label :heading %> <%= form.text_field :heading, required: true, maxlength: 120 %></p>
+        <p><%= form.label :body, 'Offer or page description' %> <%= form.text_area :body, required: true, rows: 4 %></p>
+        <p><%= form.label :cta_label, 'Button text' %> <%= form.text_field :cta_label %></p>
+        <p><%= form.label :cta_url, 'Button destination' %> <%= form.text_field :cta_url %></p>
+        <p><%= form.label :description, 'Search description' %> <%= form.text_field :description, maxlength: 500 %></p>
+        <%= form.submit 'Assign and publish', class: 'content-button primary' %>
+      <% end %>
+    </details>
+  <% else %>
+    <p>Authorize Nevaeh’s Marketing SME to edit and publish this website through saved goals.</p>
+    <%= button_to 'Authorize website delegation', delegate_dashboard_website_designs_path(site_id: @site.id), method: :patch,
+      params: { enabled: '1' }, class: 'content-button primary' %>
+    <% if delegation %>
+      <%= button_to 'Revoke current delegation', delegate_dashboard_website_designs_path(site_id: @site.id), method: :patch,
+        params: { enabled: '0' }, class: 'content-button' %>
+    <% end %>
+  <% end %>
+</section>

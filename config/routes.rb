@@ -689,6 +689,8 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
 
 # BEGIN LIGHTEK WEBSITE DESIGNS
   get "/dashboard/website/designs", to: "dashboard/website_designs#index", as: :dashboard_website_designs
+  patch "/dashboard/website/designs/nevaeh", to: "dashboard/website_designs#nevaeh_delegation", as: :delegate_dashboard_website_designs
+  post "/dashboard/website/designs/nevaeh/landing-page", to: "dashboard/website_designs#nevaeh_landing_page", as: :publish_nevaeh_landing_page
   get "/dashboard/website/designs/preview", to: "dashboard/website_designs#preview", as: :preview_dashboard_website_designs
   post "/dashboard/website/designs/apply", to: "dashboard/website_designs#apply", as: :apply_dashboard_website_designs
   post "/dashboard/website/designs/import", to: "dashboard/website_designs#import", as: :import_dashboard_website_designs

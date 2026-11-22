@@ -65,6 +65,7 @@ module NevaehOs
       # chat specialist is selected. Explicit /delegate retains its named worker.
       routed_to=language&.fetch('worker_ref', nil) || case command['kind']
       when 'website_page' then 'website'
+      when 'website_marketing' then 'marketing_strategy'
       when 'campaign_produce' then 'campaign'
       when 'marketing_kit', 'marketing_execute' then 'campaign'
       when 'feature_showcase' then 'website'
@@ -218,6 +219,7 @@ module NevaehOs
       {'text'=>text,'status'=>'ready','guide_url'=>'/dashboard/nevaeh/guide','task_choices'=>(defined?(TaskCatalog) ? TaskCatalog.manifest : []),'capabilities'=>examples.map { |entry| {slug:entry[:key],name:entry[:title],invoke:entry[:example]} }}
     end
     def prepare_command(command)
+      return WebsiteMarketing.bind(@actor, command) if command['kind'] == 'website_marketing'
       if command['kind'] == 'capability' && defined?(PlatformActions) && PlatformActions.supported?(command['intent'])
         command = PlatformActions.command(command.fetch('intent'), command.fetch('payload'))
       end

@@ -117,3 +117,19 @@ Use these decisions when reviewing the daily Growth plan or handing work to the 
 | Repeat customers | Segment existing customers by demonstrated need and use consented channels for retention and follow-up. |
 
 The daily plan cites recorded data. Preparing and authorizing marketing work uses the existing campaign, CMS and goal workflows for their supported actions.
+
+## Delegate website design and publication
+
+The website owner or platform operator opens **Growth → Website design & content → Nevaeh website delegation** and authorizes the Marketing SME for that website. The grant can be revoked there. The worker rechecks the grant, the operator's site access and the installed packages when it begins a change. A revoked or replaced grant blocks queued work tied to the prior grant.
+
+**Assign a landing page to Nevaeh** creates a goal to design the page from the supplied offer and publish it. Use Nevaeh Goals to assign several related steps and check their receipts. A goal can consume a previous step's verified page ID and revision. Use the Marketing SME for these instructions:
+
+| Command | Inputs and result |
+| --- | --- |
+| `/website inspect SITE_ID` | Lists site pages and the current appearance revision. Pass `{"page_id":123}` to inspect page content and its revision. |
+| `/website compose SITE_ID {…}` | Supply `title`, `slug`, native `sections` and a boolean `published`. A section uses `block`, `data` and optional `anchor` or `style`. To edit a page, provide `page_id` and its current `revision`. Optional `search_title` and `description` set CMS search metadata. |
+| `/website publication SITE_ID {…}` | Provide `page_id`, current `revision` and a boolean `published`. |
+| `/website appearance SITE_ID {…}` | Provide the current appearance `revision` and a catalog `design` or installed `theme_id`. Optional `fonts` and `colors` use Design Studio token fields such as `font_heading` and `color_primary`. |
+| `/website restore SITE_ID {…}` | Pass the `page_id`, `revision` and `change_id` from the latest matching page-change receipt to restore its saved prior content. For a new page, use publication to take it offline. |
+
+Website edits use the native CMS and Site Design library. A completed write receipt identifies the site, operator, operation and saved result. A page edit keeps a prior source for recovery. Existing page and appearance revision checks protect newer human edits.

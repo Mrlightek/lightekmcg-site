@@ -15,6 +15,7 @@
 <% end %>
 <% if @site %>
 <nav class="content-actions" data-tour-step="website" data-tour-title="Edit your website" data-tour-body="Open Pages &amp; Sections for content or Design Studio to work on the layout." aria-label="Website editing"><%= link_to "Open Pages & Sections",dymond_dash.pages_path(site_id:@site.id),class:"content-button primary" %><%= link_to "Open Design Studio",dashboard_design_studio_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Write & manage articles",dashboard_blog_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Manage store",dashboard_commerce_path(site_id:@site.id),class:"content-button" %></nav>
+<%= render "nevaeh_website" if @site.tenant == current_user || current_user.role == 'super_admin' %>
 <%= render "site_themes" %>
 <p><%= link_to "Sign-in & account branding →", dashboard_authentication_branding_path(site_id: @site.id) %></p>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>

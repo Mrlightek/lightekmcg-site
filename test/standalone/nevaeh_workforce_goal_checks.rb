@@ -1,4 +1,5 @@
 require_relative 'nevaeh_os_test'
+require File.join(ROOT, 'app/services/nevaeh_os/website_marketing')
 class NevaehWorkforceGoalChecks < NevaehOsTest
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
   def teardown
@@ -14,11 +15,41 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
   def complete_current(plan)
     NevaehOs::Goals.tick!(plan.reload)
     step=plan.steps.where(status:'running').first
+    assert step, plan.reload.error
     run=step.nevaeh_agent_run
     NevaehOs::AgentWorkforce.execute!(run)
     execute(run.reload.nevaeh_os_action)
     NevaehOs::Goals.tick!(plan.reload)
   end
+  def test_website_goal_dispatches_the_marketing_sme_and_records_the_publication_receipt
+    operations = NevaehOs::WebsiteMarketing
+    command = { 'kind' => 'website_marketing', 'operation' => 'compose', 'site_id' => 91, 'values' => { 'published' => true } }
+    bind = ->(_actor, input) { input.merge('delegation_id' => 'fixture-grant') }
+    execute_site = lambda do |actor:, command:, action_id:|
+      assert_equal @actor.id, actor.id
+      assert_equal 'fixture-grant', command.fetch('delegation_id')
+      assert_operator action_id, :>, 0
+      { 'status' => 'completed', 'published' => true, 'page_id' => 12 }
+    end
+
+    NevaehOs::Guide.stub(:allowed?, ->(level, actor) { level == 'growth' && actor.id == @actor.id }) do
+      operations.stub(:bind, bind) do
+        operations.stub(:authorize!, true) do
+          operations.stub(:perform!, execute_site) do
+            plan = goal({ 'title' => 'Publish a campaign landing page', 'steps' => [{
+              'key' => 'publish', 'agent' => 'marketing_strategy', 'command' => command,
+              'expectations' => [{ 'path' => 'result.published', 'equals' => true }]
+            }] })
+            NevaehOs::Goals.control!(goal: plan, actor: @actor, operation: 'start')
+            complete_current(plan)
+            assert_equal 'completed', plan.reload.status
+            assert_equal 'marketing_strategy', plan.steps.first.nevaeh_os_agent.system_key
+          end
+        end
+      end
+    end
+  end
+
   def test_default_roles_are_defined_owned_and_do_not_resurrect_after_deletion
     NevaehOs::Workforce.install!(@actor)
     assert_equal NevaehOs::Workforce::ROLES.size, NevaehOsAgent.where(user: @actor).count
@@ -137,6 +168,7 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
     marketing = rows.find { |row| row['system_key'] == 'marketing_strategy' }
     assert_equal 'Marketing SME', marketing.fetch('name')
     assert_includes marketing.fetch('allowed_capabilities'), 'growth.backlink.draft'
+    assert_includes marketing.fetch('allowed_capabilities'), 'website.marketing.*'
     assert rows.all? { |row| row['purpose'].present? && row['department'].present? }
     refute rows.any? { |row| row['id']==NevaehOsAgent.find_by!(user:@other,system_key:'sage').id }
   end

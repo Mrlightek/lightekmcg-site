@@ -1,4 +1,5 @@
 require_relative 'nevaeh_os_test'
+require File.join(ROOT, 'app/services/nevaeh_os/live_show')
 require File.join(ROOT, 'app/services/nevaeh_os/website_marketing')
 require File.join(ROOT, 'app/services/nevaeh_os/public_relations')
 class NevaehWorkforceGoalChecks < NevaehOsTest
@@ -95,6 +96,28 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
             assert_equal 'queued', plan.steps.last.evidence.dig('result', 'delivery_state')
           end
         end
+      end
+    end
+  end
+
+  def test_live_show_goal_dispatches_through_the_producer_and_reads_the_manual
+    service = NevaehOs::LiveShow
+    prepare = lambda do |actor, command, action_id|
+      assert_equal @actor.id, actor.id
+      assert_equal 'CEO update', command.dig('values', 'title')
+      assert_equal 'docs/nevaeh/tutorials/live_broadcast_producer.md', command.dig('documentation_read', 'path')
+      { 'status' => 'completed', 'host_path' => "/dashboard/live?site_id=91&show_id=#{action_id}" }
+    end
+    service.stub(:authorize!, true) do
+      service.stub(:prepare!, prepare) do
+        plan = goal({ 'title' => 'Prepare CEO update', 'steps' => [{
+          'key' => 'prepare', 'agent' => service::ROLE, 'command' => '/live prepare 91 {"title":"CEO update","brief":"Roadmap"}',
+          'expectations' => [{ 'path' => 'result.host_path', 'present' => true }]
+        }] })
+        NevaehOs::Goals.control!(goal: plan, actor: @actor, operation: 'start')
+        complete_current(plan)
+        assert_equal 'completed', plan.reload.status
+        assert_match %r{/dashboard/live[?]site_id=91&show_id=}, plan.steps.first.evidence.dig('result', 'host_path')
       end
     end
   end

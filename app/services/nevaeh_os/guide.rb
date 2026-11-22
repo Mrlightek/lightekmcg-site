@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'live_broadcast_producer'=>['Prepare and host a Live Studio broadcast','all'],
       'pwa_business_model'=>['PWA memberships, hosting, YouTube earnings and creator payouts','all'],
       'marketing_copilot'=>['Marketing copilot: offers, campaigns and follow-through','growth'],
       'task_builder'=>['Build, test and activate your own operating tasks','admin'],
@@ -38,6 +39,7 @@ module NevaehOs
       'studio.project.create'=>{'name'=>'string'}
     }.freeze
     BUILTINS={
+      'studio.live.prepare'=>['Prepare a Live Studio host package','/live prepare SITE_ID {"title":"Lightek Live","brief":"What we shipped"}','live_broadcast_producer','all'],
       'site.page.create'=>['Create a draft website page','/website page {"site_id":1,"title":"About us"}','specialist_tasks','all'],
       'nevaeh.documentation_question'=>['Ask a documentation-page SME','/page agents How do I delegate?','reporting_system','all'],
       'nevaeh.goal'=>['Save and run a delegated goal with completion checks','/goal list','workforce','all'],

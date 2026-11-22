@@ -8,6 +8,7 @@ module NevaehOs
       'sage'=>['Sage · Planning','Strategy','Prepare business growth plans and inspect current business work.',['growth.plan','growth.review'],['/growth SITE_ID','/growth review SITE_ID COMPARISON_ID']],
       'muse'=>['Muse · Writing','Creative','Write editable captions, posts and script drafts.',['nevaeh.write'],['/write script {"topic":"YOUR_TOPIC"}']],
       'warden'=>['Warden · Verification','Quality','Inspect actual production and rehearsal receipts; report capability gaps.',['studio.direct.production','nevaeh.improve'],['/produce status PRODUCTION_ID','/improve gaps']],
+      'live_broadcast_producer'=>['Live Broadcast Producer','Studio','Prepare the host’s talking points, rundown and saved Live Studio setup.',['studio.live.prepare'],['/live prepare SITE_ID {"title":"Lightek Live","brief":"What we shipped"}']],
       'producer'=>['Episode Producer','Studio','Prepare episode scenes from production recipes and show bibles.',['studio.direct.production'],['/produce {"site_id":1,"name":"Episode 1","template_key":"comedy"}']],
       'cast_director'=>['Cast Director','Studio','Bind registered Cast to measured dialogue cues while retaining identity.',['studio.direct.production'],['/produce animate {"production_id":1,"scene_id":1,"cast_asset_id":1,"voice_operation_id":1,"cue_index":0,"lock_version":0}']],
       'blocking'=>['Blocking Technician','Studio','Preview personal space, obstacle routes and scene geometry on a copy.',['studio.direct.production'],['/produce rehearse {"production_id":1,"scene_id":1}']],

@@ -13,6 +13,7 @@ A role is a saved specialist identity, instructions and capability assignment. A
 | Creative | Muse writes editable captions, posts and script drafts. |
 | Quality | Warden inspects production/rehearsal receipts and audits capability gaps. |
 | Studio | Episode Producer, Cast Director, Blocking Technician, Episode Editor and Media Processor prepare scenes, direct registered Cast, rehearse spatial blocking, assemble exports and process files. |
+| Live production | The [Live Broadcast Producer](live_broadcast_producer.md) prepares host cues and a Live Studio setup. |
 | Distribution | Publishing Coordinator delivers explicitly reviewed masters through configured destinations. |
 | Marketing | Campaign Producer builds editable ads/private previews; Growth Analyst prepares evidence-based daily plans. |
 | Public Relations | The [PR SME](public_relations.md) manages delegated releases, media outreach, scheduled source checks and response briefs. |

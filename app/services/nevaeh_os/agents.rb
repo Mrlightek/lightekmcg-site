@@ -18,6 +18,7 @@ module NevaehOs
     end
     def capability(command)
       case command['kind']
+      when 'live_show' then LiveShow::CAPABILITY
       when 'public_relations' then PublicRelations.capability(command.fetch('operation'))
       when 'website_marketing' then WebsiteMarketing::CAPABILITIES.fetch(command.fetch('operation'))
       when 'website_page' then 'site.page.create'

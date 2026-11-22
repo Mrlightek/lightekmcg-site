@@ -44,6 +44,7 @@ A business can build its website, sell products or book services, manage custome
 | Animate dialogue on a character | [Character speech & lip sync](docs/studio/character-lip-sync.md) |
 | Animate a library still into a video shot | [Genesis image-to-video](docs/studio/genesis-image-to-video.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
+| Prepare a live show and read the rundown on a teleprompter | [Live Broadcast Producer](docs/nevaeh/tutorials/live_broadcast_producer.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
 | Build a screenshot-backed demo and track requests | [Demo campaigns](docs/nevaeh/tutorials/marketing_copilot.md#build-and-run-a-demo-campaign) |
 | Delegate press releases, media outreach and coverage monitoring | [Nevaeh PR SME](docs/nevaeh/tutorials/public_relations.md) |

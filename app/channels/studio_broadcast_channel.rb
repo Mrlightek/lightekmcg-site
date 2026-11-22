@@ -35,6 +35,10 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     sequence = @encoder.append!(encoded: data["live_chunk"], sequence: data["sequence"])
     heartbeat
     transmit({event: "ack", sequence: sequence})
+  rescue Studio::Live::Encoder::InputClosed
+    # The encoder's terminal event carries the diagnosis. A trailing chunk
+    # must not replace it with a generic transport failure.
+    nil
   rescue StandardError => error
     fail_session(error)
   end

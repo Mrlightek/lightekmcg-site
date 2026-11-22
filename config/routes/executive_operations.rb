@@ -53,3 +53,31 @@ get '/dashboard/team-chat/:channel_id/office/:file_id/export', to: 'dashboard/te
 
 post '/dashboard/executive-work/phone', to: 'dashboard/executive_work#configure_phone', as: :configure_dashboard_executive_phone
 post '/api/executive/phone/:key', to: 'api/executive_phone#create', as: :executive_phone_intake, constraints: {key: /[a-f0-9]{48}/}
+
+post '/api/reservations/federation/installation/office/:operation', to: 'api/installation_collaboration#office',
+  constraints: {operation: /list|show|create|update/}
+get '/dashboard/team-network/office/:key', to: 'dashboard/network_office#index', as: :dashboard_network_office
+post '/dashboard/team-network/office/:key', to: 'dashboard/network_office#save'
+get '/dashboard/team-network/office/:key/export/:file_key', to: 'dashboard/network_office#export', as: :export_dashboard_network_office
+
+scope '/dashboard/executive-work/items/:id/travel', controller: 'dashboard/executive_travel' do
+  get '/', action: :index, as: :dashboard_executive_travel
+  post '/supplier', action: :configure, as: :configure_executive_travel_supplier
+  post '/search', action: :search, as: :search_executive_travel
+  post '/hotel-rates', action: :rates, as: :rates_executive_travel
+  post '/quotes', action: :quote, as: :quote_executive_travel
+  post '/bookings/:booking_id', action: :book, as: :book_executive_travel
+  post '/bookings/:booking_id/reconcile', action: :reconcile, as: :reconcile_executive_travel
+end
+
+scope '/dashboard/executive-work/items/:id/theater', controller: 'dashboard/executive_dcp' do
+  get '/', action: :index, as: :dashboard_executive_dcp
+  post '/', action: :create
+  post '/:delivery_id/validate', action: :validate_package, as: :validate_executive_dcp
+  delete '/:delivery_id', action: :revoke, as: :revoke_executive_dcp
+end
+scope '/dashboard/theater-delivery/:key', controller: 'dashboard/executive_dcp', constraints: {key: /[a-f0-9]{48}/} do
+  get '/', action: :show, as: :dashboard_executive_dcp_delivery
+  get '/download', action: :download, as: :download_executive_dcp_delivery
+  post '/acknowledge', action: :acknowledge, as: :acknowledge_executive_dcp_delivery
+end

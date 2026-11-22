@@ -99,7 +99,47 @@ module LightekTeam
       end
     end
 
+    def office!(channel_key, operation, values)
+      channel = channels.find_by!(key: channel_key)
+      channel.with_lock do
+        channels.find(channel.id)
+        host_history = channel.host_peer_id == @peer.id && channel.closed_at? && channel.accepted_at?
+        require_connected!(channel) unless operation.in?(%w[list show]) && host_history
+        files = LightekOffice::NetworkFile.where(channel: channel)
+        if operation == 'list'
+          return {files: files.order(updated_at: :desc).limit(100).map { |file| office_summary(file) }}
+        end
+
+        key = values.fetch('file_key').to_s
+        raise ArgumentError, 'Invalid file key.' unless key.match?(/\A[0-9a-f]{32}\z/)
+        file = operation == 'create' ? files.find_or_initialize_by(key: key) : files.find_by!(key: key)
+        return office_summary(file).merge(content: file.content) if operation == 'show'
+
+        if operation == 'create' && file.persisted?
+          unless file.editor_peer_id == @peer.id && file.kind == values['kind'] && file.title == values['title'] && file.content == values['content']
+            raise ArgumentError, 'This file request already exists.'
+          end
+          return office_summary(file)
+        end
+
+        if operation == 'update' && file.lock_version.to_s != values['lock_version'].to_s
+          raise ArgumentError, 'The file changed. Reload it before saving again.'
+        end
+
+        file.kind = values['kind'] if file.new_record?
+        content = values.fetch('content').to_s
+        LightekOffice::Content.validate!(file.kind, content)
+        file.update!(title: values['title'], content: content, editor_peer: @peer, editor_name: @actor_name)
+        office_summary(file)
+      end
+    end
+
     private
+
+    def office_summary(file)
+      {key: file.key, title: file.title, kind: file.kind, lock_version: file.lock_version,
+        editor: file.editor_name, organization: file.editor_peer.site.host}
+    end
 
     def owner? = @subject == 'owner'
 

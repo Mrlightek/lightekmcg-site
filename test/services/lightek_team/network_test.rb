@@ -52,6 +52,25 @@ class LightekTeam::NetworkTest < ActiveSupport::TestCase
     assert_equal 'Confirmed.', service.read(message.id).fetch(:text)
   end
 
+  test 'network office edits share one revision and disconnect removes partner access' do
+    host = service(@host)
+    partner = service(@partner)
+    key = host.create!(name: 'office', address: @partner.site.host).fetch(:key)
+    assert_raises(ArgumentError) { host.office!(key, 'list', {}) }
+    partner.accept!(key)
+    fields = {'file_key'=>SecureRandom.hex(16), 'title'=>'Budget', 'kind'=>'spreadsheet', 'content'=>'1,2,=SUM(A1:B1)'}
+    file = host.office!(key, 'create', fields)
+    assert_equal file, host.office!(key, 'create', fields)
+    assert_equal file, partner.office!(key, 'show', fields).except(:content)
+    partner.office!(key, 'update', fields.merge('lock_version'=>0, 'content'=>'2,3,=SUM(A1:B1)'))
+    assert_raises(ArgumentError) { host.office!(key, 'update', fields.merge('lock_version'=>0)) }
+    assert_raises(ActiveRecord::RecordNotFound) { service(@unrelated).office!(key, 'show', fields) }
+    partner.disconnect!(key)
+    assert_raises(ActiveRecord::RecordNotFound) { partner.office!(key, 'show', fields) }
+    assert_equal '2,3,=SUM(A1:B1)', host.office!(key, 'show', fields).fetch(:content)
+    assert_raises(ArgumentError) { host.office!(key, 'update', fields.merge('lock_version'=>1)) }
+  end
+
   private
 
   def account(role)

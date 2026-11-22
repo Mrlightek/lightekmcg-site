@@ -32,3 +32,5 @@ Rails.application.config.filter_parameters += [/\A(?:actor_name|body|text|subjec
 
 Rails.application.config.filter_parameters += [:calendar_delivery, :executive_case, :executive_delivery, :executive_phone,
   :office_file, :signing_secret, /\A(?:caller|summary|review_note)\z/]
+
+Rails.application.config.filter_parameters += [:travel_person, :dcp_delivery, :network_office_file, /\Acontent\z/]

@@ -66,6 +66,9 @@
             <% end %></ul>
           </details>
         <% end %>
+        <% if %w[connected disconnected].include?(state) %>
+          <%= link_to "Shared files", dashboard_network_office_path(key) %>
+        <% end %>
         <%= link_to "Latest messages", dashboard_network_team_path(key: key) %>
         <% if @channel["older_than"] %><%= link_to "Older messages", dashboard_network_team_path(key: key, before: @channel["older_than"]) %><% end %>
         <ol class="network-messages">

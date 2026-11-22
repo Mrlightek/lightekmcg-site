@@ -21,6 +21,14 @@ class Api::InstallationCollaborationController < Api::ReservationFederationContr
     render json: result
   end
 
+  def office
+    return head :payload_too_large if request.content_length.to_i > 400.kilobytes
+
+    network = LightekTeam::Network.new(peer: @peer, subject: params.require(:subject), actor_name: params.require(:actor_name))
+    values = params.permit(:file_key, :kind, :title, :content, :lock_version).to_h
+    render json: network.office!(params.require(:key), params.require(:operation), values)
+  end
+
   def mail
     raise LightekPeople::Access::Denied unless params[:subject] == 'owner'
 

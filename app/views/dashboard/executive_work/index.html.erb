@@ -45,6 +45,8 @@
       <section class="network-pane">
         <h2><%= @record.title %></h2>
         <p><%= @record.kind_label %> · <%= @record.status.humanize %> · Follow up <%= l(@record.due_at, format: :short) %></p>
+        <% if @mailboxes && @record.kind == "travel" %><p><%= link_to "Direct flight and hotel booking", dashboard_executive_travel_path(@record) %></p><% end %>
+        <% if @mailboxes && @record.kind == "screening" %><p><%= link_to "Theater DCP delivery", dashboard_executive_dcp_path(@record) %></p><% end %>
         <% if @record.assignee %><p>Assigned to <%= @record.assignee.full_name %></p><% end %>
         <p class="network-text"><%= @record.details %></p>
         <% if @record.material.attached? %><p><%= link_to "Download supporting file", material_dashboard_executive_case_path(@record) %></p><% end %>

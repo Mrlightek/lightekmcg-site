@@ -104,7 +104,7 @@ module LightekTeam
       channel.with_lock do
         channels.find(channel.id)
         host_history = channel.host_peer_id == @peer.id && channel.closed_at? && channel.accepted_at?
-        require_connected!(channel) unless operation.in?(%w[list show]) && host_history
+        require_connected!(channel) unless operation.in?(%w[list show history live]) && host_history
         files = LightekOffice::NetworkFile.where(channel: channel)
         if operation == 'list'
           return {files: files.order(updated_at: :desc).limit(100).map { |file| office_summary(file) }}
@@ -114,6 +114,16 @@ module LightekTeam
         raise ArgumentError, 'Invalid file key.' unless key.match?(/\A[0-9a-f]{32}\z/)
         file = operation == 'create' ? files.find_or_initialize_by(key: key) : files.find_by!(key: key)
         return office_summary(file).merge(content: file.content) if operation == 'show'
+        return {history: LightekOffice::Changes.history(file)} if operation == 'history'
+        if operation == 'live'
+          return {unchanged: true} if values['since'].to_s == file.lock_version.to_s
+
+          return LightekOffice::Changes.snapshot(file)
+        end
+        if operation == 'restore'
+          return LightekOffice::Changes.restore!(file, version: values['version'], expected: values['lock_version'],
+            actor: {editor_peer: @peer, editor_name: @actor_name})
+        end
 
         kind = file.new_record? ? values['kind'] : file.kind
         rich_text = kind == 'document' && ActiveModel::Type::Boolean.new.cast(values['rich_text']) == true
@@ -133,13 +143,21 @@ module LightekTeam
           return office_summary(file)
         end
 
-        if operation == 'update' && file.lock_version.to_s != values['lock_version'].to_s
-          raise ArgumentError, 'The file changed. Reload it before saving again.'
+        attrs = {kind: kind, title: values['title'], content: content, rich_text: rich_text, editor_peer: @peer, editor_name: @actor_name}
+        if file.new_record?
+          file.update!(attrs)
+        else
+          syncing = operation == 'sync'
+          attrs[:title] = file.title if syncing
+          result = LightekOffice::Changes.write!(file, attrs, expected: values['lock_version'], merge: syncing)
+          return result if syncing
         end
-
-        file.update!(kind: kind, title: values['title'], content: content, rich_text: rich_text, editor_peer: @peer, editor_name: @actor_name)
         office_summary(file)
       end
+    rescue LightekOffice::Changes::Conflict => error
+      return {conflict: true, current: error.current, error: error.message} if operation == 'sync'
+
+      raise ArgumentError, error.message
     end
 
     private

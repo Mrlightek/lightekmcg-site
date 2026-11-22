@@ -7,6 +7,7 @@ class Dashboard::NetworkOfficeController < DymondDash::ApplicationController
   def index
     @files = request_office('list').fetch('files')
     @file = request_office('show', file_key: params[:file_key]) if params[:file_key].present?
+    @history = request_office('history', file_key: @file.fetch('key')).fetch('history') if @file
     if @file&.fetch('kind') == 'spreadsheet'
       @rows = LightekOffice::Content.calculate(@file.fetch('content'))
     elsif @file&.fetch('kind') == 'presentation'
@@ -25,6 +26,25 @@ class Dashboard::NetworkOfficeController < DymondDash::ApplicationController
     operation = fields[:lock_version].present? ? 'update' : 'create'
     result = request_office(operation, fields.to_h.symbolize_keys)
     redirect_to dashboard_network_office_path(params[:key], file_key: result.fetch('key')), status: :see_other
+  end
+
+  def live
+    result = request_office('live', file_key: params.require(:file_key), since: params[:since])
+    return head :no_content if result['unchanged']
+
+    render json: result
+  end
+
+  def sync
+    values = params.require(:network_office_file).permit(:content, :rich_text, :lock_version).to_h.symbolize_keys
+    result = request_office('sync', values.merge(file_key: params.require(:file_key)))
+    render json: result, status: result['conflict'] ? :conflict : :ok
+  end
+
+  def restore
+    file_key = params.require(:file_key)
+    request_office('restore', file_key: file_key, version: params.require(:version), lock_version: params.require(:lock_version))
+    redirect_to dashboard_network_office_path(params[:key], file_key: file_key), status: :see_other
   end
 
   def export
@@ -50,6 +70,10 @@ class Dashboard::NetworkOfficeController < DymondDash::ApplicationController
   end
 
   def unavailable(error)
+    if request.format.json?
+      return render json: {error: error.message}, status: :unprocessable_entity
+    end
+
     @files ||= []
     flash.now[:alert] = error.message
     render :index, status: :unprocessable_entity

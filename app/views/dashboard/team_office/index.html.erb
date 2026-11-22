@@ -67,10 +67,19 @@
           <% end %>
           <% if @file.kind == "spreadsheet" %><p><small>Spreadsheets use CSV rows. Enter formulas such as <code>=SUM(A1:A5)</code> in a cell.</small></p><% end %>
           <% if @file.kind == "presentation" %><p><small>Start each slide with its title. Put three dashes on a line between slides.</small></p><% end %>
+          <% if @file.persisted? && !@file.errors.any? %>
+            <%= render "dashboard/office/live", read_url: live_dashboard_team_office_path(@channel, @file, employer_id: @employer.id),
+              write_url: update_dashboard_team_office_path(@channel, @file, employer_id: @employer.id, format: :json), write_method: "PATCH" %>
+          <% end %>
           <%= form.submit "Save shared file", class: "dd-topbar-btn dd-btn-primary" %>
         <% end %>
       </details>
+      <% if @file.persisted? %>
+        <%= render "dashboard/office/history", revisions: @history, version: @file.lock_version,
+          restore_url: restore_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) %>
+      <% end %>
     </section>
   </div>
 </main>
 <link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">
+<script src="/lightek/office-live.js" defer data-turbo-track="reload"></script>

@@ -1,0 +1,68 @@
+<% content_for :page_title, @drive.name %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <p><%= link_to "← Shared drives", dashboard_shared_drives_path(employer_id: @employer.id) %></p>
+  <h1><%= @drive.name %></h1>
+  <div class="network-columns">
+    <aside class="network-pane">
+      <%= form_with url: dashboard_shared_drive_path(@drive), method: :get do %>
+        <%= hidden_field_tag :employer_id, @employer.id %>
+        <%= label_tag :q, "Search this drive" %><%= search_field_tag :q, @query, maxlength: 100 %>
+        <%= submit_tag "Search", class: "dd-topbar-btn dd-btn-ghost" %>
+      <% end %>
+      <% if @owner %>
+        <details>
+          <summary>Manage drive access</summary>
+          <% @drive.members.includes(:user).each do |member| %><p><%= member.user.full_name %> · <%= member.role.humanize %></p><% end %>
+          <%= form_with url: grant_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :member do |form| %>
+            <%= form.label :user_id, "Team member" %><%= form.collection_select :user_id, @coworkers, :id, :full_name, {prompt: "Choose a team member"}, required: true %>
+            <%= form.label :role %><%= form.select :role, [["Viewer", "viewer"], ["Editor", "editor"], ["Remove access", "remove"]] %>
+            <%= form.submit "Update access", class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        </details>
+      <% end %>
+    </aside>
+    <section class="network-pane">
+      <% if @folder %><p><%= link_to "← Parent folder", dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder.parent_id) %></p><% end %>
+      <h2><%= @folder&.name || (@query.present? ? "Search results" : "Files and folders") %></h2>
+      <% if @entries.empty? %><p>No items to display.</p><% end %>
+      <ul>
+        <% @entries.each do |entry| %>
+          <li>
+            <%= render "entry_link", entry: entry %> · <%= entry.folder? ? "Folder" : "File" %>
+            <% if @editor %>
+              <details>
+                <summary>Rename or move</summary>
+                <%= form_with url: organize_dashboard_shared_drive_path(@drive, entry, employer_id: @employer.id),
+                  model: entry, scope: :entry, method: :patch, namespace: "drive_entry_#{entry.id}" do |form| %>
+                  <%= form.label :name %><%= form.text_field :name, required: true, maxlength: 160 %>
+                  <%= form.label :parent_id, "Move to" %>
+                  <% folders = (@folders.to_a + [entry.parent].compact).uniq.reject { |folder| folder.id == entry.id } %>
+                  <%= form.collection_select :parent_id, folders, :id, :name, {include_blank: "Drive root"} %>
+                  <%= form.submit "Save changes", class: "dd-topbar-btn dd-btn-ghost" %>
+                <% end %>
+              </details>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <% if @editor %>
+        <details><summary>New folder</summary>
+          <%= form_with url: add_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :entry do |form| %>
+            <%= form.hidden_field :parent_id, value: @folder&.id %>
+            <%= form.label :name, "Folder name" %><%= form.text_field :name, required: true, maxlength: 160 %>
+            <%= form.submit "Create folder", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+        <details><summary>Upload a file</summary>
+          <%= form_with url: add_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :entry do |form| %>
+            <%= form.hidden_field :parent_id, value: @folder&.id %>
+            <%= form.label :upload, "File up to 25 MB" %><%= form.file_field :upload, required: true %>
+            <%= form.submit "Upload", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+      <% end %>
+    </section>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

@@ -10,7 +10,7 @@ module LightekAgency
       'payments' => %w[dymond_bank dashboard/bank], 'knowledge' => %w[dymond_kb],
       'commerce' => %w[sales_quotes dashboard/sales dymond_catalog dashboard/commerce commerce stores dashboard/customers marketplace dashboard/marketplace catalogs],
       'marketing' => %w[dashboard/campaign_performance dashboard/website_audits campaign_media dashboard/publication_calendar dashboard/campaign_content growth_links dashboard/growth dashboard/marketing_ dashboard/social_connections dashboard/meta_connections dashboard/tiktok_connections dashboard/connect_shopify_settings marketing_subscriptions],
-      'messaging' => %w[dashboard/team_channels dashboard/network_team dashboard/network_office dashboard/team_office],
+      'messaging' => %w[dashboard/team_channels dashboard/network_team dashboard/network_office dashboard/team_office dashboard/shared_drives dashboard/shared_calendars],
       'mail' => %w[dashboard/mail dashboard/installation_mail api/lightek_mail], 'accounting' => %w[dashboard/accounting dashboard/financial_operations],
       'people' => %w[dashboard/people departments employee/users employee/timesheets], 'directory' => %w[dashboard/directory],
       'compliance' => %w[dashboard/compliance], 'community' => %w[dymond_social communities community_ profiles posts storyline_],

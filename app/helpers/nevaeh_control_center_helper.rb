@@ -25,6 +25,8 @@ module NevaehControlCenterHelper
     end
     if LightekTeam::Workspace.employers_for(current_user).exists?
       rows << item.call("team-chat", "Team Chat", main_app.dashboard_team_channels_path, "ti-messages")
+      rows << item.call("shared-drives", "Shared drives", main_app.dashboard_shared_drives_path, "ti-folders")
+      rows << item.call("shared-calendars", "Shared calendars", main_app.dashboard_shared_calendars_path, "ti-calendar-event")
     end
     if current_user.role.in?(%w[admin super_admin]) || current_user.can_access_feature?("studio")
       rows << item.call("studio", "Studio & Broadcasting", main_app.dashboard_media_studio_path, "ti-video")

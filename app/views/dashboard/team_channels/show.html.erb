@@ -28,6 +28,10 @@
   <h1>Team Chat</h1>
   <% if LightekTeam::Installation.site %><p><%= link_to "Network channels", dashboard_network_team_path %></p><% end %>
   <% if @employer %>
+    <nav aria-label="Team workspace">
+      <%= link_to "Shared drives", dashboard_shared_drives_path(employer_id: @employer.id) %>
+      <%= link_to "Shared calendars", dashboard_shared_calendars_path(employer_id: @employer.id) %>
+    </nav>
     <div class="team-layout">
       <aside class="team-panel">
         <% if @employers.size > 1 %>

@@ -1,0 +1,17 @@
+<% if revisions.present? %>
+  <details>
+    <summary>Version history</summary>
+    <ul>
+      <% revisions.each do |revision| %>
+        <% revision = revision.with_indifferent_access %>
+        <li>
+          <%= revision.fetch(:title) %> · <%= revision.fetch(:editor) %> · <%= l(Time.zone.iso8601(revision.fetch(:saved_at)), format: :short) %>
+          <% if restore_url %>
+            <%= button_to "Restore version #{revision.fetch(:version) + 1}", restore_url,
+              form: {data: {office_restore: true}}, params: {version: revision.fetch(:version), lock_version: version}, class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </details>
+<% end %>

@@ -66,10 +66,19 @@
             <% if @kind == "spreadsheet" %><p><small>Use CSV rows and enter formulas such as <code>=SUM(A1:A5)</code>.</small></p>
             <% else %><p><small>Start each slide with a title and put three dashes on a line between slides.</small></p><% end %>
           <% end %>
+          <% if @file %>
+            <%= render "dashboard/office/live", read_url: live_dashboard_network_office_path(params[:key], @file_key),
+              write_url: sync_dashboard_network_office_path(params[:key], @file_key, format: :json), write_method: "POST" %>
+          <% end %>
           <%= form.submit "Save shared file", class: "dd-topbar-btn dd-btn-primary" %>
         <% end %>
+      <% end %>
+      <% if @file %>
+        <%= render "dashboard/office/history", revisions: @history, version: @file.fetch("lock_version"),
+          restore_url: (@read_only ? nil : restore_dashboard_network_office_path(params[:key], @file.fetch("key"))) %>
       <% end %>
     </section>
   </div>
 </main>
 <link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">
+<script src="/lightek/office-live.js" defer data-turbo-track="reload"></script>

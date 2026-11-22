@@ -55,7 +55,7 @@ post '/dashboard/executive-work/phone', to: 'dashboard/executive_work#configure_
 post '/api/executive/phone/:key', to: 'api/executive_phone#create', as: :executive_phone_intake, constraints: {key: /[a-f0-9]{48}/}
 
 post '/api/reservations/federation/installation/office/:operation', to: 'api/installation_collaboration#office',
-  constraints: {operation: /list|show|create|update/}
+  constraints: {operation: /list|show|create|update|history|live|sync|restore/}
 get '/dashboard/team-network/office/:key', to: 'dashboard/network_office#index', as: :dashboard_network_office
 post '/dashboard/team-network/office/:key', to: 'dashboard/network_office#save'
 get '/dashboard/team-network/office/:key/export/:file_key', to: 'dashboard/network_office#export', as: :export_dashboard_network_office
@@ -81,3 +81,27 @@ scope '/dashboard/theater-delivery/:key', controller: 'dashboard/executive_dcp',
   get '/download', action: :download, as: :download_executive_dcp_delivery
   post '/acknowledge', action: :acknowledge, as: :acknowledge_executive_dcp_delivery
 end
+
+scope '/dashboard/shared-drives', controller: 'dashboard/shared_drives' do
+  get '/', action: :index, as: :dashboard_shared_drives
+  post '/', action: :create
+  get '/:id', action: :show, as: :dashboard_shared_drive
+  post '/:id/add', action: :add, as: :add_dashboard_shared_drive
+  post '/:id/grant', action: :grant, as: :grant_dashboard_shared_drive
+  patch '/:id/entries/:entry_id', action: :organize, as: :organize_dashboard_shared_drive
+  get '/:id/download/:entry_id', action: :download, as: :download_dashboard_shared_drive
+end
+
+resources :dashboard_shared_calendars, path: '/dashboard/shared-calendars', controller: 'dashboard/shared_calendars', only: %i[index show create] do
+  post :schedule, on: :member
+  patch 'events/:event_id', action: :reschedule, as: :reschedule, on: :member
+  post 'events/:event_id/respond', action: :respond, as: :respond, on: :member
+  post 'events/:event_id/cancel', action: :cancel, as: :cancel_event, on: :member
+  get 'events/:event_id/ics', action: :ics, as: :event_ics, on: :member
+end
+
+get '/dashboard/team-chat/:channel_id/office/:file_id/live', to: 'dashboard/team_office#live', as: :live_dashboard_team_office
+post '/dashboard/team-chat/:channel_id/office/:file_id/restore', to: 'dashboard/team_office#restore', as: :restore_dashboard_team_office
+get '/dashboard/team-network/office/:key/live/:file_key', to: 'dashboard/network_office#live', as: :live_dashboard_network_office
+post '/dashboard/team-network/office/:key/sync/:file_key', to: 'dashboard/network_office#sync', as: :sync_dashboard_network_office
+post '/dashboard/team-network/office/:key/restore/:file_key', to: 'dashboard/network_office#restore', as: :restore_dashboard_network_office

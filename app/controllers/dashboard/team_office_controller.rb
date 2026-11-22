@@ -6,13 +6,17 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   rescue_from LightekPeople::Access::Denied, with: -> { head :forbidden }
   rescue_from ActiveRecord::RecordNotFound, with: -> { head :not_found }
   rescue_from ActiveRecord::RecordInvalid, with: :invalid_file
-  rescue_from ActiveRecord::StaleObjectError do
-    @stale = true
-    @draft_content = fields[:content]
-    @draft_rich_text = @file.kind == 'document' && fields[:rich_text] == '1'
-    @file.reload
-    load_files
-    render :index, status: :conflict
+  rescue_from LightekOffice::Changes::Conflict, ActiveRecord::StaleObjectError do |error|
+    if request.format.json?
+      render json: {error: error.message, current: LightekOffice::Changes.snapshot(@file.reload)}, status: :conflict
+    else
+      @stale = true
+      @draft_content = fields[:content]
+      @draft_rich_text = @file.kind == 'document' && fields[:rich_text] == '1'
+      @file.reload
+      load_files
+      render :index, status: :conflict
+    end
   end
 
   def index
@@ -27,8 +31,39 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
 
   def update
     @file = files.find(params[:file_id])
-    @file.update!(fields.slice(:title, :content, :rich_text).merge(editor: current_user, lock_version: fields.require(:lock_version)))
+    attrs = fields.slice(:title, :content, :rich_text).to_h.symbolize_keys.merge(editor: current_user)
+    attrs[:rich_text] = @file.kind == 'document' && ActiveModel::Type::Boolean.new.cast(attrs[:rich_text]) == true
+    attrs[:content] = LightekOffice::Document.prepare!(attrs[:content].to_s) if attrs[:rich_text] && request.format.json?
+    autosave = request.format.json?
+    result = @file.with_lock do
+      attrs[:title] = @file.title if autosave
+      LightekOffice::Changes.write!(@file, attrs, expected: fields.require(:lock_version), merge: autosave)
+    end
+    autosave ? render(json: result) : saved
+  rescue ArgumentError => error
+    return render json: {error: error.message}, status: :unprocessable_entity if request.format.json?
+
+    @file.errors.add(:content, error.message)
+    load_files
+    render :index, status: :unprocessable_entity
+  end
+
+  def live
+    file = files.find(params[:file_id])
+    return head :no_content if params[:since].to_s == file.lock_version.to_s
+
+    render json: LightekOffice::Changes.snapshot(file)
+  end
+
+  def restore
+    @file = files.find(params[:file_id])
+    @file.with_lock do
+      LightekOffice::Changes.restore!(@file, version: params.require(:version), expected: params.require(:lock_version), actor: {editor: current_user})
+    end
     saved
+  rescue LightekOffice::Changes::Conflict
+    redirect_to dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id),
+      alert: 'Reload the file before restoring a version.', status: :see_other
   end
 
   def export
@@ -63,6 +98,8 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
     @files = files.order(updated_at: :desc).limit(100)
     return unless @file.persisted? && !@file.errors.any?
 
+    @history = LightekOffice::Changes.history(@file)
+
     case @file.kind
     when 'spreadsheet'
       @rows = LightekOffice::Content.calculate(@file.content)
@@ -79,6 +116,8 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   def invalid_file(error)
+    return render json: {error: error.record.errors.full_messages.to_sentence}, status: :unprocessable_entity if request.format.json?
+
     @file = error.record
     load_files
     render :index, status: :unprocessable_entity

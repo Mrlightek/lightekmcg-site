@@ -1,0 +1,36 @@
+<% content_for :page_title, "Shared drives" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <h1>Shared drives</h1>
+  <%= render "dashboard/shared_workspace/organization", destination: dashboard_shared_drives_path %>
+  <div class="network-columns">
+    <section class="network-pane">
+      <h2>Drive access</h2>
+      <% if @drives.empty? %><p>No shared drives yet.</p><% end %>
+      <ul><% @drives.each do |drive| %>
+        <li><%= link_to drive.name, dashboard_shared_drive_path(drive, employer_id: @employer.id) %></li>
+      <% end %></ul>
+      <% if @owner %>
+        <%= form_with url: dashboard_shared_drives_path(employer_id: @employer.id) do |form| %>
+          <%= form.label :name, "New drive name" %><%= form.text_field :name, required: true, maxlength: 120 %>
+          <%= form.submit "Create drive", class: "dd-topbar-btn dd-btn-primary" %>
+        <% end %>
+      <% end %>
+    </section>
+    <section class="network-pane">
+      <h2>Find files and folders</h2>
+      <%= form_with url: dashboard_shared_drives_path, method: :get do %>
+        <%= hidden_field_tag :employer_id, @employer.id %>
+        <%= label_tag :q, "Search names" %><%= search_field_tag :q, @query, maxlength: 100 %>
+        <%= submit_tag "Search", class: "dd-topbar-btn dd-btn-ghost" %>
+      <% end %>
+      <% if @results %>
+        <% if @results.empty? %><p>No matching files or folders.</p><% end %>
+        <ul><% @results.each do |entry| %>
+          <li><%= render "entry_link", entry: entry %> · <%= entry.drive.name %></li>
+        <% end %></ul>
+      <% end %>
+    </section>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

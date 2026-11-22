@@ -1,0 +1,7 @@
+<% if @employers.size > 1 %>
+  <%= form_with url: destination, method: :get do %>
+    <%= label_tag :employer_id, "Organization" %>
+    <%= select_tag :employer_id, options_from_collection_for_select(@employers, :id, :full_name, @employer.id) %>
+    <%= submit_tag "Switch", class: "dd-topbar-btn dd-btn-ghost" %>
+  <% end %>
+<% end %>

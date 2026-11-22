@@ -9,13 +9,14 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   rescue_from ActiveRecord::StaleObjectError do
     @stale = true
     @draft_content = fields[:content]
+    @draft_rich_text = @file.kind == 'document' && fields[:rich_text] == '1'
     @file.reload
     load_files
     render :index, status: :conflict
   end
 
   def index
-    @file = params[:file_id].present? ? files.find(params[:file_id]) : files.new(kind: 'document')
+    @file = params[:file_id].present? ? files.find(params[:file_id]) : files.new(kind: params[:kind].presence_in(LightekOffice::SharedFile::KINDS.keys) || 'document')
     load_files
   end
 
@@ -26,7 +27,7 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
 
   def update
     @file = files.find(params[:file_id])
-    @file.update!(fields.slice(:title, :content).merge(editor: current_user, lock_version: fields.require(:lock_version)))
+    @file.update!(fields.slice(:title, :content, :rich_text).merge(editor: current_user, lock_version: fields.require(:lock_version)))
     saved
   end
 
@@ -35,7 +36,8 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
     body, extension, mime = case file.kind
     when 'spreadsheet' then [LightekOffice::Content.csv(file.content), 'csv', 'text/csv']
     when 'presentation' then [file.content, 'md', 'text/markdown']
-    else [file.content, 'txt', 'text/plain']
+    else
+      file.rich_text? ? [LightekOffice::Document.export(file.content), 'html', 'text/html; charset=utf-8'] : [file.content, 'txt', 'text/plain']
     end
     send_data body, type: mime, filename: "#{file.title.parameterize.presence || 'presentation'}.#{extension}"
   end
@@ -54,7 +56,7 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   def files = LightekOffice::SharedFile.where(channel: @channel)
 
   def fields
-    params.require(:office_file).permit(:kind, :title, :content, :lock_version)
+    params.require(:office_file).permit(:kind, :title, :content, :lock_version, :rich_text)
   end
 
   def load_files

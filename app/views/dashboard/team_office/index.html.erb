@@ -1,12 +1,19 @@
 <% content_for :page_title, "Shared files" %>
-<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+  <%= render "dashboard/office/editor_assets" if @file.kind == "document" %>
+<% end %>
 <main class="network-collaboration" data-turbo="false">
   <%= link_to "← ##{@channel.name}", dashboard_team_channel_path(@channel, employer_id: @employer.id) %>
   <h1>Shared files</h1>
   <p>Members with access to #<%= @channel.name %> can view and edit these files.</p>
   <div class="network-columns">
     <aside class="network-pane">
-      <%= link_to "New file", dashboard_team_office_path(@channel, employer_id: @employer.id) %>
+      <nav aria-label="Create shared file">
+        <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
+          <%= link_to "New #{label.downcase}", dashboard_team_office_path(@channel, employer_id: @employer.id, kind: kind) %>
+        <% end %>
+      </nav>
       <ul>
         <% @files.each do |file| %>
           <li><%= link_to file.title, dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: file.id) %>
@@ -36,12 +43,14 @@
             <% if @slide_number < @slides.size %><%= link_to "Next slide", dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id, slide: @slide_number + 1) %><% end %>
           </nav>
         <% elsif @file.kind == "document" %>
-          <article class="network-text"><%= @file.content %></article>
+          <%= render "dashboard/office/document", content: @file.content, rich_text: @file.rich_text? %>
         <% end %>
       <% end %>
       <% if @stale %>
         <p role="alert">Someone saved a newer version. The editor below shows the latest text.</p>
-        <details open><summary>Your unsaved edits</summary><pre class="network-text"><%= @draft_content %></pre></details>
+        <details open><summary>Your unsaved edits</summary>
+          <%= render "dashboard/office/document", content: @draft_content, rich_text: @draft_rich_text %>
+        </details>
       <% end %>
       <% if @file.errors.any? %><ul role="alert"><% @file.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul><% end %>
       <details<%= " open" if @file.new_record? || @file.errors.any? || @stale %>>
@@ -49,15 +58,19 @@
         <% destination = @file.persisted? ? update_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) : dashboard_team_office_path(@channel, employer_id: @employer.id) %>
         <%= form_with model: @file, scope: :office_file, url: destination, method: (@file.persisted? ? :patch : :post) do |form| %>
           <%= form.hidden_field :lock_version if @file.persisted? %>
-          <% if @file.new_record? %><%= form.label :kind, "File type" %><%= form.select :kind, LightekOffice::SharedFile::KINDS.invert.to_a %><% end %>
+          <%= form.hidden_field :kind if @file.new_record? %>
           <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
-          <%= form.label :content, "Contents" %><%= form.text_area :content, required: true, rows: 12 %>
-          <% if @file.new_record? || @file.kind == "spreadsheet" %><p><small>Spreadsheets use CSV rows. Enter formulas such as <code>=SUM(A1:A5)</code> in a cell.</small></p><% end %>
-          <% if @file.new_record? || @file.kind == "presentation" %><p><small>Start each slide with its title. Put three dashes on a line between slides.</small></p><% end %>
+          <% if @file.kind == "document" %>
+            <%= render "dashboard/office/document_editor", form: form, content: @file.content, rich_text: @file.rich_text? %>
+          <% else %>
+            <%= form.label :content, "Contents" %><%= form.text_area :content, required: true, rows: 12 %>
+          <% end %>
+          <% if @file.kind == "spreadsheet" %><p><small>Spreadsheets use CSV rows. Enter formulas such as <code>=SUM(A1:A5)</code> in a cell.</small></p><% end %>
+          <% if @file.kind == "presentation" %><p><small>Start each slide with its title. Put three dashes on a line between slides.</small></p><% end %>
           <%= form.submit "Save shared file", class: "dd-topbar-btn dd-btn-primary" %>
         <% end %>
       </details>
     </section>
   </div>
 </main>
-<link rel="stylesheet" href="/lightek/network-collaboration.css?v=2">
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

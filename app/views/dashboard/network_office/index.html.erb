@@ -1,12 +1,21 @@
 <% content_for :page_title, "Shared files" %>
-<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+  <%= render "dashboard/office/editor_assets" if @kind == "document" %>
+<% end %>
 <main class="network-collaboration" data-turbo="false">
   <%= link_to "← Network channel", dashboard_network_team_path(key: params[:key]) %>
   <h1>Shared files</h1>
   <p>Files follow the network channel’s membership.</p>
   <div class="network-columns">
     <aside class="network-pane">
-      <%= link_to "New file", dashboard_network_office_path(params[:key]) %>
+      <% unless @read_only %>
+        <nav aria-label="Create network shared file">
+          <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
+            <%= link_to "New #{label.downcase}", dashboard_network_office_path(params[:key], kind: kind) %>
+          <% end %>
+        </nav>
+      <% end %>
       <ul>
         <% @files.each do |file| %>
           <li><%= link_to file.fetch("title"), dashboard_network_office_path(params[:key], file_key: file.fetch("key")) %>
@@ -36,24 +45,31 @@
             <% if @slide_number < @slides.size %><%= link_to "Next slide", dashboard_network_office_path(params[:key], file_key: @file.fetch("key"), slide: @slide_number + 1) %><% end %>
           </nav>
         <% elsif @file.fetch("kind") == "document" %>
-          <article class="network-text"><%= @file.fetch("content") %></article>
+          <%= render "dashboard/office/document", content: @file.fetch("content"), rich_text: @file["rich_text"] %>
         <% end %>
       <% end %>
       <% if @draft %>
-        <details open><summary>Your unsaved changes</summary><pre class="network-text"><%= @draft["content"] %></pre></details>
+        <details open><summary>Your unsaved changes</summary>
+          <%= render "dashboard/office/document", content: @draft["content"], rich_text: @draft["rich_text"] == "1" %>
+        </details>
         <%= link_to "Reload shared file", dashboard_network_office_path(params[:key], file_key: (@draft["file_key"] if @draft["lock_version"].present?)) %>
       <% elsif !@read_only && @file_key %>
         <%= form_with scope: :network_office_file, url: dashboard_network_office_path(params[:key]) do |form| %>
           <%= form.hidden_field :file_key, value: @file_key %>
           <% if @file %><%= form.hidden_field :lock_version, value: @file.fetch("lock_version") %>
-          <% else %><%= form.label :kind, "File type" %><%= form.select :kind, LightekOffice::SharedFile::KINDS.invert.to_a %><% end %>
+          <% else %><%= form.hidden_field :kind, value: @kind %><% end %>
           <%= form.label :title %><%= form.text_field :title, value: @file&.fetch("title"), required: true, maxlength: 160 %>
-          <%= form.label :content, "Contents" %><%= form.text_area :content, value: @file&.fetch("content"), required: true, rows: 12 %>
-          <p><small>Use CSV rows for spreadsheets and three dashes on a separate line between slides.</small></p>
+          <% if @kind == "document" %>
+            <%= render "dashboard/office/document_editor", form: form, content: @file&.fetch("content"), rich_text: @file&.fetch("rich_text", false) %>
+          <% else %>
+            <%= form.label :content, "Contents" %><%= form.text_area :content, value: @file&.fetch("content"), required: true, rows: 12 %>
+            <% if @kind == "spreadsheet" %><p><small>Use CSV rows and enter formulas such as <code>=SUM(A1:A5)</code>.</small></p>
+            <% else %><p><small>Start each slide with a title and put three dashes on a line between slides.</small></p><% end %>
+          <% end %>
           <%= form.submit "Save shared file", class: "dd-topbar-btn dd-btn-primary" %>
         <% end %>
       <% end %>
     </section>
   </div>
 </main>
-<link rel="stylesheet" href="/lightek/network-collaboration.css?v=2">
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

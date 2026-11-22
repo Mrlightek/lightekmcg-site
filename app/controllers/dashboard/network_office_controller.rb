@@ -14,12 +14,13 @@ class Dashboard::NetworkOfficeController < DymondDash::ApplicationController
       @slide_number = params[:slide].to_i.clamp(1, [@slides.size, 1].max)
       @slide = @slides[@slide_number - 1]
     end
+    @kind = @file&.fetch('kind') || params[:kind].presence_in(LightekOffice::SharedFile::KINDS.keys) || 'document'
     @file_key = @file&.fetch('key') || SecureRandom.hex(16)
     @read_only = @installation.request('installation/team/show', key: params[:key]).fetch('status') != 'connected'
   end
 
   def save
-    fields = params.require(:network_office_file).permit(:kind, :title, :content, :file_key, :lock_version)
+    fields = params.require(:network_office_file).permit(:kind, :title, :content, :file_key, :lock_version, :rich_text)
     @draft = fields.to_h
     operation = fields[:lock_version].present? ? 'update' : 'create'
     result = request_office(operation, fields.to_h.symbolize_keys)
@@ -30,6 +31,8 @@ class Dashboard::NetworkOfficeController < DymondDash::ApplicationController
     file = request_office('show', file_key: params.require(:file_key))
     if file['kind'] == 'spreadsheet'
       send_data LightekOffice::Content.csv(file.fetch('content')), filename: 'spreadsheet.csv', type: 'text/csv'
+    elsif file['kind'] == 'document' && file['rich_text']
+      send_data LightekOffice::Document.export(file.fetch('content')), filename: 'document.html', type: 'text/html; charset=utf-8'
     else
       send_data file.fetch('content'), filename: file['kind'] == 'presentation' ? 'slides.md' : 'document.txt', type: 'text/plain'
     end

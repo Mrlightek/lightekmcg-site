@@ -115,8 +115,19 @@ module LightekTeam
         file = operation == 'create' ? files.find_or_initialize_by(key: key) : files.find_by!(key: key)
         return office_summary(file).merge(content: file.content) if operation == 'show'
 
+        kind = file.new_record? ? values['kind'] : file.kind
+        rich_text = kind == 'document' && ActiveModel::Type::Boolean.new.cast(values['rich_text']) == true
+        raw = values.fetch('content').to_s
+        if rich_text
+          content = LightekOffice::Document.prepare!(raw)
+        else
+          LightekOffice::Content.validate!(kind, raw)
+          content = raw
+        end
+
         if operation == 'create' && file.persisted?
-          unless file.editor_peer_id == @peer.id && file.kind == values['kind'] && file.title == values['title'] && file.content == values['content']
+          unless file.editor_peer_id == @peer.id && file.kind == values['kind'] && file.title == values['title'] &&
+              file.content == content && file.rich_text? == rich_text
             raise ArgumentError, 'This file request already exists.'
           end
           return office_summary(file)
@@ -126,10 +137,7 @@ module LightekTeam
           raise ArgumentError, 'The file changed. Reload it before saving again.'
         end
 
-        file.kind = values['kind'] if file.new_record?
-        content = values.fetch('content').to_s
-        LightekOffice::Content.validate!(file.kind, content)
-        file.update!(title: values['title'], content: content, editor_peer: @peer, editor_name: @actor_name)
+        file.update!(kind: kind, title: values['title'], content: content, rich_text: rich_text, editor_peer: @peer, editor_name: @actor_name)
         office_summary(file)
       end
     end
@@ -137,7 +145,7 @@ module LightekTeam
     private
 
     def office_summary(file)
-      {key: file.key, title: file.title, kind: file.kind, lock_version: file.lock_version,
+      {key: file.key, title: file.title, kind: file.kind, rich_text: file.rich_text?, lock_version: file.lock_version,
         editor: file.editor_name, organization: file.editor_peer.site.host}
     end
 

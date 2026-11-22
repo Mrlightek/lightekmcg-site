@@ -18,7 +18,12 @@ module LightekOffice
     private
 
     def valid_content
-      LightekOffice::Content.validate!(kind, content.to_s)
+      self.rich_text = false unless kind == 'document'
+      if rich_text?
+        self.content = Document.prepare!(content.to_s)
+      else
+        Content.validate!(kind, content.to_s)
+      end
     rescue ArgumentError => error
       errors.add(:content, error.message)
     end

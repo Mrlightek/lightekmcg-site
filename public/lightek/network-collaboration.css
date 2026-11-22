@@ -22,3 +22,13 @@
 .office-sheet td, .office-sheet th { border: 1px solid var(--dd-border); padding: 6px 10px; text-align: left; }
 .office-slide { min-height: 220px; display: grid; align-content: center; padding: clamp(20px, 5vw, 50px); margin: 12px 0; border: 1px solid var(--dd-border); border-radius: 12px; }
 .office-slide h3 { font-size: clamp(1.3rem, 4vw, 2.4rem); margin: 0; }
+.network-pane nav { flex-wrap: wrap; }
+.office-document { margin-block: 1rem; }
+.network-pane trix-editor {
+  background: var(--dd-bg-elevated, var(--dd-card-bg));
+  min-height: 14rem;
+  margin: .5rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+.network-pane trix-toolbar { margin-top: .5rem; }
+.network-pane trix-toolbar .trix-button-group--file-tools { display: none; }

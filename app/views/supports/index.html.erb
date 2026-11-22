@@ -432,7 +432,13 @@ const CATEGORIES = <%= raw @categories.map { |id, meta|
 }.to_json %>;
 // ── EXISTING TICKETS DATA ────────────────────
 // ── EXISTING TICKETS DATA — real, from Marlon::Ticket, not hardcoded ───────
-const MY_TICKETS = <%= raw @my_tickets_json.to_json %>;
+const MY_TICKETS = <%= raw json_escape(@my_tickets_json.to_json) %>;
+
+function escapeTicketText(value) {
+  const node = document.createElement('span');
+  node.textContent = value ?? '';
+  return node.innerHTML;
+}
 
 let selectedCategory=null;
 let selectedPriority='medium';
@@ -475,8 +481,8 @@ function renderHub(){
     return `<div class="tp-item" onclick="showView('tracker')">
       <div class="tp-cat-dot" style="background:${cat.color};"></div>
       <div class="tp-info">
-        <div class="tpi-num">${t.num}</div>
-        <div class="tpi-subject">${t.subject}</div>
+        <div class="tpi-num">${escapeTicketText(t.num)}</div>
+        <div class="tpi-subject">${escapeTicketText(t.subject)}</div>
       </div>
       <div class="tp-cat" style="border-color:${cat.color}40;color:${cat.color};">${cat.name}</div>
       <div class="tp-status ${t.status==='open'?'st-open':t.status==='progress'?'st-progress':'st-resolved'}">${t.status==='open'?'OPEN':t.status==='progress'?'IN PROGRESS':'RESOLVED'}</div>
@@ -717,10 +723,7 @@ function submitTicket(){
     if(!data.ok){alert(data.error||'Could not submit ticket.');return;}
     const ticketNum=data.number;
     const now=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-    // Reflect the new ticket locally so the tracker shows it without a reload.
-    MY_TICKETS.unshift({id:data.id,num:ticketNum,cat:c.id,subject:subject,status:'open',time:'just now',
-      priority:selectedPriority.toUpperCase(),
-      events:[{time:now,dot:c.color,action:'Ticket submitted',detail:description}]});
+    MY_TICKETS.unshift(data.ticket);
     // populate confirm
     document.getElementById('conf-ticket-num').textContent='TICKET: '+ticketNum;
     document.getElementById('conf-num2').textContent=ticketNum;
@@ -748,32 +751,32 @@ function renderTracker(){
     const cat=CATEGORIES.find(c=>c.id===t.cat);
     return `
     <div class="ticket-detail">
-      <div class="td-header" onclick="toggleTicket('${t.num}',this)">
+      <div class="td-header" onclick="toggleTicket(${t.id})">
         <div class="td-cat-stripe" style="background:${cat.color};"></div>
         <div class="td-main">
-          <div class="tdm-num">${t.num}</div>
-          <div class="tdm-subject">${t.subject}</div>
+          <div class="tdm-num">${escapeTicketText(t.num)}</div>
+          <div class="tdm-subject">${escapeTicketText(t.subject)}</div>
         </div>
         <div class="td-cat-badge" style="border-color:${cat.color}40;color:${cat.color};">${cat.name}</div>
         <div class="td-status-badge ${t.status==='open'?'st-open':t.status==='progress'?'st-progress':'st-resolved'}">${t.status==='open'?'OPEN':t.status==='progress'?'IN PROGRESS':'RESOLVED'}</div>
         <div class="td-time">${t.time}</div>
       </div>
-      <div class="td-body" id="body-${t.num}">
+      <div class="td-body" id="body-${t.id}">
         <div class="tdb-timeline">
           ${t.events.map(e=>`
             <div class="tdb-event">
               <div class="tdbe-time">${e.time}</div>
               <div class="tdbe-dot" style="background:${e.dot};"></div>
               <div class="tdbe-body">
-                <div class="tdbeb-action">${e.action}</div>
-                <div class="tdbeb-detail">${e.detail}</div>
+                <div class="tdbeb-action">${escapeTicketText(e.action)}</div>
+                <div class="tdbeb-detail">${escapeTicketText(e.detail)}</div>
               </div>
             </div>`).join('')}
         </div>
         ${t.status!=='resolved'?`
         <div class="tdb-reply">
           <div class="tdbr-label">REPLY TO YOUR REP</div>
-          <textarea class="tdbr-input" rows="3" placeholder="Add additional context, confirm information, or ask a follow-up question…"></textarea>
+          <textarea class="tdbr-input" rows="3" maxlength="8000" placeholder="Add additional context, confirm information, or ask a follow-up question…"></textarea>
           <button class="tdbr-send" onclick="sendReply(this,${t.id})">SEND REPLY →</button>
         </div>`:'<div style="font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);padding:12px 0;">✓ TICKET RESOLVED — Closed '+t.time+'</div>'}
       </div>
@@ -782,14 +785,15 @@ function renderTracker(){
   addHoverFX();
 }
 
-function toggleTicket(num,header){
-  const body=document.getElementById('body-'+num);
+function toggleTicket(ticketId){
+  const body=document.getElementById('body-'+ticketId);
   if(body)body.classList.toggle('open');
 }
 
 function sendReply(btn,ticketId){
   const textarea=btn.parentElement.querySelector('.tdbr-input');
-  const detail=textarea?.value||'';
+  const detail=textarea?.value.trim()||'';
+  if(!detail){textarea?.focus();return;}
   const csrf=document.querySelector('meta[name="csrf-token"]')?.content;
   btn.disabled=true;
   fetch(`/supports/${ticketId}/reply`,{
@@ -798,11 +802,13 @@ function sendReply(btn,ticketId){
     body:JSON.stringify({detail:detail})
   }).then(r=>r.json()).then(data=>{
     if(data.ok){
-      btn.textContent='✓ REPLY SENT';
-      btn.style.background='var(--green)';
+      const index=MY_TICKETS.findIndex(ticket=>ticket.id===ticketId);
+      if(index!==-1) MY_TICKETS[index]=data.ticket;
+      renderTracker();
+      toggleTicket(ticketId);
     }else{
       btn.disabled=false;
-      alert('Could not send reply.');
+      alert(data.error||'Could not send reply.');
     }
   }).catch(()=>{btn.disabled=false;alert('Network error — reply was not sent.');});
 }

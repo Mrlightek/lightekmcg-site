@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../../services/nevaeh_intelligences/gatekeeper_incident_recovery"
+
 module NevaehIntelligences
   class ProcessBacklogJob < ApplicationJob
     queue_as :default
@@ -15,6 +17,9 @@ module NevaehIntelligences
         return receipt["outcome"] if receipt["state"] == "completed"
         journal!(ticket, "running")
         outcome = TicketBacklog.process!(ticket: ticket)
+        if outcome == "escalated" && ticket.extra_fields.to_h.dig("nevaeh_backlog", "incident_triage", "status") == "follow_up_recorded"
+          outcome = GatekeeperIncidentRecovery.reconcile!(ticket: ticket) || outcome
+        end
         journal!(ticket, "completed", outcome: outcome)
         return outcome
       end

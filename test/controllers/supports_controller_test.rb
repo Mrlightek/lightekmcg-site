@@ -1,48 +1,66 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class SupportsControllerTest < ActionDispatch::IntegrationTest
+  PASSWORD = "support-hub-test-password"
+
   setup do
-    @support = supports(:one)
+    @customer = customer
+    post session_path, params: { email_address: @customer.email_address, password: PASSWORD }
+    assert_response :redirect
+    assert Session.exists?(user: @customer)
   end
 
-  test "should get index" do
-    get supports_url
+  test "technical support intake returns the persisted customer ticket" do
+    post supports_path, params: { ticket: { category: "technical", title: "Mail delivery",
+      description: "Mail is delayed", priority: "medium", urgency: 5 } }, as: :json
     assert_response :success
+    receipt = response.parsed_body
+    ticket = Marlon::Ticket.find(receipt.fetch("id"))
+    assert_equal @customer, ticket.submitted_by
+    assert_equal "support_hub", ticket.extra_fields.fetch("source")
+    assert_equal ticket.number, receipt.dig("ticket", "num")
+    assert_equal "Ticket submitted", receipt.dig("ticket", "events", 0, "action")
   end
 
-  test "should get new" do
-    get new_support_url
-    assert_response :success
-  end
+  test "replies are scoped to the owning customer and return a public timeline" do
+    ticket = support_ticket(@customer)
+    foreign_ticket = support_ticket(customer)
+    ticket.log!(action: "nevaeh_backlog_escalated", detail: "private engineering plan")
+    ticket.log!(action: "nevaeh_backlog_job_completed", detail: "private job receipt")
 
-  test "should create support" do
-    assert_difference("Support.count") do
-      post supports_url, params: { support: {} }
+    assert_no_difference -> { foreign_ticket.events.count } do
+      patch reply_support_path(foreign_ticket), params: { detail: "Follow-up" }, as: :json
+      assert_response :not_found
     end
 
-    assert_redirected_to support_url(Support.last)
-  end
-
-  test "should show support" do
-    get support_url(@support)
+    patch reply_support_path(ticket), params: { detail: "Mail has arrived." }, as: :json
     assert_response :success
+    timeline = response.parsed_body.dig("ticket", "events")
+    assert_equal ["Nevaeh support update", "#{@customer.full_name} replied"], timeline.pluck("action")
+    assert_equal "Mail has arrived.", timeline.last.fetch("detail")
+    refute_includes response.body, "private engineering plan"
+    refute_includes response.body, "private job receipt"
   end
 
-  test "should get edit" do
-    get edit_support_url(@support)
-    assert_response :success
-  end
-
-  test "should update support" do
-    patch support_url(@support), params: { support: {} }
-    assert_redirected_to support_url(@support)
-  end
-
-  test "should destroy support" do
-    assert_difference("Support.count", -1) do
-      delete support_url(@support)
+  test "closed tickets cannot be changed through customer replies" do
+    ticket = support_ticket(@customer, status: "resolved")
+    assert_no_difference -> { ticket.events.count } do
+      patch reply_support_path(ticket), params: { detail: "Follow-up" }, as: :json
+      assert_response :conflict
     end
+  end
 
-    assert_redirected_to supports_url
+  private
+
+  def customer
+    User.create!(email_address: "support-#{SecureRandom.hex(8)}@example.test",
+      first_name: "Support", last_name: "Customer", role: "client", password: PASSWORD)
+  end
+
+  def support_ticket(owner, status: "open")
+    Marlon::Ticket.create!(submitted_by: owner, category: "technical", title: "Mail delivery",
+      description: "Mail is delayed", priority: "medium", urgency: 5, status: status)
   end
 end

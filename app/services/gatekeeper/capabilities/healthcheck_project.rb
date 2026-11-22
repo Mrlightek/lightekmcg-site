@@ -3,6 +3,8 @@ require "shellwords"
 module Gatekeeper
   module Capabilities
     class HealthcheckProject
+      class Unhealthy < StandardError; end
+
       def self.call(node:, project:, parameters: {})
         raise ArgumentError, "project is required" unless project
 
@@ -20,7 +22,7 @@ module Gatekeeper
         unless execution.success?
           project.update!(status: "degraded", last_healthcheck_at: Time.current)
           node.update!(status: "degraded", last_healthcheck_at: Time.current)
-          raise "healthcheck failed: #{execution.output}"
+          raise Unhealthy, "healthcheck failed: #{execution.output}"
         end
 
         project.update!(status: "healthy", last_healthcheck_at: Time.current)

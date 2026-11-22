@@ -38,8 +38,6 @@ module Marlon
       log!(action: "Ticket resolved", actor: actor)
     end
 
-    private
-
     def enqueue_nevaeh_backlog
       return if status == "resolved"
       return unless NevaehIntelligences::TicketBacklog.enabled?
@@ -48,6 +46,8 @@ module Marlon
       # The recurring DB sweep recovers tickets committed during Redis outages.
       Rails.logger.error("Nevaeh intake enqueue failed ticket_id=#{id}: #{error.class}: #{error.message}")
     end
+
+    private
 
     def assign_number
       self.number ||= "LT-#{SecureRandom.random_number(9000) + 1000}"

@@ -31,7 +31,7 @@ class Dashboard::CustomerServiceController < ApplicationController
   end
 
   def reply
-    support.reply!(ticket: @ticket, actor: current_user, message: params[:message])
+    support.reply!(ticket: @ticket, actor: current_user, message: params[:support_reply])
     redirect_to dashboard_customer_case_path(@ticket), status: :see_other
   end
 
@@ -42,7 +42,7 @@ class Dashboard::CustomerServiceController < ApplicationController
     response.headers["Referrer-Policy"] = "same-origin"
     # Connect sessions can manage the configured installation. This workspace
     # contains the signed-in person's own billing and support history.
-    head :forbidden if Current.session&.connect_delegation.present?
+    head :forbidden if Current.session&.connect_delegation.present? || !LightekPeople::LifecycleAccess.active?(current_user)
   end
 
   def billing_balance(invoice)

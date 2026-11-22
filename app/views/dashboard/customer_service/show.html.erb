@@ -24,8 +24,8 @@
   <section class="lp-card">
     <h2><%= @ticket.status == "resolved" ? "Need more help?" : "Add a reply" %></h2>
     <%= form_with url: dashboard_customer_case_path(@ticket), method: :patch, class: "lp-form" do |form| %>
-      <%= form.label :message, "Your message" %>
-      <%= form.text_area :message, rows: 4, required: true, maxlength: 4_000 %>
+      <%= form.label :support_reply, "Your message" %>
+      <%= form.text_area :support_reply, rows: 4, required: true, maxlength: 4_000 %>
       <%= form.submit(@ticket.status == "resolved" ? "Reopen and send" : "Send reply", class: "lp-button") %>
     <% end %>
   </section>

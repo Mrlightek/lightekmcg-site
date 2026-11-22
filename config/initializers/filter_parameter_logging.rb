@@ -27,3 +27,6 @@ Rails.application.config.filter_redirect += [%r{[?&](?:code_challenge|state)=}]
 Rails.application.config.filter_parameters += [:view_session]
 
 Rails.application.config.filter_parameters += [:vast_tag, :decision_key, :viewing_code]
+
+# Customer support messages may contain sensitive account details.
+Rails.application.config.filter_parameters += [:support_case, :support_reply]

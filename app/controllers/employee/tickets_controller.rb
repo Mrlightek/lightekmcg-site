@@ -101,10 +101,11 @@ module Employee
 
     def reply
       authorize! :reply, @ticket
+      detail = NevaehCustomerService::Cases.customer_case?(@ticket) ? params[:support_reply] : params[:detail]
       if params[:customer_visible] == "1"
-        NevaehCustomerService::Cases.staff_reply!(ticket: @ticket, actor: current_user, message: params[:detail])
+        NevaehCustomerService::Cases.staff_reply!(ticket: @ticket, actor: current_user, message: detail)
       else
-        @ticket.log!(action: "#{current_user.full_name} replied", detail: params[:detail], actor: current_user)
+        @ticket.log!(action: "#{current_user.full_name} replied", detail: detail, actor: current_user)
         @ticket.update!(status: "in_progress") if @ticket.status == "open"
       end
       redirect_to employee_ticket_path(@ticket), notice: "Reply logged."

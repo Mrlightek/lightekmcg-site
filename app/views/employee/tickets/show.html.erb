@@ -31,7 +31,8 @@
 <div class="dd-card">
   <div class="dd-card-title">Reply</div>
   <%= form_with url: reply_employee_ticket_path(@ticket), method: :patch do %>
-    <textarea name="detail" rows="3" class="fg-input" placeholder="Add a reply to this ticket's timeline..." style="width:100%;"></textarea>
+    <%= text_area_tag(NevaehCustomerService::Cases.customer_case?(@ticket) ? :support_reply : :detail,
+      nil, rows: 3, class: "fg-input", placeholder: "Add a reply to this ticket's timeline...", style: "width:100%;") %>
     <div style="margin-top:8px;">
       <% if NevaehCustomerService::Cases.customer_case?(@ticket) %>
         <label><%= check_box_tag :customer_visible, "1" %> Show this reply to the customer</label>

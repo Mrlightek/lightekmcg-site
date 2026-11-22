@@ -141,6 +141,8 @@ require Rails.root.join('app/models/website_template_inquiry')
 require Rails.root.join('app/services/lightek_commerce/industry_starters')
 require Rails.root.join('app/controllers/dashboard/website_designs_controller')
 require Rails.root.join('app/controllers/gatekeeper/hosted_sites_controller')
+require Rails.root.join('app/services/lightek_growth/search_discovery')
+require Rails.root.join('app/controllers/website_search_discovery_controller')
 require Rails.root.join('app/jobs/lightek_design/html_import_job')
 require Rails.root.join('app/controllers/dashboard/design_studio_controller')
 Dashboard::DesignStudioController.layout false
@@ -152,6 +154,8 @@ Rails.application.routes.append do
   get '/dashboard/design-studio/:id/edit',to:'dashboard/design_studio#edit',as: :edit_dashboard_design_studio
   get '/dashboard/design-content',to:'dashboard/website_designs#index'
   get '/site/:slug',to:'gatekeeper/hosted_sites#show'
+  get '/robots.txt', to: 'website_search_discovery#robots', format: false
+  get '/sitemap.xml', to: 'website_search_discovery#sitemap', format: false
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
   post '/dashboard/website/designs/upload',to:'dashboard/website_designs#upload_html',as: :upload_dashboard_website_designs
@@ -242,6 +246,33 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
     assert_equal count,DymondSite::SiteTemplate.count
     assert_empty @site.pages
   end
+  def test_site_search_discovery_only_lists_public_urls_for_the_request_host
+    @site.pages.create!(title: "Home", slug: "home", published: true)
+    @site.pages.create!(title: "Draft", slug: "draft", published: false)
+    @foreign.pages.create!(title: "Other site", slug: "other", published: true)
+    entry = article
+
+    get "/robots.txt"
+    assert_response :success
+    assert_includes response.body, "Sitemap: https://#{@site.host}/sitemap.xml"
+
+    get "/sitemap.xml", params: { site_id: @foreign.id }
+    assert_response :success
+    assert_equal "application/xml", response.media_type
+    assert_equal ["https://#{@site.host}/site/home"], Nokogiri::XML(response.body).xpath("//s:loc", "s" => "http://www.sitemaps.org/schemas/sitemap/0.9").map(&:text)
+
+    LightekBlog::Editor.save!(site: @site, user: @user, entry: entry, attributes: { title: entry.post.title,
+      content: entry.post.content, slug: entry.slug, status: "published", lock_version: entry.lock_version })
+    get "/sitemap.xml"
+    assert_response :success
+    assert_equal ["https://#{@site.host}/site/home", "https://#{@site.host}/blog/#{entry.slug}"],
+      Nokogiri::XML(response.body).xpath("//s:loc", "s" => "http://www.sitemaps.org/schemas/sitemap/0.9").map(&:text)
+
+    host! "unknown.test"
+    get "/sitemap.xml"
+    assert_response :not_found
+  end
+
   def test_site_article_draft_preview_publish_archive_and_public_host_isolation
     entry=article
     get "/blog/#{entry.slug}";assert_response :not_found

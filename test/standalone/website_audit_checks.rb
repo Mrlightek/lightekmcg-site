@@ -82,6 +82,7 @@ class WebsiteAuditChecks < SiteContentChecks
     fix = preview(value: 'Tools for creators <and> businesses.')
     refute LightekGrowth::PageMetadata.exists?(page: @page)
     refute_includes html, 'name="description"'
+    assert_includes html, %(rel="canonical" href="https://#{@site.host}/site/home")
     assert_equal 'prepared', fix.status
     fixer.apply!(id: fix.id, version: fix.lock_version)
     assert_equal 'applied', fix.reload.status

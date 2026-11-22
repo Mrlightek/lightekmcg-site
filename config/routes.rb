@@ -392,6 +392,8 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   
 # ── Public site ──────────────────────────────────────────────────────────────
 draw :media_website
+get "/robots.txt", to: "website_search_discovery#robots", format: false
+get "/sitemap.xml", to: "website_search_discovery#sitemap", format: false
 get "/", to: redirect("/site/home", status: 302),constraints: { host: /(?:www\.)?lightekmcg\.com/ }
 get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
 get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }

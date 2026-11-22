@@ -13,6 +13,7 @@ ActiveRecord::Schema.define do
   create_table(:lightek_mail_domains) { |t| t.integer :user_id; t.string :name; t.string :verification_token; t.datetime :verified_at }
   create_table(:lightek_mail_accounts) do |t|
     t.integer :user_id; t.integer :domain_id; t.integer :auto_template_id
+    t.bigint :installation_peer_id
     t.string :address; t.string :display_name; t.boolean :enabled, default:false
     t.integer :daily_limit,default:100; t.integer :minute_limit,default:5; t.integer :hour_limit,default:25; t.integer :storage_limit,default:1048576
     t.datetime :suspended_at; t.boolean :auto_reply_enabled,default:false; t.string :token_digest; t.string :token_hint
@@ -44,6 +45,7 @@ path = ROOT+'/db/migrate/20261122180000_add_nevaeh_support_sender_to_mail_policy
 eval(File.read(path).sub('Migration[8.0]',"Migration[#{version}]"),TOPLEVEL_BINDING,path)
 2.times { AddNevaehSupportSenderToMailPolicy.new.migrate(:up) }
 class ApplicationRecord < ActiveRecord::Base; self.abstract_class = true; end
+require ROOT+'/app/models/lightek_reservations/peer'
 class User < ApplicationRecord
   def can_access_feature?(*) = true
 end

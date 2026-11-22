@@ -240,6 +240,12 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/guide", to: "dashboard/nevaeh_os#guide", as: :dashboard_nevaeh_guide
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
+  post "/dashboard/agencies/onboarding/email", to: "dashboard/agencies#request_onboarding_email", as: :request_agency_onboarding_email
+  get "/dashboard/nevaeh/improvements", to: "dashboard/nevaeh_improvement#show", as: :dashboard_nevaeh_improvement
+  post "/dashboard/nevaeh/improvements/:id/decision", to: "dashboard/nevaeh_improvement#decide", as: :decide_nevaeh_improvement
+  get "/dashboard/nevaeh/onboarding", to: "dashboard/nevaeh_onboarding#show", as: :dashboard_nevaeh_onboarding
+  post "/dashboard/nevaeh/onboarding/playbooks/:id/approve", to: "dashboard/nevaeh_onboarding#approve", as: :approve_nevaeh_onboarding_playbook
+  post "/dashboard/nevaeh/onboarding/playbooks/:id/reject", to: "dashboard/nevaeh_onboarding#reject", as: :reject_nevaeh_onboarding_playbook
   get "/dashboard/nevaeh/workforce", to: "dashboard/nevaeh_os#workforce"
   get "/dashboard/nevaeh/worker_reports", to: "dashboard/nevaeh_os#worker_reports"
   post "/dashboard/nevaeh/worker_reports/:id/reviews", to: "dashboard/nevaeh_os#review_worker_report"

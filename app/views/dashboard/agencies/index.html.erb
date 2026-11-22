@@ -9,6 +9,19 @@
       <%= link_to 'Agency demos', dashboard_agency_trials_path, class: 'infra-button' %>
     <% end %>
   </header>
+  <% if @paid_trial %>
+    <section class="infra-panel" aria-labelledby="agency-mailbox-title">
+      <h2 id="agency-mailbox-title">Branded mailbox</h2>
+      <% if @branded_mailbox&.sending_ready? %>
+        <%= link_to @branded_mailbox.address, dashboard_mail_path(account_id: @branded_mailbox.id) %>
+      <% elsif @needs_email_confirmation %>
+        <p>Verify your sign-in email to finish mailbox setup.</p>
+        <%= button_to 'Send confirmation email', request_agency_onboarding_email_path, class: 'infra-button' %>
+      <% else %>
+        <p>Nevaeh is checking mailbox readiness.</p>
+      <% end %>
+    </section>
+  <% end %>
   <% if @agencies.size > 1 %>
     <section class="infra-panel">
       <%= form_with url: dashboard_agencies_path, method: :get, class: 'agency-switch' do |f| %>

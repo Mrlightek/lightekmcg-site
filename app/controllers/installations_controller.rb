@@ -3,6 +3,7 @@ class InstallationsController < ApplicationController
   skip_authorization_check
   layout "installations"
   before_action :private_response
+  after_action :record_purchased_service_visit, only: :show
   rate_limit to: 5, within: 1.minute, only: %i[access retry_installation]
   protect_from_forgery with: :exception
 
@@ -61,6 +62,14 @@ class InstallationsController < ApplicationController
   end
 
   private
+
+  def record_purchased_service_visit
+    return unless response.successful? && request.format.html? && Current.session&.connect_delegation.blank?
+
+    NevaehImprovement::PurchasedService.record_visit!(current_user, @order)
+  rescue StandardError => error
+    Rails.logger.warn("[Nevaeh improvement] Installation visit evidence failed: #{error.class}")
+  end
 
   def customer_order
     scope = LightekCommerce::Installations.scope_for(current_user)

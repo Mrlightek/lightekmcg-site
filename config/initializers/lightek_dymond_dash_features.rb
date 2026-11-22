@@ -8,6 +8,16 @@ Rails.application.config.after_initialize do
   next unless defined?(DymondDash::FeatureRegistry)
 
   DymondDash::FeatureRegistry.register do |f|
+    f.slug = :customer_service
+    f.label = "Customer Service & Billing"
+    f.icon = "ticket"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan = :starter
+    f.nav_items = [{label: "Customer Service & Billing", icon: "ticket", path: "main_app.dashboard_customer_service_path"}]
+  end
+
+  DymondDash::FeatureRegistry.register do |f|
     f.slug = :sales_crm
     f.label = "Sales & CRM"
     f.icon = "chart-funnel"

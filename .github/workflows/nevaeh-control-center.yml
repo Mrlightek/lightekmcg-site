@@ -101,7 +101,7 @@ jobs:
         run: bundle exec ruby test/standalone/nevaeh_runtime_backfill_checks.rb --name '/NevaehRuntimeBackfillChecks/'
       - name: Verify workforce lifecycle and current-page context
         run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
-      - name: Verify technical intake, scheduled probes and incident resolution
+      - name: Verify customer support, billing, and technical incident workflows
         run: bundle exec ruby test/standalone/nevaeh_backlog_test.rb
       - name: Verify bounded worker recovery against simulated host services
         run: python3 test/standalone/gatekeeper_project_health_test.py

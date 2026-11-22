@@ -464,3 +464,12 @@ Scheduled definitions explicitly select Active Job dispatch with the pinned Side
 ## PWA launch setup controls
 
 Super administrators can configure central YouTube selection and launch switches through revenue administration, verify channel authorization, and store the payment callback signing secret encrypted in Vault. Web and worker consumers use the same persisted settings, with legacy environment fallbacks. Real payments, uploads, external mail and member-server acceptance remain separate production checks.
+
+## Nevaeh Customer Service and Accounting & Billing
+
+- **Customer Service & Billing** in the Dashboard shows private support cases, issued Dymond Bank invoices, overdue balances and subscriptions. Nevaeh answers verified invoice, subscription and application setup status requests, routes other cases to the appropriate team, and reopens a case when the customer replies. Staff can share replies in the customer conversation from Tickets.
+- **Nevaeh Workforce** includes a Customer Service SME for the staff support queue and a Billing SME for the signed-in account's overdue invoices and open billing cases.
+- **Books & Accounting → Reports** lets accounting administrators schedule Nevaeh to apply saved categorization rules to uncategorized, unreconciled transactions. Each change is audited and unmatched records remain available for review. Report and reviewed tax-reserve schedules share the same due-job recovery sweep.
+- Nevaeh resolves guided support topics and can follow up through an existing staff mailbox selected in Customer Service & Billing. Optional overdue reminders recheck balances, case holds and the recipient before delivery.
+- Accounting & Billing staff can approve eligible installation refunds. Nevaeh submits the authorized amount through the shared payment path and closes the case on a successful receipt.
+- Accounting reviewers can queue final reconciliation from a complete committed statement and verified period balances. Scheduled Schedule C workpapers check year-end readiness and export an audited preparer handoff. Live filing requires a configured filing provider.

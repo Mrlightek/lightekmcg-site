@@ -2531,6 +2531,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.string "stop_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "nevaeh_support_sender", default: {}, null: false
     t.check_constraint "id = 1", name: "mail_single_sending_policy"
   end
 

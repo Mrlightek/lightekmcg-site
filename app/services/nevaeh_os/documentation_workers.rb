@@ -19,6 +19,8 @@ module NevaehOs
       else
         topic=if command['kind']=='documentation_answer'
           command.fetch('topic')
+        elsif command['kind']=='specialist_review'
+          SpecialistTasks.topic(command.fetch('role'))
         elsif command['kind']=='capability'
           Guide::DOMAIN_GUIDES.fetch(Agents.capability(command).split('.').first,'commands')
         else TOPICS.fetch(command['kind'])

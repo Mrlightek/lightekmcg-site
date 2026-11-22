@@ -13,6 +13,7 @@ module NevaehIntelligences
       if ticket_id
         ticket = Marlon::Ticket.find_by(id: ticket_id)
         return "missing" unless ticket
+        return NevaehCustomerService::Cases.process!(ticket) if NevaehCustomerService::Cases.customer_case?(ticket)
         receipt = receipt_for(ticket)
         return receipt["outcome"] if receipt["state"] == "completed"
         journal!(ticket, "running")
@@ -26,6 +27,8 @@ module NevaehIntelligences
       # Fixed high-water mark bounds each sweep; the next cron catches new rows.
       ceiling = ceiling_id || Marlon::Ticket.maximum(:id) || 0
       ids = Marlon::Ticket.where.not(status: "resolved").where("id > ? AND id <= ?", after_id, ceiling)
+        .where("COALESCE(extra_fields->>'source', '') != ? OR extra_fields->'customer_service'->>'state' = ?",
+          NevaehCustomerService::Cases::SOURCE, "queued")
         .order(:id).limit(BATCH_SIZE).pluck(:id)
       ids.each { |id| self.class.perform_later(ticket_id: id) }
       self.class.perform_later(after_id: ids.last, ceiling_id: ceiling) if ids.length == BATCH_SIZE

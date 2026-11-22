@@ -42,6 +42,11 @@ module LightekMail
             message.update!(state: "failed", error_message: "Mail access was revoked before SMTP submission.")
             next false
           end
+          if message.idempotency_key.to_s.start_with?("support_event_", "billing_reminder_") &&
+            !NevaehCustomerService::Outbound.current?(message)
+            message.update!(state: "failed", error_message: "The support or billing notification is no longer current.")
+            next false
+          end
           if policy.sending_enabled? && account.sending_ready? && NevaehOs::PublicRelations.delivery_allowed?(message, account)
             SendingLimits.dispatch!(account, message)
             true

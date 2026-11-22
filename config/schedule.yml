@@ -163,6 +163,18 @@ broadcast_delivery_storage:
   queue: default
   active_job: true
 
+lightek_accounting_automation_recovery:
+  cron: "*/5 * * * *"
+  class: "AccountingAutomationSweepJob"
+  queue: default
+  active_job: true
+
+nevaeh_customer_operations:
+  cron: "*/15 * * * *"
+  class: "NevaehCustomerOperationsJob"
+  queue: default
+  active_job: true
+
 nevaeh_journal_editorial:
   cron: "*/5 * * * *"
   class: "NevaehOs::JournalEditorialSweepJob"

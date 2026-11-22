@@ -67,20 +67,34 @@ def animate(object_, spec, fps):
         if field not in spec:
             continue
         target = object_.data if field == "lens" else object_
-        keys = [(0, spec[field])]
-        keys.extend((item["time_ms"], item[field]) for item in spec["keyframes"] if field in item)
-        for time, value in keys:
+        keys = {0: (spec[field], "LINEAR")}
+        keys.update({
+            item["time_ms"]: (item[field], item.get("interpolation", "LINEAR"))
+            for item in spec["keyframes"] if field in item
+        })
+        for time, (value, _) in keys.items():
             if field == "rotation":
                 value = tuple(math.radians(angle) for angle in value)
             setattr(target, path, value)
             if len(keys) > 1:
                 target.keyframe_insert(data_path=path, frame=frame_at(time, fps))
-    if spec["keyframes"]:
-        for target in (object_, object_.data) if "lens" in spec else (object_,):
-            if target.animation_data and target.animation_data.action:
-                for curve in target.animation_data.action.fcurves:
-                    for key in curve.keyframe_points:
-                        key.interpolation = "LINEAR"
+        if len(keys) < 2:
+            continue
+
+        interpolation = [curve for _, curve in keys.values()]
+        for curve in target.animation_data.action.fcurves:
+            if curve.data_path != path:
+                continue
+            points = list(curve.keyframe_points)
+            for point in points:
+                point.handle_left_type = point.handle_right_type = "FREE"
+                point.handle_left = point.handle_right = point.co
+            for index, (left, right) in enumerate(zip(points, points[1:])):
+                left.interpolation = interpolation[index + 1]
+                third = (right.co.x - left.co.x) / 3
+                left.handle_right = (left.co.x + third, left.co.y)
+                right.handle_left = (right.co.x - third, right.co.y)
+            curve.update()
 
 
 def empty(bpy, name, parent=None):
@@ -222,7 +236,9 @@ def import_model(bpy, path, parent, layer):
         if obj.type in ("CAMERA", "LIGHT") or (layer.get("starter") and
                 (obj.get("lightek_character_floor") or obj.name.split(".")[0] == "Studio floor")):
             obj.hide_render = True
-    if layer.get("action"):
+    if path.suffix in (".glb", ".gltf"):
+        apply_gltf_animation(bpy, imported, previous_actions, layer.get("action"))
+    elif layer.get("action"):
         armatures = [obj for obj in imported if obj.type == "ARMATURE"]
         action = loaded.actions[0] if path.suffix == ".blend" else next(
             (item for item in bpy.data.actions if item not in previous_actions and
@@ -242,6 +258,38 @@ def import_model(bpy, path, parent, layer):
         freeze_pose(bpy, imported, layer["pose_frame"])
 
 
+def apply_gltf_animation(bpy, objects, previous_actions, name):
+    # glTF actions import on a zero-based clock. Studio evaluates frame 1
+    # at time zero. Shift every imported channel, including shape keys.
+    for action in set(bpy.data.actions) - previous_actions:
+        bags = [bag for layer in getattr(action, "layers", []) for strip in layer.strips
+                for bag in getattr(strip, "channelbags", [])]
+        for curves in [bag.fcurves for bag in bags] or [action.fcurves]:
+            for curve in curves:
+                for point in curve.keyframe_points:
+                    point.co.x += 1
+                    point.handle_left.x += 1
+                    point.handle_right.x += 1
+                curve.update()
+    if not name:
+        return
+    matched = False
+    for obj in objects:
+        for animated in (obj, getattr(obj.data, "shape_keys", None)):
+            data = getattr(animated, "animation_data", None)
+            if not data:
+                continue
+            strip = next((track.strips[0] for track in data.nla_tracks if track.name == name and track.strips), None)
+            for track in data.nla_tracks:
+                track.mute = True
+            data.action = strip.action if strip else None
+            if strip and getattr(strip, "action_slot", None):
+                data.action_slot = strip.action_slot
+            matched = matched or bool(strip)
+    if not matched:
+        raise ValueError(f"Action {name!r} is missing from the glTF model")
+
+
 def freeze_pose(bpy, objects, frame):
     scene = bpy.context.scene
     scene.frame_set(frame)
@@ -250,13 +298,20 @@ def freeze_pose(bpy, objects, frame):
     for obj in objects:
         evaluated = obj.evaluated_get(depsgraph)
         bones = {bone.name: bone.matrix_basis.copy() for bone in evaluated.pose.bones} if obj.pose else {}
-        snapshots.append((obj, evaluated.matrix_basis.copy(), bones))
-    for obj, matrix, bones in snapshots:
+        shape_keys = getattr(evaluated.data, "shape_keys", None)
+        weights = {key.name: key.value for key in shape_keys.key_blocks} if shape_keys else {}
+        snapshots.append((obj, evaluated.matrix_basis.copy(), bones, weights))
+    for obj, matrix, bones, weights in snapshots:
         obj.animation_data_clear()
         obj.matrix_basis = matrix
         if obj.pose:
             for bone in obj.pose.bones:
                 bone.matrix_basis = bones[bone.name]
+        if weights:
+            shape_keys = obj.data.shape_keys
+            shape_keys.animation_data_clear()
+            for key in shape_keys.key_blocks:
+                key.value = weights[key.name]
     scene.frame_set(1)
 
 
@@ -279,9 +334,12 @@ def build(bpy, spec, root):
     fps = spec["fps"]
     scene.frame_start = 1
     scene.frame_end = spec["frame_count"]
+    scene.render.fps = fps
     camera = bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
     scene.collection.objects.link(camera)
     scene.camera = camera
+    camera.data.sensor_fit = "VERTICAL" if spec["aspect_ratio"] == "9:16" else "HORIZONTAL"
+    camera.data.sensor_width = camera.data.sensor_height = 36
     animate(camera, spec["camera"], fps)
 
     # X is horizontal, Z is vertical and positive Y recedes from the camera.
@@ -326,7 +384,6 @@ def build(bpy, spec, root):
     scene.render.resolution_x = spec["width"]
     scene.render.resolution_y = spec["height"]
     scene.render.resolution_percentage = 100
-    scene.render.fps = fps
     scene.render.image_settings.file_format = "FFMPEG"
     scene.render.ffmpeg.format = "MPEG4"
     scene.render.ffmpeg.codec = "H264"
@@ -366,6 +423,20 @@ def encode(root, spec):
     )
 
 
+def preview(bpy, spec, root):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    scene = bpy.context.scene
+    parent = empty(bpy, "Model")
+    import_model(bpy, input_path(root, spec["source"]), parent, {})
+    scene.frame_set(1)
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in scene.objects:
+        if obj.type in {"MESH", "ARMATURE", "EMPTY"} and not obj.hide_render and obj.visible_get():
+            obj.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=str(root / "preview.glb"), export_format="GLB",
+                              use_selection=True, export_cameras=False, export_lights=False)
+
+
 def main(args):
     phase, manifest = args
     path = Path(manifest).resolve()
@@ -375,6 +446,9 @@ def main(args):
     if phase == "render":
         import bpy
         build(bpy, spec, path.parent)
+    elif phase == "preview":
+        import bpy
+        preview(bpy, spec, path.parent)
     elif phase == "encode":
         encode(path.parent, spec)
     else:

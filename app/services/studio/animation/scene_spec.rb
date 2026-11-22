@@ -5,6 +5,7 @@ module Studio
     class SceneSpec
       MODES = %w[2d 2_5d 3d].freeze
       VISEMES = %w[X A B C D E F G H].freeze
+      CURVES = %w[LINEAR BEZIER CONSTANT].freeze
       MAX_DURATION_MS = 30_000
 
       def self.normalize(value)
@@ -100,12 +101,15 @@ module Studio
       def keyframes(value, fields)
         previous = -1
         array(value, "keyframes", 120).map do |item|
-          key = object(item, fields + ["time_ms"])
+          key = object(item, fields + %w[time_ms interpolation])
           time = integer(key["time_ms"], "keyframe time_ms", 0...@duration)
           invalid("keyframes need strictly increasing timestamps") if time <= previous
-          invalid("keyframe needs at least one animated value") if key.length < 2
+          values = key.slice(*fields)
+          invalid("keyframe needs at least one animated value") if values.empty?
+          curve = key.fetch("interpolation", "LINEAR")
+          invalid("keyframe interpolation is invalid") unless CURVES.include?(curve)
           previous = time
-          transforms(key.except("time_ms")).merge("time_ms" => time)
+          transforms(values).merge("time_ms" => time, "interpolation" => curve)
         end
       end
 

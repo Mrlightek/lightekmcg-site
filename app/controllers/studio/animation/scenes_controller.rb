@@ -38,13 +38,18 @@ module Studio
       end
 
       def update
-        @scene.update!(scene_attributes)
+        @scene.with_lock do
+          version = params.dig(:scene, :lock_version)
+          if version && version != @scene.lock_version
+            raise ArgumentError, "This scene changed in another tab. Reload before saving again."
+          end
+          @scene.update!(scene_attributes)
+        end
         respond_with_scene(:ok)
       rescue ArgumentError, JSON::ParserError, ActiveRecord::RecordInvalid => error
         respond_to do |format|
           format.html do
             @scene_error = error.message
-            @scene_editor_text = params.dig(:scene, :scene_spec) if params.dig(:scene, :scene_spec).is_a?(String)
             render :show, status: :unprocessable_entity
           end
           format.json { render json: { error: error.message }, status: :unprocessable_entity }
@@ -86,7 +91,7 @@ module Studio
       end
 
       def scene_data(scene)
-        scene.as_json(only: %i[id name studio_project_id scene_spec updated_at])
+        scene.as_json(only: %i[id name studio_project_id scene_spec updated_at lock_version])
       end
 
       def respond_with_scene(status)

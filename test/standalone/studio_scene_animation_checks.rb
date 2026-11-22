@@ -6,6 +6,7 @@ require File.join(ROOT, "app/services/studio/broadcasting/access")
 %w[scene_spec manifest].each { |name| require File.join(ROOT, "app/services/studio/animation", name) }
 %w[base assets scenes renders].each { |name| require File.join(ROOT, "app/controllers/studio/animation", "#{name}_controller") }
 require File.join(ROOT, "app/jobs/studio_scene_render_job")
+require File.join(ROOT, "app/jobs/studio_animation_preview_job")
 
 Studio::Animation::BaseController.prepend_view_path(File.join(ROOT, "app/views"))
 Rails.application.routes.append do
@@ -43,7 +44,7 @@ class StudioSceneAnimationChecks < PwaHttpIntegrationTest
     assert_equal "Updated scene", body(@client).fetch("name")
     @client.get scene_url, headers: headers.merge("Accept" => "text/html")
     assert_equal 200, @client.response.status
-    assert_includes @client.response.body, "Render saved scene"
+    assert_includes @client.response.body, "Render MP4"
 
     @bob.update!(role: "super_admin")
     legacy_access = Studio::PwaAccess.new("user_id" => @bob.id, "site_id" => @site.id)
@@ -59,6 +60,43 @@ class StudioSceneAnimationChecks < PwaHttpIntegrationTest
     assert_equal 204, @client.response.status
     @client.delete "#{assets_url}/#{asset['id']}", headers: headers
     assert_equal 204, @client.response.status
+  end
+
+  def test_animation_saves_curves_and_rejects_a_stale_editor
+    scene = create_scene
+    scene_url = "#{scenes_url}/#{scene['id']}"
+    version = scene.fetch("lock_version")
+    camera = { keyframes: [{ time_ms: 750, lens: 60, interpolation: "BEZIER" }] }
+    @client.patch scene_url, params: { scene: { lock_version: version, scene_spec: { camera: camera } } }, headers: headers, as: :json
+    assert_equal 200, @client.response.status
+    assert_equal "BEZIER", body(@client).dig("scene_spec", "camera", "keyframes", 0, "interpolation")
+    @client.patch scene_url, params: { scene: { lock_version: version, name: "Stale" } }, headers: headers, as: :json
+    assert_equal 422, @client.response.status
+    assert_match(/changed in another tab/, body(@client).fetch("error"))
+  end
+
+  def test_animation_model_preview_is_private_and_is_reset_by_a_replacement
+    file = Rack::Test::UploadedFile.new(StringIO.new("model fixture"), "application/octet-stream", original_filename: "actor.blend")
+    @client.post assets_url, params: { asset: { name: "Native model", animation_role: "character", dimension_mode: "3d", file: file } }, headers: headers
+    assert_equal 201, @client.response.status
+    record = body(@client)
+    asset = StudioAsset.find(record.fetch("id"))
+    url = record.fetch("preview_request_url")
+    @client.post url, headers: headers
+    assert_equal 202, @client.response.status
+    assert_equal "queued", body(@client).fetch("preview_status")
+
+    asset.proxy.attach(io: StringIO.new("proxy"), filename: "proxy.glb", content_type: "model/gltf-binary", identify: false)
+    asset.reload.update!(metadata: { "animation_preview" => { "status" => "ready", "blob_id" => asset.file.blob.id } })
+    @client.get url, headers: headers
+    assert_equal "proxy", @client.response.body
+    @bob.update!(role: "super_admin")
+    @client.get url, headers: headers(@bob)
+    assert_equal 404, @client.response.status
+
+    asset.file.attach(io: StringIO.new("replacement"), filename: "revised.blend", identify: false)
+    @client.get url, headers: headers
+    assert_equal 404, @client.response.status
   end
 
   def test_animation_render_pins_inputs_accepts_starters_and_serves_only_to_owner

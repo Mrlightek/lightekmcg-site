@@ -388,6 +388,7 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   #resources :dashboards
   resources :supports, only: %i[index create] do
     member { patch :reply }
+    member { patch :confirm_resolution }
   end
   resources :stores
   resources :architectures
@@ -441,6 +442,7 @@ namespace :gatekeeper do
       post :deploy
       post :deploy_github
       post :healthcheck
+      post :monitor
     end
   end
 end

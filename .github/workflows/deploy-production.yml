@@ -121,6 +121,7 @@ jobs:
             printf '%s' "$2" | base64 --decode > "$DEPLOY_SCRIPT"
 
             APP_TARGET_SHA="$3" \
+            LIGHTEK_PRIMARY_WATCHDOG=1 \
             APP_ROOT=/var/www/lightekmcg-site \
             APP_USER=lightek \
             APP_NAME=lightekmcg-site \
@@ -153,6 +154,18 @@ jobs:
 
           DEPLOYED_SHA="$(grep '^GATEKEEPER_DEPLOYED_SHA=' deploy-output.txt | tail -1 | cut -d= -f2-)"
           HTTP_STATUS="$(grep '^GATEKEEPER_HTTP_STATUS=' deploy-output.txt | tail -1 | cut -d= -f2-)"
+          [[ "$DEPLOYED_SHA" == "$GITHUB_SHA" && "$HTTP_STATUS" == 200 ]]
+          grep -Fxq 'GATEKEEPER_PRIMARY_WATCHDOG_ACTIVE=1' deploy-output.txt
+          served_release_verified=0
+          for attempt in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --max-time 15 -H 'Cache-Control: no-cache' "https://$APP_DOMAIN/__lightek/release" |
+              jq -e --arg revision "$DEPLOYED_SHA" '.component == "lightek_app" and .source_sha == $revision' >/dev/null; then
+              served_release_verified=1
+              break
+            fi
+            sleep 5
+          done
+          [[ "$served_release_verified" == 1 ]] || { echo 'Public Rails release did not match the verified host revision'; exit 1; }
 
           echo "deployed_sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
           echo "http_status=$HTTP_STATUS" >> "$GITHUB_OUTPUT"

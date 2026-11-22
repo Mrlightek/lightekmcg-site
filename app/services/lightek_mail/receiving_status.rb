@@ -1,10 +1,12 @@
 require "resolv"
 module LightekMail
   class ReceivingStatus
+    def self.expected_host = ENV.fetch("LIGHTEK_MAIL_HOST", "mail.lightekmcg.com").downcase.delete_suffix(".")
+
     def self.check(account)
       return {ok: false, message: "Enable this mailbox before receiving mail."} unless account.enabled?
       return {ok: false, message: "Verify ownership of #{account.domain.name} before receiving mail."} unless account.domain.verified_at
-      host = ENV.fetch("LIGHTEK_MAIL_HOST", "mail.lightekmcg.com").downcase.delete_suffix(".")
+      host = expected_host
       exchanges = Resolv::DNS.open do |dns|
         dns.timeouts = 2
         dns.getresources("#{account.domain.name}.", Resolv::DNS::Resource::IN::MX).map { |record| record.exchange.to_s.downcase.delete_suffix(".") }

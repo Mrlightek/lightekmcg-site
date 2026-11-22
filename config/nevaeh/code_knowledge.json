@@ -536,6 +536,449 @@
       ]
     },
     {
+      "id": "hosting.project.healthcheck",
+      "title": "Run a Gatekeeper project health check",
+      "summary": "Queue the project probe with the current operator and node bound to the job. The retry can recover a failed worker on the registered release.",
+      "sources": {
+        "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
+        "implementation": ["app/services/nevaeh_os/hosting_actions.rb", "app/jobs/gatekeeper/healthcheck_project_job.rb", "app/services/gatekeeper/capabilities/healthcheck_project.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/nevaeh_backlog_test.rb", "test/standalone/gatekeeper_project_health_test.py"]
+      },
+      "capability": {
+        "key": "hosting.project.healthcheck",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"project_id": "PROJECT_ID"},
+        "result": "Return the job identifier once the probe is queued."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "POST", "action": "gatekeeper/projects#healthcheck", "coverage": "bound"}
+      ]
+    },
+    {
+      "id": "hosting.project.health.status",
+      "title": "Read Gatekeeper project health",
+      "summary": "Read the saved project status and latest health check on its current server.",
+      "sources": {
+        "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
+        "implementation": ["app/services/nevaeh_os/hosting_actions.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/nevaeh_backlog_test.rb"]
+      },
+      "capability": {
+        "key": "hosting.project.health.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"project_id": "PROJECT_ID"},
+        "result": "Return the latest saved probe result and the Gatekeeper project link."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "GET", "action": "gatekeeper/projects#show", "coverage": "partial"}
+      ]
+    },
+    {
+      "id": "hosting.project.health.monitor",
+      "title": "Manage automatic Gatekeeper health checks",
+      "summary": "Enable or pause periodic probes for one registered project using the operator’s current authority.",
+      "sources": {
+        "entry_points": ["app/controllers/gatekeeper/projects_controller.rb"],
+        "implementation": ["app/services/gatekeeper/project_health_monitor.rb", "app/jobs/gatekeeper/project_health_sweep_job.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/nevaeh_backlog_test.rb"]
+      },
+      "capability": {
+        "key": "hosting.project.health.monitor",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"project_id": "PROJECT_ID", "operation": "enable"},
+        "result": "Return whether monitoring is enabled and when the next check is due."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "POST", "action": "gatekeeper/projects#monitor", "coverage": "bound"}
+      ]
+    },
+    {
+      "id": "mail.mailbox.receiving.check",
+      "title": "Check a mailbox’s receiving DNS",
+      "summary": "Verify the enabled mailbox uses the expected MX routing for its verified domain.",
+      "sources": {
+        "entry_points": ["app/controllers/dashboard/mail_studio_controller.rb"],
+        "implementation": ["app/services/nevaeh_os/mail_actions.rb", "app/services/lightek_mail/receiving_status.rb"],
+        "workers": ["app/services/nevaeh_os/worker.rb"],
+        "tests": ["test/standalone/lightek_mailbox_management_test.rb"]
+      },
+      "capability": {
+        "key": "mail.mailbox.receiving.check",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {"mailbox_id": "MAILBOX_ID"},
+        "result": "Return the DNS check outcome and the same explanation as Mail Studio."
+      },
+      "endpoints": [
+        {"source": "Host application", "method": "POST", "action": "dashboard/mail_studio#check_receiving", "coverage": "bound"}
+      ]
+    },
+    {
+      "id": "hosting.fleet.rollback",
+      "title": "Roll back a verified customer deployment",
+      "summary": "Start a single-installation rollout of the registered preceding release.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/fleet/recovery.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.rollback",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "target_id": "TARGET_ID",
+          "confirmed": true
+        },
+        "result": "Start a single-installation rollout of the registered preceding release."
+      }
+    },
+    {
+      "id": "hosting.fleet.recovery.status",
+      "title": "Check fleet recovery evidence",
+      "summary": "Inspect the recorded rollback and backup evidence for the latest target attempt.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/fleet/recovery.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.recovery.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "target_id": "TARGET_ID"
+        },
+        "result": "Inspect the recorded rollback and backup evidence for the latest target attempt."
+      }
+    },
+    {
+      "id": "hosting.fleet.backup.drill",
+      "title": "Test restoration of a fleet backup",
+      "summary": "Queue an isolated database restore drill using a recorded Docker fleet snapshot.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/fleet/backup_drill.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.backup.drill",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "target_id": "TARGET_ID"
+        },
+        "result": "Queue an isolated database restore drill using a recorded Docker fleet snapshot."
+      }
+    },
+    {
+      "id": "hosting.fleet.backup.status",
+      "title": "Check a restore drill",
+      "summary": "Read the result of a separately queued restore drill.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/fleet/backup_drill.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.backup.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "operation_id": "OPERATION_ID"
+        },
+        "result": "Read the result of a separately queued restore drill."
+      }
+    },
+    {
+      "id": "hosting.project.dns.repair",
+      "title": "Repair missing project DNS",
+      "summary": "Publish the registered server IPv4 on a managed zone when DNS is missing.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/managed_dns_repair.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.project.dns.repair",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "project_id": "PROJECT_ID"
+        },
+        "result": "Publish the registered server IPv4 on a managed zone when DNS is missing."
+      }
+    },
+    {
+      "id": "mail.mailbox.receiving.repair",
+      "title": "Repair missing receiving DNS",
+      "summary": "Publish a missing MX record for the configured mail host on a verified managed domain.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/managed_dns_repair.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.mailbox.receiving.repair",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID"
+        },
+        "result": "Publish a missing MX record for the configured mail host on a verified managed domain."
+      }
+    },
+    {
+      "id": "support.ticket.confirm_resolution",
+      "title": "Confirm technical support resolution",
+      "summary": "Close an owned technical ticket from the customer’s explicit confirmation.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/models/marlon/ticket.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/controllers/supports_controller_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "support.ticket.confirm_resolution",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "ticket_number": "LT-1042",
+          "confirmed": true
+        },
+        "result": "Close an owned technical ticket from the customer’s explicit confirmation."
+      }
+    },
+    {
+      "id": "identity.lifecycle.review",
+      "title": "Review access lifecycle",
+      "summary": "Open the employer-scoped lifecycle case for MFA-protected review and execution.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_people/lifecycle.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lifecycle_quote_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "identity.lifecycle.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "case_id": "CASE_ID",
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Open the employer-scoped lifecycle case for MFA-protected review and execution."
+      }
+    },
+    {
+      "id": "identity.directory.grant.review",
+      "title": "Review a directory grant",
+      "summary": "Open a specific employer grant in the protected Directory.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/controllers/dashboard/directory_controller.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lifecycle_quote_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "identity.directory.grant.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "grant_id": "GRANT_ID",
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Open a specific employer grant in the protected Directory."
+      }
+    },
+    {
+      "id": "identity.sso.containment.review",
+      "title": "Review company SSO session revocation",
+      "summary": "Open the scoped control for revoking a member’s existing company SSO sessions.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_identity/session_containment.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lifecycle_quote_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "identity.sso.containment.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "membership_id": "MEMBERSHIP_ID",
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Open the scoped control for revoking a member’s existing company SSO sessions."
+      }
+    },
+    {
+      "id": "support.ticket.reply",
+      "title": "Post a customer support reply",
+      "summary": "Post an authorized support reply to the customer’s ticket timeline.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/it_actions.rb"
+        ],
+        "implementation": [
+          "app/models/marlon/ticket.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/nevaeh_backlog_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "support.ticket.reply",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "ticket_number": "LT-1042",
+          "detail": "Please check incoming mail again."
+        },
+        "result": "Return the persisted reply event and ticket status."
+      }
+    },
+    {
+      "id": "mail.message.resume_queued",
+      "title": "Resume a queued outbound message",
+      "summary": "Queue the existing delivery worker while the message is still waiting for submission.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/mail_actions.rb"
+        ],
+        "implementation": [
+          "app/jobs/lightek_mail/deliver_job.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.message.resume_queued",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID",
+          "message_id": "MESSAGE_ID"
+        },
+        "result": "Return a queue receipt for an outbound message that has not started submission."
+      }
+    },
+    {
       "id": "identity.sign_in",
       "title": "Sign-in and MFA",
       "summary": "Authenticate sessions and enforce sign-in security and account access.",

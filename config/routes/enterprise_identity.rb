@@ -25,3 +25,4 @@ post '/dashboard/compliance/:id/refresh',to: 'dashboard/compliance#refresh',as: 
 delete '/dashboard/compliance/:id',to: 'dashboard/compliance#destroy',as: :dashboard_compliance_monitor
 
 post '/dashboard/directory/members/:id',to: 'dashboard/directory#member',as: :dashboard_directory_member
+post '/dashboard/directory/members/:id/revoke-sso-sessions', to: 'dashboard/directory#revoke_sso_sessions', as: :dashboard_directory_revoke_sso_sessions

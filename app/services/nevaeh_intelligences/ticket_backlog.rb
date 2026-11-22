@@ -1,11 +1,18 @@
 # frozen_string_literal: true
 
+require_relative "gatekeeper_incident_triage"
+
 module NevaehIntelligences
   # Coordinates existing ticket planning/dispatch/reconciliation. All durable
   # state remains on Marlon::Ticket; DymondDispatch owns execution and recovery.
   class TicketBacklog
     MAX_FAILURES = 5
     RECOVERABLE = %w[queued working_or_interrupted completed_unverified terminal_failure_review].freeze
+    DEPLOYMENT_ACCEPTANCE = [
+      "Identify the exact failed operation step and target revision from its persisted receipt",
+      "Verify the requested target or explicitly document that a later verified deployment supersedes it",
+      "Preserve application boot, HTTPS health and worker readiness evidence before resolution"
+    ].freeze
 
     def self.enabled?
       ENV.fetch("NEVAEH_BACKLOG_ENABLED", "1") == "1"
@@ -148,9 +155,11 @@ module NevaehIntelligences
         WorkOrder.attach!(ticket: ticket, attributes: attributes)
         fields.replace(ticket.extra_fields.to_h.deep_stringify_keys)
       end
-      unless fields.key?("nevaeh_work_order")
+      if !fields.key?("nevaeh_work_order") || fields.dig("gatekeeper", "capability") == "healthcheck_project"
         incident = incident_work_order(fields)
-        if incident
+        saved_order = fields["nevaeh_work_order"]
+        if incident && (!fields.key?("nevaeh_work_order") ||
+            saved_order == incident.merge("acceptance_criteria" => DEPLOYMENT_ACCEPTANCE) && saved_order != incident)
           WorkOrder.attach!(ticket: ticket, attributes: incident)
           fields.replace(ticket.extra_fields.to_h.deep_stringify_keys)
         end
@@ -158,6 +167,7 @@ module NevaehIntelligences
       order = fields["nevaeh_work_order"]
       order = WorkOrder.validate!(order) if order
       source = fields.fetch("gatekeeper", {}).to_h
+      incident_triage = GatekeeperIncidentTriage.for(ticket: ticket, fields: fields)
       key = order&.fetch("intent_key") || fields["required_capability"] || source["capability"]
       capabilities = NevaehCapability.order(:id).map do |record|
         {"slug" => record.slug, "enabled" => record.enabled?, "handler" => record.handler,
@@ -190,6 +200,10 @@ module NevaehIntelligences
       if source["capability"].present? && source["capability"] != key
         articles += NevaehOrchestration::KnowledgeResolver.for(capability: source["capability"])
         articles = articles.uniq(&:id).first(10)
+      end
+      customer_reply = latest_customer_reply if fields["source"] == "support_hub"
+      if articles.empty? && customer_reply
+        articles = DymondKb::Article.search(customer_reply.detail.to_s.squish.first(240)).ordered.limit(5).to_a
       end
       if articles.empty? && ticket.title.present?
         articles = DymondKb::Article.search(ticket.title.to_s.first(240)).ordered.limit(5).to_a
@@ -229,16 +243,26 @@ module NevaehIntelligences
       unless actor&.employee? && Ability.new(actor).can?(:execute_nevaeh, ticket)
         blockers << "NEVAEH_BACKLOG_ACTOR_ID must identify an authorized persisted operator"
       end
-      input_digest = TicketApproval.fingerprint({"title" => ticket.title, "description" => ticket.description,
+      analysis_inputs = {"title" => ticket.title, "description" => ticket.description,
         "fields" => fields.except("nevaeh_backlog"), "capabilities" => capabilities,
         "knowledge" => articles.map { |a| [a.id, a.updated_at&.iso8601(6)] },
-        "blockers" => blockers})
+        "blockers" => blockers}
+      analysis_inputs["incident_triage"] = incident_triage if incident_triage
+      analysis_inputs["customer_reply_id"] = customer_reply.id if customer_reply
+      input_digest = TicketApproval.fingerprint(analysis_inputs)
       {"status" => blockers.empty? ? "ready" : "escalated", "blockers" => blockers,
         "classification" => source["operation_id"].present? ? "operational_execution" : (order&.fetch("work_type") || "investigation"),
         "related_ticket_ids" => related_ids,
         "analysis_sha256" => input_digest, "engineering_plan" => plan,
         "knowledge_article_ids" => articles.map(&:id), "required_capability" => key,
-        "implementation_verified" => false}
+        "implementation_verified" => false, "incident_triage" => incident_triage}.compact
+    end
+
+    def latest_customer_reply
+      return unless ticket.submitted_by_id && ticket.category.in?(%w[technical deployment])
+
+      ticket.events.where(actor_id: ticket.submitted_by_id).where("action LIKE ?", "% replied")
+        .order(created_at: :desc, id: :desc).first
     end
 
     def incident_work_order(fields)
@@ -246,11 +270,7 @@ module NevaehIntelligences
       if source["operation_id"].present? && source["capability"].present?
         inputs = source.slice("operation_id", "capability", "node_id", "project_id")
         key = source.fetch("capability")
-        criteria = [
-          "Identify the exact failed operation step and target revision from its persisted receipt",
-          "Verify the requested target or explicitly document that a later verified deployment supersedes it",
-          "Preserve application boot, HTTPS health and worker readiness evidence before resolution"
-        ]
+        criteria = key == "healthcheck_project" ? GatekeeperIncidentTriage::HEALTH_ACCEPTANCE : DEPLOYMENT_ACCEPTANCE
       elsif (match = /\AWorkItem failed.*\(#(\d+)\)\z/.match(ticket.title))
         item = DymondDispatch::WorkItem.find_by(id: match[1])
         return unless item

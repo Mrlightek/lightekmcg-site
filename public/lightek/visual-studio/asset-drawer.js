@@ -16,10 +16,6 @@ export function assetDrawer(container, assets, actions) {
         const audio = asset.animation_role === "audio";
         row.append(button(audio ? "Use audio" : "Add layer", () => audio ? actions.audio(asset.id) : actions.add(asset)));
       }
-      if (asset.preview_request_url && !asset.preview_url) {
-        row.append(button(asset.preview_status === "queued" ? "Preview queued" : "Build model preview",
-          () => actions.preview(asset), { disabled: asset.preview_status === "queued" }));
-      }
       if (!asset.starter) row.append(button("Manage", () => actions.manage(asset)));
       return row;
     }));

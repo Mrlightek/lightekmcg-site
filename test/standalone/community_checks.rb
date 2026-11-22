@@ -137,6 +137,11 @@ class AddStudioSceneAnimation
   end
 end
 AddStudioSceneAnimation.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261122130000_add_studio_scene_render_recovery")
+AddStudioSceneRenderRecovery.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261122140000_add_studio_animation_previews")
+AddStudioAnimationPreviews.new.migrate(:up)
+require File.join(ROOT, "app/models/studio_animation_preview")
 require File.join(ROOT, "app/models/studio_scene_render")
 require File.join(ROOT,"db/migrate/20261107210000_create_studio_workstations")
 CreateStudioWorkstations.new.migrate(:up)

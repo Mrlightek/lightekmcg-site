@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  SceneStore, compile, countFrames, cueFrame, depth, frameToCue, frameToKey,
-  frameToTime, interpolate, makeLayer, mouthAt, putKey
+  SceneStore, compile, countFrames, cueEdgeAtFrame, cueFrame, cueFrameSpan, depth,
+  editCueInterval, encodedDurationMs, frameToCue, frameToKey, frameToTime, interpolate,
+  makeLayer, mouthAt, putKey, rhubarbCues, shiftCueByFrames
 } from "../../public/lightek/visual-studio/scene-state.js";
 
 test("every authored cue boundary maps to the same Blender frame at 24 and 30 fps", () => {
@@ -56,4 +57,52 @@ test("compiler emits the existing scene document shape without mutating state", 
   assert.deepEqual(Object.keys(store.spec.layers[0].mouth.variants), ["A", "X"]);
   assert.deepEqual(Object.keys(compiled), ["name", "scene_spec"]);
   assert.equal(layer.file_url, undefined);
+});
+
+test("tail cues report zero rendered frames while the playhead retains start and end clamping", () => {
+  const imported = rhubarbCues({ mouthCues: [{ start: 1.005, end: 1.020, value: "A" }] }, 1020);
+  for (const [fps, total] of [[24, 25], [30, 31]]) {
+    const spec = { fps, duration_ms: 1020, layers: [] };
+    const store = new SceneStore({ name: "Clip", scene_spec: spec });
+    store.seek(0);
+    assert.equal(store.time, 0);
+    store.seek(total + 10);
+    assert.equal(store.frame, total);
+    assert.equal(store.time, 1000);
+    assert.equal(encodedDurationMs(spec), total * 1000 / fps);
+    assert.deepEqual(cueFrameSpan(imported[0], spec), { first: total + 1, after: total + 1, count: 0 });
+    assert.deepEqual(cueFrameSpan({ ...imported[0], start_ms: 1000 }, spec),
+      { first: total, after: total + 1, count: 1 });
+    assert.equal(mouthAt({ cues: imported, variants: { A: 1 } }, total, fps), "X");
+  }
+  assert.deepEqual(imported, [{ start_ms: 1005, end_ms: 1020, viseme: "A" }]);
+  assert.equal(cueFrameSpan({ start_ms: 1, end_ms: 35 }, { duration_ms: 1020, fps: 24 }).count, 0);
+});
+
+test("frame trims preserve untouched millisecond edges and honor raw adjacency", () => {
+  const spec = { fps: 24, duration_ms: 1020 };
+  const first = { start_ms: 0, end_ms: 39 };
+  const second = { start_ms: 50, end_ms: 180 };
+  const cues = [first, second];
+  const boundary = cueEdgeAtFrame(first, "end_ms", 3, cues, spec);
+  assert.equal(frameToCue(3, 24), 83);
+  assert.equal(boundary, 50);
+  Object.assign(first, editCueInterval(first, { end_ms: boundary }, cues, spec.duration_ms));
+  assert.equal(cueEdgeAtFrame(second, "start_ms", 3, cues, spec), 50);
+  const end = cueEdgeAtFrame(second, "end_ms", 5, cues, spec);
+  assert.deepEqual(editCueInterval(second, { end_ms: end }, cues, spec.duration_ms), { start_ms: 50, end_ms: 166 });
+  assert.throws(() => editCueInterval(second, { start_ms: 49 }, cues, spec.duration_ms), /overlap/);
+
+  const short = { start_ms: 1, end_ms: 10 };
+  const adjacent = { start_ms: 10, end_ms: 20 };
+  assert.deepEqual(editCueInterval(adjacent, {}, [short, adjacent], spec.duration_ms), adjacent);
+  assert.throws(() => editCueInterval(adjacent, { start_ms: 9 }, [short, adjacent], spec.duration_ms), /overlap/);
+});
+
+test("moving a cue shifts both raw edges by the same amount and preserves duration at the clip bounds", () => {
+  const spec = { fps: 24, duration_ms: 1020 };
+  const cue = { start_ms: 50, end_ms: 180 };
+  assert.deepEqual(shiftCueByFrames(cue, 1, spec), { start_ms: 92, end_ms: 222 });
+  assert.deepEqual(shiftCueByFrames(cue, -20, spec), { start_ms: 0, end_ms: 130 });
+  assert.deepEqual(shiftCueByFrames(cue, 100, spec), { start_ms: 890, end_ms: 1020 });
 });

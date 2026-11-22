@@ -8,7 +8,7 @@ module Studio
       before_action :find_asset, only: %i[show update destroy file preview]
 
       def index
-        @library = @assets.or(@starters).with_attached_file.with_attached_native.with_attached_proxy.order(:name)
+        @library = @assets.or(@starters).with_attached_file.with_attached_native.order(:name)
         respond_to do |format|
           format.html
           format.json { render json: @library.map { |asset| asset_data(asset) } }
@@ -23,7 +23,7 @@ module Studio
       end
 
       def file
-        attachment = @asset.animation_role? ? @asset.file : @asset.native
+        attachment = @asset.animation_source
         raise ActiveRecord::RecordNotFound unless attachment.attached?
         response.set_header("Content-Security-Policy", "sandbox")
         response.set_header("X-Content-Type-Options", "nosniff")
@@ -32,24 +32,31 @@ module Studio
       end
 
       def preview
-        if request.get? || request.head?
-          raise ActiveRecord::RecordNotFound unless proxy_ready?(@asset)
-          stream_blob(@asset.proxy.blob)
+        raise ActiveRecord::RecordNotFound unless @asset.native_animation_model?
+        if params[:file] == "1"
+          raise ActiveRecord::RecordNotFound unless request.get? || request.head?
+          record = @asset.studio_animation_previews.find_by!(variant_digest: params[:key], status: "ready")
+          raise ActiveRecord::RecordNotFound unless record.settings["blob_id"] == @asset.animation_source.blob.id && record.file.attached?
+          stream_blob(record.file.blob)
           return
         end
 
-        raise ActiveRecord::RecordNotFound unless native_upload?(@asset)
-        @asset.with_lock do
-          job = preview_record(@asset)
-          unless proxy_ready?(@asset) || (job["status"] == "queued" && job["requested_at"].to_i > 5.minutes.ago.to_i)
-            blob_id = @asset.file.blob.id
-            @asset.update!(metadata: @asset.metadata.merge("animation_preview" => {
-              "blob_id" => blob_id, "status" => "queued", "requested_at" => Time.current.to_i
-            }))
-            raise ArgumentError, "The preview worker is unavailable" unless StudioAnimationPreviewJob.perform_later(@asset.id, blob_id)
+        if request.post?
+          @asset.with_lock do
+            raise ActiveRecord::RecordNotFound unless @asset.native_animation_model?
+            settings = StudioAnimationPreview.settings_for(@asset, params)
+            @preview = @asset.studio_animation_previews.find_or_initialize_by(variant_digest: StudioAnimationPreview.key_for(settings))
+            if @preview.new_record? || @preview.preview_status == "failed"
+              token = SecureRandom.uuid
+              @preview.update!(settings: settings, status: "queued", attempt_token: token)
+              raise ArgumentError, "The preview worker is unavailable" unless StudioAnimationPreviewJob.perform_later(@preview.id, token)
+            end
           end
+        else
+          settings = StudioAnimationPreview.settings_for(@asset, params)
+          @preview = @asset.studio_animation_previews.find_by(variant_digest: StudioAnimationPreview.key_for(settings))
         end
-        render json: asset_data(@asset), status: :accepted
+        render json: preview_data(@preview), status: @preview&.preview_status == "queued" ? :accepted : :ok
       rescue ArgumentError, ActiveJob::EnqueueError => error
         render json: { error: error.message }, status: :unprocessable_entity
       end
@@ -101,35 +108,24 @@ module Studio
         invalid(error, @asset.persisted? ? studio_animation_asset_path(@asset, site_id: @site.id) : studio_animation_assets_path(site_id: @site.id))
       end
 
-      def native_upload?(asset)
-        asset.animation_role? && asset.dimension_mode == "3d" &&
-          %w[blend fbx].include?(asset.file.filename.extension.downcase)
-      end
-
-      def preview_record(asset)
-        result = asset.metadata.fetch("animation_preview", {})
-        result["blob_id"] == asset.file.blob.id ? result : {}
-      end
-
-      def proxy_ready?(asset)
-        asset.proxy.attached? && (!asset.animation_role? || preview_record(asset)["status"] == "ready")
-      end
-
-      def preview_status(asset)
-        record = preview_record(asset)
-        return "failed" if record["status"] == "queued" && record["requested_at"].to_i <= 5.minutes.ago.to_i
-        record["status"]
+      def preview_data(record)
+        data = { preview_status: record&.preview_status || "missing", clips: [] }
+        if record&.status == "ready" && record.file.attached?
+          data[:preview_url] = preview_studio_animation_asset_path(@asset, site_id: @site.id,
+            key: record.variant_digest, file: 1)
+          data[:preview_kind] = "static"
+          data[:evaluated_frame] = record.settings.fetch("pose_frame", 1)
+        end
+        data
       end
 
       def asset_data(asset)
-        attachment = asset.animation_role? ? asset.file : asset.native
+        attachment = asset.animation_source
         asset.as_json(only: %i[id name animation_role]).merge(
           dimension_mode: asset.animation_role? ? asset.dimension_mode : "3d", starter: asset.animation_role.nil?,
           file_url: file_studio_animation_asset_path(asset, site_id: @site.id, v: attachment.blob.id),
-          filename: attachment.filename.to_s,
-          preview_url: (preview_studio_animation_asset_path(asset, site_id: @site.id, v: asset.proxy.blob.id) if proxy_ready?(asset)),
-          preview_request_url: (preview_studio_animation_asset_path(asset, site_id: @site.id) if native_upload?(asset)),
-          preview_status: (preview_status(asset) if native_upload?(asset))
+          source_revision: attachment.blob.id, filename: attachment.filename.to_s,
+          preview_request_url: (preview_studio_animation_asset_path(asset, site_id: @site.id) if asset.native_animation_model?)
         )
       end
     end

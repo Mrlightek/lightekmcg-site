@@ -2,6 +2,7 @@ class StudioAsset < ApplicationRecord
   belongs_to :owner, class_name: "User"
   belongs_to :site, class_name: "DymondSite::Site", optional: true
   belongs_to :studio_project, optional: true
+  has_many :studio_animation_previews, dependent: :destroy
   has_one_attached :character_photo
   has_one_attached :ai_input
   has_one_attached :performance_driver
@@ -23,6 +24,16 @@ class StudioAsset < ApplicationRecord
   ANIMATION_IMAGE_EXTENSIONS = %w[png webp svg].freeze
   ANIMATION_MODEL_EXTENSIONS = %w[glb gltf fbx blend].freeze
   ANIMATION_AUDIO_EXTENSIONS = %w[wav mp3 m4a aac ogg flac].freeze
+
+  def animation_source
+    animation_role? ? file : native
+  end
+
+  def native_animation_model?
+    source = animation_source
+    (animation_role.nil? || dimension_mode == "3d") && source.attached? &&
+      %w[blend fbx].include?(source.filename.extension.downcase)
+  end
 
   def animation_file_format
     formats = case animation_role

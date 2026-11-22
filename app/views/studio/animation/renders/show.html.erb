@@ -6,7 +6,13 @@
   <%= link_to "Back to scene", studio_animation_scene_path(@scene, site_id: @site.id) %>
   <p role="status"><%= @render.status.humanize %> · <%= @render.progress %>%</p>
   <% if @render.active? %><progress value="<%= @render.progress %>" max="100" aria-label="Render progress"></progress><% end %>
-  <% if @render.error_message.present? %><p role="alert"><%= @render.error_message %></p><% end %>
+  <% if @render.error_message.present? %>
+    <p role="alert"><%= "Failed during #{@render.failed_phase}" if @render.failed_phase %><%= " · " if @render.failed_phase %><%= @render.error_message %></p>
+  <% end %>
+  <% if @render.status == "failed" %>
+    <%= button_to "Retry this render", retry_studio_animation_scene_render_path(@scene, @render, site_id: @site.id),
+      params: { request_id: SecureRandom.uuid } %>
+  <% end %>
   <% if @render.status == "completed" && @render.video.attached? %>
     <video controls playsinline preload="metadata" style="display:block;max-width:100%;max-height:72vh" src="<%= video_studio_animation_scene_render_path(@scene, @render, site_id: @site.id) %>"></video>
     <p><%= link_to "Download MP4", video_studio_animation_scene_render_path(@scene, @render, site_id: @site.id, download: 1) %></p>

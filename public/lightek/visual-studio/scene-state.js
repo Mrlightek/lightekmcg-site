@@ -3,6 +3,7 @@ export const CURVES = ["LINEAR", "BEZIER", "CONSTANT"];
 export const identity = { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
 const channelFields = ["position", "rotation", "scale", "lens"];
 export const countFrames = ({ duration_ms, fps }) => Math.ceil(duration_ms * fps / 1000);
+export const encodedDurationMs = spec => 1000 * countFrames(spec) / spec.fps;
 export const frameToTime = (frame, fps) => (frame - 1) * 1000 / fps;
 export const timeToFrame = (time, fps) => 1 + Math.round(time * fps / 1000);
 export const cueFrame = (time, fps) => 1 + Math.ceil(time * fps / 1000);
@@ -15,6 +16,47 @@ export const depth = layer => (layer.z_depth ?? 0) - layer.z_layer * 0.015;
 export const degrees = angle => angle * Math.PI / 180;
 export const aspect = spec => spec.aspect_ratio === "9:16" ? 9 / 16 : 16 / 9;
 export const cameraFov = (lens, ratio) => 360 / Math.PI * Math.atan(18 / (lens * Math.max(1, ratio)));
+
+// Blender switches visemes at ceil(time × fps), on 1-based frames. The
+// exclusive clip boundary is one past the final rendered frame.
+export function cueFrameSpan(cue, spec) {
+  const boundary = countFrames(spec) + 1;
+  const first = clamp(cueFrame(cue.start_ms, spec.fps), 1, boundary);
+  const after = clamp(cueFrame(cue.end_ms, spec.fps), 1, boundary);
+  return { first, after, count: Math.max(0, after - first) };
+}
+
+export function editCueInterval(cue, changes, cues, duration) {
+  const { start_ms, end_ms } = { ...cue, ...changes };
+  if (!Number.isInteger(start_ms) || !Number.isInteger(end_ms) ||
+      start_ms < 0 || end_ms > duration || start_ms >= end_ms) {
+    throw new Error("Mouth cues must have a positive duration and fit within the scene.");
+  }
+  if (cues.some(item => item !== cue && item.start_ms < end_ms && start_ms < item.end_ms)) {
+    throw new Error("Mouth cues cannot overlap on the same layer.");
+  }
+  return { start_ms, end_ms };
+}
+
+export function cueEdgeAtFrame(cue, edge, frame, cues, spec) {
+  const first = edge === "start_ms";
+  const target = clamp(frame, 1, countFrames(spec) + 1);
+  if (cueFrame(cue[edge], spec.fps) === target) return cue[edge];
+  const snap = Math.min(frameToCue(target, spec.fps), spec.duration_ms);
+  const neighbors = cues.filter(item => item !== cue);
+  // A single displayed frame can represent many millisecond edges. A trim
+  // into an adjacent cue's frame can meet its actual edge within that frame.
+  const bound = first
+    ? Math.max(0, ...neighbors.filter(item => item.end_ms <= cue.start_ms).map(item => item.end_ms))
+    : Math.min(spec.duration_ms, ...neighbors.filter(item => item.start_ms >= cue.end_ms).map(item => item.start_ms));
+  if (cueFrame(bound, spec.fps) === target) return first ? Math.max(snap, bound) : Math.min(snap, bound);
+  return snap;
+}
+
+export function shiftCueByFrames(cue, delta, spec) {
+  const offset = clamp(Math.round(delta * 1000 / spec.fps), -cue.start_ms, spec.duration_ms - cue.end_ms);
+  return { start_ms: cue.start_ms + offset, end_ms: cue.end_ms + offset };
+}
 
 export function interpolate(channel, field, time) {
   const keys = channel.keyframes.filter(key => key[field] !== undefined);

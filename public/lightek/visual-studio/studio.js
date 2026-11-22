@@ -1,7 +1,9 @@
 import { assetDrawer, assetForm } from "./asset-drawer.js";
 import { button, element } from "./dom.js";
+import { ModelPreviews } from "./model-previews.js";
 import { inspector } from "./inspector.js";
-import { SceneStore, clamp, compile, countFrames, frameToCue, frameToKey, makeLayer, putKey, rhubarbCues, timeToFrame, transformAt } from "./scene-state.js";
+import { RenderRequests } from "./render-requests.js";
+import { SceneStore, clamp, compile, countFrames, encodedDurationMs, frameToCue, frameToKey, makeLayer, putKey, rhubarbCues, timeToFrame, transformAt } from "./scene-state.js";
 import { Timeline } from "./timeline.js";
 import { Viewport } from "./viewport.js";
 
@@ -11,15 +13,20 @@ const urls = root.dataset;
 const errorMessage = message => { get("message").textContent = message; };
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 
-async function request(url, { method = "GET", body } = {}) {
+async function request(url, { method = "GET", body, timeout } = {}) {
   const multipart = body instanceof FormData;
   const headers = { Accept: "application/json" };
   if (method !== "GET") headers["X-CSRF-Token"] = csrf ?? "";
   if (body && !multipart) headers["Content-Type"] = "application/json";
-  const response = await fetch(url, { method, headers, body: body && (multipart ? body : JSON.stringify(body)) });
+  const response = await fetch(url, { method, headers, body: body && (multipart ? body : JSON.stringify(body)),
+    signal: timeout ? AbortSignal.timeout(timeout) : undefined });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data) throw new Error(data?.error ?? "Studio could not complete the request (" + response.status + ").");
+  if (!response.ok || !data) {
+    const error = new Error(data?.error ?? "Studio could not complete the request (" + response.status + ").");
+    if (!response.ok) error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -48,7 +55,6 @@ async function boot() {
   let usingAudio = false;
   let saving;
   let saveTimer;
-  let renderTimer;
 
   function previewNotice(text) {
     const notice = get("preview-message");
@@ -92,12 +98,21 @@ async function boot() {
     }
   }
 
+  const modelPreviews = new ModelPreviews(request, () => {
+    viewport.sync(assets, previewFor);
+    drawInspector();
+  });
+  const previewFor = (asset, layer) => modelPreviews.get(asset, layer, store.spec.fps);
+
   function drawInspector() {
     const clips = viewport.entries[store.selected]?.clips.map(clip => clip.name) ?? [];
+    const layer = store.selected === "camera" ? null : store.channel;
+    const preview = layer && previewFor(assets.get(layer.asset_id), layer);
     inspector(get("inspector"), store, assets, {
+      buildPreview: () => modelPreviews.build(preview),
       transform: changeTransform, layer: change => edit(() => change(store.channel)),
       remove: () => edit(spec => { spec.layers.splice(store.selected, 1); store.selected = "camera"; timeline.picked = null; })
-    }, clips);
+    }, clips, preview);
   }
 
   function select(selection) {
@@ -121,7 +136,7 @@ async function boot() {
       if (url) sound.src = url;
       else { sound.removeAttribute("src"); sound.load(); }
     }
-    viewport.sync(assets);
+    viewport.sync(assets, previewFor);
     drawInspector();
     timeline.refresh(assets);
     paint();
@@ -129,7 +144,7 @@ async function boot() {
 
   function paint() {
     get("frame").textContent = `Frame ${store.frame} / ${countFrames(store.spec)}`;
-    get("time").textContent = (store.time / 1000).toFixed(3) + " s";
+    get("time").textContent = `${(store.time / 1000).toFixed(3)} / ${(encodedDurationMs(store.spec) / 1000).toFixed(3)} s`;
     get("add-cue").disabled = get("import-cues").disabled = !store.channel.mouth;
     timeline.frame();
     viewport.draw();
@@ -162,8 +177,13 @@ async function boot() {
         startMs = elapsed;
       }
     }
-    if (elapsed >= store.spec.duration_ms) {
-      seek(countFrames(store.spec));
+    const end = encodedDurationMs(store.spec);
+    if (elapsed >= end) {
+      pause();
+      if (usingAudio) sound.currentTime = end / 1000;
+      store.seek(countFrames(store.spec));
+      drawInspector();
+      paint();
       return;
     }
     store.seek(1 + Math.floor(elapsed * store.spec.fps / 1000 + 1e-7));
@@ -286,12 +306,7 @@ async function boot() {
       updateDrawer();
       refresh();
     }),
-    preview: asset => attempt(async () => {
-      const item = await request(asset.preview_request_url, { method: "POST" });
-      assets.set(item.id, item);
-      updateDrawer();
-      pollPreview(item.id);
-    })
+
   };
 
   function updateDrawer() {
@@ -299,41 +314,51 @@ async function boot() {
     if (store.spec.audio_asset_id) get("library").append(button("Remove scene audio", () => edit(spec => { delete spec.audio_asset_id; updateDrawer(); })));
   }
 
-  const previewPolls = new Map();
-  function pollPreview(id) {
-    if (previewPolls.has(id)) return;
-    const poll = async () => {
-      try {
-        const item = await request(member(urls.assetsUrl, id));
-        assets.set(id, item);
-        if (item.preview_status === "queued") {
-          previewPolls.set(id, setTimeout(poll, 2500));
-          return;
-        }
-        updateDrawer();
-        refresh();
-        if (item.preview_status === "failed") errorMessage("The model preview failed. Check the model file or try the preview again.");
-      } catch (error) {
-        errorMessage(error.message);
-      }
-      previewPolls.delete(id);
-    };
-    previewPolls.set(id, setTimeout(poll, 2500));
+  let selectedRender;
+  const renders = new RenderRequests({
+    request,
+    historyUrl: urls.rendersUrl,
+    stateChanged: showRenderStatus,
+    historyChanged: showRenderHistory,
+    accepted: render => {
+      selectedRender = render.id;
+      get("video").removeAttribute("src");
+      get("video").hidden = true;
+      get("download").hidden = true;
+      get("renders").open = true;
+      if (render.retry_url) showRenderHistory([render, ...lastRenders.filter(item => item.id !== render.id)]);
+    }
+  });
+  let lastRenders = [];
+
+  function showRenderStatus() {
+    const { activeRender, statusError, submitting, locked } = renders;
+    const latest = lastRenders[0];
+    const phase = latest?.failed_phase ? ` during ${latest.failed_phase}` : "";
+    let summary = latest?.status === "failed" ? ` · Failed${phase}` : "";
+    if (activeRender) summary = ` · ${activeRender.status} ${activeRender.progress}%`;
+    if (submitting) summary = " · Submitting…";
+    get("render-status").textContent = summary;
+    get("render-connection").textContent = statusError ?? "";
+    get("refresh-renders").hidden = !statusError;
+    get("render").disabled = locked;
+    root.querySelectorAll("[data-retry-render]").forEach(control => { control.disabled = locked; });
   }
 
-  let selectedRender;
-  async function refreshRenders() {
-    clearTimeout(renderTimer);
-    const items = await request(urls.rendersUrl);
-    const active = items.find(item => !["completed", "failed"].includes(item.status));
-    get("render-status").textContent = active ? " · " + active.status + " " + active.progress + "%" : "";
-    get("render").disabled = !!active;
-    get("render-list").replaceChildren(...items.map(item => element("div", { class: "vs-render-row" },
-      element("span", {}, `Render ${item.id} · ${item.status}${item.error_message ? " · " + item.error_message : ""}`),
-      item.video_url ? button("Watch", () => showVideo(item)) : null)));
+  function showRenderHistory(items) {
+    lastRenders = items;
+    get("render-list").replaceChildren(...items.map(item => {
+      const title = item.failed_phase ? `Failed during ${item.failed_phase}` : item.status;
+      const phase = element("span", {}, `Render ${item.id} · ${title}`);
+      return element("div", { class: "vs-render-row" }, phase,
+        item.error_message ? element("p", {}, item.error_message) : null,
+        item.retry_url ? button("Retry this render", () => attempt(() => renders.submit(item.retry_url, () => ({}))),
+          { "data-retry-render": item.id }) : null,
+        item.video_url ? button("Watch", () => showVideo(item)) : null);
+    }));
+    showRenderStatus();
     const completed = selectedRender ? items.find(item => item.id === selectedRender && item.video_url) : items.find(item => item.video_url);
     if (completed && get("video").getAttribute("src") !== completed.video_url) showVideo(completed);
-    if (active) renderTimer = setTimeout(() => attempt(refreshRenders), 2200);
   }
 
   function showVideo(item) {
@@ -387,22 +412,11 @@ async function boot() {
     if (mouth.cues.length && !confirm("Replace the selected layer’s existing mouth cues?")) return;
     edit(() => { mouth.cues = cues; timeline.picked = null; });
   }));
-  get("render").addEventListener("click", () => attempt(async () => {
-    get("render").disabled = true;
-    try {
-      while (store.dirty) await save();
-      const render = await request(urls.rendersUrl, { method: "POST" });
-      selectedRender = render.id;
-      get("video").removeAttribute("src");
-      get("video").hidden = true;
-      get("download").hidden = true;
-      get("renders").open = true;
-      await refreshRenders();
-    } catch (error) {
-      get("render").disabled = false;
-      throw error;
-    }
-  }));
+  get("render").addEventListener("click", () => attempt(() => renders.submit(urls.rendersUrl, async () => {
+    while (store.dirty) await save();
+    return { lock_version: lockVersion };
+  })));
+  get("refresh-renders").addEventListener("click", () => renders.refresh());
   get("delete-scene").addEventListener("click", () => attempt(async () => {
     if (!confirm("Delete this scene and its finished exports?")) return;
     clearTimeout(saveTimer);
@@ -416,9 +430,8 @@ async function boot() {
   });
   updateDrawer();
   refresh();
-  for (const item of assets.values()) if (item.preview_status === "queued") pollPreview(item.id);
   errorMessage("");
-  await refreshRenders();
+  await renders.refresh();
 }
 
 attempt(boot);

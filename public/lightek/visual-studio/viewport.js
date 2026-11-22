@@ -50,16 +50,17 @@ export class Viewport {
     }, { passive: false });
   }
 
-  sync(assets) {
+  sync(assets, previewFor = () => undefined) {
     if (!this.scene) return;
     const layers = this.store.spec.layers;
     layers.forEach((layer, index) => {
       const asset = assets.get(layer.asset_id);
+      const preview = layer.dimension_mode === "3d" ? previewFor(asset, layer) : undefined;
       const shapes = Object.entries(layer.mouth?.variants ?? {}).map(([shape, id]) => [shape, assets.get(id)?.file_url]);
-      const signature = JSON.stringify([asset?.id, asset?.file_url, asset?.preview_url, layer.dimension_mode, layer.relief, shapes]);
+      const signature = JSON.stringify([asset?.id, asset?.file_url, preview?.key, preview?.preview_url, layer.dimension_mode, layer.relief, shapes]);
       if (this.entries[index]?.signature !== signature) {
         this.remove(this.entries[index]);
-        this.entries[index] = this.load(asset, index, layer.dimension_mode, layer.relief, shapes, signature);
+        this.entries[index] = this.load(asset, index, layer.dimension_mode, layer.relief, shapes, signature, preview);
       }
     });
     while (this.entries.length > layers.length) this.remove(this.entries.pop());
@@ -73,7 +74,7 @@ export class Viewport {
     entry.owned.forEach(resource => resource.dispose());
   }
 
-  load(asset, index, mode, relief, shapes, signature) {
+  load(asset, index, mode, relief, shapes, signature, preview) {
     const root = new THREE.Group();
     root.userData.layer = index;
     const billboard = new THREE.Group();
@@ -82,7 +83,7 @@ export class Viewport {
     billboard.add(art);
     this.scene.add(root);
     const entry = { root, billboard, art, signature, live: true, mouth: {}, owned: [], clips: [] };
-    if (mode === "3d") this.model(entry, asset);
+    if (mode === "3d") this.model(entry, asset, preview);
     else this.card(entry, asset?.file_url, relief).then(mesh => { entry.card = mesh; }).catch(() => this.placeholder(entry, "Artwork preview unavailable"));
     for (const [shape, url] of shapes) {
       this.card(entry, url).then(mesh => { if (mesh) entry.mouth[shape] = mesh; }).catch(() => {});
@@ -117,10 +118,10 @@ export class Viewport {
     return mesh;
   }
 
-  async model(entry, asset) {
+  async model(entry, asset, preview) {
     const original = ["glb", "gltf"].includes(fileType(asset));
-    const url = original ? asset.file_url : asset?.preview_url;
-    if (!url) return this.placeholder(entry, "Model preview unavailable");
+    const url = original ? asset.file_url : preview?.preview_url;
+    if (!url) return this.placeholder(entry, preview ? "Build a Blender pose preview in the Inspector" : "Model preview unavailable");
     try {
       if (!this.models.has(url)) {
         this.models.set(url, fetch(url).then(response => {
@@ -131,7 +132,9 @@ export class Viewport {
       const model = await this.models.get(url);
       if (!entry.live) return;
       const object = clone(model.scene);
-      object.rotation.x += Math.PI / 2;
+      const sourceAxes = new THREE.Group();
+      sourceAxes.rotation.x = Math.PI / 2;
+      sourceAxes.add(object);
       const unusable = [];
       object.traverse(node => {
         if (node.isLight || node.isCamera ||
@@ -142,10 +145,11 @@ export class Viewport {
         }
       });
       unusable.forEach(node => node.removeFromParent());
-      entry.art.add(object);
+      entry.art.add(sourceAxes);
       entry.clips = model.animations;
       entry.mixer = new THREE.AnimationMixer(object);
       entry.nativePreview = !original;
+      entry.evaluatedFrame = preview?.evaluated_frame;
       if (entry.root.userData.layer === this.store.selected) this.controls.loaded();
       this.draw();
     } catch {
@@ -217,7 +221,7 @@ export class Viewport {
     });
     this.renderer.render(this.scene, this.camera);
     const target = this.entries[selected];
-    this.controls.notice(target?.notice || (target?.nativePreview ? "Native model proxy · Blender applies native rig actions on export" :
+    this.controls.notice(target?.notice || (target?.nativePreview ? `Static Blender pose preview · frame ${target.evaluatedFrame}` :
       !spec.layers.length ? "Add artwork or a model from Assets to start." : ""));
   }
 

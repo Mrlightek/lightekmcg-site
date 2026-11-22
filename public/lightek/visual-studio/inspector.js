@@ -14,7 +14,7 @@ function vector(name, value, change, scale = false) {
     }));
 }
 
-export function inspector(container, store, assets, actions, clips) {
+export function inspector(container, store, assets, actions, clips, preview) {
   const layer = store.selected !== "camera";
   const value = store.channel;
   const current = transformAt(value, store.time);
@@ -46,9 +46,25 @@ export function inspector(container, store, assets, actions, clips) {
   }
   if (value.dimension_mode === "3d") {
     const action = name => actions.layer(item => { if (name) item.action = name; else delete item.action; });
-    if (clips.length) content.push(label("Model action", select([["", "Default"], ...new Set([...clips, value.action].filter(Boolean))].map(entry =>
-      typeof entry === "string" ? [entry, entry] : entry), value.action, action)));
-    else content.push(label("Native action name", element("input", { value: value.action, maxlength: 120, onchange: event => action(event.target.value.trim()) })));
+    if (clips.length) {
+      const choices = [["", "Default"], ...clips.map(name => [name, name])];
+      if (value.action && !clips.includes(value.action)) choices.push([value.action, `${value.action} (missing)`]);
+      content.push(label("Model action", select(choices, value.action, action)));
+    } else if (preview) {
+      content.push(label("Native action name", element("input", { value: value.action, maxlength: 120, onchange: event => action(event.target.value.trim()) })));
+    }
+    if (preview) {
+      const status = preview.preview_status;
+      if (status === "ready") {
+        const exportPose = value.pose_frame === undefined ? "Native animation plays in the MP4 export." : "MP4 uses this fixed pose.";
+        content.push(element("p", {}, `Static Blender preview · frame ${preview.evaluated_frame}. ${exportPose}`));
+      } else {
+        const waiting = ["loading", "queued"].includes(status);
+        content.push(button(waiting ? "Building or checking preview…" : status === "failed" ? "Retry pose preview" : "Build pose preview",
+          actions.buildPreview, { disabled: waiting }));
+        if (status === "failed") content.push(element("p", { role: "status" }, "Could not build this pose. Check the source model, action name, and frame."));
+      }
+    }
     content.push(label("Freeze at model frame", number(value.pose_frame,
       next => actions.layer(item => { if (next === undefined) delete item.pose_frame; else item.pose_frame = next; }),
       { min: 0, max: 100000, step: 1 })));

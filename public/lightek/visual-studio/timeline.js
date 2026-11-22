@@ -1,5 +1,5 @@
 import { button, element, label, number, select } from "./dom.js";
-import { CURVES, VISEMES, clamp, countFrames, cueFrame, frameToCue, frameToKey, timeToFrame } from "./scene-state.js";
+import { CURVES, VISEMES, clamp, countFrames, cueEdgeAtFrame, cueFrame, cueFrameSpan, editCueInterval, encodedDurationMs, frameToKey, shiftCueByFrames, timeToFrame } from "./scene-state.js";
 
 export class Timeline {
   constructor(root, store, actions) {
@@ -20,7 +20,7 @@ export class Timeline {
     const rows = [this.row("Audio", undefined, rail => {
       const asset = assets.get(spec.audio_asset_id);
       if (asset) {
-        const width = Number.isFinite(this.audioDuration) ? Math.min(100, this.audioDuration * 100_000 / spec.duration_ms) : 100;
+        const width = Number.isFinite(this.audioDuration) ? Math.min(100, this.audioDuration * 100_000 / encodedDurationMs(spec)) : 100;
         rail.append(element("span", { class: "vs-audio-clip", style: `width:${width}%` }, asset.name));
       }
     })];
@@ -33,17 +33,29 @@ export class Timeline {
           this.drag(mark, rail, delta => this.moveKey(index, key, frame + delta));
         });
       }));
-      if (channel.mouth) rows.push(this.row("Mouth · " + name, index, rail => {
+      if (!channel.mouth) continue;
+      const empty = [];
+      rows.push(this.row("Mouth · " + name, index, rail => {
         channel.mouth.cues.forEach(cue => {
-          const first = cueFrame(cue.start_ms, spec.fps);
-          const after = cueFrame(cue.end_ms, spec.fps);
-          const block = this.marker(rail, first, button(cue.viseme, () => this.pick(index, "cue", cue),
-            { title: `${cue.viseme} · frames ${first}–${after - 1}`, class: "vs-cue" }));
-          block.style.width = Math.max(100 / this.total, this.percent(after - first + 1)) + "%";
-          this.drag(block, rail, (delta, edge) => this.moveCue(index, cue,
-            first + (edge === "end" ? 0 : delta), after + (edge === "start" ? 0 : delta)), true);
+          const { first, after, count } = cueFrameSpan(cue, spec);
+          const timing = `${cue.viseme} · ${cue.start_ms}–${cue.end_ms} ms`;
+          const pickCue = () => this.pick(index, "cue", cue);
+          if (!count) {
+            empty.push(button(timing, pickCue, { class: "vs-cue-empty", "aria-label": `${timing} · No rendered frames` }));
+            return;
+          }
+          const description = `${timing} · frames ${first}–${after - 1}`;
+          const block = this.marker(rail, first, button(cue.viseme, pickCue,
+            { title: description, "aria-label": description, class: "vs-cue" }));
+          block.style.width = this.percent(count + 1) + "%";
+          this.drag(block, rail, (delta, edge) => {
+            if (edge) this.trimCue(index, cue, edge === "start" ? "start_ms" : "end_ms", (edge === "start" ? first : after) + delta);
+            else this.moveCue(index, cue, shiftCueByFrames(cue, delta, spec));
+          }, true);
         });
       }));
+      if (empty.length) rows.push(element("div", { class: "vs-track" },
+        element("span", {}, "No rendered frames"), element("div", { class: "vs-cue-warnings" }, ...empty)));
     }
     this.tracks.replaceChildren(...rows);
     this.updateEditor();
@@ -54,7 +66,7 @@ export class Timeline {
     const rail = element("div", { class: "vs-rail", onclick: event => {
       if (event.target.closest("button")) return;
       const bounds = rail.getBoundingClientRect();
-      this.actions.seek(1 + Math.round((event.clientX - bounds.left) / bounds.width * (this.total - 1)));
+      this.actions.seek(1 + Math.floor((event.clientX - bounds.left) / bounds.width * this.total));
       if (index !== undefined) this.actions.select(index);
     } });
     fill(rail);
@@ -126,16 +138,18 @@ export class Timeline {
     this.pick(index, "key", key);
   }
 
-  moveCue(index, cue, first, after) {
-    const spec = this.store.spec;
-    const start = frameToCue(clamp(first, 1, this.total), spec.fps);
-    const end = Math.min(spec.duration_ms, frameToCue(clamp(after, 1, this.total + 1), spec.fps));
+  trimCue(index, cue, edge, frame) {
     const cues = this.channel(index).mouth.cues;
-    if (start >= end || cues.some(item => item !== cue && item.start_ms < end && start < item.end_ms)) {
-      throw new Error("Mouth cues must have a duration and cannot overlap on the same layer.");
-    }
+    const time = cueEdgeAtFrame(cue, edge, frame, cues, this.store.spec);
+    this.moveCue(index, cue, { [edge]: time });
+  }
+
+  moveCue(index, cue, changes) {
+    const cues = this.channel(index).mouth.cues;
+    const interval = editCueInterval(cue, changes, cues, this.store.spec.duration_ms);
+    if (interval.start_ms === cue.start_ms && interval.end_ms === cue.end_ms) return;
     this.actions.edit(() => {
-      Object.assign(cue, { start_ms: start, end_ms: end });
+      Object.assign(cue, interval);
       cues.sort((a, b) => a.start_ms - b.start_ms);
     });
     this.pick(index, "cue", cue);
@@ -150,16 +164,33 @@ export class Timeline {
     const list = type === "key" ? channel?.keyframes : channel?.mouth?.cues;
     if (!list?.includes(item)) return;
     const fps = this.store.spec.fps;
-    const run = callback => next => this.actions.attempt(() => callback(next));
+    const run = callback => next => this.actions.attempt(() => {
+      try { callback(next); }
+      catch (error) { this.updateEditor(); throw error; }
+    });
     if (type === "key") this.editor.append(
       label("Keyframe", number(timeToFrame(item.time_ms, fps), run(frame => this.moveKey(index, item, frame)), { min: 1, max: this.total, step: 1 })),
       label("Incoming curve", select(CURVES.map(curve => [curve, curve]), item.interpolation ?? "LINEAR",
         interpolation => this.actions.edit(() => { item.interpolation = interpolation; }))));
-    else this.editor.append(
-      label("Viseme", select(VISEMES.map(shape => [shape, shape]), item.viseme,
-        viseme => this.actions.edit(() => { item.viseme = viseme; }))),
-      label("Start frame", number(cueFrame(item.start_ms, fps), run(frame => this.moveCue(index, item, frame, cueFrame(item.end_ms, fps))), { min: 1, max: this.total, step: 1 })),
-      label("End frame (inclusive)", number(cueFrame(item.end_ms, fps) - 1, run(frame => this.moveCue(index, item, cueFrame(item.start_ms, fps), frame + 1)), { min: 1, max: this.total, step: 1 })));
+    else {
+      const { first, after, count } = cueFrameSpan(item, this.store.spec);
+      this.editor.append(
+        label("Viseme", select(VISEMES.map(shape => [shape, shape]), item.viseme,
+          viseme => this.actions.edit(() => { item.viseme = viseme; }))),
+        label("Start (ms)", number(item.start_ms, run(time => this.moveCue(index, item, { start_ms: time })),
+          { min: 0, max: item.end_ms - 1, step: 1 })),
+        label("End (ms, exclusive)", number(item.end_ms, run(time => this.moveCue(index, item, { end_ms: time })),
+          { min: item.start_ms + 1, max: this.store.spec.duration_ms, step: 1 }))
+      );
+      if (count) this.editor.append(
+        label("Start frame", number(first, run(frame => this.trimCue(index, item, "start_ms", frame)),
+          { min: 1, max: this.total, step: 1 })),
+        label("End frame (inclusive)", number(after - 1, run(frame => this.trimCue(index, item, "end_ms", frame + 1)),
+          { min: 1, max: this.total, step: 1 }))
+      );
+      else this.editor.append(element("p", { class: "vs-message", role: "status" },
+        "No rendered frames. Move or extend this cue to cover a frame."));
+    }
     this.editor.append(button(type === "key" ? "Delete keyframe" : "Delete cue",
       () => this.actions.edit(() => { list.splice(list.indexOf(item), 1); this.picked = null; })));
   }

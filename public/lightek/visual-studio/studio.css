@@ -47,6 +47,8 @@
 .visual-studio .vs-key, .visual-studio .vs-cue { position: absolute; top: 3px; height: 20px; line-height: 1; padding: 0 3px; cursor: ew-resize; touch-action: none; }
 .visual-studio .vs-key { transform: translateX(-25%); color: var(--vs-accent); background: #222633; }
 .visual-studio .vs-cue { overflow: hidden; min-width: 10px; text-align: center; color: #e3dfff; background: #49417f; border: 1px solid #8172d3; }
+.vs-cue-warnings { display: flex; flex-wrap: wrap; gap: 4px; }
+.visual-studio .vs-cue-empty { color: #ffe7b0; background: #624527; border-color: #d19e59; }
 .vs-audio-clip { display: block; border-radius: 3px; padding: 2px 7px; margin: 2px 0; background: #214b46; font-size: .75rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .vs-cue-editor { margin-top: 8px; align-items: end; }
 .vs-cue-editor:empty { display: none; }

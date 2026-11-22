@@ -9,6 +9,7 @@ namespace :studio do
     resources :scenes, only: %i[index show create update destroy] do
       resources :renders, only: %i[index show create destroy] do
         get :video, on: :member
+        post :retry, on: :member, action: :retry_render
       end
     end
   end

@@ -18,9 +18,9 @@
 <%= javascript_include_tag "/lightek/live/studio.js?v=19", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>
 <%= javascript_include_tag '/lightek/live/audience.js?v=3', defer: true %>
-<%= stylesheet_link_tag "/lightek/live/control-room.css?v=2" %>
+<%= stylesheet_link_tag "/lightek/live/control-room.css?v=3" %>
 <%= javascript_include_tag "/lightek/live/control-room.js?v=1", defer: true %>
-<%= javascript_include_tag "/lightek/live/host-cues.js?v=1", defer: true if @host_package %>
+<%= javascript_include_tag "/lightek/live/host-cues.js?v=2", defer: true if @host_package %>
 <main class="ll-studio ll-control-room" data-tour-page="live" data-live-studio data-encoder="<%= @encoder_ready ? 'ready' : 'missing' %>" data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
 

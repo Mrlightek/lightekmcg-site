@@ -10,7 +10,9 @@ The producer sets the broadcast frame, brand and show title, with an optional su
 
 ## Host the show
 
-Open the prepared show. Use **Previous cue** and **Next cue** to move at your own pace. **Freestyle** holds your place until you return to the rundown. The cues stay in the host's private browser interface. The program preview and transmission controls use the existing Live Studio capture session.
+Open the prepared show to see the teleprompter. Adjust **Text size** and **Scroll speed**, then choose **Play scroll**. Scrolling stops at the end of each cue. Use **Previous cue** and **Next cue** to change cards, or scroll the current card manually. **Freestyle** hides the script and pauses scrolling. When you return, the same cue and reading position are visible and you can resume scrolling.
+
+The teleprompter stays in the host interface, outside the program compositor. For a screen-share segment, select the window or tab you want viewers to see and keep Live Studio out of the shared surface.
 
 If there is a prepared scene, load it into the program preview. The package pins the scene revision. Prepare the show again if the scene changes. If the requested destination becomes unavailable, the interface selects a private test and displays the reason. Enable the camera and microphone in your browser, check the program preview, and use the existing broadcast controls to start and stop. Restream and TikTok confirmations use the existing flow.
 

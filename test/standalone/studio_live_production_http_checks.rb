@@ -37,6 +37,9 @@ class StudioLiveProductionHttpTest < BroadcastControlTest
       assert_includes client.response.body, 'Private &lt;cue&gt;'
       assert_includes client.response.body, 'The prepared destination is unavailable.'
       assert_includes client.response.body, 'data-host-freestyle'
+      assert_includes client.response.body, 'data-host-script'
+      assert_includes client.response.body, 'data-host-speed'
+      assert_includes client.response.body, 'data-host-text-size'
       assert_includes client.response.body, 'data-prepared-frame="cinema"'
       assert_includes client.response.body, 'value="Build in public"'
       assert_includes client.response.body, "data-prepared-revision=\"#{scene.lock_version}\""

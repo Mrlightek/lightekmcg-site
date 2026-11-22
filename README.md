@@ -44,7 +44,7 @@ A business can build its website, sell products or book services, manage custome
 | Animate dialogue on a character | [Character speech & lip sync](docs/studio/character-lip-sync.md) |
 | Animate a library still into a video shot | [Genesis image-to-video](docs/studio/genesis-image-to-video.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
-| Prepare the rundown and host a live show | [Live Broadcast Producer](docs/nevaeh/tutorials/live_broadcast_producer.md) |
+| Prepare a live show and read the rundown on a teleprompter | [Live Broadcast Producer](docs/nevaeh/tutorials/live_broadcast_producer.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |

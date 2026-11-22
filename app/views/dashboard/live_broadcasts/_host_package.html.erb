@@ -1,5 +1,5 @@
 <% if @host_package %>
-  <section class="ll-panel ll-host-cues" data-host-cues aria-label="Host rundown">
+  <section class="ll-panel ll-host-cues" data-host-cues aria-label="Host teleprompter">
     <h2><%= @host_package.fetch('title') %></h2>
     <p>Destination <strong><%= NevaehOs::LiveShow::DESTINATIONS.fetch(@host_package.fetch('destination')) %></strong></p>
     <% if @host_package['look'] %>
@@ -12,19 +12,29 @@
       <button type="button" data-host-load>Load prepared scene into preview</button>
       <p role="status" data-host-setup-status></p>
     <% end %>
-    <div class="ll-host-cards">
-      <% @host_package.fetch('cues').each do |cue| %>
-        <article data-host-cue>
-          <h3><%= cue.fetch('label') %></h3>
-          <p><%= cue.fetch('text') %></p>
-        </article>
-      <% end %>
+    <h3>Teleprompter</h3>
+    <p class="ll-note">When screen sharing, share the demo window to keep your script private.</p>
+    <div class="ll-host-reader">
+      <div class="ll-host-cards" data-host-script tabindex="0" role="region" aria-label="Teleprompter script">
+        <% @host_package.fetch('cues').each do |cue| %>
+          <article data-host-cue>
+            <h4><%= cue.fetch('label') %></h4>
+            <p><%= cue.fetch('text') %></p>
+          </article>
+        <% end %>
+      </div>
+      <p class="ll-host-freestyle" data-host-freestyle-message hidden>Freestyle. Your place is saved.</p>
     </div>
-    <div class="ll-room-controls" data-host-navigation hidden>
+    <div class="ll-room-controls ll-host-navigation" data-host-navigation hidden>
+      <button type="button" data-host-play>Play scroll</button>
       <button type="button" data-host-previous>Previous cue</button>
       <button type="button" data-host-next>Next cue</button>
       <button type="button" data-host-freestyle aria-pressed="false">Freestyle</button>
       <span role="status" data-host-position></span>
+      <div class="ll-host-settings">
+        <label>Scroll speed <input type="range" data-host-speed min="10" max="120" step="5" value="35"></label>
+        <label>Text size <input type="range" data-host-text-size min="20" max="54" step="2" value="30"></label>
+      </div>
     </div>
     <%= link_to 'Live Studio', dashboard_live_path(site_id: @site.id) %>
   </section>

@@ -169,8 +169,38 @@
   max-width: 42rem;
 }
 .ll-control-room .ll-host-cues textarea { width: 100%; }
-.ll-control-room .ll-host-cards article p {
-  font-size: clamp(1.125rem, 2vw, 1.5rem);
-  overflow-wrap: anywhere;
+.ll-control-room .ll-host-reader { position: relative; }
+.ll-control-room .ll-host-cards {
+  height: clamp(9rem, 24vh, 17rem);
+  padding: .85rem 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #080d16;
+  color: #fff;
+  border: 1px solid #4b596e;
+  border-radius: .5rem;
 }
-.ll-control-room [data-host-navigation][hidden] { display: none; }
+.ll-control-room .ll-host-cards h4 { margin: 0 0 .45rem; }
+.ll-control-room .ll-host-cards article p {
+  margin: 0;
+  font-size: var(--ll-teleprompter-size, 30px);
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.ll-control-room .ll-host-script-paused { visibility: hidden; }
+.ll-control-room .ll-host-freestyle {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+}
+.ll-control-room .ll-host-navigation { margin-block: .65rem; }
+.ll-control-room .ll-host-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem 1rem;
+}
+.ll-control-room .ll-host-settings label { display: flex; align-items: center; gap: .35rem; }
+.ll-control-room .ll-host-cues [hidden] { display: none; }

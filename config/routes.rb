@@ -678,6 +678,10 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   # BEGIN LIGHTEK ORGANIZED SETTINGS
   get "/dashboard/settings", to: "dashboard/account_settings#index", as: :dashboard_settings_home
   get "/dashboard/home", to: "dashboard/client_home#index", as: :dashboard_client_home
+  get "/dashboard/customer-service", to: "dashboard/customer_service#index", as: :dashboard_customer_service
+  post "/dashboard/customer-service/cases", to: "dashboard/customer_service#create", as: :dashboard_customer_cases
+  get "/dashboard/customer-service/cases/:id", to: "dashboard/customer_service#show", as: :dashboard_customer_case
+  patch "/dashboard/customer-service/cases/:id", to: "dashboard/customer_service#reply"
   get "/dashboard/settings/general", to: "dashboard/platform_settings#index", as: :dashboard_platform_settings
   patch "/dashboard/settings/general", to: "dashboard/platform_settings#update"
   patch "/dashboard/settings", to: "dashboard/platform_settings#update"

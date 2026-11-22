@@ -6,6 +6,8 @@ module NevaehOs
       'marketing_copilot'=>['Marketing copilot: offers, campaigns and follow-through','growth'],
       'task_builder'=>['Build, test and activate your own operating tasks','admin'],
       'ten_tasks'=>['Ten tasks, follow-up questions and reviewed learning','all'],
+      'customer_service'=>['Customer service intake, support cases and handoffs','all'],
+      'billing'=>['Dymond Bank invoices, subscription status and billing cases','all'],
       'specialist_tasks'=>['Scheduled specialist operational reviews','all'],
       'reporting_system'=>['Structured reporting convention and documentation-page SMEs','all'],
       'worker_reports'=>['SME reports, lessons and management experience','all'],
@@ -113,7 +115,7 @@ module NevaehOs
         end
       end
       SpecialistTasks::DEFINITIONS.each do |role,(title,input)|
-        rows << entry(SpecialistTasks.capability(role),title,'specialist_tasks','domain account access',
+        rows << entry(SpecialistTasks.capability(role),title,SpecialistTasks.topic(role),'domain account access',
           example:SpecialistTasks.example(role),source:'built-in command',coverage:'fields',inputs:input ? {input=>'integer'} : {})
       end
       Resources.catalog(actor).each do |resource|

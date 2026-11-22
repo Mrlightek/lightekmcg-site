@@ -99,6 +99,8 @@ jobs:
         run: bundle exec ruby test/standalone/nevaeh_runtime_backfill_checks.rb --name '/NevaehRuntimeBackfillChecks/'
       - name: Verify workforce lifecycle and current-page context
         run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
+      - name: Verify customer case intake, account isolation and billing replies
+        run: bundle exec ruby test/standalone/nevaeh_backlog_test.rb
 
   voice-queue:
     runs-on: ubuntu-24.04

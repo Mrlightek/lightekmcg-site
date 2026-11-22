@@ -38,3 +38,9 @@ Apply migration `20261116040002_connect_nevaeh_specialist_reviews` before restar
 ## Create a website page
 
 Say **Create a website page called running_from_nevaeh_screen**. Nevaeh resolves an authorized website from the current page, request host or your single available website, then delegates to Website Operator. If several websites remain possible, choose one with `/website page {"site_id":1,"title":"running_from_nevaeh_screen"}`. The worker creates an unpublished draft, verifies its saved title and slug, and returns its page ID and the website pages management link. The title is preserved; underscores become hyphens in the URL slug. Existing slugs block creation rather than overwriting content. Publishing remains an explicit website action.
+
+## Accounting & Billing operations
+
+In Dashboard → Books & Accounting → Reports, an accounting administrator can schedule Nevaeh to apply saved categorization rules daily or weekly. She checks current employer permissions and authenticator enrollment before each run. Only uncategorized, unreconciled entries are eligible. Rules run in priority order and each applied category produces an audit event. The worker reports how many entries it categorized and how many eligible entries still need classification. Report and reviewed tax-reserve refreshes can run on their own schedules.
+
+For account billing and support, see the [Billing SME](billing.md) and [Customer Service SME](customer_service.md) guides.

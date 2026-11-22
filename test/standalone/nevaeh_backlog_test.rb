@@ -16,10 +16,26 @@ DATABASE = File.join(Dir.tmpdir, "nevaeh-backlog-#{Process.pid}.sqlite3")
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: DATABASE)
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
-  create_table(:users) { |t| t.string :role }
+  create_table(:users) { |t| t.string :role; t.datetime :access_suspended_at }
+  create_table(:dymond_bank_invoices) do |t|
+    t.references :billable, polymorphic: true
+    t.string :number, :status
+    t.integer :amount_remaining_cents, default: 0
+    t.date :due_date
+    t.datetime :paid_at
+    t.timestamps
+  end
+  create_table(:dymond_bank_subscriptions) do |t|
+    t.references :subscriber, polymorphic: true
+    t.string :status
+    t.datetime :current_period_end
+    t.timestamps
+  end
   create_table :marlon_tickets do |t|
-    %i[number title category priority status assigned_team assigned_rep description related_type].each { |c| t.string c }
-    t.integer :urgency
+    %i[number title category assigned_team assigned_rep description related_type].each { |c| t.string c }
+    t.string :priority, default: "medium"
+    t.string :status, default: "open"
+    t.integer :urgency, default: 5
     t.integer :submitted_by_id
     t.integer :related_id
     t.json :extra_fields
@@ -100,7 +116,19 @@ class ApplicationRecord < ActiveRecord::Base
 end
 class ApplicationJob < ActiveJob::Base; end
 # Minimal host adapters. Real ticket models/services/jobs below are loaded intact.
+module DymondBank
+  class Invoice < ApplicationRecord
+    self.table_name = "dymond_bank_invoices"
+    belongs_to :billable, polymorphic: true
+  end
+
+  class Subscription < ApplicationRecord
+    self.table_name = "dymond_bank_subscriptions"
+    belongs_to :subscriber, polymorphic: true
+  end
+end
 class User < ApplicationRecord
+  has_many :invoices, as: :billable, class_name: "DymondBank::Invoice"
   def can_access_feature?(_feature) = false # Host feature-assignment boundary.
   def employee? = %w[employee admin super_admin].include?(role)
 end
@@ -163,7 +191,10 @@ end
    services/nevaeh_intelligences/dispatch services/nevaeh_intelligences/ticket_execution
    services/nevaeh_intelligences/studio_capability_plan_resolution_v7a
    services/nevaeh_intelligences/github_development_plan_v7a services/nevaeh_intelligences/ticket_backlog
-   jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service].each do |file|
+   jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service
+   services/lightek_people/lifecycle_access services/lightek_people/access services/lightek_accounting/access
+   services/gatekeeper/hosting/access services/lightek_agency/package_policy
+   services/nevaeh_customer_service/cases services/nevaeh_os/specialist_tasks].each do |file|
   require File.join(ROOT, "app", "#{file}.rb")
 end
 %w[models/nevaeh_intelligence services/gatekeeper services/gatekeeper/authorization_decision
@@ -185,7 +216,7 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     Rails.env = "test"
     ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
     ENV.delete("NEVAEH_BACKLOG_ACTOR_ID")
-    [Marlon::TicketEvent, Marlon::Ticket, NevaehIntelligence, DymondSite::Section, DymondSite::Page, DymondSite::Site, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, StudioScene, Production, StudioProject, User].each(&:delete_all)
+    [Marlon::TicketEvent, Marlon::Ticket, DymondBank::Invoice, DymondBank::Subscription, NevaehIntelligence, DymondSite::Section, DymondSite::Page, DymondSite::Site, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, StudioScene, Production, StudioProject, User].each(&:delete_all)
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
   end
 
@@ -205,6 +236,99 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal 1, NevaehIntelligences::ProcessBacklogJob.perform_now
     assert_equal [old.id], queued.map { |job| job[:args].first["ticket_id"] }
     refute_includes queued.map { |job| job[:args].first["ticket_id"] }, done.id
+  end
+
+  def test_customer_service_resolves_verified_invoice_once_and_reopens_for_finance
+    customer = User.create!(role: "client")
+    other = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    invoice = customer.invoices.create!(number: "INV-001", status: "paid", paid_at: Time.current)
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      support.open!(actor: other, topic: "invoice_status", record_id: invoice.id, title: nil, description: nil)
+    end
+
+    row = support.open!(actor: customer, topic: "invoice_status", record_id: invoice.id, title: nil, description: nil)
+    assert_equal "answered", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "resolved", row.reload.status
+    assert_equal invoice.id, row.extra_fields.dig("customer_service", "receipt", "id")
+    assert_match(/INV-001 as paid/, row.events.where(action: support::CUSTOMER_UPDATE).sole.detail)
+    refute_includes support.customer_scope(other), row
+
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal 1, row.events.where(action: support::CUSTOMER_UPDATE).count
+    assert_raises(ActiveRecord::RecordNotFound) { support.reply!(ticket: row, actor: other, message: "Open this case") }
+    support.reply!(ticket: row, actor: customer, message: "Please review this charge")
+    assert_nil row.reload.resolved_at
+    assert_equal "needs_specialist", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_equal "in_progress", row.reload.status
+    assert_equal "Accounting & Billing", row.assigned_team
+    assert_equal "Please review this charge", row.events.where(action: support::CUSTOMER_REPLY).sole.detail
+  end
+
+  def test_customer_service_rechecks_ownership_on_execution
+    customer = User.create!(role: "client")
+    other = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    invoice = customer.invoices.create!(number: "PRIVATE", status: "open")
+    row = support.open!(actor: customer, topic: "invoice_status", record_id: invoice.id, title: nil, description: nil)
+    invoice.update!(billable: other)
+    assert_equal "needs_specialist", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+    assert_nil row.reload.extra_fields.dig("customer_service", "receipt")
+    refute_includes row.events.where(action: support::CUSTOMER_UPDATE).sole.detail, "PRIVATE"
+  end
+
+  def test_customer_service_recovers_queued_subscription_and_routes_general_cases
+    customer = User.create!(role: "client")
+    support = NevaehCustomerService::Cases
+    subscription = DymondBank::Subscription.create!(subscriber: customer, status: "past_due")
+    billing = support.open!(actor: customer, topic: "subscription_status", record_id: subscription.id, title: nil, description: nil)
+    general = support.open!(actor: customer, topic: "general", record_id: nil, title: "Getting started", description: "Please help")
+    queue = ActiveJob::Base.queue_adapter.enqueued_jobs
+    queue.clear
+
+    assert_equal 2, NevaehIntelligences::ProcessBacklogJob.perform_now
+    assert_equal [billing.id, general.id], queue.map { |job| job[:args].first.fetch("ticket_id") }
+    assert_equal "answered", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: billing.id)
+    assert_equal "needs_specialist", NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: general.id)
+    assert_equal "in_progress", general.reload.status
+    assert_equal 0, NevaehIntelligences::ProcessBacklogJob.perform_now
+  end
+
+  def test_customer_service_keeps_internal_notes_and_pending_auto_acknowledgment_out_of_public_reply
+    customer = User.create!(role: "client")
+    staff = User.create!(role: "admin")
+    support = NevaehCustomerService::Cases
+    row = support.open!(actor: customer, topic: "technical", record_id: nil, title: "Setup issue", description: "Please help")
+    row.log!(action: "Internal note", detail: "Private", actor: staff)
+
+    support.staff_reply!(ticket: row, actor: staff, message: "We are checking the setup")
+    NevaehIntelligences::ProcessBacklogJob.perform_now(ticket_id: row.id)
+
+    assert_equal ["We are checking the setup"], row.events.where(action: support::PUBLIC_EVENTS).pluck(:detail)
+    assert_equal "staff_replied", row.reload.extra_fields.dig("customer_service", "state")
+  end
+
+  def test_billing_review_is_account_scoped_and_support_review_requires_staff
+    customer = User.create!(role: "client")
+    other = User.create!(role: "client")
+    staff = User.create!(role: "admin")
+    support = NevaehCustomerService::Cases
+    row = support.open!(actor: customer, topic: "billing", record_id: nil, title: "Invoice dispute", description: "Please look into this")
+    own = customer.invoices.create!(status: "open", due_date: Date.yesterday, amount_remaining_cents: 1_200)
+    other.invoices.create!(status: "open", due_date: Date.yesterday, amount_remaining_cents: 3_400)
+    customer.invoices.create!(status: "paid", due_date: Date.yesterday)
+
+    billing = NevaehOs::SpecialistTasks.perform!(actor: customer, command: {"role" => "billing"})
+    assert_equal [own.id], billing.dig("result", "overdue_invoices", "records").pluck("id")
+    assert_equal [row.id], billing.dig("result", "open_cases", "records").pluck("id")
+    refute billing.dig("result", "overdue_invoices", "records").first.key?("amount_remaining_cents")
+
+    command = {"role" => "customer_service"}
+    assert_raises(ArgumentError) { NevaehOs::SpecialistTasks.perform!(actor: customer, command: command) }
+    review = NevaehOs::SpecialistTasks.perform!(actor: staff, command: command)
+    assert_equal [row.id], review.dig("result", "records").pluck("id")
+    refute review.dig("result", "records").first.key?("description")
   end
 
   def test_unknown_ticket_is_escalated_with_actual_blocker_and_plan_never_closed

@@ -6,6 +6,7 @@ module Employee
     def index
       authorize! :read, Marlon::Ticket
       @tickets = Marlon::Ticket.open_first
+      @tickets = @tickets.merge(NevaehCustomerService::Cases.scope) if params[:queue] == "customer_service"
       @tickets = @tickets.where(status: params[:status]) if params[:status].present?
       @tickets = @tickets.where(category: params[:category]) if params[:category].present?
     end
@@ -100,9 +101,15 @@ module Employee
 
     def reply
       authorize! :reply, @ticket
-      @ticket.log!(action: "#{current_user.full_name} replied", detail: params[:detail], actor: current_user)
-      @ticket.update!(status: "in_progress") if @ticket.status == "open"
+      if params[:customer_visible] == "1"
+        NevaehCustomerService::Cases.staff_reply!(ticket: @ticket, actor: current_user, message: params[:detail])
+      else
+        @ticket.log!(action: "#{current_user.full_name} replied", detail: params[:detail], actor: current_user)
+        @ticket.update!(status: "in_progress") if @ticket.status == "open"
+      end
       redirect_to employee_ticket_path(@ticket), notice: "Reply logged."
+    rescue NevaehCustomerService::Cases::Invalid => error
+      redirect_to employee_ticket_path(@ticket), alert: error.message
     end
 
     def resolve

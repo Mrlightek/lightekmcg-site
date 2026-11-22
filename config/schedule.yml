@@ -150,3 +150,9 @@ broadcast_delivery_storage:
   class: 'Studio::Broadcasting::DeliveryStorageSnapshotJob'
   queue: default
   active_job: true
+
+lightek_accounting_automation_recovery:
+  cron: "*/5 * * * *"
+  class: "AccountingAutomationSweepJob"
+  queue: default
+  active_job: true

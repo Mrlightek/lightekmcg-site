@@ -39,6 +39,8 @@ class ApplicationJob
   end
 end
 class DirectorySyncJob < ApplicationJob; end
+require ROOT.join('app/jobs/accounting_refresh_job')
+require ROOT.join('app/jobs/accounting_automation_sweep_job')
 Dir[ROOT.join('app/models/lightek_identity/*.rb')].each { |file| require file }
 require ROOT.join('app/services/lightek_identity/permissions')
 require ROOT.join('app/services/lightek_identity/directory_policy')
@@ -81,6 +83,52 @@ class EnterpriseAccountingChecks < PeoplePayrollChecks
     row.save!
     row
   end
+  def test_enterprise_scheduled_rules_match_priority_once_and_keep_unmatched_rows
+    [[@income, 5], [@expense, 10]].each do |category, priority|
+      rule = LightekAccounting::Rule.new(book: @book, category: category, priority: priority)
+      rule.data = {'keyword' => 'vendor'}
+      rule.save!
+    end
+    matching = entry(1_500, '2026-01-02', 'VENDOR payout')
+    unmatched = entry(-500)
+    already_categorized = entry(-1_000, '2026-01-02', 'Vendor supply', @expense)
+    finalized = entry(100, '2026-01-02', 'Vendor adjustment')
+    LightekAccounting::Reconcile.finalize!(access: @accounting_access, account: @account,
+      first: Date.new(2026, 1, 1), last: Date.new(2026, 1, 31),
+      starting: 100_000, ending: 100_100, selected: [finalized.id])
+    record = LightekAccounting::Automation.new(book: @book, actor: @employer, next_run_at: 1.minute.ago)
+    record.data = {'action' => 'categorize', 'cadence' => 'daily'}
+    record.save!
+
+    AccountingRefreshJob.enqueued = []
+    AccountingAutomationSweepJob.new.perform
+    assert_includes AccountingRefreshJob.enqueued, [record.id]
+    LightekIdentity::Mfa.stub(:enabled?, true) do
+      2.times { AccountingRefreshJob.new.perform(record.id) }
+    end
+
+    assert_equal @income.id, matching.reload.category_id
+    assert_equal @expense.id, already_categorized.reload.category_id
+    assert_nil unmatched.reload.category_id
+    assert_nil finalized.reload.category_id
+    assert_equal 1, record.reload.data.dig('latest', 'categorized_count')
+    assert_equal 1, record.data.dig('latest', 'uncategorized_count')
+    assert_equal 1, LightekAccounting::AuditEvent.where(book: @book, action: 'transaction_categorized_by_rule').count
+  end
+
+  def test_enterprise_scheduled_rules_disable_after_authority_is_revoked
+    record = LightekAccounting::Automation.new(book: @book, actor: @worker.worker, next_run_at: 1.minute.ago)
+    record.data = {'action' => 'categorize', 'cadence' => 'daily'}
+    record.save!
+    @worker.update!(accounting_access: 'reviewer')
+
+    LightekIdentity::Mfa.stub(:enabled?, true) { AccountingRefreshJob.new.perform(record.id) }
+
+    refute record.reload.enabled?
+    assert_equal 'Denied', record.error_code
+    assert_nil record.data['latest']
+  end
+
   def test_enterprise_nevaeh_accounting_handoff_does_not_expose_the_ledger
     command = NevaehOs::PlatformActions.command('accounting.workspace.open', {'employer_id'=>@employer.id})
     assert_raises(ArgumentError) do

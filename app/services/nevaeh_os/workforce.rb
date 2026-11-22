@@ -19,6 +19,8 @@ module NevaehOs
       'language_tester'=>['Language Contract Tester','Learning','Check active phrases against their current sources and action contracts.',['nevaeh.improve'],['/improve language_check']],
       'trainer'=>['Language Trainer','Learning','Train reviewed datasets through the native trainer and acceptance checks.',['nevaeh.train','nevaeh.checkpoint'],['/train MODEL_ID {"dataset_id":1,"epochs":10}']],
       'capability_builder'=>['Capability Builder','Engineering','Compile saved construction contracts into services, workers and verifiers; run their saved acceptance examples.',['nevaeh.build','nevaeh.activate'],['/build CONSTRUCTION_ID']],
+      'customer_service'=>['Customer Service SME','Customer Service','Own customer case intake and review escalations.',[],[]],
+      'billing'=>['Billing SME','Accounting & Billing','Read the signed-in account’s invoices and subscription records and review billing exceptions.',[],[]],
       'support'=>['Support Coordinator','Support','Create actionable tickets for problems and missing integrations.',['nevaeh.ticket'],['open a ticket about DESCRIBE_THE_PROBLEM']],
       'media'=>['Media Processor','Studio','Probe and convert files through reviewed application operations.',['application.run','application.describe'],['/app run ffmpeg probe {"input":"UPLOADED_FILENAME"}']],
       'studio_operator'=>['Studio Workspace Operator','Studio','Operate registered Studio projects, assets and workspace services using their typed inputs and saved receipts.',['studio.project.*','studio.workspace.*'],[]],

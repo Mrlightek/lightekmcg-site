@@ -183,7 +183,7 @@ class Dashboard::AccountingController < ApplicationController
     require_book!
     @access.require!(:admin)
     action = params[:action_kind]
-    raise ArgumentError, 'Choose report refresh or reviewed tax reserve refresh' unless %w[reports tax_reserve].include?(action)
+    raise ArgumentError, 'Choose an accounting task' unless %w[reports tax_reserve categorize].include?(action)
     cadence = params[:cadence]
     raise ArgumentError, 'Choose a daily or weekly cadence' unless %w[daily weekly].include?(cadence)
     values = {'action'=>action,'cadence'=>cadence}

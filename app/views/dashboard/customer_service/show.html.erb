@@ -1,0 +1,32 @@
+<% content_for :page_title, @ticket.number %>
+<%= stylesheet_link_tag "/lightek/people-workspace.css" %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div>
+      <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %> / <%= @ticket.number %></p>
+      <h1><%= @ticket.title %></h1>
+      <p><%= @ticket.status.humanize %> · <%= @ticket.assigned_team %></p>
+    </div>
+  </header>
+
+  <section class="lp-card">
+    <h2>Conversation</h2>
+    <% if @ticket.description.present? %><p style="white-space: pre-wrap"><%= @ticket.description %></p><% end %>
+    <% if @events.empty? %><p>Nevaeh is processing this case. Refresh for updates.</p><% end %>
+    <% @events.each do |event| %>
+      <article>
+        <h3><%= { "Customer update" => "Nevaeh", "Support reply" => @ticket.assigned_team, "Customer reply" => "You" }.fetch(event.action) %></h3>
+        <time datetime="<%= event.created_at.iso8601 %>"><%= l(event.created_at, format: :short) %></time>
+        <p style="white-space: pre-wrap"><%= event.detail %></p>
+      </article>
+    <% end %>
+  </section>
+  <section class="lp-card">
+    <h2><%= @ticket.status == "resolved" ? "Need more help?" : "Add a reply" %></h2>
+    <%= form_with url: dashboard_customer_case_path(@ticket), method: :patch, class: "lp-form" do |form| %>
+      <%= form.label :message, "Your message" %>
+      <%= form.text_area :message, rows: 4, required: true, maxlength: 4_000 %>
+      <%= form.submit(@ticket.status == "resolved" ? "Reopen and send" : "Send reply", class: "lp-button") %>
+    <% end %>
+  </section>
+</main>

@@ -101,6 +101,10 @@ module NevaehOs
         return {'kind'=>'website_page','values'=>{'title'=>m[1].strip}}
       end
       return {'kind'=>'guide','topic'=>'specialist_tasks'} if q.match?(/\A\/operations\z/i)
+      if (m=q.match(/\A(?:please )?(?:check|review|show) (?:my )?(overdue invoices|billing cases|customer support cases|customer service queue)[.!]?\z/i))
+        role = ['overdue invoices', 'billing cases'].include?(m[1].downcase) ? 'billing' : 'customer_service'
+        return {'kind'=>'specialist_review','role'=>role,'inputs'=>{}}
+      end
       if (m=q.match(/\A\/operations\s+([a-z_]+)(?:\s+(\{.*\}))?\z/m))
         return {'kind'=>'specialist_review','role'=>m[1],'inputs'=>m[2] ? JSON.parse(m[2]) : {}}
       end

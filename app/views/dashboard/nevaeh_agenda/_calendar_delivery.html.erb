@@ -1,0 +1,18 @@
+<% if @mailboxes.any? %>
+  <details>
+    <summary><%= item.closed_at? ? "Send cancellation" : "Email a calendar invitation or update" %></summary>
+    <%= form_with url: invite_dashboard_nevaeh_agenda_item_path(item), scope: :calendar_delivery do |form| %>
+      <%= form.label :mailbox_id, "Send from", for: "calendar-mailbox-#{item.id}" %>
+      <%= form.collection_select :mailbox_id, @mailboxes, :id, :address, {}, id: "calendar-mailbox-#{item.id}" %>
+      <%= form.label :recipient, "Attendee email", for: "calendar-recipient-#{item.id}" %>
+      <%= form.email_field :recipient, required: true, id: "calendar-recipient-#{item.id}" %>
+      <% if item.closed_at? %><%= form.hidden_field :cancel, value: "1" %>
+      <% else %>
+        <%= form.label :cancel, for: "calendar-cancel-#{item.id}" do %>
+          <%= form.check_box :cancel, id: "calendar-cancel-#{item.id}" %> Cancel this attendee’s invitation
+        <% end %>
+      <% end %>
+      <%= form.submit "Send calendar message", class: "dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  </details>
+<% end %>

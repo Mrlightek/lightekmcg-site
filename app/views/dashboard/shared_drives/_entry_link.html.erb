@@ -1,0 +1,5 @@
+<% if entry.folder? %>
+  <%= link_to entry.name, dashboard_shared_drive_path(entry.drive_id, employer_id: @employer.id, folder: entry.id) %>
+<% else %>
+  <%= link_to entry.name, download_dashboard_shared_drive_path(entry.drive_id, entry, employer_id: @employer.id) %>
+<% end %>

@@ -1,0 +1,103 @@
+<% content_for :page_title, "Direct travel booking" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <%= link_to "← Executive work", dashboard_executive_work_path(item: @case.id) %>
+  <h1>Direct travel booking</h1>
+  <p><%= @case.title %></p>
+  <div class="network-columns">
+    <aside class="network-pane">
+      <details><summary>Connect Duffel</summary>
+        <%= form_with url: configure_executive_travel_supplier_path(@case) do |form| %>
+          <%= form.label :access_token, "Test or live access token" %><%= form.password_field :access_token, required: true, autocomplete: "new-password" %>
+          <%= form.submit "Save supplier", class: "dd-topbar-btn dd-btn-primary" %>
+        <% end %>
+      </details>
+      <% unless @case.status == "closed" %>
+        <h2>Search travel</h2>
+        <details><summary>Flights</summary>
+          <%= form_with url: search_executive_travel_path(@case, kind: "flight"), scope: :travel_search do |form| %>
+            <%= form.label :origin, "From airport code" %><%= form.text_field :origin, required: true, maxlength: 3 %>
+            <%= form.label :destination, "To airport code" %><%= form.text_field :destination, required: true, maxlength: 3 %>
+            <%= form.label :departure %><%= form.date_field :departure, required: true %>
+            <%= form.label :returning, "Return date (optional)" %><%= form.date_field :returning %>
+            <%= form.submit "Search flights", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+        <details><summary>Hotels</summary>
+          <%= form_with url: search_executive_travel_path(@case, kind: "hotel"), scope: :travel_search do |form| %>
+            <%= form.label :latitude, "Latitude" %><%= form.number_field :latitude, required: true, step: "any", min: -90, max: 90 %>
+            <%= form.label :longitude, "Longitude" %><%= form.number_field :longitude, required: true, step: "any", min: -180, max: 180 %>
+            <%= form.label :check_in %><%= form.date_field :check_in, required: true %>
+            <%= form.label :check_out %><%= form.date_field :check_out, required: true %>
+            <%= form.submit "Search hotels within 10 km", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+        <h2>Load a supplier quote</h2>
+        <%= form_with url: quote_executive_travel_path(@case), scope: :travel_quote do |form| %>
+          <%= form.label :kind, "Booking type" %><%= form.select :kind, [["Flight", "flight"], ["Hotel", "hotel"]] %>
+          <%= form.label :source_id, "Duffel flight offer ID or hotel rate ID" %><%= form.text_field :source_id, required: true, maxlength: 60 %>
+          <%= form.submit "Load quote", class: "dd-topbar-btn dd-btn-primary" %>
+        <% end %>
+      <% end %>
+    </aside>
+    <section class="network-pane">
+      <% if @results %>
+        <h2>Search results</h2>
+        <% if @results.empty? %><p>No options were returned.</p><% end %>
+        <% @results.each do |result| %>
+          <p><strong><%= result[:label] %></strong> · <%= result[:total] %></p>
+          <% if @search_kind == "hotel" %>
+            <%= button_to "View hotel rates", rates_executive_travel_path(@case), params: {search_result_id: result[:id]}, class: "dd-topbar-btn dd-btn-ghost" %>
+          <% else %>
+            <%= button_to "Get current quote", quote_executive_travel_path(@case), params: {travel_quote: {kind: @search_kind == "flight" ? "flight" : "hotel", source_id: result[:id]}}, class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        <% end %>
+      <% end %>
+      <h2>Quotes and bookings</h2>
+      <% if @bookings.empty? %><p>No quotes yet.</p><% end %>
+      <% @bookings.each do |booking| %>
+        <article>
+          <h3><%= booking.kind.humanize %> · <%= booking.amount %> <%= booking.currency %></h3>
+          <p><%= booking.status.humanize %> · <%= booking.source_id %><%= " · Supplier test mode" if booking.quote["mode"] == "test" %></p>
+          <% Array(booking.quote["itinerary"]).each do |leg| %><p><%= leg %></p><% end %>
+          <% if booking.kind == "hotel" %>
+            <p><%= [booking.quote["property"], booking.quote["check_in"], booking.quote["check_out"]].compact.join(" · ") %></p>
+            <% if booking.quote["due_at_property"] %><p>Due at property <%= booking.quote["due_at_property"] %> <%= booking.quote["property_currency"] %></p><% end %>
+          <% end %>
+          <% if booking.reference %>
+            <p>Supplier confirmation <strong><%= booking.reference %></strong> · <%= booking.supplier_id %></p>
+          <% elsif booking.status.in?(%w[submitting uncertain]) %>
+            <%= form_with url: reconcile_executive_travel_path(@case, booking) do |form| %>
+              <%= form.label :supplier_id, "Supplier order or booking ID" %><%= form.text_field :supplier_id, required: true %>
+              <%= form.submit "Verify supplier confirmation", class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+          <% elsif booking.status == "quoted" && @case.status != "closed" %>
+            <details><summary>Review and book</summary>
+              <%= form_with url: book_executive_travel_path(@case, booking) do |form| %>
+                <%= hidden_field_tag :approved_total, "#{booking.amount} #{booking.currency}" %>
+                <%= hidden_field_tag :quote_version, booking.updated_at.iso8601(6) %>
+                <%= fields_for :travel_person do |person| %>
+                  <%= person.label :given_name %><%= person.text_field :given_name, required: true %>
+                  <%= person.label :family_name %><%= person.text_field :family_name, required: true %>
+                  <%= person.label :email %><%= person.email_field :email, required: true %>
+                  <%= person.label :phone_number, "International phone number" %><%= person.telephone_field :phone_number, required: true %>
+                  <% if booking.kind == "flight" %>
+                    <%= person.label :title %><%= person.select :title, %w[mr mrs ms miss dr] %>
+                    <%= person.label :gender, "Airline gender marker" %><%= person.select :gender, %w[m f] %>
+                    <%= person.label :born_on, "Date of birth" %><%= person.date_field :born_on, required: true %>
+                  <% end %>
+                <% end %>
+                <% if booking.kind == "hotel" && booking.quote["due_at_property"].nil? %>
+                  <label><%= check_box_tag :acknowledge_fees, "1", false, required: true %> I acknowledge that charges due at the property may be unknown.</label>
+                <% end %>
+                <label><%= check_box_tag :approval, "1", false, required: true %> Book this quote and authorize <%= booking.amount %> <%= booking.currency %> through the connected supplier.</label>
+                <%= form.submit "Confirm and book", class: "dd-topbar-btn dd-btn-primary" %>
+              <% end %>
+            </details>
+          <% end %>
+        </article>
+      <% end %>
+    </section>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=2">

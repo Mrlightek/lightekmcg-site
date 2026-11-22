@@ -62,6 +62,7 @@ module NevaehOs
       /marketing execute SITE_ID [KIT_ID] — execute the kit’s supported asset and follow-up steps
       /features SITE_ID [KIT_ID] — build a feature page and its captioned overview videos
       /growth SITE_ID — prepare or open today’s business growth plan
+      /ceo — executive briefing · /ceo agenda — private schedule and follow-ups
       /status — your recent actions · /briefing — today's operational briefing
       /remember Preferences: I prefer concise replies — offers a memory for consent
       /forget ID — remove one of your memories
@@ -72,6 +73,12 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if q.match?(/\A(?:\/?ceo(?: brief(?:ing)?)?|(?:please )?(?:give|show) me (?:my|the) (?:CEO|executive) brief(?:ing)?)[?!.]?\z/i)
+        return {'kind' => 'executive_brief'}
+      end
+      if q.match?(/\A(?:\/?ceo agenda|(?:show|give) me my CEO agenda|(?:what is|what's) on my CEO agenda)[?!.]?\z/i)
+        return {'kind' => 'executive_brief', 'view' => 'agenda'}
+      end
       if (match = q.match(/\A\/live prepare ([1-9][0-9]{0,17}) (\{.*\})\z/m))
         return { 'kind' => 'live_show', 'site_id' => match[1].to_i, 'values' => JSON.parse(match[2]) }
       end

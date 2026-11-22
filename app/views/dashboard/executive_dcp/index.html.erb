@@ -1,0 +1,36 @@
+<% content_for :page_title, "Theater DCP delivery" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <%= link_to "← Executive work", dashboard_executive_work_path(item: @case.id) %>
+  <h1>Theater DCP delivery</h1>
+  <p><%= @case.title %></p>
+  <div class="network-columns">
+    <section class="network-pane">
+      <h2>Deliver a prepared DCP</h2>
+      <% unless @case.status == "closed" %>
+        <%= form_with url: dashboard_executive_dcp_path(@case), scope: :dcp_delivery do |form| %>
+          <%= form.label :email, "Theater contact’s Lightek account email" %><%= form.email_field :email, required: true %>
+          <%= form.label :rights_reference, "Theatrical exhibition rights reference" %><%= form.text_field :rights_reference, required: true, maxlength: 240 %>
+          <%= form.label :expires_at, "Access expires at" %><%= form.datetime_local_field :expires_at, required: true %>
+          <%= form.label :package, "DCP ZIP file" %><%= form.file_field :package, accept: ".zip", required: true %>
+          <%= form.submit "Validate and deliver", class: "dd-topbar-btn dd-btn-primary" %>
+        <% end %>
+      <% end %>
+    </section>
+    <section class="network-pane">
+      <h2>Delivery status</h2>
+      <% @deliveries.each do |delivery| %>
+        <article>
+          <h3><%= delivery.recipient.full_name %></h3>
+          <p><%= delivery.revoked_at? ? "Revoked" : delivery.expires_at.past? ? "Expired" : delivery.status.humanize %></p>
+          <% if delivery.error %><p><%= delivery.error %></p><% end %>
+          <% if delivery.received_at? %><p>Checksum acknowledged <%= l(delivery.received_at, format: :short) %></p><% end %>
+          <% if delivery.available? %><p><%= link_to "Recipient delivery link", dashboard_executive_dcp_delivery_path(delivery.key) %></p><% end %>
+          <% if delivery.status == "pending" && !delivery.revoked_at? %><%= button_to "Retry validation", validate_executive_dcp_path(@case, delivery) %><% end %>
+          <% unless delivery.revoked_at? %><%= button_to "Revoke access", revoke_executive_dcp_path(@case, delivery), method: :delete %><% end %>
+        </article>
+      <% end %>
+    </section>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=2">

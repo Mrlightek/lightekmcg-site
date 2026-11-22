@@ -17,6 +17,7 @@ module LightekMail
     end
     validates :mailbox_kind, inclusion: {in: %w[mailbox group]}
     belongs_to :user
+    belongs_to :installation_peer, class_name: 'LightekReservations::Peer', optional: true
     belongs_to :domain, class_name: "LightekMail::Domain"
     belongs_to :auto_template, class_name: "LightekMail::Template", optional: true
     has_many :messages, class_name: "LightekMail::Message", dependent: :restrict_with_error
@@ -31,7 +32,10 @@ module LightekMail
       errors.add(:address, "must use this account’s domain") if address.to_s.split("@").last != domain&.name
       shared_brand = has_attribute?(:brand_member) && brand_member? && domain&.name == ENV.fetch('LIGHTEK_EMAIL_DOMAIN', 'lightekmcg.com') &&
         domain.verified_at && domain.user.role == 'super_admin' && user&.lightek_email_confirmed_at && user.lightek_email_address == address
-      errors.add(:user, "must own the domain") if domain && domain.user_id != user_id && !shared_brand
+      installation_brand = installation_peer && installation_peer.merchant_id == user_id &&
+        domain&.name == ENV.fetch('LIGHTEK_EMAIL_DOMAIN', 'lightekmcg.com') && domain.verified_at && domain.user.role == 'super_admin'
+      errors.add(:user, "must own the domain") if domain && domain.user_id != user_id && !shared_brand && !installation_brand
+      errors.add(:installation_peer, "must match the installation mailbox") if installation_peer_id && !installation_brand
       errors.add(:auto_template, "must belong to this mailbox") if auto_template && auto_template.account_id != id
     end
     def suspended? = suspended_at.present? || CustomerSuspension.exists?(user_id: user_id)

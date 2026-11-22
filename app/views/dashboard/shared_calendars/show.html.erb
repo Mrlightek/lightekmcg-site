@@ -1,0 +1,73 @@
+<% content_for :page_title, @calendar.name %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<main class="network-collaboration" data-turbo="false">
+  <p><%= link_to "← Shared calendars", dashboard_shared_calendars_path(employer_id: @employer.id) %></p>
+  <h1><%= @calendar.name %></h1>
+  <p>Times shown in <%= Time.zone.name %>.</p>
+  <div class="network-columns">
+    <aside class="network-pane">
+      <h2>Schedule an event</h2>
+      <%= form_with url: schedule_dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: @date), scope: :event do |form| %>
+        <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
+        <%= form.label :starts_at, "Starts" %><%= form.datetime_local_field :starts_at, required: true %>
+        <%= form.label :ends_at, "Ends" %><%= form.datetime_local_field :ends_at, required: true %>
+        <%= form.label :guest_ids, "Invite teammates" %><%= form.collection_select :guest_ids, @coworkers, :id, :full_name, {}, multiple: true %>
+        <%= form.label :details %><%= form.text_area :details, maxlength: 4000 %>
+        <%= form.submit "Schedule event", class: "dd-topbar-btn dd-btn-primary" %>
+      <% end %>
+      <h2>Check team availability</h2>
+      <%= form_with url: dashboard_shared_calendar_path(@calendar), method: :get do %>
+        <%= hidden_field_tag :employer_id, @employer.id %><%= hidden_field_tag :date, @date %>
+        <%= label_tag :availability_user_id, "Team member" %>
+        <%= select_tag :availability_user_id, options_from_collection_for_select(@coworkers, :id, :full_name, @person&.id), required: true %>
+        <%= submit_tag "Check week", class: "dd-topbar-btn dd-btn-ghost" %>
+      <% end %>
+      <% if @busy %>
+        <p><%= @person.full_name %> · busy on shared calendars</p>
+        <% if @busy.empty? %><p>No busy times this week.</p><% end %>
+        <ul><% @busy.each do |first, last| %><li><%= l(first, format: :short) %> – <%= l(last, format: :short) %></li><% end %></ul>
+      <% end %>
+    </aside>
+    <section class="network-pane">
+      <h2><%= l(@date, format: :long) %> – <%= l(@date + 6, format: :long) %></h2>
+      <nav aria-label="Calendar weeks">
+        <%= link_to "Previous week", dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: @date - 7, availability_user_id: @person&.id) %>
+        <%= link_to "Next week", dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: @date + 7, availability_user_id: @person&.id) %>
+      </nav>
+      <% if @events.empty? %><p>No events this week.</p><% end %>
+      <% @events.each do |event| %>
+        <article class="office-document">
+          <h3><%= event.title %></h3>
+          <p><%= l(event.starts_at, format: :short) %> – <%= l(event.ends_at, format: :short) %> · <%= event.organizer.full_name %></p>
+          <p class="network-text"><%= event.details %></p>
+          <%= link_to "Add to calendar (.ics)", event_ics_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id) %>
+          <% if event.guests.any? %>
+            <ul><% event.guests.each do |guest| %><li><%= guest.user.full_name %> · <%= guest.response.humanize %></li><% end %></ul>
+          <% end %>
+          <% if event.guests.any? { |guest| guest.user_id == current_user.id } %>
+            <%= form_with url: respond_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id, date: @date) do |form| %>
+              <%= form.label :response, "Your RSVP", for: "response-#{event.id}" %>
+              <%= form.select :response, [["Accept", "accepted"], ["Maybe", "tentative"], ["Decline", "declined"]], {}, id: "response-#{event.id}" %>
+              <%= form.submit "Save RSVP", class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+          <% end %>
+          <% if @owner || event.organizer_id == current_user.id %>
+            <details>
+              <summary>Edit event</summary>
+              <%= form_with url: reschedule_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id),
+                model: event, scope: :event, method: :patch, namespace: "calendar_event_#{event.id}" do |form| %>
+                <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
+                <%= form.label :starts_at, "Starts" %><%= form.datetime_local_field :starts_at, required: true %>
+                <%= form.label :ends_at, "Ends" %><%= form.datetime_local_field :ends_at, required: true %>
+                <%= form.label :details %><%= form.text_area :details, maxlength: 4000 %>
+                <%= form.submit "Save event", class: "dd-topbar-btn dd-btn-primary" %>
+              <% end %>
+            </details>
+            <%= button_to "Cancel event", cancel_event_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id, date: @date), class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        </article>
+      <% end %>
+    </section>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

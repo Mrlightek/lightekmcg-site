@@ -22,7 +22,8 @@ module LightekReservations
         raise Unavailable, 'Invalid reservation network origin' unless @origin.is_a?(URI::HTTPS) && @origin.host.present? && !@origin.userinfo && @origin.path.in?(['','/']) && !@origin.query && !@origin.fragment
       end
       def request(path, body: nil, method: :get)
-        raise Unavailable, 'Invalid reservation operation' unless path.match?(%r{\Abroadcast/(?:channels/[0-9a-f]{32}|programs(?:/[0-9a-f]{32}/(?:accept|status|withdraw))?)\z}) || path.match?(%r{\Aads/(?:catalog|sales|offers/[a-f0-9-]{36}|placements/[a-f0-9-]{36})\z}) || path.match?(%r{\Astudio/cpu(?:/[0-9a-f]{48}(?:/(?:resume|cancel))?)?\z}) || path.match?(%r{\A(?:pwa/publications|pwa/member-session|pwa/youtube(?:/[0-9a-f-]{36})?|connect/(?:redeem|validate)|commerce/checkouts|commerce/connect|commerce/summary|commerce/orders/[a-f0-9-]{36}(?:/(?:fulfill|refund|payout|cancel-subscription))?|shipping/quotes(?:/[a-f0-9-]{36}/(?:purchase|status|cancel|labels/[0-9]+))?|catalog|offers|intents|reservations/[a-zA-Z0-9_-]{1,64}|payouts)\z})
+        installation_operation = path.match?(%r{\Ainstallation/(?:team/(?:list|create|show|accept|disconnect|member|post)|office/(?:list|show|create|update|history|live|sync|restore)|mail/(?:provision|inbox|read|send))\z})
+        raise Unavailable, 'Invalid reservation operation' unless installation_operation || path.match?(%r{\Abroadcast/(?:channels/[0-9a-f]{32}|programs(?:/[0-9a-f]{32}/(?:accept|status|withdraw))?)\z}) || path.match?(%r{\Aads/(?:catalog|sales|offers/[a-f0-9-]{36}|placements/[a-f0-9-]{36})\z}) || path.match?(%r{\Astudio/cpu(?:/[0-9a-f]{48}(?:/(?:resume|cancel))?)?\z}) || path.match?(%r{\A(?:pwa/publications|pwa/member-session|pwa/youtube(?:/[0-9a-f-]{36})?|connect/(?:redeem|validate)|commerce/checkouts|commerce/connect|commerce/summary|commerce/orders/[a-f0-9-]{36}(?:/(?:fulfill|refund|payout|cancel-subscription))?|shipping/quotes(?:/[a-f0-9-]{36}/(?:purchase|status|cancel|labels/[0-9]+))?|catalog|offers|intents|reservations/[a-zA-Z0-9_-]{1,64}|payouts)\z})
         secret = LightekVault::Service.checkout!(slug: @config.fetch('credential_slug'), consumer: CONSUMER,
           purpose: 'reservation_federation', requested_by: 'reservation-network')
         uri = @origin.dup; uri.path = "/api/reservations/federation/#{path}"
@@ -45,7 +46,13 @@ module LightekReservations
         raise Unavailable, data['error'].to_s.presence || 'Reservation network is unavailable' unless response.is_a?(Net::HTTPSuccess)
         data
       rescue JSON::ParserError, IOError, SystemCallError, Timeout::Error, OpenSSL::SSL::SSLError
-        message = path.start_with?('studio/cpu') ? 'Remote CPU service is temporarily unavailable. Resume this render to retry.' : 'Reservation network is temporarily unavailable. Existing bookings are preserved.'
+        message = if path.start_with?('studio/cpu')
+          'Remote CPU service is temporarily unavailable. Resume this render to retry.'
+        elsif path.start_with?('installation/')
+          'The Lightek installation network is temporarily unavailable.'
+        else
+          'Reservation network is temporarily unavailable. Existing bookings are preserved.'
+        end
         raise Unavailable, message
       ensure
         secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }

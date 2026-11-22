@@ -1,0 +1,85 @@
+<% content_for :page_title, "Shared files" %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+  <%= render "dashboard/office/editor_assets" if @file.kind == "document" %>
+<% end %>
+<main class="network-collaboration" data-turbo="false">
+  <%= link_to "← ##{@channel.name}", dashboard_team_channel_path(@channel, employer_id: @employer.id) %>
+  <h1>Shared files</h1>
+  <p>Members with access to #<%= @channel.name %> can view and edit these files.</p>
+  <div class="network-columns">
+    <aside class="network-pane">
+      <nav aria-label="Create shared file">
+        <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
+          <%= link_to "New #{label.downcase}", dashboard_team_office_path(@channel, employer_id: @employer.id, kind: kind) %>
+        <% end %>
+      </nav>
+      <ul>
+        <% @files.each do |file| %>
+          <li><%= link_to file.title, dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: file.id) %>
+            <small><%= file.kind_label %></small></li>
+        <% end %>
+      </ul>
+    </aside>
+    <section class="network-pane">
+      <% if @file.persisted? %>
+        <h2><%= @file.title %></h2>
+        <p><small>Edited by <%= @file.editor.full_name %> · <%= l(@file.updated_at, format: :short) %></small></p>
+        <%= link_to "Download", export_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) %>
+        <% if @rows %>
+          <div class="office-sheet">
+            <table aria-label="Calculated spreadsheet">
+              <thead><tr><th></th><% (@rows.map(&:size).max || 0).times do |column| %><th scope="col"><%= ('A'.ord + column).chr %></th><% end %></tr></thead>
+              <tbody><% @rows.each_with_index do |row, index| %><tr>
+                <th scope="row"><%= index + 1 %></th><% row.each do |cell| %><td><%= cell %></td><% end %>
+              </tr><% end %></tbody>
+            </table>
+          </div>
+        <% elsif @slide %>
+          <article class="office-slide"><h3><%= @slide.first %></h3><p class="network-text"><%= @slide.last %></p></article>
+          <nav aria-label="Slides">
+            <% if @slide_number > 1 %><%= link_to "Previous slide", dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id, slide: @slide_number - 1) %><% end %>
+            <span>Slide <%= @slide_number %> of <%= @slides.size %></span>
+            <% if @slide_number < @slides.size %><%= link_to "Next slide", dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id, slide: @slide_number + 1) %><% end %>
+          </nav>
+        <% elsif @file.kind == "document" %>
+          <%= render "dashboard/office/document", content: @file.content, rich_text: @file.rich_text? %>
+        <% end %>
+      <% end %>
+      <% if @stale %>
+        <p role="alert">Someone saved a newer version. The editor below shows the latest text.</p>
+        <details open><summary>Your unsaved edits</summary>
+          <%= render "dashboard/office/document", content: @draft_content, rich_text: @draft_rich_text %>
+        </details>
+      <% end %>
+      <% if @file.errors.any? %><ul role="alert"><% @file.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul><% end %>
+      <details<%= " open" if @file.new_record? || @file.errors.any? || @stale %>>
+        <summary><%= @file.persisted? ? "Edit file" : "Create a file" %></summary>
+        <% destination = @file.persisted? ? update_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) : dashboard_team_office_path(@channel, employer_id: @employer.id) %>
+        <%= form_with model: @file, scope: :office_file, url: destination, method: (@file.persisted? ? :patch : :post) do |form| %>
+          <%= form.hidden_field :lock_version if @file.persisted? %>
+          <%= form.hidden_field :kind if @file.new_record? %>
+          <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
+          <% if @file.kind == "document" %>
+            <%= render "dashboard/office/document_editor", form: form, content: @file.content, rich_text: @file.rich_text? %>
+          <% else %>
+            <%= form.label :content, "Contents" %><%= form.text_area :content, required: true, rows: 12 %>
+          <% end %>
+          <% if @file.kind == "spreadsheet" %><p><small>Spreadsheets use CSV rows. Enter formulas such as <code>=SUM(A1:A5)</code> in a cell.</small></p><% end %>
+          <% if @file.kind == "presentation" %><p><small>Start each slide with its title. Put three dashes on a line between slides.</small></p><% end %>
+          <% if @file.persisted? && !@file.errors.any? %>
+            <%= render "dashboard/office/live", read_url: live_dashboard_team_office_path(@channel, @file, employer_id: @employer.id),
+              write_url: update_dashboard_team_office_path(@channel, @file, employer_id: @employer.id, format: :json), write_method: "PATCH" %>
+          <% end %>
+          <%= form.submit "Save shared file", class: "dd-topbar-btn dd-btn-primary" %>
+        <% end %>
+      </details>
+      <% if @file.persisted? %>
+        <%= render "dashboard/office/history", revisions: @history, version: @file.lock_version,
+          restore_url: restore_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) %>
+      <% end %>
+    </section>
+  </div>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">
+<script src="/lightek/office-live.js" defer data-turbo-track="reload"></script>

@@ -11,6 +11,14 @@ module NevaehOs
     SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
     QUOTE_ITEM = /([1-9]\d{0,2}) of (?:product |item )?#?([1-9]\d{0,17})/i
     PHRASES = {
+      'executive.case.create' => [
+        /track (?<case_kind>follow_up|call|travel|expense|contract|screening) (?<title>#{QUOTED}) for my CEO Desk by (?<due_at>#{TIMESTAMP})/i,
+        'Track travel "Atlanta production meetings" for my CEO Desk by 2026-11-30T14:00'
+      ],
+      'executive.agenda.create' => [
+        /add (?:a )?(?<category>meeting|personal|travel|screening|follow_up) (?:called|named) (?<title>#{QUOTED}) to my CEO agenda from (?<starts_at>#{TIMESTAMP}) to (?<ends_at>#{TIMESTAMP})/i,
+        'Add a meeting called "Launch review" to my CEO agenda from 2026-11-30T14:00 to 2026-11-30T14:30'
+      ],
       'hosting.fleet.rollback' => [
         /confirm rollback (?:of )?fleet target #?(?<target_id>[1-9]\d{0,17})/i,
         'Confirm rollback of fleet target #42'
@@ -252,6 +260,8 @@ module NevaehOs
         payload['ticket_number']&.upcase!
         payload['currency']&.upcase!
         payload['folder']&.downcase!
+        payload['case_kind']&.downcase!
+        payload['category']&.downcase! if intent == 'executive.agenda.create'
         payload['operation']&.downcase!
         if intent == 'mail.message.flag'
           payload['flag'].downcase!

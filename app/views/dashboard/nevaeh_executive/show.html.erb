@@ -1,0 +1,78 @@
+<% content_for :page_title, "CEO Desk" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<style>
+  .ceo-desk { max-width: 1120px; margin: 0 auto; }
+  .ceo-desk-header, .ceo-desk-section header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px 20px;
+    flex-wrap: wrap;
+  }
+  .ceo-desk-header { margin-bottom: 24px; }
+  .ceo-desk h1, .ceo-desk h2, .ceo-desk p { margin: 0; }
+  .ceo-desk-header p { margin-top: 6px; color: var(--dd-text-secondary); }
+  .ceo-desk-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ceo-desk-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    align-items: start;
+    gap: 16px;
+  }
+  .ceo-desk-section {
+    padding: 18px;
+    border: 1px solid var(--dd-border);
+    border-radius: 12px;
+    background: var(--dd-bg-elevated, var(--dd-card-bg));
+    overflow-wrap: anywhere;
+  }
+  .ceo-desk-section h2 { font-size: 1rem; }
+  .ceo-desk-section ul { padding: 0; margin: 12px 0 0; list-style: none; }
+  .ceo-desk-section li { padding: 10px 0; border-top: 1px solid var(--dd-border); }
+  .ceo-desk-section li a { font-weight: 600; }
+  .ceo-desk-section li:last-child { padding-bottom: 0; }
+  .ceo-desk-detail { display: block; margin-top: 4px; color: var(--dd-text-secondary); font-size: .875rem; }
+</style>
+<main class="ceo-desk">
+  <header class="ceo-desk-header">
+    <div>
+      <h1>CEO Desk</h1>
+      <p>Nevaeh’s brief for Lightek operations. Sales and orders cover sites you own.</p>
+    </div>
+    <nav class="ceo-desk-actions" aria-label="Work with Nevaeh">
+      <%= link_to "Ask for my brief", dashboard_nevaeh_os_path(command: "/ceo"), class: "dd-topbar-btn dd-btn-primary" %>
+      <%= link_to "Executive work", dashboard_executive_work_path, class: "dd-topbar-btn dd-btn-ghost" %>
+      <%= link_to "Private agenda", dashboard_nevaeh_agenda_path, class: "dd-topbar-btn dd-btn-ghost" %>
+      <%= link_to "Team Chat", dashboard_team_channels_path, class: "dd-topbar-btn dd-btn-ghost" %>
+      <%= link_to "Executive assistant guide", dashboard_nevaeh_guide_path(topic: "executive_assistant"), class: "dd-topbar-btn dd-btn-ghost" %>
+      <%= link_to "Review Nevaeh goals", dashboard_nevaeh_os_path(command: "/goal list"), class: "dd-topbar-btn dd-btn-ghost" %>
+    </nav>
+  </header>
+  <div class="ceo-desk-sections">
+    <% @sections.each do |section| %>
+      <section class="ceo-desk-section">
+        <header>
+          <h2><%= section.fetch(:label) %></h2>
+          <strong><%= section.fetch(:count) %></strong>
+        </header>
+        <% if section.fetch(:rows).any? %>
+          <ul>
+            <% section.fetch(:rows).each do |row| %>
+              <li>
+                <%= link_to row.fetch(:title), row.fetch(:path) %>
+                <small class="ceo-desk-detail"><%= row.fetch(:detail) %></small>
+              </li>
+            <% end %>
+          </ul>
+          <% row_count = section.fetch(:row_count, section.fetch(:count)) %>
+          <% if row_count > section.fetch(:rows).size %>
+            <p class="ceo-desk-detail">Showing <%= section.fetch(:rows).size %> of <%= row_count %>.</p>
+          <% end %>
+        <% else %>
+          <p class="ceo-desk-detail">No items in this queue.</p>
+        <% end %>
+        <% if section[:path] %><%= link_to "Open Lightek Mail", section.fetch(:path), class: "ceo-desk-detail" %><% end %>
+      </section>
+    <% end %>
+  </div>
+</main>

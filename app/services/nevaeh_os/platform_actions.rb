@@ -3,6 +3,8 @@
 require_relative 'mail_actions'
 require_relative 'hosting_actions'
 require_relative 'room_actions'
+require_relative 'agenda_actions'
+require_relative 'executive_case_actions'
 require_relative 'it_actions'
 
 module NevaehOs
@@ -58,7 +60,7 @@ module NevaehOs
                                            'scheduled_at'=>40, 'time_zone'=>100}.freeze,
       'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
       'marketing.publication.cancel' => {'site_id'=>:id, 'slot_id'=>:id, 'lock_version'=>:version}.freeze
-    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS, ItActions::INPUTS).freeze
+    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS, AgendaActions::INPUTS, ExecutiveCaseActions::INPUTS, ItActions::INPUTS).freeze
 
     module_function
 
@@ -111,6 +113,8 @@ module NevaehOs
       return ItActions.authorize!(actor, key, values) if ItActions::INPUTS.key?(key)
       return MailActions.authorize!(actor, key, values) if MailActions::INPUTS.key?(key)
       return HostingActions.authorize!(actor, key, values) if HostingActions::INPUTS.key?(key)
+      return ExecutiveCaseActions.authorize!(actor, values) if key == ExecutiveCaseActions::CREATE
+      return AgendaActions.authorize!(actor, values) if key == AgendaActions::CREATE
       return RoomActions.authorize!(actor, values) if RoomActions::INPUTS.key?(key)
 
       case key
@@ -207,6 +211,8 @@ module NevaehOs
       return ItActions.perform!(actor, key, target, values) if ItActions::INPUTS.key?(key)
       return MailActions.perform!(key, target, values, action_id: action_id) if MailActions::INPUTS.key?(key)
       return HostingActions.perform!(key, target, values, actor: actor) if HostingActions::INPUTS.key?(key)
+      return ExecutiveCaseActions.perform!(target) if key == ExecutiveCaseActions::CREATE
+      return AgendaActions.perform!(target) if key == AgendaActions::CREATE
       return RoomActions.perform!(actor, key, target, values) if RoomActions::INPUTS.key?(key)
 
       case key

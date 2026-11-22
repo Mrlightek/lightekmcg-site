@@ -5,6 +5,7 @@ module LightekReservations
     belongs_to :order, class_name: 'LightekCommerce::Order', optional: true
     belongs_to :member_backend, class_name: 'LightekPwa::MemberBackend', optional: true
     validate { errors.add(:order, 'or member backend is required') unless order_id || (has_attribute?(:member_backend_id) && member_backend_id) }
+    scope :enabled_installations, -> { where(enabled: true).where.not(order_id: nil) }
     def pwa_only? = order_id.nil?
     belongs_to :merchant, class_name: 'User'
     belongs_to :site, class_name: 'DymondSite::Site'

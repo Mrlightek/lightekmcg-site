@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'executive_assistant'=>['CEO Desk, private agenda and Team Chat','host'],
       'live_broadcast_producer'=>['Prepare and host a Live Studio broadcast','all'],
       'pwa_business_model'=>['PWA memberships, hosting, YouTube earnings and creator payouts','all'],
       'marketing_copilot'=>['Marketing copilot: offers, campaigns and follow-through','growth'],
@@ -79,6 +80,8 @@ module NevaehOs
       'growth.backlink.draft'=>['Draft outreach for an approved backlink prospect','Growth → Search & backlinks','growth','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
+      'executive.brief'=>['CEO briefing','/ceo','executive_assistant','host'],
+      'executive.agenda.read'=>['Read your private agenda','/ceo agenda','executive_assistant','host'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],
       'agent.delegate'=>['Delegate an instruction','/delegate sage susu.list','agents','all'],
       'agent.schedule'=>['Schedule an agent worker','/agent schedule warden 60 susu.list','agents','all'],
@@ -129,6 +132,9 @@ module NevaehOs
       end
       if defined?(PlatformActions)
         PlatformLanguage::PHRASES.each do |key, (_, example)|
+          executive = [AgendaActions::CREATE, ExecutiveCaseActions::CREATE].include?(key)
+          next if executive && !ExecutiveBrief.available_to?(actor)
+
           fields = PlatformActions::INPUTS.fetch(key).transform_values do |type|
             case type
             when :id, :version then 'integer'
@@ -137,7 +143,9 @@ module NevaehOs
             else 'string'
             end
           end
-          rows << entry(key, key.tr('.', ' ').humanize, 'commands', 'current site and domain permissions',
+          topic = executive ? 'executive_assistant' : 'commands'
+          permission = executive ? 'platform super administrator' : 'current site and domain permissions'
+          rows << entry(key, key.tr('.', ' ').humanize, topic, permission,
             example: example, source: 'platform action', coverage: 'fields', inputs: fields)
         end
       end

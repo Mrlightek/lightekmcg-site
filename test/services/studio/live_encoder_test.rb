@@ -1,6 +1,7 @@
 require "test_helper"
 require "tmpdir"
 require "json"
+require "socket"
 class StudioLiveEncoderTest < ActiveSupport::TestCase
   setup do
     skip "Server FFmpeg is not installed" unless Studio::Live::Encoder.available?
@@ -56,6 +57,38 @@ class StudioLiveEncoderTest < ActiveSupport::TestCase
     assert result.success?
     assert_equal %w[h264 aac], JSON.parse(probe).fetch("streams").map { |stream| stream.fetch("codec_name") }
     assert_raises(Studio::Live::Encoder::Failure) { Studio::Live::Encoder.capture_format("anything_else") }
+  end
+  test "a refused relay reports the destination error and never includes the stream key" do
+    input = File.join(@directory, "capture.webm")
+    _out, status = Open3.capture2(ENV.fetch("LIGHTEK_FFMPEG", "ffmpeg"), "-v", "error", "-y",
+      "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24", "-f", "lavfi", "-i", "sine=sample_rate=48000",
+      "-t", "3", "-c:v", "libvpx", "-threads", "2", "-deadline", "realtime", "-c:a", "libopus", input, err: File::NULL)
+    assert status.success?
+
+    # Reserve a port without listening so the network error is deterministic.
+    reservation = Socket.new(:INET, :STREAM)
+    reservation.bind(Socket.sockaddr_in(0, "127.0.0.1"))
+    port = reservation.local_address.ip_port
+    @encoder = Studio::Live::Encoder.new(output: "rtmp://127.0.0.1:#{port}/live/fake-stream-key", test: false,
+      on_event: ->(event, error) { @events << [event, error] }).start!
+    begin
+      File.binread(input).bytes.each_slice(8_000).with_index do |bytes, sequence|
+        encoder.append!(encoded: Base64.strict_encode64(bytes.pack("C*")), sequence: sequence)
+      end
+    rescue Studio::Live::Encoder::InputClosed
+      # A chunk can race FFmpeg's exit; the callback owns the failure reason.
+    ensure
+      encoder.stop!
+    end
+    event, message = terminal_event
+    assert_equal "failed", event
+    assert_match(/destination refused the connection/, message)
+    refute_includes message, "fake-stream-key"
+    assert_raises(Studio::Live::Encoder::InputClosed) do
+      encoder.append!(encoded: Base64.strict_encode64("late"), sequence: encoder.instance_variable_get(:@sequence))
+    end
+  ensure
+    reservation&.close
   end
   test "invalid oversized and reordered capture chunks are rejected" do
     assert_raises(Studio::Live::Encoder::Failure) { encoder.append!(encoded: "%%%", sequence: 0) }

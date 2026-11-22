@@ -75,7 +75,7 @@ module NevaehOs
         recipient=Agents.resolve!(routed_to,@actor)
         command={'kind'=>'agent_task','agent_ref'=>recipient.id.to_s,'command'=>command}
       end
-      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe code_knowledge goals goal_show].include?(command['kind'])
+      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe code_knowledge goals goal_show executive_brief].include?(command['kind'])
       if command['kind']=='agent_task'
         inner = command['command'] || Command.parse(command.delete('instruction'))
         if inner['kind'] == 'search' && defined?(Language)
@@ -90,7 +90,7 @@ module NevaehOs
         WorkerReports.context(actor:@actor,agent:specialist,command:command['command'])
       end
       command['persona_id']=persona.id if command['kind']=='model'
-      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe code_knowledge goals goal_show].include?(command['kind'])
+      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe code_knowledge goals goal_show executive_brief].include?(command['kind'])
       result = if language && language['status'] == 'needs_clarification'
         language.slice('text', 'status', 'sources', 'language_request')
       elsif planning
@@ -165,6 +165,8 @@ module NevaehOs
         rows << {slug:'agents.list',name:'Agent workforce',domain:'agents',invoke:'/agents'}
         rows = rows.uniq { |row| row[:slug] }
         {'text'=>rows.map { |r| "#{r[:slug]} · #{r[:name]}" }.join("\n"), 'capabilities'=>rows,'status'=>'ready'}
+      when 'executive_brief'
+        ExecutiveBrief.new(@actor).reply
       when 'status','briefing'
         actions = NevaehOsAction.where(user: @actor).order(id: :desc).limit(12)
         workers = Ability.new(@actor).can?(:manage, NevaehWorkflow) ? NevaehWorkflow.where(status:'active').count : nil

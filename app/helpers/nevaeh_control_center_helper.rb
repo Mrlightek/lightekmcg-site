@@ -40,7 +40,8 @@ module NevaehControlCenterHelper
       rows << item.call("pwa", "Mobile app", main_app.dashboard_pwa_path, "ti-device-mobile")
     end
     if current_user.role == "super_admin"
-      rows += [item.call("infrastructure", "Infrastructure", main_app.dashboard_infrastructure_path, "ti-server"),
+      rows += [item.call("ceo-desk", "CEO Desk", main_app.dashboard_nevaeh_executive_path, "ti-briefcase"),
+        item.call("infrastructure", "Infrastructure", main_app.dashboard_infrastructure_path, "ti-server"),
         item.call("finance", "Finance", main_app.dashboard_bank_path, "ti-wallet"),
         item.call("vault", "Vault", main_app.dashboard_vault_path, "ti-lock")]
     end
@@ -56,7 +57,7 @@ module NevaehControlCenterHelper
     end
     rows << item.call("settings", "Settings", main_app.dashboard_settings_home_path, "ti-settings", "System")
     groups = {
-      "Start" => %w[overview],
+      "Start" => %w[overview ceo-desk],
       "Business & money" => %w[business sales commerce shipping accounting finance],
       "Create & publish" => %w[design journal studio pwa],
       "Bookings & email" => %w[reservations rooms my-reservations mail],

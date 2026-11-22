@@ -61,6 +61,7 @@ module NevaehOs
       /marketing execute SITE_ID [KIT_ID] — execute the kit’s supported asset and follow-up steps
       /features SITE_ID [KIT_ID] — build a feature page and its captioned overview videos
       /growth SITE_ID — prepare or open today’s business growth plan
+      /ceo — executive briefing for the platform owner
       /status — your recent actions · /briefing — today's operational briefing
       /remember Preferences: I prefer concise replies — offers a memory for consent
       /forget ID — remove one of your memories
@@ -71,6 +72,9 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if q.match?(/\A(?:\/?ceo(?: brief(?:ing)?)?|(?:please )?(?:give|show) me (?:my|the) (?:CEO|executive) brief(?:ing)?)[?!.]?\z/i)
+        return {'kind' => 'executive_brief'}
+      end
       platform_phrase = PlatformLanguage.command(q)
       return platform_phrase if platform_phrase
       if (m = q.match(/\A(?:please )?(?:build|create|make)(?: me)? (?:a |my |the )?(?:feature|features|feature showcase) (?:page|webpage)(?: with (?:feature |overview |captioned )?videos)?(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))

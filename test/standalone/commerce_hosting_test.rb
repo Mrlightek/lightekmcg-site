@@ -532,7 +532,7 @@ class CommerceHostingTest < Minitest::Test
 
   def test_workspace_tiers_create_separate_hidden_offers_with_runtime_entitlements
     source = workspace_source
-    plans = {"solo" => [2500, 1], "team" => [5900, 5], "business" => [9900, 10]}.map do |tier, (price, seats)|
+    plans = {"solo" => [2500, 1], "team" => [3200, 5], "business" => [6000, 10]}.map do |tier, (price, seats)|
       package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
       assert_equal package, Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
       assert_equal price, package.product.price_cents
@@ -587,6 +587,50 @@ class CommerceHostingTest < Minitest::Test
     refute package.product.published?
     refute Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product).active?
     assert_raises(LightekCommerce::OrderPlacement::Invalid) { order_for(package.product) }
+  end
+
+  def test_workspace_seat_choice_sets_one_monthly_line_and_freezes_the_entitlement
+    source = workspace_source
+    expected = {"team" => {2 => 3200, 5 => 5300}, "business" => {6 => 6000, 10 => 8800}}
+    expected.each do |tier, totals|
+      package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
+      Gatekeeper::Hosting::PackagePurchase.stub(:validate!, true) do
+        Gatekeeper::Hosting::WorkspacePlans.toggle!(package: package, actor: @operator)
+      end
+      quantities = {package.product_id.to_s => 1}
+      totals.each do |seats, price|
+        order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+          quantities: quantities, workspace_seats: seats)
+        line = order.items.sole
+        assert_equal 1, line.quantity
+        assert_equal price, line.unit_price_cents
+        assert_equal price, order.total_cents
+        assert_equal seats, line.purchase_snapshot.fetch("workspace_seats")
+        assert_equal seats, line.purchase_snapshot.dig("managed_package", "policy", "limits", "max_users")
+        if seats == totals.keys.max
+          Gatekeeper::Hosting::PackagePurchase.stub(:validate!, true) do
+            Stripe::Checkout::Session.stub(:create, ->(params, _) {
+              assert_equal "subscription", params[:mode]
+              assert_equal 1, params[:line_items].sole[:quantity]
+              assert_equal price, params[:line_items].sole.dig(:price_data, :unit_amount)
+              OpenStruct.new(id: "cs_workspace_#{seats}")
+            }) do
+              LightekCommerce::StripeCheckout.start!(order: order, success_url: "https://shop.example.com/ok",
+                cancel_url: "https://shop.example.com/cancel")
+            end
+          end
+        end
+      end
+      assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+        LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+          quantities: quantities, workspace_seats: totals.keys.max + 1)
+      end
+    end
+    unrelated = product
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+        quantities: {unrelated.id.to_s => 1}, workspace_seats: 1)
+    end
   end
 
   def test_workspace_creation_checks_storefront_authority_and_rejects_unrelated_slug

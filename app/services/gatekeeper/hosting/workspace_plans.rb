@@ -6,23 +6,38 @@ module Gatekeeper
       CORE_FEATURES = %w[website design mail messaging rooms pwa].freeze
       TEAM_FEATURES = %w[people].freeze
       BUSINESS_FEATURES = %w[directory commerce accounting payments].freeze
+      BASE_PRICE_CENTS = 2_500
+      ADDITIONAL_SEAT_CENTS = 700
       TIERS = {
         "solo" => {
-          name: "Lightek Workspace Solo", cents: 2_500, users: 1,
+          name: "Lightek Workspace Solo", seats: 1..1,
           summary: "A CMS website, business email, documents, calendar and meetings for one person."
         }.freeze,
         "team" => {
-          name: "Lightek Workspace Team", cents: 5_900, users: 5,
+          name: "Lightek Workspace Team", seats: 2..5,
           summary: "A CMS website and business email, plus documents, shared drives, team calendars and meetings for up to five people."
         }.freeze,
         "business" => {
-          name: "Lightek Workspace Business", cents: 9_900, users: 10,
+          name: "Lightek Workspace Business", seats: 6..10,
           summary: "A CMS website, business email and collaboration for up to ten people, plus directory controls, CRM, invoicing and bookkeeping."
         }.freeze
       }.freeze
 
       def self.workspace?(product)
         subscription_plan(product).present?
+      end
+
+      def self.seats_for(product)
+        tier = TIERS.keys.find { |key| product.slug == slug(key) }
+        TIERS.fetch(tier).fetch(:seats) if tier && product.hosting_package && workspace?(product)
+      end
+
+      def self.target_price(seats)
+        BASE_PRICE_CENTS + (seats - 1) * ADDITIONAL_SEAT_CENTS
+      end
+
+      def self.monthly_price(first_seat_price:, seats:, seat_range:)
+        first_seat_price + (seats - seat_range.begin) * ADDITIONAL_SEAT_CENTS
       end
 
       def self.create!(source:, tier:, actor:)
@@ -45,7 +60,7 @@ module Gatekeeper
           raise Access::Denied, "The source plan needs a website allowance" unless entitlement.max_sites.positive?
 
           floor = LightekCommerce::MerchantPayouts.minimum_charge_cents(source.monthly_cost_ceiling_cents + source.minimum_margin_cents)
-          price = [settings.fetch(:cents), floor].max
+          price = [target_price(settings.fetch(:seats).begin), floor].max
           plan = DymondBank::SubscriptionPlan.create!(slug: subscription_slug(slug(tier), site.id), name: settings.fetch(:name),
             description: settings.fetch(:summary), price_monthly_cents: price, currency: source_product.currency, active: false)
           SubscriptionInfrastructureEntitlement.create!(entitlement.attributes.slice(
@@ -89,7 +104,7 @@ module Gatekeeper
         storage_limit = LightekAgency::PackagePolicy.for_product(source_product).dig("limits", "max_storage_bytes")
         LightekAgency::PackagePolicy.normalize(
           "features" => LightekAgency::PackagePolicy::FEATURES.keys.to_h { |feature| [feature, { "enabled" => allowed.include?(feature) }] },
-          "limits" => { "max_sites" => 1, "max_users" => TIERS.fetch(tier).fetch(:users), "max_storage_bytes" => storage_limit }
+          "limits" => { "max_sites" => 1, "max_users" => TIERS.fetch(tier).fetch(:seats).end, "max_storage_bytes" => storage_limit }
         )
       end
 

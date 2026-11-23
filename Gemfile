@@ -46,6 +46,10 @@ gem "kaminari", "~> 1.2"
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
 gem "faraday", "~> 2.0"
+gem "rqrcode", "~> 2.2"
+gem "ed25519", "~> 1.4"
+gem "net-ssh", "~> 7.3"
+gem "bcrypt_pbkdf", "~> 1.1"
 
 # ── Encryption (Plaid access tokens at rest) ─────────────────────────────────
 gem "lockbox",   "~> 1.3"   # column-level encryption

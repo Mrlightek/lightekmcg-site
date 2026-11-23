@@ -33,6 +33,10 @@ class CommerceController < ApplicationController
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
+    if product.full_communications_package?
+      return redirect_to full_package_installations_path(product_id: product.id), status: :see_other
+    end
+
     quantity = Integer(params.fetch(:quantity, 1))
     raise ArgumentError unless quantity.between?(1, 100)
     variant_id = params[:variant_id].presence

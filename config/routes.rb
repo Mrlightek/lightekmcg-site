@@ -60,6 +60,7 @@ Rails.application.routes.draw do
   draw :broadcast_network
   draw :people
   draw :executive_operations
+  draw :cellular
   draw :lifecycle
   draw :enterprise_identity
   draw :agency_demos
@@ -161,6 +162,8 @@ Rails.application.routes.draw do
   post '/dashboard/pwa/revenue/enable', to: 'dashboard/pwa_revenue#enable', as: :enable_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/youtube', to: 'dashboard/pwa_revenue#import', as: :import_dashboard_pwa_revenue
   get "/api/lightek/pwa/manifest", to: "api/lightek_pwa#manifest"
+  get "/my/installations/packages/:product_id", to: "installations#full_package", as: :full_package_installations
+  post "/my/installations/packages/:product_id", to: "installations#purchase_full_package"
   resources :installations, path: "/my/installations", only: %i[index show create] do
     post :access, on: :member
     post :cancel_subscription, on: :member

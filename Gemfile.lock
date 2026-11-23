@@ -242,6 +242,7 @@ GEM
       xpath (~> 3.2)
     childprocess (5.1.0)
       logger (~> 1.5)
+    chunky_png (1.4.0)
     concurrent-ruby (1.3.8)
     connection_pool (3.0.2)
     crass (1.0.8)
@@ -538,6 +539,10 @@ GEM
       uber (< 0.2.0)
     retriable (4.2.0)
     rexml (3.4.4)
+    rqrcode (2.2.0)
+      chunky_png (~> 1.0)
+      rqrcode_core (~> 1.0)
+    rqrcode_core (1.2.0)
     rspec-core (3.13.6)
       rspec-support (~> 3.13.0)
     rspec-expectations (3.13.5)
@@ -679,6 +684,7 @@ PLATFORMS
 DEPENDENCIES
   aws-sdk-s3
   bcrypt (~> 3.1.7)
+  bcrypt_pbkdf (~> 1.1)
   blind_index
   bootsnap
   brakeman
@@ -697,6 +703,7 @@ DEPENDENCIES
   dymond_site!
   dymond_studio!
   dymond_theme!
+  ed25519 (~> 1.4)
   factory_bot_rails (~> 6.0)
   faker (~> 3.8)
   faraday (~> 2.0)
@@ -714,6 +721,7 @@ DEPENDENCIES
   lockbox (~> 1.3)
   marlon!
   money-rails (~> 1.15)
+  net-ssh (~> 7.3)
   pg (>= 1.5)
   prawn (~> 2.5)
   prawn-table (~> 0.2)
@@ -721,6 +729,7 @@ DEPENDENCIES
   puma (>= 5.0)
   rails (~> 8.0.4)
   redis (~> 5.0)
+  rqrcode (~> 2.2)
   rspec-rails (~> 6.0)
   rubyzip (~> 3.4)
   rubocop-rails-omakase

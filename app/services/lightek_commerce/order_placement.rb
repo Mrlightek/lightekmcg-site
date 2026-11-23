@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -63,6 +63,21 @@ module LightekCommerce
           kind = product.communications_kind
           snapshot["communications_kind"] = kind if kind
           snapshot["voice_plan"] = product.slug if kind == "voice"
+          if product.full_communications_package?
+            unless buyer && full_package_offer && full_package_offer == LightekCommunications::FullPackageCheckout.offer(product) &&
+                price == product.price_cents
+              raise Invalid, "Choose this package from CMS signup."
+            end
+            snapshot["communications_kind"] = "voice"
+            snapshot["cellular_bundle"] = full_package_offer.slice("data_limit_mb")
+          end
+          if product.cellular_voice_bundle?
+            bundle = LightekCommunications::CellularBundle.offer(product, peer: communications_peer)
+            unless bundle && communications_peer.merchant.email_address.to_s.strip.downcase == order.customer_email
+              raise Invalid, "This plan can only be ordered from an eligible installation's communications workspace"
+            end
+            snapshot["cellular_bundle"] = bundle.slice("data_limit_mb")
+          end
           package = product.respond_to?(:effective_hosting_package) ? product.effective_hosting_package : product.hosting_package
           snapshot["pricing_tier"] = "agency_wholesale" if direct_package
           if package

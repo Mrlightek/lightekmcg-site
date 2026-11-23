@@ -15,6 +15,7 @@ module LightekCommunications
     def status
       add_on = VoiceAddOn.find_by(peer: @peer)
       order = add_on&.order
+      return { status: "provisioning", cellular: { status: "provisioning" } } if add_on.nil? && full_package_pending?
       subscription = order&.commerce_subscription
       service = Service.find_by(subscription: subscription) if subscription
       offers = catalog_offers
@@ -29,6 +30,7 @@ module LightekCommunications
       {
         status: state,
         billing_status: subscription&.status,
+        cellular: cellular_status(add_on, order),
         fulfillment_status: add_on&.fulfillment_status,
         phone_number: assigned_number(service, add_on),
         device_settings: service&.status == "in_service" && LightekVault::Secret.exists?(slug: ManagedVoiceTrunk.slug(add_on)),
@@ -44,6 +46,7 @@ module LightekCommunications
     def checkout!(plan: nil, number_request: {}, voice_setup: {})
       destination = return_url
       order = @peer.with_lock do
+        raise Unavailable, "Your package already includes phone and mobile data." if full_package_pending?
         add_on = VoiceAddOn.find_or_initialize_by(peer: @peer)
         previous = add_on.order
         if previous&.status == "pending_payment"
@@ -51,7 +54,7 @@ module LightekCommunications
             raise Unavailable, "Resume the pending checkout before choosing a different plan."
           end
           if number_request.values.any?(&:present?) &&
-              requested_number!(number_request) != previous.items.sole.purchase_snapshot["voice_number_request"]
+              self.class.requested_number!(number_request) != previous.items.sole.purchase_snapshot["voice_number_request"]
             raise Unavailable, "Resume your pending checkout to keep its original number request."
           end
           next previous
@@ -63,18 +66,31 @@ module LightekCommunications
         offers = catalog_offers
         product = plan.present? ? offers.find { |offer| offer.slug == plan } : offers.one? ? offers.first : nil
         raise Unavailable, "Choose an available Lightek Voice plan." unless product
-        selection = requested_number!(number_request)
+        selection = self.class.requested_number!(number_request)
         order = LightekCommerce::OrderPlacement.call(site: product.site, customer_email: @peer.merchant.email_address,
-          quantities: { product.id => 1 })
+          quantities: { product.id => 1 }, communications_peer: @peer)
         item = order.items.sole
         item.update!(purchase_snapshot: item.purchase_snapshot.merge("voice_number_request" => selection))
         slug = VoiceSetup.store!(peer: @peer, order: order, selection: selection, fields: voice_setup)
-        add_on.update!(order: order, setup_secret_slug: slug, fulfillment_status: nil)
+        bundle = CellularBundle.offer(item.product, peer: @peer) if item.purchase_snapshot.key?("cellular_bundle")
+        if item.purchase_snapshot.key?("cellular_bundle") && !bundle
+          raise Unavailable, "This bundle is unavailable for the installation."
+        end
+        add_on.update!(order: order, setup_secret_slug: slug, fulfillment_status: nil,
+          cellular_request_key: (SecureRandom.uuid if bundle), cellular_peer_ip: bundle&.fetch("peer_ip"),
+          cellular_group_id: bundle&.fetch("group_id"))
         order
       end
 
       session = LightekCommerce::StripeCheckout.start!(order: order, success_url: destination, cancel_url: destination)
       { checkout_url: self.class.checkout_url!(session.url) }
+    end
+
+    def cellular_activation!
+      add_on = VoiceAddOn.find_by(peer: @peer)
+      raise Unavailable, "This installation has no cellular plan." unless add_on&.cellular_request_key.present?
+
+      CellularBundle.new(add_on).activation!
     end
 
     def device!
@@ -105,6 +121,17 @@ module LightekCommunications
 
     private
 
+    def full_package_pending?
+      defined?(FullPackage) && FullPackage.exists?(order_id: @peer.order_id)
+    end
+
+    def cellular_status(add_on, order)
+      return unless add_on&.cellular_request_key.present?
+      return { status: "pending_payment" } if order.status == "pending_payment"
+
+      CellularBundle.new(add_on).status
+    end
+
     def assigned_number(service, add_on)
       return unless service && add_on.fulfillment_status == "carrier_ready"
 
@@ -112,7 +139,7 @@ module LightekCommunications
       "+1#{operation.did}" if operation
     end
 
-    def requested_number!(fields)
+    def self.requested_number!(fields)
       case fields["option"]
       when "new"
         area_code = fields["area_code"].to_s.strip
@@ -134,7 +161,8 @@ module LightekCommunications
 
     def summarize_offer(offer)
       { key: offer.slug, name: offer.name, description: offer.short_description,
-        price_cents: offer.price_cents, currency: offer.currency, billing_interval: offer.billing_interval }
+        price_cents: offer.price_cents, currency: offer.currency, billing_interval: offer.billing_interval,
+        cellular_data_mb: (CellularBundle.offer(offer, peer: @peer)&.fetch("data_limit_mb") if offer.cellular_voice_bundle?) }
     end
 
     def catalog_offers
@@ -146,7 +174,10 @@ module LightekCommunications
 
       LightekCommerce::Product.where(site: site, published: true, product_type: "service", billing_interval: %w[month year])
         .where("slug = ? OR slug LIKE ?", "lightek-voice", "lightek-voice-%").where("price_cents > 0")
-        .order(:position, :name, :id).select { |product| product.communications_kind == "voice" }
+        .order(:position, :name, :id).select do |product|
+          product.communications_kind == "voice" &&
+            (!product.cellular_voice_bundle? || CellularBundle.offer(product, peer: @peer))
+        end
     end
 
     def return_url

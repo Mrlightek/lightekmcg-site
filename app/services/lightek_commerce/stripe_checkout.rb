@@ -9,6 +9,10 @@ module LightekCommerce
     def self.start_locked!(order:, success_url:, cancel_url:)
       LightekAgency::Demos.ensure_live_site!(order.site, error: Unavailable) if defined?(LightekAgency::Demos)
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment"
+      if order.items.any? { |item| item.product.full_communications_package? } &&
+          !(defined?(LightekCommunications::FullPackage) && LightekCommunications::FullPackage.exists?(order_id: order.id))
+        raise Unavailable, "This package must complete setup before payment."
+      end
       return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url) if NetworkCheckout.connected?(order)
       return resume!(order: order) if order.payment_reference.present?
       begin

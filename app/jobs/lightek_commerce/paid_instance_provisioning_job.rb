@@ -37,6 +37,7 @@ module LightekCommerce
         if order.provisioned_at?
           LightekAgency::DemoUpgrade.complete!(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
           LightekPwa::BackendMigration.start!(order) if defined?(LightekPwa::BackendMigration)
+          LightekCommunications::FullPackageJob.enqueue!(order) if defined?(LightekCommunications::FullPackageJob)
           return
         end
         reservation = LightekReservations::Reservation.find_by(order_id: order.id)
@@ -48,6 +49,7 @@ module LightekCommerce
           end
         end
         PaidInstanceProvisioning.call!(order: order)
+        LightekCommunications::FullPackageJob.enqueue!(order) if order.reload.provisioned_at? && defined?(LightekCommunications::FullPackageJob)
         LightekPwa::BackendMigration.start!(order) if defined?(LightekPwa::BackendMigration)
       ensure
         connection.select_value("SELECT pg_advisory_unlock(#{lock_key})")

@@ -1,0 +1,15 @@
+<% content_for :title, "CMS + Phone + Mobile Data · Lightek" %>
+<div class="li-heading">
+  <p><%= link_to "My Applications", installations_path, class: "li-button" %></p>
+  <h1><%= @product.name %></h1>
+  <p>CMS workspace, one phone line, and <%= number_with_delimiter(@offer.fetch("data_limit_mb")) %> MB of mobile data per month.</p>
+  <p class="li-price"><%= number_to_currency(@product.price_cents / 100.0) %>/month, plus applicable taxes</p>
+</div>
+<article class="li-card">
+  <%= form_with url: full_package_installations_path(product_id: @product.id), method: :post, multipart: true, data: { turbo: false } do %>
+    <%= hidden_field_tag :checkout_key, @checkout_key %>
+    <%= render "dashboard/installation_voice/number_request" %>
+    <%= render "dashboard/installation_voice/voice_setup" %>
+    <%= submit_tag "Continue to secure payment", class: "li-button" %>
+  <% end %>
+</article>

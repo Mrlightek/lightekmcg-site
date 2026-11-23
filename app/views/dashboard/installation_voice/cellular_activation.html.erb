@@ -1,0 +1,12 @@
+<% content_for :page_title, "Install your eSIM" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Phone & mobile data", dashboard_installation_voice_path %></p>
+  <h1>Install your eSIM</h1>
+  <section class="card">
+    <p>Open your phone’s mobile network settings, choose to add an eSIM, and scan this code.</p>
+    <%= image_tag "data:image/png;base64,#{@cellular.fetch('qr_png_base64')}", alt: "Your eSIM activation QR code", width: 256, height: 256 %>
+    <p>Set the cellular APN to <strong><%= @cellular.fetch("apn") %></strong> and select the eSIM for mobile data.</p>
+  </section>
+</main>

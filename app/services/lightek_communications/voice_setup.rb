@@ -28,8 +28,9 @@ module LightekCommunications
       nil
     end
 
-    def self.store!(peer:, order:, selection:, fields:)
-      destination = route(peer) || raise(Invalid, "Phone service is unavailable for this installation.")
+    def self.store!(peer: nil, order:, selection:, fields:, buyer: nil)
+      destination = peer ? route(peer) : ManagedVoiceTrunk.destination
+      raise Invalid, "Phone service is unavailable for this installation." unless destination && (peer || buyer)
       raise Invalid, "Confirm the emergency service address." unless fields["confirm_emergency_address"] == "1"
 
       address = fields["emergency"].to_h.slice(*ADDRESS_FIELDS.map(&:to_s))
@@ -67,7 +68,7 @@ module LightekCommunications
       slug = "voice-setup-order-#{order.id}"
       LightekVault::Service.store!(name: "Voice setup order ##{order.id}", slug: slug, payload: payload,
         purpose: PURPOSE, access_policy: { "consumers" => [name], "purposes" => [PURPOSE] },
-        requested_by: "voice-checkout:#{peer.id}")
+        requested_by: peer ? "voice-checkout:#{peer.id}" : "full-package-checkout:#{buyer.id}")
       slug
     rescue LightekVault::MasterKey::ConfigurationError
       raise Invalid, "Phone service setup is temporarily unavailable."

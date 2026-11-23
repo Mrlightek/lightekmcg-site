@@ -45,6 +45,34 @@ require Rails.root.join("app/services/lightek_communications/automatic_voice_ful
 
 require Rails.root.join("app/jobs/application_job").to_s
 require Rails.root.join("app/jobs/lightek_communications/voice_provisioning_job").to_s
+require Rails.root.join("db/migrate/20261123163000_create_user_esims").to_s
+CreateUserEsims.new.migrate(:up)
+require Rails.root.join("db/migrate/20261123164000_link_cellular_to_voice_bundles").to_s
+LinkCellularToVoiceBundles.new.migrate(:up)
+LightekCommunications::VoiceAddOn.reset_column_information
+require Rails.root.join("app/models/user_esim").to_s
+require Rails.root.join("app/services/telnyx/provision_esim_service").to_s
+require Rails.root.join("app/services/lightek_communications/cellular_bundle").to_s
+require Rails.root.join("app/jobs/lightek_communications/cellular_bundle_job").to_s
+
+
+require Rails.root.join("db/migrate/20261123165000_create_lightek_full_packages").to_s
+CreateLightekFullPackages.new.migrate(:up)
+ActiveRecord::Migration.add_column :lightek_commerce_orders, :client_checkout_key, :string unless LightekCommerce::Order.column_names.include?("client_checkout_key")
+ActiveRecord::Migration.add_column :lightek_commerce_orders, :hosting_owner_id, :integer unless LightekCommerce::Order.column_names.include?("hosting_owner_id")
+ActiveRecord::Migration.add_column :lightek_commerce_orders, :deleted_at, :datetime unless LightekCommerce::Order.column_names.include?("deleted_at")
+ActiveRecord::Migration.change_column_default :lightek_commerce_orders, :purpose, "purchase"
+ActiveRecord::Migration.add_column :lightek_commerce_orders, :provisioning_state, :string unless LightekCommerce::Order.column_names.include?("provisioning_state")
+ActiveRecord::Migration.add_column :lightek_commerce_orders, :provisioned_at, :datetime unless LightekCommerce::Order.column_names.include?("provisioned_at")
+ActiveRecord::Migration.add_column :lightek_reservation_peers, :order_id, :integer
+LightekCommerce::Order.reset_column_information
+LightekReservations::Peer.reset_column_information
+require Rails.root.join("app/models/lightek_communications/full_package").to_s
+require Rails.root.join("app/services/lightek_commerce/installations").to_s
+require Rails.root.join("app/services/lightek_communications/full_package_checkout").to_s
+require Rails.root.join("app/services/gatekeeper/fleet/transport").to_s
+require Rails.root.join("app/services/telnyx/cellular_hub").to_s
+require Rails.root.join("app/jobs/lightek_communications/full_package_job").to_s
 
 module LightekVault
   class Secret
@@ -300,6 +328,158 @@ class CommunicationsServicesTest < CommerceHostingTest
       end
     end
     assert_equal [order.id], enqueued
+  end
+
+  def test_full_package_uses_one_order_and_starts_carrier_jobs_only_after_cms_and_tunnel_are_ready
+    actor = User.create!(role: "client", email_address: "full-package@example.com")
+    plan = DymondBank::SubscriptionPlan.create!(name: "CMS")
+    product = product(slug: "lightek-cms-bundle-starter", product_type: "lightek_instance", price_cents: 12_000,
+      subscription_plan_id: plan.id)
+    group_id = SecureRandom.uuid
+    checkout_key = SecureRandom.uuid
+    offer = { "group_id" => group_id, "data_limit_mb" => 250 }
+    quote = { "signup_tunnels" => { "172.25.10.2" => "fixture-tunnel" } }
+    checkout = LightekCommunications::FullPackageCheckout
+
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(site: product.site, customer_email: actor.email_address, quantities: { product.id => 1 })
+    end
+
+    hub = Minitest::Mock.new
+    hub.expect(:check_peer!, true, ["172.25.10.2"])
+    order = nil
+    LightekCommunications::CellularBundle.stub(:config, quote) do
+      checkout.stub(:offer, offer) do
+        LightekCommunications::ManagedVoiceTrunk.stub(:destination, { "managed" => true }) do
+          Telnyx::CellularHub.stub(:new, hub) do
+            args = { actor: actor, product: product, checkout_key: checkout_key,
+              number_request: { "option" => "new", "area_code" => "212" }, fields: carrier_setup }
+            order = checkout.reserve!(**args)
+            assert_equal order.id, checkout.reserve!(**args).id
+            refute checkout.eligible?(actor)
+          end
+        end
+      end
+    end
+    hub.verify
+    assert_equal 12_000, order.subtotal_cents
+    assert_equal "voice", Fulfillment.order_kind(order)
+    assert_equal "lightek_instance", order.items.sole.purchase_snapshot["product_type"]
+
+    package = LightekCommunications::FullPackage.find_by!(order_id: order.id)
+    job = LightekCommunications::FullPackageJob.new
+    assert_nil job.perform(order.id)
+    order.update!(status: "paid", paid_at: Time.current)
+    assert_raises(LightekCommunications::FullPackageJob::NotReady) { job.perform(order.id) }
+    assert_nil package.reload.tunnel_ready_at
+
+    order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+    subscription = LightekCommerce::Subscription.create!(order: order, status: "active", processor_reference: "sub_full",
+      billing_interval: "month", amount_cents: 12_000, currency: "usd", current_period_start: 1.day.ago, current_period_end: 1.month.from_now)
+    subscription.billing_invoices.create!(settlement_order: order, processor_reference: "in_full",
+      amount_paid_cents: 12_000, currency: "usd", paid_at: Time.current)
+    site = DymondSite::Site.create!(tenant: actor, host: "full-package.example.com")
+    peer = LightekReservations::Peer.new(merchant: actor, site: site)
+    peer[:order_id] = order.id
+    peer.save!
+    events = []
+    job.define_singleton_method(:install_tunnel!) { |record, _order| events << record.peer_ip }
+    LightekCommunications::VoiceProvisioningJob.stub(:enqueue_paid!, ->(paid_order) { events << [:voice, paid_order.id] }) do
+      LightekCommunications::CellularBundleJob.stub(:enqueue_paid!, ->(paid_order) { events << [:cellular, paid_order.id] }) do
+        2.times { job.perform(order.id) }
+      end
+    end
+    assert_equal ["172.25.10.2", [:voice, order.id], [:cellular, order.id], [:voice, order.id], [:cellular, order.id]], events
+    add_on = LightekCommunications::VoiceAddOn.find_by!(peer: peer)
+    assert_equal package.request_key, add_on.cellular_request_key
+    assert_equal order.id, add_on.order_id
+    assert package.reload.tunnel_ready_at
+  end
+
+  def test_bundle_floors_include_each_accounts_gateway_share
+    policy = { "gateway_recovery_cents" => 10_000, "planned_paying_lines" => 10, "billing_fee_cents" => 30,
+      "billing_fee_basis_points" => 360, "target_margin_basis_points" => 2500 }
+    bundle = LightekCommunications::CellularBundle
+    assert_equal 6086, bundle.minimum_price_cents(policy, monthly_cost_cents: 3315)
+    assert_equal 7486, bundle.minimum_price_cents(policy.merge("planned_paying_lines" => 5), monthly_cost_cents: 3315)
+    assert_equal 8187, bundle.minimum_price_cents(policy.except("gateway_recovery_cents", "planned_paying_lines"), monthly_cost_cents: 3315)
+    assert_nil bundle.minimum_price_cents(policy.merge("planned_paying_lines" => 0), monthly_cost_cents: 3315)
+  end
+
+  def test_bundle_checkout_requires_eligible_installation_and_insufficient_price_hides_offer
+    offer = product(slug: "lightek-voice-bundle-starter", price_cents: 6_900)
+    peer = voice_peer("bundle-customer")
+    peer.update!(key: SecureRandom.uuid)
+    other = voice_peer("unmapped-customer")
+    policy = { "plans" => { offer.slug => { "data_limit_mb" => 250, "monthly_cost_cents" => 3315 } },
+      "peers" => { peer.key => "172.25.10.2" }, "gateway_recovery_cents" => 10_000, "planned_paying_lines" => 10,
+      "billing_fee_cents" => 30, "billing_fee_basis_points" => 360, "target_margin_basis_points" => 2500 }
+    env = %w[TELNYX_API_KEY TELNYX_PUBLIC_KEY HUB_VPS_HOST HUB_VPS_USER HUB_VPS_SSH_KEY HUB_VPS_KNOWN_HOSTS_FILE].index_with("fixture")
+    env["TELNYX_SIM_CARD_GROUP_ID"] = SecureRandom.uuid
+    original = env.keys.index_with { |key| ENV[key] }
+    ENV.update(env)
+
+    setup = LightekCommunications::VoiceSetup
+    voice = LightekCommunications::InstallationVoice.new(peer)
+    setup.stub(:route, { "managed" => true }) do
+      LightekCommunications::CellularBundle.stub(:config, policy) do
+        offer.update!(price_cents: 6_000)
+        assert_empty voice.status[:offers]
+        offer.update!(price_cents: 6_900)
+        assert_equal 250, voice.status[:offers].sole[:cellular_data_mb]
+        assert_empty LightekCommunications::InstallationVoice.new(other).status[:offers]
+        assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+          LightekCommerce::OrderPlacement.call(site: offer.site, customer_email: peer.merchant.email_address, quantities: { offer.id => 1 })
+        end
+        LightekCommerce::StripeCheckout.stub(:start!, OpenStruct.new(url: "https://checkout.stripe.com/c/pay")) do
+          voice.checkout!(plan: offer.slug, number_request: { "option" => "new", "area_code" => "212" }, voice_setup: carrier_setup)
+        end
+      end
+    end
+    add_on = LightekCommunications::VoiceAddOn.find_by!(peer: peer)
+    assert_match UserEsim::UUID, add_on.cellular_request_key
+    assert_equal "172.25.10.2", add_on.cellular_peer_ip
+    assert_equal({ "data_limit_mb" => 250 }, add_on.order.items.sole.purchase_snapshot["cellular_bundle"])
+    assert_equal 6_900, add_on.order.subtotal_cents
+  ensure
+    ENV.update(original) if original
+  end
+
+  def test_paid_bundle_uses_the_same_receipt_to_start_both_jobs
+    order = order_for(product(slug: "lightek-voice"))
+    order.update!(payment_provider: "stripe", payment_reference: "cs_bundle")
+    peer = voice_peer("bundle-paid")
+    request_key = SecureRandom.uuid
+    group_id = SecureRandom.uuid
+    LightekCommunications::VoiceAddOn.create!(peer: peer, order: order, setup_secret_slug: "bundle-setup",
+      cellular_request_key: request_key, cellular_peer_ip: "172.25.10.2", cellular_group_id: group_id)
+    item = order.items.sole
+    item.update!(purchase_snapshot: item.purchase_snapshot.merge("cellular_bundle" => { "data_limit_mb" => 250 }))
+    session = OpenStruct.new(id: "cs_bundle", metadata: LightekCommerce::PaymentIdentity.metadata(order), currency: "usd",
+      mode: "subscription", payment_status: "unpaid", subscription: "sub_bundle", invoice: "in_bundle",
+      amount_subtotal: 2500, amount_total: 2500, total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0))
+    event = OpenStruct.new(type: "checkout.session.completed", data: OpenStruct.new(object: session))
+    enqueued = []
+    LightekCommunications::VoiceProvisioningJob.stub(:perform_later, ->(id) { enqueued << [:phone, id] }) do
+      LightekCommunications::CellularBundleJob.stub(:perform_later, ->(id) { enqueued << [:data, id] }) do
+        LightekCommerce::StripeEvents.process!(event)
+        assert_empty enqueued
+        session.payment_status = "paid"
+        Stripe::Subscription.stub(:retrieve, remote_subscription(order, current_period_start: 1.day.ago.to_i)) do
+          LightekCommerce::StripeEvents.process!(event)
+        end
+      end
+    end
+    assert_equal [[:phone, order.id], [:data, order.id]], enqueued
+
+    requests = []
+    Telnyx::ProvisionEsimService.stub(:call, ->(**attributes) { requests << attributes }) do
+      LightekCommunications::CellularBundleJob.new.perform(order.id)
+      order.reload.update!(status: "refunded")
+      LightekCommunications::CellularBundleJob.new.perform(order.id)
+    end
+    assert_equal [{ user: peer.merchant, sim_card_group_id: group_id, plan_limit_mb: 250,
+      customer_wg_peer_ip: "172.25.10.2", request_key: request_key }], requests
   end
 
   def test_verified_payment_automatically_orders_and_configures_e911_once

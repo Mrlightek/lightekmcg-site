@@ -9,6 +9,12 @@ on:
       - 'config/initializers/sidekiq.rb'
       - 'config/initializers/dymond_site_patch.rb'
       - 'test/standalone/dymond_site_initialization_test.rb'
+      - 'test/standalone/database_readiness_test.rb'
+      - 'test/standalone/studio_blender_slot_test.rb'
+      - 'lib/lightek/database_readiness.rb'
+      - 'app/services/studio/media_process.rb'
+      - 'config.ru'
+      - 'docker-compose.yml'
       - 'test/standalone/scheduler.Gemfile'
       - 'test/standalone/sidekiq_cron_dispatch_checks.rb'
       - 'test/standalone/website_deployment_dispatch_test.rb'
@@ -40,6 +46,8 @@ jobs:
         run: |
           bundle install
           bundle exec ruby test/standalone/dymond_site_initialization_test.rb
+          bundle exec ruby test/standalone/database_readiness_test.rb
+          bundle exec ruby test/standalone/studio_blender_slot_test.rb
       - name: Verify deployment shell regressions before merge
         run: |
           python3 -m unittest test.operations.bootstrap_ruby_build_test

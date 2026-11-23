@@ -2,9 +2,12 @@ require "open3"
 require "timeout"
 require "tmpdir"
 require "fileutils"
+require "securerandom"
 module Studio
   class MediaProcess
     class Cancelled < StandardError; end
+    class BlenderCapacity < StandardError; end
+    BLENDER_SLOT = "lightek-blender-slot".freeze
     def self.temp_root
       root=Rails.root.join("storage/studio-tmp").to_s
       FileUtils.mkdir_p(root,mode:0700)
@@ -13,7 +16,43 @@ module Studio
     def self.temporary_directory(prefix,&block)
       Dir.mktmpdir(prefix,temp_root,&block)
     end
-    def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil, cleanup_container:true, on_tick:nil)
+    def self.run!(command, blender_workstation: false, **options)
+      if command.take(2) == %w[docker run] && (blender_workstation || command.include?("blender") && command.include?("--background"))
+        return run_blender!(command, **options)
+      end
+      run_process!(command, **options)
+    end
+
+    def self.run_blender!(command, cleanup_container: true, **options)
+      command = command.dup
+      memory_index = command.index("--memory") + 1
+      budget = run_process!(
+        ["python3", Rails.root.join("lib/scripts/studio_worker_limits.py").to_s, "--blender-memory", command[memory_index]],
+        timeout: 15, capacity_probe: true
+      ).strip
+      command[memory_index] = budget
+      command[command.index("--name") + 1] = BLENDER_SLOT
+      owner = "lightek.blender.attempt=#{SecureRandom.hex(16)}"
+      command.insert(2, "--memory-swap", budget, "--label", owner)
+      output = run_process!(command, **options, cleanup_container: false, blender_slot: true)
+    ensure
+      remove_blender_attempt(owner) if owner && (cleanup_container || !output)
+    end
+
+    def self.remove_blender_attempt(owner)
+      # The slot belongs to the Docker daemon. Clean up by attempt label so
+      # contention or cancellation can never remove someone else's render.
+      ids, _, status = Open3.capture3("docker", "ps", "-aq", "--no-trunc", "--filter", "label=#{owner}")
+      return unless status.success?
+
+      containers = ids.split.grep(/\A[0-9a-f]{64}\z/)
+      Open3.capture3("docker", "rm", "-f", *containers) unless containers.empty?
+    rescue SystemCallError
+      nil
+    end
+
+    def self.run_process!(command, timeout:90, cancel_if:nil, stdin_data:nil, cleanup_container:true, on_tick:nil,
+        blender_slot:false, capacity_probe:false)
       output="";errors="";status=nil
       Open3.popen3(*command,pgroup:true) do |input,stdout,stderr,wait|
         input.write(stdin_data) if stdin_data
@@ -42,6 +81,12 @@ module Studio
           readers.each(&:join)
         end
       end
+      if capacity_probe && !status.success?
+        raise BlenderCapacity, errors.strip
+      end
+      if blender_slot && status.exitstatus == 125 && errors.include?("Conflict.") && errors.include?(BLENDER_SLOT)
+        raise Studio::Compute::CpuProfile::Busy, "Waiting for the Blender worker on this server"
+      end
       raise "Media processing failed: #{errors.last(1000)}" unless status.success?
       output
     ensure
@@ -49,6 +94,7 @@ module Studio
         Open3.capture3("docker","rm","-f",command[index+1]) rescue nil
       end
     end
+    private_class_method :run_process!, :run_blender!, :remove_blender_attempt
     def self.cpu_limit
       run!(["python3",Rails.root.join("lib/scripts/studio_worker_limits.py").to_s],timeout:15).strip
     end

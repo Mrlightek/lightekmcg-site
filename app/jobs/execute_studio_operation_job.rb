@@ -29,10 +29,12 @@ class ExecuteStudioOperationJob < ApplicationJob
       end
       return
     end
+    started = false
     operation.with_lock do
       return if operation.terminal?
       return unless operation.executable?
       operation.update!(status: "running", started_at: Time.current, error_message: nil)
+      started = true
     end
     execute(operation)
   rescue Studio::Compute::Lease::Lost
@@ -41,8 +43,13 @@ class ExecuteStudioOperationJob < ApplicationJob
   rescue Studio::Compute::CpuProfile::Busy
     operation.with_lock do
       return if operation.terminal? || (lease && !lease.valid?)
-      return if !lease && !operation.executable?
-      operation.update!(status:"pending",metadata:operation.metadata.merge("cpu_render_progress"=>operation.metadata.fetch("cpu_render_progress",{}).merge("profile"=>"cpu_economy","phase"=>"waiting_for_cpu_slot")))
+      return unless lease || started || operation.executable?
+      metadata = if Studio::Compute::Queue.economy?(operation)
+        operation.metadata.merge("cpu_render_progress"=>operation.metadata.fetch("cpu_render_progress",{}).merge("profile"=>"cpu_economy","phase"=>"waiting_for_cpu_slot"))
+      else
+        operation.metadata.merge("workflow_phase" => "waiting_for_blender_worker")
+      end
+      operation.update!(status: "pending", metadata: metadata)
     end
     self.class.set(wait:20.seconds).perform_later(operation.id)
   rescue Studio::MediaProcess::Cancelled => error

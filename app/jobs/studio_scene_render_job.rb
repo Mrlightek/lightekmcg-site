@@ -31,6 +31,8 @@ class StudioSceneRenderJob < ApplicationJob
       render.with_claim!(token, StudioSceneRender::RUNNING_STATUSES) do
         message = if error.is_a?(Timeout::Error)
           "The worker timed out while #{render.status}. Retry this render from the saved snapshot."
+        elsif error.is_a?(Studio::MediaProcess::BlenderCapacity) || error.is_a?(Studio::Compute::CpuProfile::Busy)
+          error.message
         else
           FAILURE_MESSAGES.fetch(render.status)
         end

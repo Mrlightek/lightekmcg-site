@@ -39,5 +39,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends asterisk
-      - run: ruby test/standalone/managed_voice_pbx_smoke.rb
+      - run: docker build -t lightek-managed-voice-test -f deploy/communications/pbx/Test.Dockerfile deploy/communications/pbx
+      - run: >-
+          docker run --rm --network none --volume "$PWD:/source:ro" --workdir /source
+          lightek-managed-voice-test ruby test/standalone/managed_voice_pbx_smoke.rb

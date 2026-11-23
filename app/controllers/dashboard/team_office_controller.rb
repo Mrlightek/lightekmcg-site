@@ -28,17 +28,24 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   def create
-    edit_scope do
-      attrs = fields.except(:lock_version).merge(creator: current_user, editor: current_user)
-      if @drive
-        entry = @drive.entries.build(parent: @folder, creator: current_user, folder: false, name: attrs[:title])
-        @file = entry.build_office_file(attrs)
-        entry.save!
-      else
-        @file = files.create!(attrs)
-      end
-    end
+    create_file!(fields.except(:lock_version))
     saved
+  end
+
+  def import_excel
+    writable!
+    upload = params[:workbook]
+    unless upload.is_a?(ActionDispatch::Http::UploadedFile) && upload.size.between?(1, LightekAccounting::WorkbookSchema::MAX_BYTES)
+      raise ArgumentError, 'Choose an Excel workbook up to 5 MB.'
+    end
+
+    content = LightekOffice::ExcelImport.call(upload.read(LightekAccounting::WorkbookSchema::MAX_BYTES + 1),
+      filename: upload.original_filename)
+    title = File.basename(upload.original_filename, '.*').strip.first(160).presence || 'Imported spreadsheet'
+    create_file!(kind: 'spreadsheet', title: title, content: content)
+    saved
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id), alert: error.message, status: :see_other
   end
 
   def update
@@ -115,6 +122,19 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
     return LightekOffice::SharedFile.where(channel: @channel) unless @drive
 
     LightekOffice::SharedFile.where(drive_entry_id: @drive.entries.select(:id))
+  end
+
+  def create_file!(attributes)
+    edit_scope do
+      attrs = attributes.merge(creator: current_user, editor: current_user)
+      if @drive
+        entry = @drive.entries.build(parent: @folder, creator: current_user, folder: false, name: attrs[:title])
+        @file = entry.build_office_file(attrs)
+        entry.save!
+      else
+        @file = files.create!(attrs)
+      end
+    end
   end
 
   def writable!

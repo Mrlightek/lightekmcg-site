@@ -26,6 +26,10 @@ Nevaeh supports Lightek's CEO across company operations, communications, schedul
 - Open **Shared drives** from Team Chat or the Dashboard. An organization owner creates a drive and grants active teammates viewer or editor access. Editors can upload files up to 25 MB, create folders, rename or move items, and search by name. Editors can create and live-edit native Office documents, spreadsheets, and presentations directly in any drive folder. Drive viewers can read and export them. Team Chat channels also keep their own Office files. Spreadsheets open with an editable grid and preserve existing formulas and CSV exports.
 - Open **Shared calendars** to schedule events, invite active teammates through Dashboard notifications, track RSVPs, and check shared-calendar availability. The organizer or owner can edit, reschedule, or cancel events. Use the calendar download to open an event in another calendar application. Personal CEO agenda entries are excluded from team availability.
 
+### Importing Excel into Shared Drives
+
+In the destination folder, open **Import an Excel spreadsheet** and choose an `.xlsx` workbook up to 5 MB. The import creates a new editable spreadsheet within the drive. A workbook must have one worksheet that fits the Workspace grid (100 rows by 26 columns, up to 64 KB of editable content). Values and supported local formulas are retained. Save separate copies of individual worksheets for multi-sheet workbooks. Formatting, charts, and other workbook features stay in the original file.
+
 ## Shared team channels
 
 An organization owner can use **Create shared channel** in Team Chat and enter the account email of another organization owner on the same Lightek installation. The receiving owner reviews and accepts the invitation in Team Chat. Each owner can add active teammates from their own workforce directory. Shared history and the participant list identify the organization for each message or teammate.

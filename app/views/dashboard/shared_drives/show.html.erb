@@ -60,6 +60,15 @@
             <%= form.submit "Create folder", class: "dd-topbar-btn dd-btn-primary" %>
           <% end %>
         </details>
+        <details><summary>Import an Excel spreadsheet</summary>
+          <p>Convert one worksheet to an editable Workspace spreadsheet. It can have up to 100 rows and 26 columns.
+            Cell values and supported local formulas carry over. Formatting, charts, and other workbook features stay in your original file.</p>
+          <%= form_with url: import_excel_dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id) do |form| %>
+            <%= form.label :workbook, "Excel workbook (.xlsx, up to 5 MB)" %>
+            <%= form.file_field :workbook, accept: ".xlsx", required: true %>
+            <%= form.submit "Import Excel spreadsheet", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
         <details><summary>Upload a file</summary>
           <%= form_with url: add_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :entry do |form| %>
             <%= form.hidden_field :parent_id, value: @folder&.id %>

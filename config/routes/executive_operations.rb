@@ -95,6 +95,7 @@ end
 scope '/dashboard/shared-drives/:drive_id/office', controller: 'dashboard/team_office' do
   get '/', action: :index, as: :dashboard_drive_office
   post '/', action: :create
+  post '/import-excel', action: :import_excel, as: :import_excel_dashboard_drive_office
   patch '/:file_id', action: :update, as: :update_dashboard_drive_office
   get '/:file_id/live', action: :live, as: :live_dashboard_drive_office
   post '/:file_id/restore', action: :restore, as: :restore_dashboard_drive_office

@@ -83,6 +83,8 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   def export
+    return export_powerpoint if params[:download] == 'pptx'
+
     file = files.find(params[:file_id])
     body, extension, mime = case file.kind
     when 'spreadsheet' then [LightekOffice::Content.csv(file.content), 'csv', 'text/csv']
@@ -94,6 +96,12 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   private
+
+  def export_powerpoint
+    file = files.where(kind: 'presentation').find(params[:file_id])
+    send_data LightekOffice::PowerpointExport.call(file.content),
+      filename: LightekOffice::PowerpointExport.filename(file.title), type: LightekOffice::PowerpointExport::CONTENT_TYPE
+  end
 
   def load_office_scope
     response.headers['Cache-Control'] = 'private, no-store'

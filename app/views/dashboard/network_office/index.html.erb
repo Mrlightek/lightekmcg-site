@@ -38,6 +38,7 @@
             </table>
           </div>
         <% elsif @slide %>
+          <%= link_to "Download PowerPoint (.pptx)", export_dashboard_network_office_path(params[:key], @file.fetch("key"), download: "pptx") %>
           <article class="office-slide"><h3><%= @slide.first %></h3><p class="network-text"><%= @slide.last %></p></article>
           <nav aria-label="Slides">
             <% if @slide_number > 1 %><%= link_to "Previous slide", dashboard_network_office_path(params[:key], file_key: @file.fetch("key"), slide: @slide_number - 1) %><% end %>

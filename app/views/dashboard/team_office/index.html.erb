@@ -42,6 +42,7 @@
             </table>
           </div>
         <% elsif @slide %>
+          <%= link_to "Download PowerPoint (.pptx)", office_action_path(:export, @file, download: "pptx") %>
           <article class="office-slide"><h3><%= @slide.first %></h3><p class="network-text"><%= @slide.last %></p></article>
           <nav aria-label="Slides">
             <% if @slide_number > 1 %><%= link_to "Previous slide", office_path(file_id: @file.id, slide: @slide_number - 1) %><% end %>

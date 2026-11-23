@@ -9,6 +9,11 @@
           · <%= link_to "Import contacts", dashboard_mail_contacts_path(account_id: mailbox.account_id, team_mailbox_id: mailbox.id) %>
         <% end %>
       </p>
+      <p class="muted">Calendar · <%= mailbox.calendar_imported_at? ? "Imported" : "Pending" %>
+        <% if mailbox.mailbox_user_id == current_user.id %>
+          · <%= link_to "Import calendar", dashboard_mail_calendar_import_path(account_id: mailbox.account_id, team_mailbox_id: mailbox.id) %>
+        <% end %>
+      </p>
     </div>
     <span class="status-badge"><%= import ? "#{import.phase.humanize} · #{import.state.humanize}" : "Waiting for archive" %></span>
   </div>

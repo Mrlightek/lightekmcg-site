@@ -303,3 +303,9 @@ Select **Start ready imports** after the previews finish. A failed mailbox can b
 In Mail Studio, open **Contacts** for your mailbox. Select a Google Contacts CSV up to 2 MB or 2,000 rows and preview it. Lightek imports names, email addresses, phone numbers, and labels. Matching addresses and repeat rows are skipped. Existing contact edits are preserved. Start typing a contact name or address in the **To** field and select the address you want to use.
 
 For a team migration, each member can use **Import contacts** on their mailbox import. The team page shows when that mailbox has imported contacts. The address book is visible to the mailbox owner.
+
+### Move calendar history
+
+Open **Mail Studio → Calendar → Import calendar**, or use **Import calendar** from your team mailbox import. Preview one uncompressed `.ics` export up to 2 MB and 2,000 entries, then confirm the import. Mail Calendar displays imported events alongside invitations. Imports keep the source event and occurrence identities so repeat uploads skip them. Calendar history imports do not send invitations or RSVPs.
+
+The importer handles all-day events, UTC and recognized time zones, daily through yearly recurrence rules with supported date filters, excluded and additional dates, and individual moved or cancelled occurrences. The preview identifies entries with unsupported rules, floating times, or custom time zones. The team page reports import completion and the mailbox owner sees the imported event details.

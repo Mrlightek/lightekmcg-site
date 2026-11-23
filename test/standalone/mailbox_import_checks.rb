@@ -45,6 +45,10 @@ require File.join(ROOT, "db/migrate/20261123151000_add_team_mail_migrations")
 AddTeamMailMigrations.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261123153000_add_mail_contacts")
 AddMailContacts.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261123102000_store_incoming_calendar_invitations")
+StoreIncomingCalendarInvitations.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261123155000_add_calendar_history_imports")
+AddCalendarHistoryImports.new.migrate(:up)
 ActiveRecord::Schema.define do
   add_column :lightek_mail_messages, :junk, :boolean, default: false, null: false
   create_table(:active_storage_blobs) do |table|
@@ -108,7 +112,11 @@ end
    models/lightek_mail/team_migration_mailbox services/lightek_mail/team_migration_mapping
    models/lightek_mail/contact models/lightek_mail/contact_preview services/lightek_mail/contact_import
    controllers/dashboard/mailbox_imports_controller controllers/dashboard/team_mail_migrations_controller
-   controllers/dashboard/mail_contacts_controller].each { |path| require File.join(ROOT, "app", path) }
+   models/lightek_mail/calendar_invitation models/lightek_mail/calendar_history_event
+   models/lightek_mail/calendar_history_preview services/lightek_mail/calendar_notice
+   services/lightek_mail/calendar_history_parser services/lightek_mail/calendar_history services/lightek_mail/submission
+   controllers/dashboard/mail_contacts_controller controllers/dashboard/mail_calendar_imports_controller
+   controllers/dashboard/mail_studio_controller].each { |path| require File.join(ROOT, "app", path) }
 
 module MailboxImportFixtures
   def mailbox(user, address)
@@ -177,6 +185,7 @@ class MailboxImportChecks < ActionController::TestCase
     @request.set_header("HTTP_X_TEST_USER", @owner.id.to_s)
     routes = ActionDispatch::Routing::RouteSet.new
     routes.draw do
+      get "/mail/:account_id/calendar/import", to: "dashboard/mail_calendar_imports#index", as: :dashboard_mail_calendar_import
       get "/mail/:account_id/contacts", to: "dashboard/mail_contacts#index", as: :dashboard_mail_contacts
       get "/team/migrations", to: "dashboard/team_mail_migrations#index", as: :dashboard_team_mail_migrations
       get "/mail", to: "dashboard/mail_studio#index", as: :dashboard_mail
@@ -194,7 +203,7 @@ class MailboxImportChecks < ActionController::TestCase
     Dashboard::MailboxImportsController.prepend_view_path(File.join(ROOT, "app/views"))
     Dashboard::MailboxImportsController.helper_method(:dashboard_mail_path, :dashboard_mailbox_imports_path,
       :dashboard_mailbox_import_path, :start_dashboard_mailbox_import_path, :retry_dashboard_mailbox_import_path,
-      :dashboard_team_mail_migrations_path, :dashboard_mail_contacts_path)
+      :dashboard_team_mail_migrations_path, :dashboard_mail_contacts_path, :dashboard_mail_calendar_import_path)
   end
 
   def test_preview_import_thread_attachment_search_and_rerun
@@ -369,6 +378,14 @@ MailboxImportTestApp.routes.draw do
     post "/imports/:id/start", action: :start, as: :start_dashboard_mailbox_import
     post "/imports/:id/retry", action: :retry_import, as: :retry_dashboard_mailbox_import
     delete "/imports/:id", action: :destroy
+  end
+
+  get "/mail/accounts/:account_id/calendar", to: "dashboard/mail_studio#calendar", as: :calendar_dashboard_mail
+  scope "/mail/accounts/:account_id/calendar/import", controller: "dashboard/mail_calendar_imports" do
+    get "/", action: :index, as: :dashboard_mail_calendar_import
+    post "/preview", action: :preview, as: :dashboard_mail_calendar_preview
+    get "/preview/:id", action: :review, as: :dashboard_mail_calendar_review
+    post "/preview/:id", action: :import
   end
 
   scope "/mail/accounts/:account_id/contacts", controller: "dashboard/mail_contacts" do
@@ -623,6 +640,125 @@ class MailContactsImportChecks < ActionDispatch::IntegrationTest
     post dashboard_mail_contacts_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
     assert_response :see_other
     refute LightekMail::ContactPreview.exists?(preview.id)
+  end
+
+  def as(user)
+    {"X-Test-User" => user.id.to_s}
+  end
+end
+
+class MailCalendarHistoryChecks < ActionDispatch::IntegrationTest
+  include MailboxImportFixtures
+
+  def setup
+    @owner = User.create!
+    @member = User.create!(role: "employee")
+    @account = mailbox(@member, "calendar-#{@member.id}@example.net")
+    LightekPeople::Employment.create!(employer_id: @owner.id, worker_id: @member.id)
+    migration = LightekMail::TeamMigration.create!(employer: @owner, name: "Move the team")
+    @row = migration.mailboxes.create!(account: @account, mailbox_user: @member, source_address: "old@example.org",
+      destination_address: @account.address)
+    Dashboard::MailCalendarImportsController.prepend_view_path(File.join(ROOT, "app/views"))
+    Dashboard::MailStudioController.prepend_view_path(File.join(ROOT, "app/views"))
+  end
+
+  def test_import_series_all_day_and_moved_occurrence_without_sending_mail
+    Time.use_zone("America/New_York") do
+      preview = upload_calendar
+      assert_nil @row.reload.calendar_imported_at
+      get dashboard_mail_calendar_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
+      assert_response :success
+      assert_includes response.body, "4 new · 0 duplicates · 1 need attention"
+      assert_includes response.body, "Series exception"
+      get dashboard_mail_calendar_review_path(account_id: @account.id, id: preview.id), headers: as(@owner)
+      assert_response :not_found
+
+      mail_count = @account.messages.count
+      queued = ActiveJob::Base.queue_adapter.enqueued_jobs.size
+      apply_preview(preview)
+      assert @row.reload.calendar_imported_at?
+      assert_equal 4, LightekMail::CalendarHistoryEvent.for_mailbox(@account).count
+
+      first_week = LightekMail::CalendarHistory.week(@account, Date.new(2026, 10, 26))
+      assert_equal [Time.utc(2026, 10, 29, 14)], first_week.map { |occurrence| occurrence.starts_at.utc }
+      second_week = LightekMail::CalendarHistory.week(@account, Date.new(2026, 11, 2))
+      assert_equal ["Moved planning", "Away"], second_week.map { |occurrence| occurrence.event.title }
+      assert_equal Time.utc(2026, 11, 6, 16, 15), second_week.first.starts_at.utc
+      assert_equal Time.utc(2026, 11, 7), second_week.last.starts_at.utc
+      assert_equal Time.utc(2026, 11, 9), second_week.last.ends_at.utc
+      third_week = LightekMail::CalendarHistory.week(@account, Date.new(2026, 11, 9))
+      assert_equal [Time.utc(2026, 11, 15, 15)], third_week.map { |occurrence| occurrence.starts_at.utc }
+      assert_empty LightekMail::CalendarHistory.week(@account, Date.new(2026, 11, 16))
+      fourth_week = LightekMail::CalendarHistory.week(@account, Date.new(2026, 11, 23))
+      assert_equal [Time.utc(2026, 11, 26, 15)], fourth_week.map { |occurrence| occurrence.starts_at.utc }
+
+      get calendar_dashboard_mail_path(account_id: @account.id, date: "2026-11-02"), headers: as(@member)
+      assert_response :success
+      assert_includes response.body, "Moved planning"
+      assert_includes response.body, "All day"
+      refute_includes response.body, ">Weekly planning<"
+
+      repeated = upload_calendar
+      get dashboard_mail_calendar_review_path(account_id: @account.id, id: repeated.id), headers: as(@member)
+      assert_includes response.body, "0 new · 4 duplicates"
+      apply_preview(repeated)
+      assert_equal 4, LightekMail::CalendarHistoryEvent.for_mailbox(@account).count
+      assert_equal mail_count, @account.messages.count
+      assert_equal queued, ActiveJob::Base.queue_adapter.enqueued_jobs.size
+    end
+  end
+
+  private
+
+  def upload_calendar
+    data = <<~ICS
+      BEGIN:VCALENDAR
+      VERSION:2.0
+      BEGIN:VEVENT
+      UID:weekly@example.org
+      SUMMARY:Weekly planning
+      DTSTART;TZID=America/New_York:20261029T100000
+      DTEND;TZID=America/New_York:20261029T103000
+      RRULE:FREQ=WEEKLY;COUNT=5
+      EXDATE;TZID=America/New_York:20261112T100000
+      RDATE;TZID=America/New_York:20261115T100000
+      END:VEVENT
+      BEGIN:VEVENT
+      UID:weekly@example.org
+      RECURRENCE-ID;TZID=America/New_York:20261105T100000
+      SUMMARY:Moved planning
+      DTSTART;TZID=America/New_York:20261106T111500
+      DTEND;TZID=America/New_York:20261106T114500
+      END:VEVENT
+      BEGIN:VEVENT
+      UID:weekly@example.org
+      RECURRENCE-ID;TZID=America/New_York:20261119T100000
+      STATUS:CANCELLED
+      END:VEVENT
+      BEGIN:VEVENT
+      UID:away@example.org
+      SUMMARY:Away
+      DTSTART;VALUE=DATE:20261107
+      DTEND;VALUE=DATE:20261109
+      END:VEVENT
+      BEGIN:VEVENT
+      UID:unsupported@example.org
+      DTSTART:20261101T100000Z
+      RRULE:FREQ=HOURLY
+      END:VEVENT
+      END:VCALENDAR
+    ICS
+    upload = Rack::Test::UploadedFile.new(StringIO.new(data), "text/calendar", true, original_filename: "history.ics")
+    post dashboard_mail_calendar_preview_path(account_id: @account.id),
+      params: {calendar_file: upload, team_mailbox_id: @row.id}, headers: as(@member)
+    assert_response :see_other
+    LightekMail::CalendarHistoryPreview.where(account: @account).sole
+  end
+
+  def apply_preview(preview)
+    post dashboard_mail_calendar_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
+    assert_response :see_other
+    refute LightekMail::CalendarHistoryPreview.exists?(preview.id)
   end
 
   def as(user)

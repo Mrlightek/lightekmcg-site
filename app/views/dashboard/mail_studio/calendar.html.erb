@@ -1,0 +1,63 @@
+<% content_for :page_title, "Mail calendar" %>
+<%= render "style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Back to inbox", dashboard_mail_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1>Mail calendar</h1>
+      <p class="muted"><%= @account.address %> · <%= l(@date, format: :long) %> – <%= l(@date + 6, format: :long) %></p>
+    </div>
+    <nav class="reader-actions" aria-label="Calendar navigation">
+      <%= link_to "Previous week", calendar_dashboard_mail_path(account_id: @account.id, date: @date - 7), class: "button secondary" %>
+      <%= link_to "This week", calendar_dashboard_mail_path(account_id: @account.id), class: "button secondary" %>
+      <%= link_to "Next week", calendar_dashboard_mail_path(account_id: @account.id, date: @date + 7), class: "button secondary" %>
+      <%= link_to "Import calendar", dashboard_mail_calendar_import_path(account_id: @account.id), class: "button secondary" %>
+    </nav>
+  </header>
+
+  <%= form_with url: calendar_dashboard_mail_path(account_id: @account.id), method: :get, class: "reader-actions" do |form| %>
+    <%= form.label :date, "Week starting" %>
+    <%= form.date_field :date, value: @date, required: true %>
+    <%= form.submit "Go to week", class: "secondary" %>
+  <% end %>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+  <% if @invitations.empty? && @history.empty? %>
+    <p>No events this week.</p>
+  <% end %>
+  <div class="conversation-stack">
+    <% @invitations.each do |invitation| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <div>
+            <h2><%= invitation.title %></h2>
+            <p><%= render "calendar_time", starts_at: invitation.starts_at, ends_at: invitation.ends_at, all_day: invitation.all_day? %></p>
+            <p class="muted"><%= invitation.organizer %> · <%= invitation.response.humanize %></p>
+            <% if invitation.location.present? %><p><%= invitation.location %></p><% end %>
+            <% if invitation.description.present? %><p style="white-space: pre-wrap"><%= invitation.description %></p><% end %>
+          </div>
+          <% if invitation.source_message && !invitation.source_message.trashed? %>
+            <%= link_to "Open invitation", dashboard_mail_message_path(account_id: @account.id, id: invitation.source_message_id), class: "button secondary" %>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+  </div>
+  <% if @history.any? %>
+    <section class="conversation-stack" aria-label="Imported events">
+      <h2>Imported events</h2>
+      <% @history.each do |occurrence| %>
+        <% event = occurrence.event %>
+        <article class="conversation-card">
+          <div class="message-tools">
+            <div>
+              <h3><%= event.title %></h3>
+              <p><%= render "calendar_time", starts_at: occurrence.starts_at, ends_at: occurrence.ends_at, all_day: event.all_day? %></p>
+              <% if event.location.present? %><p><%= event.location %></p><% end %>
+              <% if event.description.present? %><p style="white-space: pre-wrap"><%= event.description %></p><% end %>
+            </div>
+          </div>
+        </article>
+      <% end %>
+    </section>
+  <% end %>
+</main>

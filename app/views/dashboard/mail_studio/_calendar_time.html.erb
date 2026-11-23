@@ -1,0 +1,8 @@
+<% if all_day %>
+  <% first_day = starts_at.utc.to_date %>
+  <% last_day = ends_at.utc.to_date - 1 %>
+  <%= l(first_day, format: :long) %><% if last_day > first_day %> – <%= l(last_day, format: :long) %><% end %> · All day
+<% else %>
+  <time datetime="<%= starts_at.iso8601 %>"><%= l(starts_at.in_time_zone, format: :short) %></time>
+  <% if ends_at > starts_at %> – <time datetime="<%= ends_at.iso8601 %>"><%= l(ends_at.in_time_zone, format: :short) %></time><% end %>
+<% end %>

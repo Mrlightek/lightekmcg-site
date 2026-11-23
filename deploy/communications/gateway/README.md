@@ -13,7 +13,7 @@ policy allows the authorized subscriber to reach the upstream probe.
 | FreeRADIUS | Local authentication and session start/stop accounting |
 | Probe | Upstream destination with a return route to the subscriber |
 
-Run on a Linux Docker host with Compose 2.36 or later, `openssl`, and kernel
+Run on a Linux Docker host with Docker Compose v2, `openssl`, and kernel
 support for PPP and PPPoE. On Ubuntu, load the host modules first.
 
 ```sh

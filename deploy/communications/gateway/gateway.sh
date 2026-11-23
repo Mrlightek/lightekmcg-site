@@ -6,6 +6,17 @@ case ${PILOT_SUBSCRIBER_PASSWORD:-} in
     ''|*[!0-9a-f]*) printf '%s\n' 'Set a hexadecimal pilot subscriber password.' >&2; exit 2 ;;
 esac
 
+interface_for() {
+    ip -o -4 address show to "$1/32" | awk '$2 ~ /^[[:alnum:]_]+$/ { print $2; exit }'
+}
+
+access_if=$(interface_for 172.30.248.2)
+upstream_if=$(interface_for 172.30.249.2)
+if [ -z "$access_if" ] || [ -z "$upstream_if" ]; then
+    printf '%s\n' 'The gateway needs both its access-side and upstream IPv4 interfaces.' >&2
+    exit 1
+fi
+
 state=/run/lightek-gateway
 radius_config=/etc/freeradius/3.0
 install -d -m 0700 "$state"
@@ -23,7 +34,7 @@ printf 'client pppoe {\n ipaddr = 127.0.0.1\n secret = %s\n require_message_auth
 rm -f "$radius_config/sites-enabled/default" "$radius_config/sites-enabled/inner-tunnel"
 install -m 0640 -o root -g freerad radius-site "$radius_config/sites-enabled/lightek-gateway"
 install -m 0640 -o root -g freerad radius-access "$radius_config/mods-enabled/lightek-subscriber-access"
-nft -f forward.nft
+sed "s/__UPSTREAM_IF__/$upstream_if/g" forward.nft | nft -f -
 
 # Run only the foreground services owned by this gateway.
 radius_pid=
@@ -42,7 +53,7 @@ sh ./access-policy.sh initialize
 freeradius -f -l stdout &
 radius_pid=$!
 sh ./access-policy.sh ready
-pppoe-server -F -k -I access0 -C Lightek -S lightek -L 100.64.82.1 -R 100.64.82.2 \
+pppoe-server -F -k -I "$access_if" -C Lightek -S lightek -L 100.64.82.1 -R 100.64.82.2 \
     -N 1 -x 1 -O /opt/lightek-gateway/ppp-options -X "$state/pppoe.pid" &
 pppoe_pid=$!
 

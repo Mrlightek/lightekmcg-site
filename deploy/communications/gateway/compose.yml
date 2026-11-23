@@ -16,9 +16,8 @@ services:
       PILOT_SUBSCRIBER_PASSWORD: ${PILOT_SUBSCRIBER_PASSWORD:?Run check.sh or set the pilot password}
     networks:
       access:
-        interface_name: access0
+        ipv4_address: 172.30.248.2
       upstream:
-        interface_name: wan0
         ipv4_address: 172.30.249.2
 
   subscriber:
@@ -35,7 +34,7 @@ services:
         condition: service_healthy
     networks:
       access:
-        interface_name: access0
+        ipv4_address: 172.30.248.3
 
   probe:
     build:
@@ -50,6 +49,9 @@ services:
 networks:
   access:
     internal: true
+    ipam:
+      config:
+        - subnet: 172.30.248.0/29
   upstream:
     internal: true
     ipam:

@@ -5,7 +5,7 @@ table inet lightek_gateway {
 
     chain forward {
         type filter hook forward priority filter; policy drop;
-        iifname "ppp0" oifname "wan0" ip saddr @allowed ip daddr 172.30.249.3 accept
-        iifname "wan0" oifname "ppp0" ip saddr 172.30.249.3 ip daddr @allowed ct state established,related accept
+        iifname "ppp0" oifname "__UPSTREAM_IF__" ip saddr @allowed ip daddr 172.30.249.3 accept
+        iifname "__UPSTREAM_IF__" oifname "ppp0" ip saddr 172.30.249.3 ip daddr @allowed ct state established,related accept
     }
 }

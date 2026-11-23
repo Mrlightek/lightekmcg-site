@@ -129,6 +129,8 @@ const markRoot = (
 
   root.userData.sceneObjectType =
     objectTypeFor(object);
+  root.userData.nativeType = object.definition?.native_type;
+  root.userData.nativePreview = object.definition?.native_source_preview === true;
 
   return root;
 };
@@ -408,6 +410,84 @@ const meshObject = object => {
   return root;
 };
 
+const characterStage = state =>
+  state?.settings?.studio_entry === 'stage' && Number(state.settings.native_blender_asset_id) > 0;
+
+const dressing = root => root.userData.sceneObjectName === 'Studio floor' ||
+  (root.userData.sceneObjectType === 'native_object' && root.userData.nativeType !== 'MESH');
+
+// Keep shot cameras, lights and rig helper outlines out of the character presentation.
+const showStageObject = (dom, state, root) => {
+  if (!characterStage(state) || !dom.viewport.closest('.visual-workbench')) return;
+  if (root.userData.nativePlaceholder || dressing(root) || ['camera','point_light','area_light','sun_light'].includes(root.userData.sceneObjectType)) root.visible = false;
+};
+
+const focusCharacterCamera = (state, camera, target) => {
+  if (!characterStage(state)) return false;
+  const shot = state.objects?.find(object => objectTypeFor(object) === 'camera' &&
+    (object.name === state.settings.active_camera || object.name === 'Two-shot camera'));
+  if (!shot) return false;
+
+  const d = shot.definition || {};
+  camera.position.fromArray(vector(d, 'location', [0, -6, 2]));
+  const rotation = new THREE.Euler(...vector(d, 'rotation', [90, 0, 0]).map(radians), 'XYZ');
+  const forward = new THREE.Vector3(0, 0, -1).applyEuler(rotation);
+  target.copy(camera.position).addScaledVector(forward, Math.max(camera.position.length(), 1));
+  return true;
+};
+
+const frameCharacter = state => {
+  if (!active || !focusCharacterCamera(state, active.camera, active.orbit.target)) return false;
+  if (active.characterBounds) {
+    const sphere = active.characterBounds.getBoundingSphere(new THREE.Sphere());
+    const view = new THREE.Vector3().subVectors(active.camera.position, active.orbit.target).normalize();
+    const vertical = THREE.MathUtils.degToRad(active.camera.fov / 2);
+    const aspect = active.canvasHost.clientWidth / Math.max(active.canvasHost.clientHeight, 1);
+    const halfAngle = Math.min(vertical, Math.atan(Math.tan(vertical) * Math.max(aspect, .1)));
+    active.orbit.target.copy(sphere.center);
+    active.camera.position.copy(sphere.center).addScaledVector(view, Math.max(sphere.radius, .1) * 1.15 / Math.sin(halfAngle));
+  }
+  active.orbit.update();
+  return true;
+};
+
+const mountCharacterFallback = (dom, state, software) => {
+  if (!characterStage(state)) return;
+  const id = Number(state.settings.native_blender_asset_id);
+  const image = document.createElement('img');
+  image.className = 'studio-character-camera-preview';
+  image.alt = 'Camera preview of your saved character scene';
+  image.hidden = true;
+  const diagnostic = 'The character viewport is unavailable. Use Render camera preview to see your saved scene.';
+  const details = () => { dom.status.textContent = diagnostic; };
+  image.addEventListener('error', details, {once:true});
+  image.addEventListener('load', () => {
+    if (!dom.canvasHost.dataset.characterMeshReady || software) {
+      image.hidden = false;
+      if (software || !state.objects?.some(object => object.definition?.native_source_preview)) {
+        dom.status.textContent = 'Showing the saved camera image. The editing viewport is unavailable.';
+      }
+    }
+  }, {once:true});
+  const dashboardSite = Number(document.querySelector('#lightek-studio-dashboard')?.dataset.siteId);
+  image.src = dashboardSite > 0
+    ? `/dashboard/studio-broadcasting/assets/${id}/thumbnail?site_id=${dashboardSite}`
+    : `/api/lightek/pwa/assets/${id}/thumbnail`;
+  dom.canvasHost.append(image);
+  if (!state.objects?.some(object => object.definition?.native_source_preview)) details();
+};
+
+const characterMeshBounds = (objects, sourceRoot) => {
+  const bounds = new THREE.Box3();
+  for (const root of objects.values()) {
+    if (root !== sourceRoot && (root.userData.nativeType !== 'MESH' || dressing(root) || root.userData.nativePlaceholder)) continue;
+    let visibleMesh = false;
+    root.traverseVisible(node => { if (node.isMesh && node.geometry?.attributes.position?.count) visibleMesh = true; });
+    if (visibleMesh) bounds.expandByObject(root);
+  }
+  return bounds;
+};
+
 const buildObject = object => {
   const type =
     objectTypeFor(object);
@@ -426,7 +506,7 @@ const buildObject = object => {
       root = markRoot(new THREE.Group(),object);
       const url=String(object.definition?.asset_proxy_url||'');
       if((/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url)||/^\/dashboard\/studio-broadcasting\/assets\/\d+\/proxy\?site_id=\d+$/.test(url)||/^\/rails\/active_storage\/blobs\/(redirect|proxy)\//.test(url)))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{
-        if(!active||active.sceneId!==Number(studioRouteSceneId())||active.objects.get(object.id)!==root)return;
+        if(!active||active.sceneId!==Number(studioRouteSceneId())||active.objects.get(objectIdFor(object))!==root)return;
         gltf.scene.rotation.x=Math.PI/2;root.add(gltf.scene);active.scene.updateMatrixWorld(true);
         const mixer=new THREE.AnimationMixer(active.scene);for(const clip of gltf.animations)mixer.clipAction(clip).play();active.mixers.push(mixer);
         if(object.definition?.native_source_preview){
@@ -451,12 +531,29 @@ const buildObject = object => {
               active.scene.add(nativeRoot);
             }
             if(d.material_override)node.traverse(child=>{if(!child.isMesh)return;const materials=Array.isArray(child.material)?child.material:[child.material];child.material=materials.map(m=>{const copy=m.clone(),p=d.material_override;if(p.color)copy.color?.setRGB(...p.color.slice(0,3));if(p.metallic!==undefined)copy.metalness=p.metallic;if(p.roughness!==undefined)copy.roughness=p.roughness;return copy;});if(!Array.isArray(child.material)||child.material.length!==1)return;child.material=child.material[0];});
+            showStageObject(active,bridge()?.snapshot?.(),nativeRoot);
             active.objects.set(item.id,nativeRoot);
             refreshMeshCommands(item,nativeRoot);
           }
         }
         for(const mesh of [...active.scene.children])mesh.traverse(child=>{if(child.isMesh&&!active.pickables.includes(child)&&child.visible)active.pickables.push(child);});
         updateHighlights(bridge()?.snapshot?.());applyTool(active.mode,bridge()?.snapshot?.());
+        if(object.definition?.native_source_preview && active.characterStage){
+          const bounds = characterMeshBounds(active.objects, root);
+          if(bounds.isEmpty()){
+            active.status.textContent = 'No visible mesh loaded. Use Render camera preview to see your saved character.';
+          }else{
+            active.characterBounds = bounds;
+            active.canvasHost.dataset.characterMeshReady = 'true';
+            if(!active.software){
+              if(active.frameCharacterOnLoad) frameCharacter(bridge()?.snapshot?.());
+              active.frameCharacterOnLoad=false;
+              const fallback = active.canvasHost.querySelector('.studio-character-camera-preview');
+              if(fallback) fallback.hidden = true;
+              active.status.textContent = 'Character loaded';
+            }
+          }
+        }
         window.dispatchEvent(new CustomEvent('lightek:proxy-ready',{detail:{assetObjectId:object.id}}));
       },undefined,()=>{if(active?.status)active.status.textContent='The 3D preview is unavailable. Use a camera preview to check your scene.';});
       break;
@@ -1327,9 +1424,11 @@ const installToolbar = state => {
           bridge()
             ?.snapshot?.();
 
-        frameObject(
-          selectedRoot(current)
-        )
+        if (active.characterStage && frameCharacter(current)) {
+          rememberCamera();
+          return;
+        }
+        frameObject(selectedRoot(current));
       }
     );
 
@@ -1544,11 +1643,12 @@ const createViewportDom = (
 // This is a layout preview, not a substitute for a Blender camera render.
 let frameRequest = [];
 window.addEventListener('lightek:frame-objects', event => { frameRequest = event.detail?.ids || []; });
-const layoutBounds = (objects, ids = []) => {
+const layoutBounds = (objects, ids = [], character = false) => {
   const bounds = new THREE.Box3();
   for (const [id, root] of objects) {
     if (!root.visible || (ids.length && !ids.includes(Number(id)))) continue;
     if (!ids.length && ['camera','point_light','area_light','sun_light'].includes(root.userData.sceneObjectType)) continue;
+    if (!ids.length && character && (dressing(root) || root.userData.nativePreview)) continue;
     bounds.expandByObject(root);
   }
   if (bounds.isEmpty()) bounds.set(new THREE.Vector3(-2,-2,0), new THREE.Vector3(2,2,3));
@@ -1568,24 +1668,31 @@ const mountSoftware = (dom, state) => {
   let yaw = -.9, pitch = .25, distance = 10, faces = [], animation = 0;
   const noop = () => {};
   active = {...dom, sceneId:Number(state.sceneId), scene, camera, objects:new Map(), pickables:[], mode:'select',
+    characterStage:characterStage(state), software:true, mixers:[],
     orbit:{target, update:noop}, transform:{detach:noop, attach:noop, setMode:noop, setSpace:noop},
     renderer:{setAnimationLoop:noop,dispose:()=>cancelAnimationFrame(animation)}};
-  for (const object of state.objects || []) { const root=buildObject(object); active.objects.set(objectIdFor(object),root); scene.add(root); refreshMeshCommands(object,root); }
+  for (const object of state.objects || []) { const root=buildObject(object); active.objects.set(objectIdFor(object),root); showStageObject(dom,state,root); scene.add(root); refreshMeshCommands(object,root); }
   const fit = ids => {
     scene.updateMatrixWorld(true);
-    const bounds=layoutBounds(active.objects,ids);
+    const bounds=layoutBounds(active.objects,ids,active.characterStage);
     bounds.getCenter(target); distance=Math.max(bounds.getSize(new THREE.Vector3()).length()*1.65,3);
   };
+  mountCharacterFallback(dom,state,true);
   const memory=cameraMemory.get(Number(state.sceneId));
   if(memory&&!frameRequest.length){
     target.fromArray(memory.target);
     const offset=new THREE.Vector3().fromArray(memory.position).sub(target);
     distance=Math.max(offset.length(),.5);yaw=Math.atan2(offset.y,offset.x);pitch=Math.asin(offset.z/distance);
+  }else if(!frameRequest.length && focusCharacterCamera(state,camera,target)){
+    const offset=camera.position.clone().sub(target);
+    distance=Math.max(offset.length(),.5);yaw=Math.atan2(offset.y,offset.x);pitch=Math.asin(offset.z/distance);
   }else fit(frameRequest);
   frameRequest=[];
   dom.toolbar.querySelectorAll('[data-studio-tool]').forEach(button=>{button.hidden=true;});
-  dom.toolbar.querySelector('[data-studio-frame]').textContent='Frame scene';
-  dom.toolbar.querySelector('[data-studio-frame]').onclick=()=>fit([]);
+  const frame = dom.toolbar.querySelector('[data-studio-frame]');
+  frame.textContent=active.characterStage?'Frame character':'Frame scene';
+  frame.title=frame.textContent;
+  frame.onclick=()=>fit([]);
   dom.status.textContent='Software layout · WebGL unavailable';
   dom.shell.querySelector('.studio-viewport-hint').textContent='Drag to orbit, scroll to zoom, or select an object to move it. Play the scene to check the camera view.';
   const point = (vector,width,height) => { const p=vector.clone().project(camera);return {x:(p.x+1)*width/2,y:(1-p.y)*height/2,z:p.z}; };
@@ -1786,6 +1893,8 @@ const mount = (
 
     pickables: [],
     mixers: [],
+    characterStage: characterStage(state),
+    frameCharacterOnLoad: !cameraMemory.has(Number(state.sceneId)),
 
     mode:
       toolMemory.get(
@@ -1805,6 +1914,12 @@ const mount = (
   };
 
   restoreCamera();
+  mountCharacterFallback(dom,state,false);
+  if(active.characterStage){
+    const frame=dom.toolbar.querySelector('[data-studio-frame]');
+    frame.textContent='Frame character';
+    frame.title='Restore the saved character camera view';
+  }
 
   (
     state.objects ||
@@ -1826,15 +1941,19 @@ const mount = (
       }
     });
 
+    showStageObject(dom,state,root);
     scene.add(root);
     refreshMeshCommands(object,root);
   });
 
   updateHighlights(state);
   if (frameRequest.length || !cameraMemory.has(Number(state.sceneId))) {
-    const bounds=layoutBounds(active.objects,frameRequest);frameRequest=[];
-    bounds.getCenter(orbit.target);
-    camera.position.copy(orbit.target).add(new THREE.Vector3(1,-1,.65).normalize().multiplyScalar(Math.max(bounds.getSize(new THREE.Vector3()).length()*1.65,3)));
+    if (frameRequest.length || !focusCharacterCamera(state,camera,orbit.target)) {
+      const bounds=layoutBounds(active.objects,frameRequest,active.characterStage);
+      bounds.getCenter(orbit.target);
+      camera.position.copy(orbit.target).add(new THREE.Vector3(1,-1,.65).normalize().multiplyScalar(Math.max(bounds.getSize(new THREE.Vector3()).length()*1.65,3)));
+    }
+    frameRequest=[];
     orbit.update();
   }
 

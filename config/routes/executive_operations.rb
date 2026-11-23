@@ -93,6 +93,7 @@ scope '/dashboard/shared-drives', controller: 'dashboard/shared_drives' do
 end
 
 scope '/dashboard/shared-drives/:drive_id/office', controller: 'dashboard/team_office' do
+  post '/import-powerpoint', action: :import_powerpoint, as: :import_powerpoint_dashboard_drive_office
   get '/', action: :index, as: :dashboard_drive_office
   post '/', action: :create
   patch '/:file_id', action: :update, as: :update_dashboard_drive_office

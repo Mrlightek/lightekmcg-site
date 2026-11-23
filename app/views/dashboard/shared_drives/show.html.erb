@@ -47,6 +47,14 @@
         <% end %>
       </ul>
       <% if @editor %>
+        <details><summary>Import a PowerPoint presentation</summary>
+          <p>Import up to 50 slides as editable titles and body text. Images, charts, tables, animations, notes, and custom layouts stay in your original file.</p>
+          <%= form_with url: import_powerpoint_dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id) do |form| %>
+            <%= form.label :presentation, "PowerPoint presentation (.pptx, up to 5 MB)" %>
+            <%= form.file_field :presentation, accept: ".pptx", required: true %>
+            <%= form.submit "Import presentation", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
         <nav aria-label="Create an Office file">
           <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
             <%= link_to "New #{label.downcase}", dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id, kind: kind),

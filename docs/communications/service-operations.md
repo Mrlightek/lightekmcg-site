@@ -36,6 +36,24 @@ If billing lapses, the Dashboard continues to show the last confirmed
 technical state. An operator can record suspension after the corresponding
 gateway or carrier operation.
 
+## Voice as an installation add-on
+
+Publish the recurring `lightek-voice` service product on the platform-owned
+storefront at the central federation origin once Voice is available for signup.
+The owner of a connected paid installation opens **Your workspace → Your
+services → Lightek Voice** to see the central price and start a separate
+subscription checkout. The main installation matches the Voice order to the
+authenticated peer and its billing account. It reuses an existing pending
+order and sends payment through the central Dymond Bank-backed checkout.
+Stripe payment verification uses the existing signed callback.
+
+The child installation's scoped federation credential authorizes the request
+back to main. VoIP.ms credentials stay in the central Vault. Customer
+installations receive checkout and service status only. A paid order appears
+in the central communications queue, where the operator can see the customer
+installation and complete the carrier setup and activation checks. Customers
+see the resulting status on their own Lightek Voice page.
+
 ## First Lightek-operated internet connection
 
 Use a Linux Linode VPS as the first gateway host. Docker gives the test

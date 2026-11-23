@@ -9,6 +9,26 @@ require Rails.root.join("app/models/lightek_communications/service_event").to_s
 require Rails.root.join("app/services/lightek_communications/fulfillment").to_s
 require Rails.root.join("app/services/lightek_communications/voip_ms").to_s
 
+require Rails.root.join("db/migrate/20261123140000_create_lightek_voice_add_ons").to_s
+CreateLightekVoiceAddOns.new.migrate(:up)
+require Rails.root.join("app/models/lightek_communications/voice_add_on").to_s
+require Rails.root.join("app/services/lightek_communications/installation_voice").to_s
+require Rails.root.join("app/services/lightek_people/lifecycle_access").to_s
+require Rails.root.join("app/models/lightek_people/lifecycle_case").to_s
+
+module LightekReservations
+  module Federation
+    class Issuer
+      def self.origin = "https://shop.example.com"
+    end
+  end
+
+  class Peer
+    def order_id = id
+    def active? = true
+  end
+end
+
 class Current
   class_attribute :session
 end
@@ -32,6 +52,53 @@ class CommunicationsServicesTest < CommerceHostingTest
     receipt = subscription.billing_invoices.create!(settlement_order: order, processor_reference: "in_#{order.id}",
       amount_paid_cents: 2500, currency: "usd", paid_at: Time.current)
     [order, subscription, receipt]
+  end
+
+  def test_installation_voice_uses_central_price_and_billing_identity_and_reuses_pending_order
+    product(slug: "lightek-voice")
+    peer = voice_peer("client")
+    addon = LightekCommunications::InstallationVoice.new(peer)
+    assert_equal "available", addon.status[:status]
+    assert_equal 2500, addon.status[:price_cents]
+
+    requests = []
+    checkout = ->(**args) do
+      requests << args
+      OpenStruct.new(url: "https://checkout.stripe.com/c/pay")
+    end
+    LightekCommerce::StripeCheckout.stub(:start!, checkout) do
+      assert_equal "https://checkout.stripe.com/c/pay", addon.checkout![:checkout_url]
+      addon.checkout!
+    end
+    order = requests.first.fetch(:order)
+    assert_equal [order.id, order.id], requests.map { |args| args[:order].id }
+    assert_equal "https://client.example.com/dashboard/voice", requests.first.fetch(:success_url)
+    assert_equal peer.merchant.email_address, order.customer_email
+    assert_equal "voice", order.items.sole.purchase_snapshot["communications_kind"]
+    assert_equal "pending_payment", addon.status[:status]
+    assert_equal "available", LightekCommunications::InstallationVoice.new(voice_peer("other")).status[:status]
+
+    order.update!(status: "paid", paid_at: Time.current)
+    assert_equal "provisioning", addon.status[:status]
+    assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout! }
+  end
+
+  def test_installation_voice_requires_active_peer_and_rejects_untrusted_checkout_urls
+    peer = voice_peer("inactive")
+    peer.stub(:active?, false) do
+      assert_raises(LightekCommunications::InstallationVoice::Unavailable) do
+        LightekCommunications::InstallationVoice.new(peer)
+      end
+    end
+    assert_raises(LightekCommunications::InstallationVoice::Unavailable) do
+      LightekCommunications::InstallationVoice.checkout_url!("https://checkout.stripe.com@evil.example/")
+    end
+  end
+
+  def voice_peer(label)
+    owner = User.create!(role: "client", email_address: "#{label}@example.com")
+    site = DymondSite::Site.create!(tenant: owner, host: "#{label}.example.com")
+    LightekReservations::Peer.create!(merchant: owner, site: site)
   end
 
   def test_paid_checkout_internet_lifecycle_requires_evidence_and_preserves_history

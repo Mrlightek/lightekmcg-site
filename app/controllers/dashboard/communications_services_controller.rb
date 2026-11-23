@@ -18,6 +18,7 @@ class Dashboard::CommunicationsServicesController < DymondDash::ApplicationContr
 
   def show
     @subscription = @service.subscription
+    @installation_host = LightekCommunications::VoiceAddOn.find_by(order_id: @subscription.order_id)&.peer&.site&.host
     @receipt = LightekCommunications::Fulfillment.billing_receipt(@subscription)
     @events = @service.events.includes(:operator).order(id: :desc).limit(30)
   end

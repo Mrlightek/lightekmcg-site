@@ -4,6 +4,7 @@
   <p><%= link_to "Voice & Internet services", dashboard_communications_services_path %></p>
   <h1>Lightek <%= @service.kind.titleize %></h1>
   <p class="intro">Order #<%= @subscription.order_id %> · <%= @subscription.order.customer_email %> · <%= @service.status.humanize %></p>
+  <% if @installation_host %><p>Customer installation <strong><%= @installation_host %></strong></p><% end %>
   <div class="grid">
     <section class="card">
       <h2>Billing</h2>

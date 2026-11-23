@@ -1,0 +1,25 @@
+<% content_for :page_title, "Lightek Voice" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Your workspace", dashboard_client_home_path %></p>
+  <h1>Lightek Voice</h1>
+  <section class="card">
+    <h2><%= {
+      "available" => "Add phone service",
+      "pending_payment" => "Checkout pending",
+      "provisioning" => "Phone service is being set up",
+      "in_service" => "Phone service active",
+      "suspended" => "Phone service suspended",
+      "needs_review" => "Contact support about this order",
+      "unavailable" => "Phone service signup is unavailable"
+    }.fetch(@voice["status"], "Phone service status unavailable") %></h2>
+    <% if @voice["can_checkout"] %>
+      <p><%= number_to_currency(@voice.fetch("price_cents") / 100.0) %> per <%= @voice.fetch("billing_interval") %>, plus applicable taxes.</p>
+      <p>Voice is billed separately from your existing service.</p>
+      <%= button_to @voice["status"] == "pending_payment" ? "Resume checkout" : "Add Lightek Voice", dashboard_installation_voice_path %>
+    <% elsif @voice["billing_status"].present? %>
+      <p>Subscription <%= @voice["billing_status"].humanize.downcase %></p>
+    <% end %>
+    <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %></p>
+  </section>
+</main>

@@ -13,6 +13,9 @@
   <% else %>
   <div class="mail-commandbar">
     <%= form_with url: dashboard_mail_path, method: :get, local: true, data: {mail_search: true}, class: 'mail-search' do %><%= hidden_field_tag :account_id, @account.id %><%= hidden_field_tag :folder, params[:q].present? ? @folder : 'all' %><span aria-hidden="true">⌕</span><%= search_field_tag :q, params[:q], maxlength: 240, placeholder: 'Search your mail', aria: {label: 'Search mail'} %><button class="secondary" type="submit">Search</button><% end %>
+    <% if @account.user_id == current_user.id %>
+      <%= link_to "Contacts", dashboard_mail_contacts_path(account_id: @account.id), class: "button secondary" %>
+    <% end %>
     <%= link_to "Import mail", dashboard_mailbox_imports_path(account_id: @account.id), class: "button secondary" %>
     <details class="search-help"><summary>Search tips</summary><p>Combine words with <code>from:</code>, <code>to:</code>, <code>subject:</code>, <code>is:unread</code>, <code>is:starred</code>, <code>has:attachment</code>, <code>label:"Client receipts"</code>, <code>after:2026-01-01</code> or <code>before:2027-01-01</code>. Put phrases in quotes.</p><p>Example: <code>from:tiff has:attachment</code></p></details>
   </div>

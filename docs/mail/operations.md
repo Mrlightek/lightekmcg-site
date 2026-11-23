@@ -297,3 +297,9 @@ The preview estimates new storage and reports unreadable messages. After reviewi
 A workspace owner can open **Mail Studio → Import mail → Team mail migrations** and upload a UTF-8 CSV with the headers `source_email,destination_email`. Destination mailboxes must already belong to active members of that workspace. Upload one extracted Gmail archive per mapped person. Members review and approve archives uploaded to their mailboxes from **Mail Studio → Import mail**. Approval lets the owner process that file and see progress and counts. Mailbox access continues to use existing permissions.
 
 Select **Start ready imports** after the previews finish. A failed mailbox can be retried from its own checkpoint while the rest of the team keeps its progress. Imported messages remain in each member's mailbox after the uploaded archive is removed.
+
+### Move Google Contacts
+
+In Mail Studio, open **Contacts** for your mailbox. Select a Google Contacts CSV up to 2 MB or 2,000 rows and preview it. Lightek imports names, email addresses, phone numbers, and labels. Matching addresses and repeat rows are skipped. Existing contact edits are preserved. Start typing a contact name or address in the **To** field and select the address you want to use.
+
+For a team migration, each member can use **Import contacts** on their mailbox import. The team page shows when that mailbox has imported contacts. The address book is visible to the mailbox owner.

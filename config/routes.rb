@@ -782,6 +782,16 @@ resources :dashboard_team_mail_migrations, path: "/dashboard/mail/team-migration
   delete "mailboxes/:mailbox_id/archive", action: :remove_archive, as: :remove_archive, on: :member
 end
 
+scope "/dashboard/mail/accounts/:account_id/contacts", controller: "dashboard/mail_contacts" do
+  get "/", action: :index, as: :dashboard_mail_contacts
+  post "/preview", action: :preview, as: :dashboard_mail_contacts_preview
+  get "/preview/:id", action: :review, as: :dashboard_mail_contacts_review
+  post "/preview/:id", action: :import
+  get "/suggestions", action: :suggestions, as: :dashboard_mail_contact_suggestions
+  get "/:id/edit", action: :edit, as: :edit_dashboard_mail_contact
+  patch "/:id", action: :update, as: :dashboard_mail_contact
+end
+
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
 get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"

@@ -44,6 +44,9 @@
     </div>
   </section>
   <div class="message-tools">
+    <% if @account.user_id == current_user.id %>
+      <%= link_to "Import contacts", dashboard_mail_contacts_path(account_id: @account.id, team_mailbox_id: @import.team_mailbox_id), class: "button secondary" %>
+    <% end %>
     <% if @import.state == "awaiting_approval" && @import.team_mailbox&.mailbox_user_id == current_user.id %>
       <%= button_to "Approve archive", approve_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
     <% elsif @import.retryable? %>

@@ -43,6 +43,8 @@ CreateLightekMailStudio.new.migrate(:up)
 AddMailboxImports.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261123151000_add_team_mail_migrations")
 AddTeamMailMigrations.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261123153000_add_mail_contacts")
+AddMailContacts.new.migrate(:up)
 ActiveRecord::Schema.define do
   add_column :lightek_mail_messages, :junk, :boolean, default: false, null: false
   create_table(:active_storage_blobs) do |table|
@@ -104,7 +106,9 @@ end
    services/lightek_mail/mailbox_import_runner jobs/application_job jobs/lightek_mail/mailbox_import_job
    services/lightek_people/access services/lightek_team/workspace models/lightek_mail/team_migration
    models/lightek_mail/team_migration_mailbox services/lightek_mail/team_migration_mapping
-   controllers/dashboard/mailbox_imports_controller controllers/dashboard/team_mail_migrations_controller].each { |path| require File.join(ROOT, "app", path) }
+   models/lightek_mail/contact models/lightek_mail/contact_preview services/lightek_mail/contact_import
+   controllers/dashboard/mailbox_imports_controller controllers/dashboard/team_mail_migrations_controller
+   controllers/dashboard/mail_contacts_controller].each { |path| require File.join(ROOT, "app", path) }
 
 module MailboxImportFixtures
   def mailbox(user, address)
@@ -173,6 +177,7 @@ class MailboxImportChecks < ActionController::TestCase
     @request.set_header("HTTP_X_TEST_USER", @owner.id.to_s)
     routes = ActionDispatch::Routing::RouteSet.new
     routes.draw do
+      get "/mail/:account_id/contacts", to: "dashboard/mail_contacts#index", as: :dashboard_mail_contacts
       get "/team/migrations", to: "dashboard/team_mail_migrations#index", as: :dashboard_team_mail_migrations
       get "/mail", to: "dashboard/mail_studio#index", as: :dashboard_mail
       scope "/mail/:account_id", controller: "dashboard/mailbox_imports" do
@@ -189,7 +194,7 @@ class MailboxImportChecks < ActionController::TestCase
     Dashboard::MailboxImportsController.prepend_view_path(File.join(ROOT, "app/views"))
     Dashboard::MailboxImportsController.helper_method(:dashboard_mail_path, :dashboard_mailbox_imports_path,
       :dashboard_mailbox_import_path, :start_dashboard_mailbox_import_path, :retry_dashboard_mailbox_import_path,
-      :dashboard_team_mail_migrations_path)
+      :dashboard_team_mail_migrations_path, :dashboard_mail_contacts_path)
   end
 
   def test_preview_import_thread_attachment_search_and_rerun
@@ -366,6 +371,16 @@ MailboxImportTestApp.routes.draw do
     delete "/imports/:id", action: :destroy
   end
 
+  scope "/mail/accounts/:account_id/contacts", controller: "dashboard/mail_contacts" do
+    get "/", action: :index, as: :dashboard_mail_contacts
+    post "/preview", action: :preview, as: :dashboard_mail_contacts_preview
+    get "/preview/:id", action: :review, as: :dashboard_mail_contacts_review
+    post "/preview/:id", action: :import
+    get "/suggestions", action: :suggestions, as: :dashboard_mail_contact_suggestions
+    get "/:id/edit", action: :edit, as: :edit_dashboard_mail_contact
+    patch "/:id", action: :update, as: :dashboard_mail_contact
+  end
+
   resources :dashboard_team_mail_migrations, path: "/mail/team-migrations",
     controller: "dashboard/team_mail_migrations", only: %i[index create show] do
     post :start_ready, on: :member
@@ -499,6 +514,115 @@ class TeamMailMigrationChecks < ActionDispatch::IntegrationTest
   def perform(import)
     LightekMail::MailboxImportJob.perform_now(import.id, import.reload.run_token)
     import.reload
+  end
+
+  def as(user)
+    {"X-Test-User" => user.id.to_s}
+  end
+end
+
+class MailContactsImportChecks < ActionDispatch::IntegrationTest
+  include MailboxImportFixtures
+
+  def setup
+    @workspace_owner = User.create!
+    @member = User.create!(role: "employee")
+    @account = mailbox(@member, "contacts-#{@member.id}@lightek.example.net")
+    LightekPeople::Employment.create!(employer_id: @workspace_owner.id, worker_id: @member.id)
+    @migration = LightekMail::TeamMigration.create!(employer: @workspace_owner, name: "Move the team")
+    @row = @migration.mailboxes.create!(account: @account, mailbox_user: @member,
+      source_address: "old@example.org", destination_address: @account.address)
+    Dashboard::MailContactsController.prepend_view_path(File.join(ROOT, "app/views"))
+    Dashboard::TeamMailMigrationsController.prepend_view_path(File.join(ROOT, "app/views"))
+  end
+
+  def test_preview_import_edit_repeat_and_private_compose_suggestions
+    get dashboard_mail_contacts_path(account_id: @account.id, team_mailbox_id: @row.id), headers: as(@member)
+    assert_response :success
+    assert_includes response.body, "Move the team"
+    preview = upload_contacts
+    assert_nil @row.reload.contacts_imported_at
+    assert_empty LightekMail::Contact.for_mailbox(@account)
+    get dashboard_mail_contacts_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
+    assert_response :success
+    assert_includes response.body, "2 new · 1 duplicates · 1 unreadable"
+    assert_includes response.body, "Client East"
+    assert_includes response.body, "Harper"
+    get dashboard_mail_contacts_review_path(account_id: @account.id, id: preview.id), headers: as(@workspace_owner)
+    assert_response :not_found
+
+    apply_preview(preview)
+    assert @row.reload.contacts_imported_at?
+    book = LightekMail::Contact.for_mailbox(@account)
+    assert_equal 2, book.count
+    contact = book.find_by!(name: "Harper Lane")
+    assert_equal ["sales@example.org", "other@example.org"], contact.emails
+    assert_equal ["+1 202 555 0112"], contact.phones
+    assert_equal ["Client East", "Team"], contact.labels
+
+    get dashboard_mail_contact_suggestions_path(account_id: @account.id, q: "harper"), headers: as(@member)
+    assert_response :success
+    assert_equal "private, no-store", response.headers.fetch("Cache-Control")
+    assert_equal ["sales@example.org", "other@example.org"], JSON.parse(response.body).map { |row| row.fetch("email") }
+    get dashboard_mail_contact_suggestions_path(account_id: @account.id, q: "harper"), headers: as(@workspace_owner)
+    assert_response :not_found
+
+    get edit_dashboard_mail_contact_path(account_id: @account.id, id: contact.id), headers: as(@member)
+    assert_response :success
+    assert_includes response.body, "Email addresses"
+    patch dashboard_mail_contact_path(account_id: @account.id, id: contact.id),
+      params: {contact: {name: "H. Lane", emails: "new@example.org", labels: "Updated"}}, headers: as(@member)
+    assert_response :see_other
+
+    duplicate_preview = upload_contacts
+    get dashboard_mail_contacts_review_path(account_id: @account.id, id: duplicate_preview.id), headers: as(@member)
+    assert_includes response.body, "0 new · 3 duplicates · 1 unreadable"
+    apply_preview(duplicate_preview)
+    assert_equal 2, book.count
+    assert_equal "H. Lane", contact.reload.name
+    assert_equal ["new@example.org"], contact.emails
+    assert_equal ["Updated"], contact.labels
+
+    get dashboard_team_mail_migration_path(@migration), headers: as(@workspace_owner)
+    assert_response :success
+    assert_includes response.body, "Contacts · Imported"
+    refute_includes response.body, "new@example.org"
+  end
+
+  def test_expired_and_offboarded_team_import_cannot_apply
+    preview = upload_contacts
+    preview.update!(expires_at: 1.second.ago)
+    post dashboard_mail_contacts_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
+    assert_response :not_found
+    preview = upload_contacts
+    LightekPeople::Employment.find_by!(worker_id: @member.id, employer_id: @workspace_owner.id).update!(active: false)
+    post dashboard_mail_contacts_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
+    assert_response :forbidden
+    assert_empty LightekMail::Contact.for_mailbox(@account)
+    assert_nil @row.reload.contacts_imported_at
+  end
+
+  private
+
+  def upload_contacts
+    csv = <<~CSV
+      First Name,Last Name,E-mail 1 - Value,E-mail 2 - Value,Phone 1 - Value,Labels
+      Harper,Lane,sales@example.org,other@example.org,+1 202 555 0112,Client East ::: Team
+      Alternate,Copy,OTHER@example.org,,,
+      Sam,Phone,,,202-555-0400,Friends
+      Invalid,Contact,not-an-address,,,
+    CSV
+    upload = Rack::Test::UploadedFile.new(StringIO.new(csv), "text/csv", true, original_filename: "contacts.csv")
+    post dashboard_mail_contacts_preview_path(account_id: @account.id),
+      params: {contacts_csv: upload, team_mailbox_id: @row.id}, headers: as(@member)
+    assert_response :see_other
+    LightekMail::ContactPreview.where(account: @account).sole
+  end
+
+  def apply_preview(preview)
+    post dashboard_mail_contacts_review_path(account_id: @account.id, id: preview.id), headers: as(@member)
+    assert_response :see_other
+    refute LightekMail::ContactPreview.exists?(preview.id)
   end
 
   def as(user)

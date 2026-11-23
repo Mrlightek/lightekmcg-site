@@ -1,0 +1,19 @@
+<% content_for :page_title, "Edit contact" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Contacts", dashboard_mail_contacts_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header"><h1>Edit contact</h1></header>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <section class="conversation-card">
+    <div class="message-tools">
+      <%= form_with scope: :contact, url: dashboard_mail_contact_path(account_id: @account.id, id: @contact.id), method: :patch do |form| %>
+        <p><%= form.label :name %><br><%= form.text_field :name, maxlength: 200, value: params.dig(:contact, :name) || @contact.name %></p>
+        <% {emails: "Email addresses", phones: "Phone numbers", labels: "Labels"}.each do |field, label| %>
+          <p><%= form.label field, "#{label} (one per line)" %><br>
+            <%= form.text_area field, rows: 3, value: params.dig(:contact, field) || @contact.public_send(field).join("\n") %></p>
+        <% end %>
+        <%= form.submit "Save contact" %>
+      <% end %>
+    </div>
+  </section>
+</main>

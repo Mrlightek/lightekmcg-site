@@ -12,6 +12,10 @@
         <%= form.label :starts_at, "Starts" %><%= form.datetime_local_field :starts_at, required: true %>
         <%= form.label :ends_at, "Ends" %><%= form.datetime_local_field :ends_at, required: true %>
         <%= form.label :guest_ids, "Invite teammates" %><%= form.collection_select :guest_ids, @coworkers, :id, :full_name, {}, multiple: true %>
+        <%= form.label :repeat_frequency, "Repeat" %>
+        <%= form.select :repeat_frequency, [["Does not repeat", ""], ["Daily", "daily"], ["Weekly", "weekly"], ["Monthly", "monthly"]] %>
+        <%= form.label :repeat_count, "Total occurrences (for repeating events)" %>
+        <%= form.number_field :repeat_count, min: 2, max: 52, value: 4 %>
         <%= form.label :details %><%= form.text_area :details, maxlength: 4000 %>
         <%= form.submit "Schedule event", class: "dd-topbar-btn dd-btn-primary" %>
       <% end %>
@@ -38,6 +42,7 @@
       <% @events.each do |event| %>
         <article class="office-document">
           <h3><%= event.title %></h3>
+          <% if event.series_key? %><p><small>Recurring event</small></p><% end %>
           <p><%= l(event.starts_at, format: :short) %> – <%= l(event.ends_at, format: :short) %> · <%= event.organizer.full_name %></p>
           <p class="network-text"><%= event.details %></p>
           <%= link_to "Add to calendar (.ics)", event_ics_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id) %>
@@ -53,7 +58,7 @@
           <% end %>
           <% if @owner || event.organizer_id == current_user.id %>
             <details>
-              <summary>Edit event</summary>
+              <summary><%= event.series_key? ? "Edit this occurrence" : "Edit event" %></summary>
               <%= form_with url: reschedule_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id),
                 model: event, scope: :event, method: :patch, namespace: "calendar_event_#{event.id}" do |form| %>
                 <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
@@ -64,6 +69,13 @@
               <% end %>
             </details>
             <%= button_to "Cancel event", cancel_event_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id, date: @date), class: "dd-topbar-btn dd-btn-ghost" %>
+            <% if event.series_key? %>
+              <details>
+                <summary>Cancel multiple occurrences</summary>
+                <%= button_to "Cancel this and following occurrences", cancel_event_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id, date: @date),
+                  params: {scope: 'following'}, class: "dd-topbar-btn dd-btn-ghost" %>
+              </details>
+            <% end %>
           <% end %>
         </article>
       <% end %>

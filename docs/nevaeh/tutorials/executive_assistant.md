@@ -41,3 +41,7 @@ Open **Network channels** from Team Chat on a managed installation connected to 
 Finishing owner password setup queues creation of the installation's own branded mailbox. Existing installations can open **Mail Studio → Open your installation mailbox** to provision or access it. The address belongs to the installation's owner and is distinct from a personal Lightek member address. Read, compose, and check queued delivery from the installation mailbox.
 
 Use **Mail Studio** settings for mail on domains you own. Add and verify your domain and create mailboxes for it. Custom-domain mail uses that installation's existing DNS and mail transport configuration. The branded installation mailbox uses the Lightek hub's verified mail domain and delivery service.
+
+## Repeating shared calendar events
+
+Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates RSVP to each occurrence. The organizer or owner can edit a single occurrence or cancel it and the remaining series. Monthly events use the last day of shorter months.

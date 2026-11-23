@@ -768,9 +768,18 @@ scope "/dashboard/mail/accounts/:account_id", controller: "dashboard/mailbox_imp
   get "/imports", action: :index, as: :dashboard_mailbox_imports
   post "/imports", action: :create
   get "/imports/:id", action: :show, as: :dashboard_mailbox_import
+  post "/imports/:id/approve", action: :approve, as: :approve_dashboard_mailbox_import
   post "/imports/:id/start", action: :start, as: :start_dashboard_mailbox_import
   post "/imports/:id/retry", action: :retry_import, as: :retry_dashboard_mailbox_import
   delete "/imports/:id", action: :destroy
+end
+
+resources :dashboard_team_mail_migrations, path: "/dashboard/mail/team-migrations",
+    controller: "dashboard/team_mail_migrations", only: %i[index create show] do
+  post :start_ready, on: :member
+  post "mailboxes/:mailbox_id/archive", action: :upload_archive, as: :upload_archive, on: :member
+  post "mailboxes/:mailbox_id/archive/retry", action: :retry_archive, as: :retry_archive, on: :member
+  delete "mailboxes/:mailbox_id/archive", action: :remove_archive, as: :remove_archive, on: :member
 end
 
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"

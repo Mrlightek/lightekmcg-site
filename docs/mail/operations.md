@@ -291,3 +291,9 @@ This release requires the `AddLightekMailboxManagement` database migration. Focu
 In **Mail Studio → Import mail**, map an extracted Gmail or Google Workspace `.mbox` export to a mailbox you can manage. Files up to 512 MB can be previewed. For larger mailboxes, export smaller selections of Gmail labels and import the resulting files one at a time. Keep the originating mail service available during import.
 
 The preview estimates new storage and reports unreadable messages. After reviewing the destination, start the import and check its progress. Imported mail retains its original date, attachments, reply references, and Gmail labels. Search labels from **All mail** using `label:"Client receipts"`. A successful import skips messages already in the destination. Use **Retry from last checkpoint** after fixing a quota or storage problem. Remove the archive from the import page when finished. Removing an archive leaves the imported mail in place.
+
+### Move a team
+
+A workspace owner can open **Mail Studio → Import mail → Team mail migrations** and upload a UTF-8 CSV with the headers `source_email,destination_email`. Destination mailboxes must already belong to active members of that workspace. Upload one extracted Gmail archive per mapped person. Members review and approve archives uploaded to their mailboxes from **Mail Studio → Import mail**. Approval lets the owner process that file and see progress and counts. Mailbox access continues to use existing permissions.
+
+Select **Start ready imports** after the previews finish. A failed mailbox can be retried from its own checkpoint while the rest of the team keeps its progress. Imported messages remain in each member's mailbox after the uploaded archive is removed.

@@ -104,7 +104,14 @@ module LightekMail
     end
 
     def ensure_mailbox!
-      unless @account.address == @import.mailbox_address && Access.accounts(@actor.reload).exists?(@account.id)
+      actor = @actor.reload
+      eligible = if (team_mailbox = @import.team_mailbox)
+        team_mailbox.authorize_upload!(actor, @account)
+        !team_mailbox.requires_approval? || @import.approved_at?
+      else
+        Access.accounts(actor).exists?(@account.id)
+      end
+      unless @account.address == @import.mailbox_address && eligible
         raise Unavailable, "The destination mailbox changed or access was removed."
       end
     rescue Access::Denied

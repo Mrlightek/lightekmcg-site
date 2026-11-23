@@ -30,12 +30,19 @@ Rails.application.initialize!
 ActiveRecord::Schema.verbose = false
 ActiveRecord::ConnectionAdapters::TableDefinition.alias_method(:jsonb, :json)
 ActiveRecord::Schema.define do
-  create_table(:users) { |table| table.string :role, default: "client" }
+  create_table(:users) { |table| table.string :role, default: "client"; table.datetime :access_suspended_at }
+  create_table(:lightek_test_employments) do |table|
+    table.references :employer
+    table.references :worker
+    table.boolean :active, default: true
+  end
 end
 require File.join(ROOT, "db/migrate/20261026150000_create_lightek_mail_studio")
 require File.join(ROOT, "db/migrate/20261123145000_add_mailbox_imports")
 CreateLightekMailStudio.new.migrate(:up)
 AddMailboxImports.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261123151000_add_team_mail_migrations")
+AddTeamMailMigrations.new.migrate(:up)
 ActiveRecord::Schema.define do
   add_column :lightek_mail_messages, :junk, :boolean, default: false, null: false
   create_table(:active_storage_blobs) do |table|
@@ -70,10 +77,23 @@ module LightekMail
     scope :mailboxes, -> { all }
   end
 end
+module LightekPeople
+  class Employment < ApplicationRecord
+    self.table_name = "lightek_test_employments"
+    belongs_to :employer, class_name: "User"
+    belongs_to :worker, class_name: "User"
+    scope :active, -> { where(active: true) }
+    def active_on?(_date) = active?
+  end
+  module LifecycleAccess
+    def self.active?(user) = user.access_suspended_at.nil?
+  end
+end
 module Dashboard; end
 module DymondDash
   class ApplicationController < ActionController::Base
     self.allow_forgery_protection = false
+    helper_method :current_user
     def current_user = User.find(request.headers.fetch("X-Test-User"))
   end
 end
@@ -82,10 +102,68 @@ end
    services/lightek_mail/inbound services/lightek_mail/conversation services/lightek_mail/template_renderer
    services/lightek_mail/search services/lightek_mail/mbox_reader services/lightek_mail/mbox_message
    services/lightek_mail/mailbox_import_runner jobs/application_job jobs/lightek_mail/mailbox_import_job
-   controllers/dashboard/mailbox_imports_controller].each { |path| require File.join(ROOT, "app", path) }
+   services/lightek_people/access services/lightek_team/workspace models/lightek_mail/team_migration
+   models/lightek_mail/team_migration_mailbox services/lightek_mail/team_migration_mapping
+   controllers/dashboard/mailbox_imports_controller controllers/dashboard/team_mail_migrations_controller].each { |path| require File.join(ROOT, "app", path) }
+
+module MailboxImportFixtures
+  def mailbox(user, address)
+    domain_id = ActiveRecord::Base.connection.execute(
+      "INSERT INTO lightek_mail_domains (user_id, name, verification_token, created_at, updated_at) VALUES " \
+      "(#{user.id}, 'example.net-#{user.id}', 'test', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id"
+    ).first.fetch("id")
+    LightekMail::Account.create!(user: user, address: address, domain_id: domain_id, display_name: address)
+  end
+
+  def upload(contents)
+    Rack::Test::UploadedFile.new(StringIO.new(contents), "application/mbox", true, original_filename: "Gmail.mbox")
+  end
+
+  def archive
+    <<~MBOX
+      From sender@example.org Fri Jun 12 12:00:00 +0000 2020
+      From: Sender <sender@example.org>
+      To: owner@example.net
+      Date: Fri, 12 Jun 2020 12:00:00 +0000
+      Message-ID: <receipt@example.org>
+      X-Gmail-Labels: Inbox,Unread,Starred,Client receipts
+      Subject: A historical receipt
+      MIME-Version: 1.0
+      Content-Type: multipart/mixed; boundary="receipt"
+
+      --receipt
+      Content-Type: text/plain; charset=UTF-8
+
+      Here is your receipt.
+      >From an escaped body line
+      --receipt
+      Content-Type: text/plain; name="receipt.txt"
+      Content-Disposition: attachment; filename="receipt.txt"
+      Content-Transfer-Encoding: base64
+
+      UmVjZWlwdCBwcm9vZg==
+      --receipt--
+
+      From owner@example.net Sat Jun 13 10:00:00 +0000 2020
+      From: Owner <owner@example.net>
+      To: sender@example.org
+      Date: Sat, 13 Jun 2020 10:00:00 +0000
+      Message-ID: <reply@example.net>
+      References: <receipt@example.org>
+      X-Gmail-Labels: Sent,Client receipts
+      Subject: Re: A historical receipt
+
+      Thank you for the receipt.
+
+      From broken@example.org Sun Jun 14 10:00:00 +0000 2020
+      No headers
+    MBOX
+  end
+end
 
 class MailboxImportChecks < ActionController::TestCase
   tests Dashboard::MailboxImportsController
+  include MailboxImportFixtures
 
   def setup
     @owner = User.create!
@@ -95,6 +173,7 @@ class MailboxImportChecks < ActionController::TestCase
     @request.set_header("HTTP_X_TEST_USER", @owner.id.to_s)
     routes = ActionDispatch::Routing::RouteSet.new
     routes.draw do
+      get "/team/migrations", to: "dashboard/team_mail_migrations#index", as: :dashboard_team_mail_migrations
       get "/mail", to: "dashboard/mail_studio#index", as: :dashboard_mail
       scope "/mail/:account_id", controller: "dashboard/mailbox_imports" do
         get "/imports", action: :index, as: :dashboard_mailbox_imports
@@ -109,7 +188,8 @@ class MailboxImportChecks < ActionController::TestCase
     @controller.extend(routes.url_helpers)
     Dashboard::MailboxImportsController.prepend_view_path(File.join(ROOT, "app/views"))
     Dashboard::MailboxImportsController.helper_method(:dashboard_mail_path, :dashboard_mailbox_imports_path,
-      :dashboard_mailbox_import_path, :start_dashboard_mailbox_import_path, :retry_dashboard_mailbox_import_path)
+      :dashboard_mailbox_import_path, :start_dashboard_mailbox_import_path, :retry_dashboard_mailbox_import_path,
+      :dashboard_team_mail_migrations_path)
   end
 
   def test_preview_import_thread_attachment_search_and_rerun
@@ -255,17 +335,6 @@ class MailboxImportChecks < ActionController::TestCase
 
   private
 
-  def mailbox(user, address)
-    domain_id = ActiveRecord::Base.connection.execute(
-      "INSERT INTO lightek_mail_domains (user_id, name, verification_token, created_at, updated_at) VALUES " \
-      "(#{user.id}, 'example.net-#{user.id}', 'test', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id"
-    ).first.fetch("id")
-    LightekMail::Account.create!(user: user, address: address, domain_id: domain_id, display_name: address)
-  end
-
-  def upload(contents)
-    Rack::Test::UploadedFile.new(StringIO.new(contents), "application/mbox", true, original_filename: "Gmail.mbox")
-  end
 
   def upload_archive(contents)
     file = upload(contents)
@@ -283,44 +352,156 @@ class MailboxImportChecks < ActionController::TestCase
     import.reload
   end
 
-  def archive
-    <<~MBOX
-      From sender@example.org Fri Jun 12 12:00:00 +0000 2020
-      From: Sender <sender@example.org>
-      To: owner@example.net
-      Date: Fri, 12 Jun 2020 12:00:00 +0000
-      Message-ID: <receipt@example.org>
-      X-Gmail-Labels: Inbox,Unread,Starred,Client receipts
-      Subject: A historical receipt
-      MIME-Version: 1.0
-      Content-Type: multipart/mixed; boundary="receipt"
 
-      --receipt
-      Content-Type: text/plain; charset=UTF-8
+end
 
-      Here is your receipt.
-      >From an escaped body line
-      --receipt
-      Content-Type: text/plain; name="receipt.txt"
-      Content-Disposition: attachment; filename="receipt.txt"
-      Content-Transfer-Encoding: base64
+MailboxImportTestApp.routes.draw do
+  get "/mail", to: "dashboard/mail_studio#index", as: :dashboard_mail
+  scope "/mail/accounts/:account_id", controller: "dashboard/mailbox_imports" do
+    get "/imports", action: :index, as: :dashboard_mailbox_imports
+    get "/imports/:id", action: :show, as: :dashboard_mailbox_import
+    post "/imports/:id/approve", action: :approve, as: :approve_dashboard_mailbox_import
+    post "/imports/:id/start", action: :start, as: :start_dashboard_mailbox_import
+    post "/imports/:id/retry", action: :retry_import, as: :retry_dashboard_mailbox_import
+    delete "/imports/:id", action: :destroy
+  end
 
-      UmVjZWlwdCBwcm9vZg==
-      --receipt--
+  resources :dashboard_team_mail_migrations, path: "/mail/team-migrations",
+    controller: "dashboard/team_mail_migrations", only: %i[index create show] do
+    post :start_ready, on: :member
+    post "mailboxes/:mailbox_id/archive", action: :upload_archive, as: :upload_archive, on: :member
+    post "mailboxes/:mailbox_id/archive/retry", action: :retry_archive, as: :retry_archive, on: :member
+    delete "mailboxes/:mailbox_id/archive", action: :remove_archive, as: :remove_archive, on: :member
+  end
+end
 
-      From owner@example.net Sat Jun 13 10:00:00 +0000 2020
-      From: Owner <owner@example.net>
-      To: sender@example.org
-      Date: Sat, 13 Jun 2020 10:00:00 +0000
-      Message-ID: <reply@example.net>
-      References: <receipt@example.org>
-      X-Gmail-Labels: Sent,Client receipts
-      Subject: Re: A historical receipt
+class TeamMailMigrationChecks < ActionDispatch::IntegrationTest
+  include MailboxImportFixtures
 
-      Thank you for the receipt.
+  def setup
+    @owner = User.create!
+    @member = User.create!(role: "employee")
+    @second_member = User.create!(role: "employee")
+    @outsider = User.create!
+    @accounts = [@owner, @member, @second_member, @outsider].map { |user| mailbox(user, "person-#{user.id}@example.net") }
+    [@member, @second_member].each do |member|
+      LightekPeople::Employment.create!(employer_id: @owner.id, worker_id: member.id)
+    end
+    Dashboard::TeamMailMigrationsController.prepend_view_path(File.join(ROOT, "app/views"))
+    Dashboard::MailboxImportsController.prepend_view_path(File.join(ROOT, "app/views"))
+  end
 
-      From broken@example.org Sun Jun 14 10:00:00 +0000 2020
-      No headers
-    MBOX
+  def test_three_people_migrate_and_retry_one_failed_mailbox
+    get dashboard_team_mail_migrations_path, headers: as(@owner)
+    assert_response :success
+    assert_includes response.body, "source_email,destination_email"
+
+    migration = create_migration(@accounts.first(3))
+    get dashboard_team_mail_migration_path(migration), headers: as(@owner)
+    assert_response :success
+    assert_includes response.body, "3 mailboxes"
+    assert_includes response.body, "Upload archive"
+    owner_row, first_row, second_row = migration.mailboxes.order(:id).to_a
+    [owner_row, first_row, second_row].each do |row|
+      post upload_archive_dashboard_team_mail_migration_path(migration, mailbox_id: row.id),
+        params: {archive: upload(archive)}, headers: as(@owner)
+      assert_response :see_other
+    end
+
+    owner_import = owner_row.reload.mailbox_import
+    first = first_row.reload.mailbox_import
+    second = second_row.reload.mailbox_import
+    assert_equal "queued", owner_import.state
+    assert_equal "awaiting_approval", first.state
+    perform(first)
+    assert_empty first.preview
+    post approve_dashboard_mailbox_import_path(first, account_id: first.account_id), headers: as(@owner)
+    assert_response :not_found
+
+    [first, second].each do |import|
+      get dashboard_mailbox_import_path(import, account_id: import.account_id), headers: as(import.account.user)
+      assert_response :success
+      assert_includes response.body, "Approve archive"
+      assert_includes response.body, "Old mail"
+      post approve_dashboard_mailbox_import_path(import, account_id: import.account_id), headers: as(import.account.user)
+      assert_response :see_other
+      assert import.reload.approved_at?
+    end
+    [owner_import, first, second].each { |import| perform(import) }
+    assert_equal ["ready"] * 3, [owner_import, first, second].map(&:state)
+    first.account.update!(storage_limit: 1)
+    post start_ready_dashboard_team_mail_migration_path(migration), headers: as(@owner)
+    assert_response :see_other
+    [owner_import, first, second].each { |import| perform(import) }
+    assert_equal %w[complete failed complete], [owner_import, first, second].map(&:state)
+
+    get dashboard_team_mail_migration_path(migration), headers: as(@owner)
+    assert_response :success
+    assert_includes response.body, "Retry this mailbox"
+    assert_includes response.body, "2 complete"
+    refute_includes response.body, "A historical receipt"
+
+    first.account.update!(storage_limit: 1.megabyte)
+    tokens = [owner_import.run_token, second.run_token]
+    post retry_archive_dashboard_team_mail_migration_path(migration, mailbox_id: first_row.id), headers: as(@owner)
+    assert_response :see_other
+    perform(first)
+    assert_equal "complete", first.state
+    assert_equal tokens, [owner_import.reload.run_token, second.reload.run_token]
+    @accounts.first(3).each do |account|
+      messages = account.messages.order(:created_at).to_a
+      assert_equal 2, messages.size
+      assert_equal messages, LightekMail::Conversation.messages(account, messages.last)
+      assert_equal "Receipt proof", messages.first.attachments.first.download
+      assert_includes LightekMail::Access.accounts(account.user).pluck(:id), account.id
+    end
+  end
+
+  def test_rejects_outside_mailboxes_and_rechecks_membership_after_approval
+    assert_no_difference -> { LightekMail::TeamMigration.count } do
+      create_migration_request([@accounts.first, @accounts.last], as(@owner))
+      assert_response :see_other
+      assert_equal dashboard_team_mail_migrations_path, URI.parse(response.location).path
+    end
+
+    migration = create_migration([@accounts.second])
+    get dashboard_team_mail_migration_path(migration), headers: as(@outsider)
+    assert_response :not_found
+    get dashboard_team_mail_migration_path(migration), headers: as(@member)
+    assert_response :forbidden
+    row = migration.mailboxes.first
+    post upload_archive_dashboard_team_mail_migration_path(migration, mailbox_id: row.id),
+      params: {archive: upload(archive)}, headers: as(@owner)
+    import = row.mailbox_import
+    post approve_dashboard_mailbox_import_path(import, account_id: import.account_id), headers: as(@member)
+    assert_response :see_other
+    LightekPeople::Employment.find_by!(worker_id: @member.id, employer_id: @owner.id).update!(active: false)
+    perform(import)
+    assert_equal "failed", import.state
+    assert_empty import.account.messages
+    assert_empty import.preview
+  end
+
+  private
+
+  def create_migration(accounts)
+    create_migration_request(accounts, as(@owner))
+    assert_response :see_other
+    LightekMail::TeamMigration.where(employer: @owner).order(:id).last!
+  end
+
+  def create_migration_request(accounts, headers)
+    csv = (["source_email,destination_email"] + accounts.map { |account| "old-#{account.id}@example.org,#{account.address}" }).join("\n")
+    mapping = Rack::Test::UploadedFile.new(StringIO.new(csv), "text/csv", true, original_filename: "migration.csv")
+    post dashboard_team_mail_migrations_path, params: {name: "Old mail", mapping: mapping}, headers: headers
+  end
+
+  def perform(import)
+    LightekMail::MailboxImportJob.perform_now(import.id, import.reload.run_token)
+    import.reload
+  end
+
+  def as(user)
+    {"X-Test-User" => user.id.to_s}
   end
 end

@@ -1,7 +1,7 @@
 class Dashboard::MailboxImportsController < DymondDash::ApplicationController
   protect_from_forgery with: :exception
   before_action :load_mailbox
-  before_action :load_import, only: %i[show start retry_import destroy]
+  before_action :load_import, only: %i[show approve start retry_import destroy]
   rescue_from LightekMail::Access::Denied do |error|
     render plain: error.message, status: :forbidden
   end
@@ -25,6 +25,11 @@ class Dashboard::MailboxImportsController < DymondDash::ApplicationController
   end
 
   def show; end
+
+  def approve
+    @import.approve_team_archive!(current_user)
+    back
+  end
 
   def start
     @import.start_import!

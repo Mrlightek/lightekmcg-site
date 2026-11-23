@@ -1,0 +1,26 @@
+<% content_for :page_title, @migration.name %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Team mail migrations", dashboard_team_mail_migrations_path, class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1><%= @migration.name %></h1>
+      <p class="muted"><%= pluralize(@mailboxes.size, "mailbox") %> · <%= @mailboxes.count { |mailbox| mailbox.mailbox_import&.state == "complete" } %> complete</p>
+    </div>
+    <div class="reader-actions">
+      <%= link_to "Refresh status", dashboard_team_mail_migration_path(@migration), class: "button secondary" %>
+      <% if @mailboxes.any? { |mailbox| mailbox.mailbox_import&.importable? } %>
+        <%= button_to "Start ready imports", start_ready_dashboard_team_mail_migration_path(@migration) %>
+      <% end %>
+    </div>
+  </header>
+
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+  <p>Upload each person's uncompressed Gmail .mbox archive. Other team members approve their archive in <strong>Mail Studio → Import mail</strong> before preview starts.</p>
+  <section class="conversation-stack" aria-label="Mailbox progress">
+    <% @mailboxes.each do |mailbox| %>
+      <%= render "mailbox", mailbox: mailbox, migration: @migration %>
+    <% end %>
+  </section>
+</main>

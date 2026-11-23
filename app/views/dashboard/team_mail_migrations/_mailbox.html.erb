@@ -1,0 +1,43 @@
+<% import = mailbox.mailbox_import %>
+<article class="conversation-card" aria-labelledby="team-mailbox-<%= mailbox.id %>">
+  <div class="message-tools">
+    <div>
+      <h2 id="team-mailbox-<%= mailbox.id %>"><%= mailbox.destination_address %></h2>
+      <p class="muted">From <%= mailbox.source_address %></p>
+    </div>
+    <span class="status-badge"><%= import ? "#{import.phase.humanize} · #{import.state.humanize}" : "Waiting for archive" %></span>
+  </div>
+  <div class="message-tools">
+    <% if import %>
+      <div>
+        <p><%= import.archive.filename %></p>
+        <% if import.state == "awaiting_approval" %>
+          <p class="muted">Waiting for the mailbox owner to approve this archive.</p>
+        <% elsif import.phase == "preview" %>
+          <p class="muted"><%= import.preview.fetch("messages", 0) %> checked · <%= import.preview.fetch("invalid", 0) %> unreadable · <%= number_to_human_size(import.preview.fetch("bytes", 0)) %> estimated storage</p>
+        <% else %>
+          <p class="muted"><%= import.results.fetch("imported", 0) %> imported · <%= import.results.fetch("skipped", 0) %> already present · <%= import.results.fetch("invalid", 0) %> unreadable</p>
+        <% end %>
+        <% if import.error_message.present? %><p class="notice danger"><%= import.error_message %></p><% end %>
+        <% if LightekMail::MailboxImport::BUSY_STATES.include?(import.state) %>
+          <progress aria-label="Archive processed for <%= mailbox.destination_address %>" max="<%= import.archive_bytes %>" value="<%= import.byte_offset %>"></progress>
+        <% end %>
+      </div>
+      <div class="reader-actions">
+        <% if import.retryable? %>
+          <%= button_to "Retry this mailbox", retry_archive_dashboard_team_mail_migration_path(migration, mailbox_id: mailbox.id) %>
+        <% end %>
+        <% if !LightekMail::MailboxImport::BUSY_STATES.include?(import.state) || import.retryable? %>
+          <%= button_to "Remove archive", remove_archive_dashboard_team_mail_migration_path(migration, mailbox_id: mailbox.id), method: :delete,
+            class: "secondary", form: {data: {turbo_confirm: "Remove this archive and its import report? Imported messages will stay in the mailbox."}} %>
+        <% end %>
+      </div>
+    <% else %>
+      <%= form_with url: upload_archive_dashboard_team_mail_migration_path(migration, mailbox_id: mailbox.id),
+        multipart: true, data: {turbo: false}, namespace: "team_mailbox_#{mailbox.id}" do |form| %>
+        <p><%= form.label :archive, "MBOX archive" %><br><%= form.file_field :archive, accept: ".mbox,application/mbox", required: true %></p>
+        <%= form.submit "Upload archive" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

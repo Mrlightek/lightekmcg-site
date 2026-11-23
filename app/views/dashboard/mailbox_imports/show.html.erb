@@ -15,6 +15,10 @@
     <div class="message-tools">
       <div>
         <h2 id="import-status-title"><%= @import.phase == "preview" ? "Archive preview" : "Import progress" %></h2>
+        <% if @import.state == "awaiting_approval" && @import.team_mailbox %>
+          <p><%= @import.team_mailbox.migration.name %> mapped <strong><%= @import.team_mailbox.source_address %></strong> to your mailbox.</p>
+          <p>Approve this file to let your workspace owner preview and import it.</p>
+        <% end %>
         <% counts = @import.phase == "preview" ? @import.preview : @import.results %>
         <ul>
           <li><%= number_with_delimiter(counts.fetch("messages", 0)) %> checked</li>
@@ -40,9 +44,11 @@
     </div>
   </section>
   <div class="message-tools">
-    <% if @import.retryable? %>
+    <% if @import.state == "awaiting_approval" && @import.team_mailbox&.mailbox_user_id == current_user.id %>
+      <%= button_to "Approve archive", approve_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
+    <% elsif @import.retryable? %>
       <%= button_to "Retry from last checkpoint", retry_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
-    <% elsif %w[ready complete].include?(@import.state) && @import.preview.fetch("messages", 0) > @import.preview.fetch("invalid", 0) %>
+    <% elsif @import.importable? || (@import.state == "complete" && @import.readable_preview?) %>
       <%= button_to (@import.state == "complete" ? "Run again" : "Import into #{@import.mailbox_address}"),
         start_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
     <% end %>

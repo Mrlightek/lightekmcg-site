@@ -8,16 +8,18 @@ module LightekMail
 
     belongs_to :account, class_name: "LightekMail::Account"
     belongs_to :requested_by, class_name: "User"
+    belongs_to :team_mailbox, class_name: "LightekMail::TeamMigrationMailbox", optional: true, inverse_of: :mailbox_import
     has_one_attached :archive
 
     scope :in_mailbox, ->(account) { where(account_id: account.id, mailbox_address: account.address) }
 
-    def self.create_upload!(account, actor, upload)
+    def self.create_upload!(account, actor, upload, team_mailbox: nil)
       unless upload.respond_to?(:tempfile) && File.extname(upload.original_filename).casecmp?(".mbox") &&
           upload.size.between?(1, MAX_ARCHIVE_BYTES)
         raise ArgumentError, "Choose an uncompressed .mbox file up to 512 MB."
       end
 
+      team_mailbox&.authorize_upload!(actor, account)
       address = account.address
       bytes = upload.size
       validate_archive_space!(account, bytes)
@@ -26,11 +28,16 @@ module LightekMail
       import = account.with_lock do
         raise ArgumentError, "The destination mailbox changed during the upload." unless account.address == address
 
+        if team_mailbox
+          team_mailbox.authorize_upload!(actor, account)
+          raise ArgumentError, "Remove the existing archive before uploading another." if exists?(team_mailbox: team_mailbox)
+        end
         validate_archive_space!(account, blob.byte_size)
-        create!(account: account, requested_by: actor, mailbox_address: address,
+        state = team_mailbox&.requires_approval? ? "awaiting_approval" : "queued"
+        create!(account: account, requested_by: actor, mailbox_address: address, team_mailbox: team_mailbox, state: state,
           archive: blob, archive_bytes: blob.byte_size, run_token: SecureRandom.uuid)
       end
-      import.enqueue
+      import.enqueue if import.state == "queued"
       import
     rescue StandardError
       blob&.purge unless import&.persisted?
@@ -44,15 +51,36 @@ module LightekMail
     end
     private_class_method :validate_archive_space!
 
+    def approve_team_archive!(actor)
+      with_lock do
+        unless state == "awaiting_approval" && team_mailbox && actor.id == team_mailbox.mailbox_user_id &&
+            account.user_id == actor.id && Access.accounts(actor).exists?(account_id)
+          raise Access::Denied, "Only the mapped mailbox owner can approve this archive."
+        end
+
+        team_mailbox.authorize_upload!(requested_by)
+        update!(approved_at: Time.current, state: "queued", run_token: SecureRandom.uuid)
+      end
+      enqueue
+    end
+
     def start_import!
       with_lock do
-        unless %w[ready complete].include?(state) && preview.fetch("messages", 0) > preview.fetch("invalid", 0)
+        unless importable? || (state == "complete" && readable_preview?)
           raise ArgumentError, "Preview a mailbox with at least one readable message first."
         end
 
         update!(phase: "import", state: "queued", run_token: SecureRandom.uuid, byte_offset: 0, results: {}, error_message: nil)
       end
       enqueue
+    end
+
+    def importable?
+      state == "ready" && readable_preview?
+    end
+
+    def readable_preview?
+      preview.fetch("messages", 0) > preview.fetch("invalid", 0)
     end
 
     def retry!

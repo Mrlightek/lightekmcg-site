@@ -7,6 +7,9 @@
       <h1>Mailbox imports</h1>
       <p class="muted">Bring message history from a Gmail or Google Workspace export into Lightek Mail.</p>
     </div>
+    <% if LightekPeople::Access::BUSINESS_ROLES.include?(current_user.role) %>
+      <%= link_to "Team mail migrations", dashboard_team_mail_migrations_path, class: "button secondary" %>
+    <% end %>
   </header>
   <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
   <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>

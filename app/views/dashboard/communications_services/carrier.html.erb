@@ -1,0 +1,31 @@
+<% content_for :page_title, "Voice carrier settings" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Voice & Internet services", dashboard_communications_services_path %></p>
+  <h1>Voice carrier settings</h1>
+  <section class="card">
+    <h2>VoIP.ms</h2>
+    <p><%= @configured ? "Vault credential saved." : "Add the API credentials to check number routing and SIP registration." %></p>
+    <p>Enable API access in VoIP.ms and allowlist this installation’s outbound IP. Use the API password from the carrier portal.</p>
+    <%= form_with scope: :carrier, url: carrier_dashboard_communications_services_path, method: :patch do |form| %>
+      <%= form.label :email, "Carrier account email" %>
+      <%= form.email_field :email, autocomplete: "username", maxlength: 254, required: true %>
+      <%= form.label :password, "Carrier API password" %>
+      <%= form.password_field :password, autocomplete: "new-password", maxlength: 256, required: true %>
+      <%= form.submit "Save in Vault" %>
+    <% end %>
+  </section>
+  <% if @configured %>
+    <section class="card">
+      <h2>Check SIP registration</h2>
+      <p>Run this check with just the SIP subaccount. Add a public number when you want to check its routing too.</p>
+      <%= form_with scope: :carrier, url: verify_carrier_dashboard_communications_services_path do |form| %>
+        <%= form.label :sip_account, "VoIP.ms SIP subaccount" %>
+        <%= form.text_field :sip_account, maxlength: 55, required: true %>
+        <%= form.label :phone_number, "Public phone number (optional)" %>
+        <%= form.text_field :phone_number, inputmode: "tel", placeholder: "+1…", maxlength: 12 %>
+        <%= form.submit "Check carrier" %>
+      <% end %>
+    </section>
+  <% end %>
+</main>

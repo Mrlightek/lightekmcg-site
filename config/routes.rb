@@ -697,6 +697,15 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   # BEGIN LIGHTEK ORGANIZED SETTINGS
   get "/dashboard/settings", to: "dashboard/account_settings#index", as: :dashboard_settings_home
   get "/dashboard/home", to: "dashboard/client_home#index", as: :dashboard_client_home
+  resources :dashboard_communications_services,
+            path: "/dashboard/communications/services",
+            controller: "dashboard/communications_services",
+            only: %i[index show create update],
+            constraints: { id: /[0-9]+/ } do
+    get :carrier, on: :collection
+    patch :carrier, on: :collection, action: :save_carrier
+    post :verify_carrier, on: :collection
+  end
   get "/dashboard/customer-service", to: "dashboard/customer_service#index", as: :dashboard_customer_service
   get "/dashboard/customer-service/sender", to: "dashboard/customer_service#sender_settings", as: :dashboard_customer_service_sender
   patch "/dashboard/customer-service/sender", to: "dashboard/customer_service#update_sender"

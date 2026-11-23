@@ -4,6 +4,15 @@ module LightekCommerce
   # Every installation retains its own database and sites; ownership is scoped per site.
   class Product < ApplicationRecord
     self.table_name = "lightek_commerce_products"
+    COMMUNICATIONS_SLUGS = { "lightek-internet" => "internet", "lightek-voice" => "voice" }.freeze
+
+    def communications_kind
+      kind = COMMUNICATIONS_SLUGS[slug]
+      return unless kind && product_type == "service" && billing_interval.in?(%w[month year])
+
+      kind if site.tenant&.role == "super_admin"
+    end
+
     belongs_to :source_hosting_package, class_name: "HostingPackage", optional: true
     def effective_hosting_package = hosting_package || source_hosting_package
     validate :reseller_package_configuration

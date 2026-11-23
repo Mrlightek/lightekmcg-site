@@ -35,3 +35,13 @@ Dashboard integration. A field trial needs a private subscriber access link,
 a hardened authentication and AAA transport, and a real upstream with a
 return route. Tenant provisioning, plan enforcement, accounting retention
 and incident workflows remain separate platform work.
+
+## Linode WAN check
+
+On a Linux VPS with Python 3, use `sh deploy/communications/gateway/check.sh
+--live-egress`. The test adds a Docker egress network and verifies a
+certificate-validated HTTPS request to `example.com` from the subscriber's
+PPP interface. The gateway allows only that public address and TCP 443 on
+its WAN path. Suspension must block both private probe traffic and that HTTPS
+request, then restoration must recover both. Containers and temporary
+networks are removed after the check.

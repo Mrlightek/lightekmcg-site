@@ -30,4 +30,4 @@ jobs:
           if [ ! -c /dev/ppp ]; then
             sudo mknod /dev/ppp c 108 0
           fi
-      - run: sh deploy/communications/gateway/check.sh
+      - run: sh deploy/communications/gateway/check.sh --live-egress

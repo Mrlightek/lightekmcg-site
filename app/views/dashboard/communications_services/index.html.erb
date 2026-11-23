@@ -1,0 +1,35 @@
+<% content_for :page_title, "Voice & Internet services" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Settings", dashboard_settings_home_path %></p>
+  <h1>Voice & Internet services</h1>
+  <p><%= link_to "Voice carrier settings", carrier_dashboard_communications_services_path %></p>
+  <div class="grid">
+    <section class="card">
+      <h2>Start provisioning</h2>
+      <% @orders.each do |order| %>
+        <div class="setting-link">
+          <strong>Order #<%= order.id %></strong>
+          <small><%= order.customer_email %></small>
+          <%= button_to "Open provisioning record", dashboard_communications_services_path, params: { order_id: order.id } %>
+        </div>
+      <% end %>
+      <% if @orders.empty? %><p>No new paid Voice or Internet orders.</p><% end %>
+      <%= form_with url: dashboard_communications_services_path do |form| %>
+        <%= form.label :order_id, "Commerce order ID" %>
+        <%= form.text_field :order_id, inputmode: "numeric", pattern: "[0-9]+", required: true %>
+        <%= form.submit "Find order" %>
+      <% end %>
+    </section>
+    <section class="card">
+      <h2>Service records</h2>
+      <% @services.each do |service| %>
+        <%= link_to dashboard_communications_service_path(service), class: "setting-link" do %>
+          <strong><%= service.kind.titleize %> · Order #<%= service.subscription.order_id %></strong>
+          <small><%= service.status.humanize %> · Subscription <%= service.subscription.status.humanize %></small>
+        <% end %>
+      <% end %>
+      <% if @services.empty? %><p>No services have entered provisioning.</p><% end %>
+    </section>
+  </div>
+</main>

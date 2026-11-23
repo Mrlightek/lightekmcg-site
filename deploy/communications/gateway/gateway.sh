@@ -41,6 +41,18 @@ install -m 0640 -o root -g freerad radius-site "$radius_config/sites-enabled/lig
 install -m 0640 -o root -g freerad radius-access "$radius_config/mods-enabled/lightek-subscriber-access"
 sed "s/__UPSTREAM_IF__/$upstream_if/g" forward.nft | nft -f -
 
+if [ -n "${PILOT_HTTPS_IP:-}" ]; then
+    case $PILOT_HTTPS_IP in
+        *[!0-9.]*) printf '%s\n' 'Invalid pilot HTTPS destination.' >&2; exit 2 ;;
+    esac
+    egress_if=$(interface_for 172.30.250.2)
+    if [ -z "$egress_if" ]; then
+        printf '%s\n' 'The pilot HTTPS test needs its separate egress interface.' >&2
+        exit 1
+    fi
+    sed -e "s/__EGRESS_IF__/$egress_if/g" -e "s/__HTTPS_IP__/$PILOT_HTTPS_IP/g" live-egress.nft | nft -f -
+fi
+
 # Run only the foreground services owned by this gateway.
 radius_pid=
 pppoe_pid=

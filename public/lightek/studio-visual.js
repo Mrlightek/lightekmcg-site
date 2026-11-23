@@ -109,7 +109,7 @@
       <label class="vw-tint-toggle"><input type="checkbox" name="apply_tint" aria-controls="vw-palette-tint"> Apply a palette tint</label>
       <div id="vw-palette-tint" hidden>${field('tint','Palette tint','#e8bfa6','color')}</div>
       <p data-rigged-error role="alert" hidden></p>
-      <div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">Create character</button></div>
+      <div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">Save character</button></div>
     </form>`;
   }
   function showCharacterNameError(input, invalid){
@@ -393,7 +393,7 @@
       const signature=JSON.stringify([name,character]);
       if(form.characterRequest?.signature!==signature)form.characterRequest={signature,id:key()};
       submit.disabled=true;
-      submit.textContent='Submitting…';
+      submit.textContent='Saving…';
       error.hidden=true;
       error.textContent='';
       try{
@@ -406,7 +406,7 @@
         error.hidden=false;
       }finally{
         submit.disabled=false;
-        submit.textContent='Create character';
+        submit.textContent='Save character';
         notice('');
       }
     }

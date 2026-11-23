@@ -7,6 +7,12 @@ module LightekSessions
       raise Denied, 'This session has ended.' if room.status == 'ended' || now >= room.ends_at
       raise Denied, 'This experience uses an external session.' unless room.resource.native_session?
       host = room.host?(user)
+      if room.production? && (event = room.calendar_event)
+        active = LightekTeam::Workspace.employers_for(user).exists?(id: event.calendar.employer_id)
+        if event.cancelled_at? || !active || !event.meeting_participant?(user)
+          raise Denied, 'You need an active invitation to this calendar meeting.'
+        end
+      end
       member = room.members.find_by(user: user)
       raise Denied, 'The host has removed you from this session.' if !host && member&.status == 'blocked'
       unless host || (room.production? && member && member.reservation_id.nil?)
@@ -45,6 +51,7 @@ module LightekSessions
       authorize!(room, actor)
       if room.production?
         host!(room, actor)
+        raise Denied, 'Guest access for a calendar meeting follows its event invitations.' if room.calendar_event
         return room.with_lock do
           user = User.find_by!(email_address: email.to_s.strip.downcase)
           raise Denied, 'This account already has a place in the room.' if room.members.exists?(user: user) || room.host?(user)

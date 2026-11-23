@@ -1,6 +1,6 @@
 class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceController
   before_action :load_calendar, except: %i[index create]
-  rescue_from ActiveRecord::RecordInvalid, ArgumentError do |error|
+  rescue_from ActiveRecord::RecordInvalid, ArgumentError, LightekSessions::Access::Denied do |error|
     redirect_to(@calendar ? dashboard_shared_calendar_path(@calendar, employer_id: @employer.id) : dashboard_shared_calendars_path(employer_id: @employer.id),
       alert: error.message, status: :see_other)
   end
@@ -19,7 +19,10 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
     @date = params[:date].present? ? Date.iso8601(params[:date]) : Date.current
     first = @date.in_time_zone
     last = advance_week(first)
-    @events = @calendar.events.scheduled.during(first, last).includes(:organizer, guests: :user).order(:starts_at, :id).limit(150)
+    @events = @calendar.events.scheduled.during(first, last).includes(:organizer, :session_room, guests: :user).order(:starts_at, :id).limit(150)
+    if @events.any? { |event| !event.session_room_id? && event.starts_at.future? && can_manage_event?(event) }
+      @meeting_sites = meeting_sites.order(:name, :id).limit(100)
+    end
     @coworkers = @workspace.roster.order(:first_name, :last_name, :id)
     if params[:availability_user_id].present?
       @person = @coworkers.find(params[:availability_user_id])
@@ -51,9 +54,34 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
     back(date: event.starts_at.to_date)
   end
 
+  def add_meeting
+    event = @calendar.events.scheduled.find(params[:event_id])
+    raise LightekPeople::Access::Denied unless can_manage_event?(event)
+
+    event.with_lock do
+      raise ActiveRecord::RecordNotFound if event.cancelled_at?
+      unless event.session_room_id?
+        site = meeting_sites.find(params.require(:site_id))
+        unless LightekSessions::Media.configured?(site)
+          raise ArgumentError, 'Activate video meeting media for this website in Dashboard first.'
+        end
+
+        room = LightekSessions::RoomCreation.call(site: site, actor: current_user, attributes: {
+          name: event.title, kind: 'video', starts_at: event.starts_at.iso8601,
+          duration_minutes: event.meeting_duration_minutes, capacity: [event.guests.count, 1].max
+        })
+        guests = @workspace.roster.where(id: event.guests.select(:user_id)).to_a
+        guests.each { |guest| room.members.create!(user: guest) unless room.host?(guest) }
+        event.update!(session_room: room)
+        guests.each { |guest| notify(guest, event, 'Video meeting added to your calendar event') }
+      end
+    end
+    back(date: event.starts_at.to_date)
+  end
+
   def reschedule
     event = @calendar.events.scheduled.find(params[:event_id])
-    raise LightekPeople::Access::Denied unless @owner || event.organizer_id == current_user.id
+    raise LightekPeople::Access::Denied unless can_manage_event?(event)
 
     values = params.require(:event).permit(:title, :details, :starts_at, :ends_at)
     event.with_lock do
@@ -61,6 +89,7 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
 
       event.update!(values)
       if event.saved_change_to_starts_at? || event.saved_change_to_ends_at?
+        move_meeting!(event) if event.session_room_id?
         event.guests.update_all(response: 'pending', updated_at: Time.current)
       end
       @workspace.roster.where(id: event.guests.select(:user_id)).each do |guest|
@@ -84,22 +113,27 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
 
   def cancel
     event = @calendar.events.find(params[:event_id])
-    raise LightekPeople::Access::Denied unless @owner || event.organizer_id == current_user.id
+    raise LightekPeople::Access::Denied unless can_manage_event?(event)
 
-    @calendar.with_lock do
+    live_room_ids = @calendar.with_lock do
       occurrences = if params[:scope] == 'following' && event.series_key?
         @calendar.events.scheduled.where(series_key: event.series_key).where('starts_at >= ?', event.starts_at)
       else
         @calendar.events.scheduled.where(id: event.id)
       end
-      recipients = LightekWorkspace::EventGuest.where(event_id: occurrences.select(:id)).select(:user_id)
-      guests = @workspace.roster.where(id: recipients).to_a
-      count = occurrences.update_all(cancelled_at: Time.current, updated_at: Time.current)
-      if count.positive?
-        label = count == 1 ? 'Shared calendar event cancelled' : 'Recurring calendar events cancelled'
-        guests.each { |guest| notify(guest, event, label) }
+      cancelled = occurrences.order(:id).lock.to_a
+      rooms = cancelled.filter_map do |occurrence|
+        occurrence.update!(cancelled_at: Time.current)
+        close_meeting!(occurrence.session_room)
       end
+      if cancelled.any?
+        recipients = LightekWorkspace::EventGuest.where(event_id: cancelled.map(&:id)).select(:user_id)
+        label = cancelled.one? ? 'Shared calendar event cancelled' : 'Recurring calendar events cancelled'
+        @workspace.roster.where(id: recipients).each { |guest| notify(guest, event, label) }
+      end
+      rooms
     end
+    live_room_ids.each { |id| LightekSessions::CloseRoomJob.perform_later(id) }
     back
   end
 
@@ -110,12 +144,47 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
     lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lightek//Shared Calendar//EN', 'BEGIN:VEVENT',
       "UID:#{uid}@lightek", "DTSTAMP:#{time.call(event.updated_at)}", "DTSTART:#{time.call(event.starts_at)}",
       "DTEND:#{time.call(event.ends_at)}", "SUMMARY:#{LightekSales::TaskCalendar.escape(event.title)}",
-      "DESCRIPTION:#{LightekSales::TaskCalendar.escape(event.details)}", 'END:VEVENT', 'END:VCALENDAR']
+      "DESCRIPTION:#{LightekSales::TaskCalendar.escape(event.details)}"]
+    if event.meeting_link_available_to?(current_user)
+      lines << "URL:#{session_room_url(event.session_room.key)}"
+    end
+    lines.concat(['END:VEVENT', 'END:VCALENDAR'])
     send_data lines.map { |line| LightekSales::TaskCalendar.fold(line) }.join("\r\n") + "\r\n",
       filename: 'shared-event.ics', type: 'text/calendar', disposition: 'attachment'
   end
 
   private
+
+  def can_manage_event?(event)
+    @owner || event.organizer_id == current_user.id
+  end
+  helper_method :can_manage_event?
+
+  def meeting_sites
+    LightekSettings::WebsiteIdentity.sites_for(current_user).where(tenant: @employer)
+  end
+
+  def move_meeting!(event)
+    room = event.session_room
+    room.with_lock do
+      unless room.status == 'scheduled' && room.starts_at.future? && event.starts_at.future?
+        raise ArgumentError, 'A video meeting can only be rescheduled before it starts.'
+      end
+
+      room.resource.update!(duration_minutes: event.meeting_duration_minutes)
+      room.update!(starts_at: event.starts_at, ends_at: event.ends_at)
+    end
+  end
+
+  def close_meeting!(room)
+    return unless room
+
+    room.with_lock do
+      was_open = room.status == 'open'
+      room.update!(status: 'ended') unless room.status == 'ended'
+      room.id if was_open
+    end
+  end
 
   def advance_week(first) = first.advance(days: 7)
   def calendars = LightekWorkspace::Calendar.where(employer: @employer)

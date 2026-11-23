@@ -25,6 +25,8 @@ module Studio
           raise "Blender startup was not confirmed" unless version
           {ready:true,message:release,version:version}
         end
+      rescue Studio::MediaProcess::BlenderCapacity, Studio::Compute::CpuProfile::Busy => error
+        {ready:false,message:error.message,image:image}
       rescue StandardError
         {ready:false,message:"The Blender worker is unavailable. The deployment must install the Studio media runtime before native imports and renders can run.",image:image}
       end

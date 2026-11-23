@@ -45,3 +45,9 @@ Use **Mail Studio** settings for mail on domains you own. Add and verify your do
 ## Repeating shared calendar events
 
 Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates RSVP to each occurrence. The organizer or owner can edit a single occurrence or cancel it and the remaining series. Monthly events use the last day of shorter months.
+
+## Video meetings on shared calendars
+
+On an upcoming event, choose **Add video meeting**. Select a website owned by the calendar's organization if prompted. The website must have Lightek meeting media configured, and the event must last 15–480 whole minutes. For a recurring event, add a meeting to each occurrence that needs one.
+
+Organizers and invited teammates can open the meeting from Shared Calendars or their exported calendar event. Guests sign in and wait for the host to admit them. Moving the event before its meeting opens keeps the same link. Cancelling the event ends the linked room.

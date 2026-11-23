@@ -2,12 +2,14 @@ require_relative 'reservations_checks'
 require 'action_controller/railtie'
 require 'action_dispatch/testing/integration'
 require 'tmpdir'
-%w[20261109000000_create_lightek_session_rooms 20261109003000_add_session_presentation 20261112150000_add_direct_production_rooms].each do |name|
+%w[20261109000000_create_lightek_session_rooms 20261109003000_add_session_presentation 20261112150000_add_direct_production_rooms
+   20261122196000_add_shared_workspace 20261123092000_link_rooms_to_shared_calendar_events].each do |name|
   path = ROOT.join("db/migrate/#{name}.rb")
   source = path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
   eval(source, TOPLEVEL_BINDING, path.to_s)
   source.match(/class (\w+) </)[1].constantize.new.migrate(:up)
 end
+require ROOT.join('app/models/lightek_workspace/event').to_s
 require ROOT.join('app/models/lightek_sessions/room').to_s
 require ROOT.join('app/models/lightek_sessions/member').to_s
 class ReservationHarness < Rails::Application

@@ -18,7 +18,7 @@ class SessionRoomsController < ApplicationController
     @site = @room.resource.site
     @host = @room.host?(current_user)
     @media_ready = LightekSessions::Media.configured?(@site)
-    @can_invite = (@host && @room.production?) || @room.bookings.where(customer: current_user).where('quantity > 1').exists?
+    @can_invite = (@host && @room.production? && !@room.calendar_event) || @room.bookings.where(customer: current_user).where('quantity > 1').exists?
   end
   def state
     member = LightekSessions::Access.request!(@room, current_user)

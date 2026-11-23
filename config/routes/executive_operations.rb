@@ -104,6 +104,7 @@ end
 resources :dashboard_shared_calendars, path: '/dashboard/shared-calendars', controller: 'dashboard/shared_calendars', only: %i[index show create] do
   post :schedule, on: :member
   patch 'events/:event_id', action: :reschedule, as: :reschedule, on: :member
+  post 'events/:event_id/meeting', action: :add_meeting, as: :add_meeting, on: :member
   post 'events/:event_id/respond', action: :respond, as: :respond, on: :member
   post 'events/:event_id/cancel', action: :cancel, as: :cancel_event, on: :member
   get 'events/:event_id/ics', action: :ics, as: :event_ics, on: :member

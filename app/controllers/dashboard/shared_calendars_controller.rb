@@ -28,18 +28,25 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
   end
 
   def schedule
-    values = params.require(:event).permit(:title, :details, :starts_at, :ends_at, guest_ids: [])
+    values = params.require(:event).permit(:title, :details, :starts_at, :ends_at, :repeat_frequency, :repeat_count, guest_ids: [])
+    frequency = values.delete(:repeat_frequency)
+    count = values.delete(:repeat_count)
     ids = Array(values.delete(:guest_ids)).reject(&:blank?).uniq
     raise ArgumentError, 'Invite up to 50 teammates.' if ids.size > 50
 
     guests = @workspace.roster.find(ids).reject { |user| user.id == current_user.id }
+    attributes = values.merge(organizer: current_user)
     event = @calendar.with_lock do
-      event = @calendar.events.create!(values.merge(organizer: current_user))
-      guests.each do |guest|
-        event.guests.create!(user: guest)
-        notify(guest, event, 'Shared calendar invitation')
+      draft = @calendar.events.build(attributes)
+      occurrences = draft.repeat_attributes(frequency: frequency, count: count)
+      scheduled = occurrences.map do |period|
+        occurrence = @calendar.events.create!(attributes.merge(period))
+        guests.each { |guest| occurrence.guests.create!(user: guest) }
+        occurrence
       end
-      event
+      label = scheduled.size == 1 ? 'Shared calendar invitation' : 'Recurring calendar invitation'
+      guests.each { |guest| notify(guest, scheduled.first, label) }
+      scheduled.first
     end
     back(date: event.starts_at.to_date)
   end
@@ -79,12 +86,18 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
     event = @calendar.events.find(params[:event_id])
     raise LightekPeople::Access::Denied unless @owner || event.organizer_id == current_user.id
 
-    event.with_lock do
-      unless event.cancelled_at?
-        event.update!(cancelled_at: Time.current)
-        @workspace.roster.where(id: event.guests.select(:user_id)).each do |guest|
-          notify(guest, event, 'Shared calendar event cancelled')
-        end
+    @calendar.with_lock do
+      occurrences = if params[:scope] == 'following' && event.series_key?
+        @calendar.events.scheduled.where(series_key: event.series_key).where('starts_at >= ?', event.starts_at)
+      else
+        @calendar.events.scheduled.where(id: event.id)
+      end
+      recipients = LightekWorkspace::EventGuest.where(event_id: occurrences.select(:id)).select(:user_id)
+      guests = @workspace.roster.where(id: recipients).to_a
+      count = occurrences.update_all(cancelled_at: Time.current, updated_at: Time.current)
+      if count.positive?
+        label = count == 1 ? 'Shared calendar event cancelled' : 'Recurring calendar events cancelled'
+        guests.each { |guest| notify(guest, event, label) }
       end
     end
     back

@@ -26,6 +26,12 @@ Nevaeh supports Lightek's CEO across company operations, communications, schedul
 - Open **Shared drives** from Team Chat or the Dashboard. An organization owner creates a drive and grants active teammates viewer or editor access. Editors can upload files up to 25 MB, create folders, rename or move items, and search by name. Editors can create and live-edit native Office documents, spreadsheets, and presentations directly in any drive folder. Drive viewers can read and export them. Team Chat channels also keep their own Office files. Spreadsheets open with an editable grid and preserve existing formulas and CSV exports.
 - Open **Shared calendars** to schedule events, invite active teammates through Dashboard notifications, track RSVPs, and check shared-calendar availability. The organizer or owner can edit, reschedule, or cancel events. Use the calendar download to open an event in another calendar application. Personal CEO agenda entries are excluded from team availability.
 
+### Incoming invitations in Lightek Mail
+
+Open an incoming calendar invitation in your own mailbox and select **Accept**, **Tentative**, or **Decline**. Lightek sends your response to the organizer. Accepted and tentative events appear under **Mail Studio → Calendar**. Use **Open invitation** from the calendar to change your response.
+
+Verified updates move the same event, and verified cancellations remove it. For a sender that Lightek Mail could not verify, open the update or cancellation email to review and apply it. Mail Calendar supports individual events with an explicit time zone and all-day events. Recurring series and invitations with sender-defined time zones remain available in the original email.
+
 ## Shared team channels
 
 An organization owner can use **Create shared channel** in Team Chat and enter the account email of another organization owner on the same Lightek installation. The receiving owner reviews and accepts the invitation in Team Chat. Each owner can add active teammates from their own workforce directory. Shared history and the participant list identify the organization for each message or teammate.

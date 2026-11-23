@@ -1,6 +1,6 @@
 module LightekMail
   class Search
-    # Operators are deliberately small and portable across PostgreSQL and SQLite.
+    # Keep searches scoped to the selected mailbox and folder.
     def self.apply(scope, query)
       query.to_s.slice(0, 240).scan(/(?:[^\s"]+|"[^"]*")+/).each do |token|
         key, value = token.split(":", 2)
@@ -16,6 +16,12 @@ module LightekMail
           scope = scope.where(starred: true) if value == "starred"
         when "has"
           scope = scope.where(id: ActiveStorage::Attachment.where(record_type: "LightekMail::Message", name: "attachments").select(:record_id)) if value == "attachment"
+        when "label"
+          scope = if scope.model.connection.adapter_name == "SQLite"
+            scope.where("EXISTS (SELECT 1 FROM json_each(imported_labels) WHERE json_each.value = ?)", value)
+          else
+            scope.where("imported_labels @> CAST(? AS jsonb)", [value].to_json)
+          end
         when "after", "before"
           begin
             date = Date.iso8601(value).in_time_zone

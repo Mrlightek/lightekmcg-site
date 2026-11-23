@@ -16,7 +16,7 @@ module LightekWorkspace
 
     module_function
 
-    def preview!(drive:, folder:, actor:, upload:)
+    def preview!(drive:, folder:, actor:, upload:, migration: nil)
       unless upload.respond_to?(:tempfile) && File.extname(upload.original_filename).casecmp?(".zip") &&
           upload.size.between?(1, MAX_UPLOAD)
         raise ArgumentError, "Choose a ZIP archive up to 50 MB."
@@ -31,7 +31,23 @@ module LightekWorkspace
           content_type: "application/zip", identify: false)
         result = drive.with_lock do
           DriveImport.authorize!(drive, actor)
-          DriveImport.create!(drive: drive, folder: folder, actor: actor, filename: blob.filename.to_s, items: items, archive: blob)
+          attributes = {drive: drive, folder: folder, actor: actor, filename: blob.filename.to_s, items: items, archive: blob}
+          if migration
+            migration.with_lock do
+              unless migration.employer_id == actor.id && migration.employer_id == drive.employer_id
+                raise LightekPeople::Access::Denied
+              end
+
+              LightekMail::TeamMigration.workspace_for!(actor)
+              if migration.pilot_in_progress? && migration.drive_imports.exists?
+                raise ArgumentError, "Finish the pilot ZIP or discard its preview before attaching another."
+              end
+
+              migration.drive_imports.create!(attributes)
+            end
+          else
+            DriveImport.create!(attributes)
+          end
         end
       end
       result

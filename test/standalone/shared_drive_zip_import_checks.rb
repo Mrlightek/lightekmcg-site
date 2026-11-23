@@ -64,6 +64,9 @@ end
 AddSharedWorkspace.new.migrate(:up)
 AddOfficeFilesToSharedDrives.new.migrate(:up)
 AddSharedDriveImports.new.migrate(:up)
+ActiveRecord::Schema.define do
+  add_reference :lightek_shared_drive_imports, :team_migration
+end
 
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class

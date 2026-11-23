@@ -126,3 +126,6 @@ gem "webrick", "~> 1.9"
 
 # OpenXML ingestion is a production capability, not only a browser-test dependency.
 gem "rubyzip", "~> 3.4"
+
+# Parse incoming calendar invitations in Lightek Mail.
+gem "icalendar", "~> 2.12", require: false

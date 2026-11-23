@@ -13,12 +13,16 @@
   </div>
   <% if @message.direction == 'inbound' %><div class="toolbar"><%= button_to(@message.junk? ? "Not spam · move to inbox" : "Mark as spam", flag_dashboard_mail_message_path(account_id: @account.id, id: @message.id), method: :patch, params: {flag: "junk", value: @message.junk? ? "0" : "1"}, class: "secondary") %><% if @message.spam_reason.present? %><small class="muted"><%= @message.spam_reason %></small><% end %></div><% end %>
   <% if @message.error_message.present? %><p class="notice danger"><%= @message.error_message %></p><% end %>
+  <%= render "calendar_invitation" if @calendar_notice %>
   <section class="conversation-stack" aria-label="Conversation messages">
     <% @conversation.each do |item| %>
       <% selected = item.id == @message.id %>
       <details class="conversation-card <%= 'current-message' if selected %>" <%= 'open' if selected %>>
-        <summary class="conversation-summary"><span class="message-avatar" aria-hidden="true"><%= item.from_address.to_s.first.to_s.upcase %></span><span class="summary-copy"><strong><%= selected ? @content.sender_name : item.from_address %></strong><small><%= selected ? "To: #{item.to_addresses.join(', ')}" : truncate(item.text_body.to_s.gsub(/\s+/, ' '), length: 100) %></small></span><span class="message-meta"><time datetime="<%= item.created_at.iso8601 %>"><%= item.created_at.strftime('%b %d, %Y · %H:%M') %></time><span class="status-badge"><%= item.direction == 'inbound' ? 'Received' : (item.state == 'sent' ? 'Sent · SMTP accepted' : item.state.humanize) %></span></span></summary>
+        <summary class="conversation-summary"><span class="message-avatar" aria-hidden="true"><%= item.from_address.to_s.first.to_s.upcase %></span><span class="summary-copy"><strong><%= selected ? @content.sender_name : item.from_address %></strong><small><%= selected ? "To: #{item.to_addresses.join(', ')}" : truncate(item.text_body.to_s.gsub(/\s+/, ' '), length: 100) %></small></span><span class="message-meta"><time datetime="<%= item.created_at.iso8601 %>"><%= item.created_at.strftime('%b %d, %Y · %H:%M') %></time><span class="status-badge"><%= item.direction == 'inbound' ? 'Received' : (item.state == 'sent' ? (item.imported_at? ? 'Imported · Sent' : 'Sent · SMTP accepted') : item.state.humanize) %></span></span></summary>
         <div class="message-envelope"><span><strong>To</strong> <%= item.to_addresses.join(', ') %></span><% if item.cc_addresses.any? %><span><strong>Cc</strong> <%= item.cc_addresses.join(', ') %></span><% end %><% if item.direction == 'outbound' && item.bcc_addresses.any? %><span><strong>Bcc</strong> <%= item.bcc_addresses.join(', ') %></span><% end %></div>
+        <% if item.imported_labels.present? %>
+          <p class="message-envelope"><strong>Imported labels</strong> <%= item.imported_labels.join(", ") %></p>
+        <% end %>
         <% if selected %>
           <% if @content.remote_images? %><div class="image-controls"><span><%= @images_enabled ? 'Remote images loaded for this message' : 'Remote images are hidden' %></span><%= link_to(@images_enabled ? 'Hide images' : 'Load remote images', dashboard_mail_message_path(account_id: @account.id, id: item.id, images: @images_enabled ? nil : '1')) %></div><% end %>
           <%= render 'email_body', message: item, content: @content, images: @images_enabled %>

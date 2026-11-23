@@ -5,6 +5,7 @@ module LightekWorkspace
     belongs_to :drive
     belongs_to :folder, class_name: "LightekWorkspace::DriveEntry", optional: true
     belongs_to :actor, class_name: "User"
+    belongs_to :team_migration, class_name: "LightekMail::TeamMigration", optional: true, inverse_of: :drive_imports
     has_one_attached :archive
 
     def self.authorize!(drive, actor)

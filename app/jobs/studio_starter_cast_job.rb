@@ -22,7 +22,7 @@ class StudioStarterCastJob < ApplicationJob
     minimum=bundle ? bundle.fetch("minimum_blender") : "4.4"
     runtime=Studio::NativeBlender::Runtime.status
     raise ArgumentError,runtime.fetch(:message,"The Blender worker is unavailable.") unless runtime[:ready]
-    version=runtime[:version] || runtime[:message].to_s[/\d+\.\d+(?:\.\d+)?/]
+    version=runtime[:version]
     raise ArgumentError,"The character worker needs Blender #{minimum} or newer. Deploy the current Studio runtime before retrying." unless version && Gem::Version.new(version)>=Gem::Version.new(minimum)
     sources=if collection
       []

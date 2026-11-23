@@ -56,11 +56,14 @@ requested area code or the last four digits of the transfer number.
 
 The child installation's scoped federation credential authorizes the request
 back to main. VoIP.ms credentials stay in the central Vault. Verified checkout
-or invoice payment schedules the background job immediately. It buys a number
+or invoice payment schedules the background job immediately. It creates a unique
+SIP subaccount and registers it on the Lightek PBX. It then buys a number
 within the configured carrier limits or files the port with the supporting
 PDF, then checks port status until the number appears in the carrier inventory.
 After routing, it validates and provisions E911 and verifies the number route
-and SIP registration. Customers see progress on their Lightek Voice page.
+and SIP registration. It installs the verified DID in the PBX and activates the
+line. Customers see progress and can open **Set up your phone** for their own
+phone credentials. The carrier credentials never go to the customer instance.
 Dashboard records carrier results and flags exceptions for support. An
 existing paid order missing signup details can be fulfilled from Dashboard.
 
@@ -85,33 +88,56 @@ link from the subscriber equipment to an access gateway and an upstream
 handoff. Record the access connection, subscriber reference and traffic-test
 receipt in Dashboard after verification.
 
-## First public business number through VoIP.ms
+## Deploy and verify the managed Voice PBX
 
-- Use a dedicated Asterisk host for the PBX. Create a SIP subaccount in the
-  carrier portal and register it with a VoIP.ms PoP. SIP registration can be
-  tested before a public number is ordered.
-- Configure your Asterisk trunk according to the carrier's [PJSIP guide](https://wiki.voip.ms/article/Asterisk_PJSIP).
-  Keep SIP credentials on the PBX through its credential management.
-- Enable the account API, set its separate API password, and allowlist the
-  Dashboard server's outbound IP. Save the carrier email and API password
-  under **Voice carrier settings**. In **Check SIP registration**, leave the
-  public number blank until one is assigned.
-- On main, set `LIGHTEK_VOICE_PBX_ROUTES` to a JSON object keyed by connected
-  installation hostname. Each entry specifies its registered SIP subaccount,
-  carrier PoP ID and maximum wholesale setup and monthly charges in cents for
-  new per-minute DIDs. For example,
-  `{"client.example.test":{"sip_account":"123456_client","pop":1,"max_setup_cents":300,"max_monthly_cents":200}}`.
-  These caps control carrier purchases. Commerce products set retail prices.
-- Run the normal Rails background worker. View the paid Voice service in
-  Dashboard to inspect its carrier receipts. If a carrier write has an
-  uncertain result, reconcile it before another request so the carrier does
-  not receive a duplicate purchase, port, or E911 enrollment.
+Use a dedicated Asterisk 20 or newer host and a native Sidekiq process with
+the main Rails deployment, Vault, database and Redis configuration. This
+process consumes the `voice` queue. Run `bundle exec sidekiq -q voice` and
+keep it running under the host service manager. Both this process and the
+main web application need access to the same carrier account settings.
 
-- Verify inbound and outbound calls with audio and confirm the exact
-  dispatchable location in the carrier portal. Use the carrier's
-  [emergency calling test instructions](https://wiki.voip.ms/article/E911)
-  for the test receipt.
-- Record the carrier, SIP subaccount, public number and three call test
-  references to complete the Dashboard activation. The carrier API checks
-  routing and registration. The operator records the call and emergency
-  calling evidence.
+1. Enable API access and set the API password in VoIP.ms. Allowlist the
+   outbound IP of the Voice worker and main web application. Save the API
+   email and password in **Voice carrier settings** in Dashboard.
+2. Install the configuration from `deploy/communications/pbx/` on the
+   dedicated PBX. Put the SIP hostname's TLS certificate and private key in
+   the paths listed in that directory's `pjsip.conf`. Use an internal RTP
+   test before opening public calling. Allow UDP 5060 only from the selected
+   provider PoP. The customer device uses TLS on TCP 5061 and SRTP. Restrict
+   management access to the PBX host. Do not enable Asterisk's HTTP or AMI
+   listeners.
+3. Create `/var/lib/asterisk/lightek-voice` with its group set to the Asterisk
+   group and mode `2770`. Grant write access to the dedicated Voice worker
+   account only through that group. Asterisk reads its group-readable line
+   files. Give that same worker local permission to use the Asterisk CLI
+   control socket. Keep the Rails web process outside that group.
+4. Verify a controlled pilot DID on this PBX through the chosen carrier PoP.
+   Check inbound and outbound audio and verify the exact emergency address
+   using the carrier's [E911 test instructions](https://wiki.voip.ms/article/E911).
+   Record the three pilot references. Retest before switching to a different
+   PBX or PoP.
+5. Set the following deployment values on main and the Voice worker. Managed
+   checkout becomes available after all are present and the central carrier
+   credentials and appropriate Voice offers are configured.
+
+| Setting | Value |
+| --- | --- |
+| `LIGHTEK_VOICE_CARRIER_ACCOUNT` | Six-digit VoIP.ms SIP account prefix |
+| `LIGHTEK_VOICE_CARRIER_POP` | VoIP.ms PoP ID verified in the pilot |
+| `LIGHTEK_VOICE_SIP_HOST` | Public TLS hostname of the tested PBX |
+| `LIGHTEK_VOICE_MAX_SETUP_CENTS` | Maximum acceptable new DID wholesale setup charge in cents |
+| `LIGHTEK_VOICE_MAX_MONTHLY_CENTS` | Maximum acceptable new DID wholesale monthly rate in cents |
+| `LIGHTEK_VOICE_PBX_INBOUND_PROOF` | Pilot inbound audio test reference |
+| `LIGHTEK_VOICE_PBX_OUTBOUND_PROOF` | Pilot outbound audio test reference |
+| `LIGHTEK_VOICE_PBX_EMERGENCY_PROOF` | Pilot emergency calling test reference |
+
+The managed flow assigns SIP credentials and routes automatically for each
+paid order. Per-line activation receipts record the assigned number, verified
+carrier route, E911 confirmation and the shared PBX deployment test references.
+A customer can then use a compatible SIP softphone or desk phone. If a
+carrier write has an uncertain result, reconcile it before submitting
+another paid request.
+
+For an earlier pilot that already has a SIP account, the legacy
+`LIGHTEK_VOICE_PBX_ROUTES` map remains usable. That path retains individual
+call-test evidence and manual activation.

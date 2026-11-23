@@ -31,6 +31,7 @@ module LightekCommunications
         billing_status: subscription&.status,
         fulfillment_status: add_on&.fulfillment_status,
         phone_number: assigned_number(service, add_on),
+        device_settings: service&.status == "in_service" && LightekVault::Secret.exists?(slug: ManagedVoiceTrunk.slug(add_on)),
         number_request: number_request&.slice("option", "area_code")&.merge(
           "last_four" => number_request["phone_number"]&.last(4)),
         can_checkout: state.in?(%w[pending_payment available]),
@@ -74,6 +75,22 @@ module LightekCommunications
 
       session = LightekCommerce::StripeCheckout.start!(order: order, success_url: destination, cancel_url: destination)
       { checkout_url: self.class.checkout_url!(session.url) }
+    end
+
+    def device!
+      add_on = VoiceAddOn.find_by(peer: @peer)
+      subscription = add_on&.order&.commerce_subscription
+      service = Service.find_by(subscription: subscription, kind: "voice", status: "in_service") if subscription
+      unless service && add_on.fulfillment_status == "carrier_ready" && Fulfillment.billing_receipt(subscription)
+        raise Unavailable, "Phone settings are unavailable until your line is active."
+      end
+
+      details = ManagedVoiceTrunk.checkout!(add_on)
+      { host: ENV.fetch("LIGHTEK_VOICE_SIP_HOST"), port: 5061, transport: "TLS", media_encryption: "SRTP",
+        username: AsteriskVoice.device_name(add_on.order_id), password: details.fetch("device_password") }
+    rescue ActiveRecord::RecordNotFound, KeyError, LightekVault::MasterKey::ConfigurationError,
+           LightekVault::Service::AccessDenied, LightekVault::Crypto::DecryptionError
+      raise Unavailable, "Phone settings are unavailable for this line."
     end
 
     def self.checkout_url!(value)

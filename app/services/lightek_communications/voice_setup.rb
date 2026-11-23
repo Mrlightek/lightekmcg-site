@@ -12,6 +12,9 @@ module LightekCommunications
     PORT_FIELDS = (CarrierFulfillment::PORT_FIELDS + %i[isPartial address2 pin]).freeze
 
     def self.route(peer)
+      managed = ManagedVoiceTrunk.destination
+      return managed if managed
+
       routes = JSON.parse(ENV.fetch("LIGHTEK_VOICE_PBX_ROUTES", "{}"))
       entry = routes.is_a?(Hash) && routes[peer.site.host]
       return unless entry.is_a?(Hash) && VoipMs::SIP_ACCOUNT.match?(entry["sip_account"].to_s)

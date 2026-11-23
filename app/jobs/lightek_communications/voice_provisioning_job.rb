@@ -4,7 +4,7 @@ module LightekCommunications
   class VoiceProvisioningJob < ApplicationJob
     class Busy < StandardError; end
 
-    queue_as :default
+    queue_as :voice
     self.enqueue_after_transaction_commit = true
     retry_on Busy, wait: 30.seconds, attempts: 8
     retry_on VoipMs::Unavailable, wait: :polynomially_longer, attempts: 6 do |job, _error|

@@ -28,12 +28,21 @@ module LightekCommunications
       @selection = @add_on.order.items.sole.purchase_snapshot.fetch("voice_number_request")
       @route = @setup.fetch("destination")
       @add_on.update!(fulfillment_status: "processing")
+      if @route["managed"]
+        details = ManagedVoiceTrunk.new(@add_on, @carrier).register!(@route)
+        @route = @route.merge("sip_account" => details.fetch("account"))
+        @pbx = AsteriskVoice.new(@add_on.order_id, details)
+      end
       number = @selection.fetch("option") == "port" ? port_number : order_number
       return :waiting_for_carrier unless number
 
       assign_e911(number)
       @carrier.verify!(account: @route.fetch("sip_account"), phone_number: "+1#{number.did}")
-      @add_on.update!(fulfillment_status: "carrier_ready")
+      if @pbx
+        Fulfillment.activate_managed_voice!(add_on: @add_on, service: @service, number: number, route: @route, pbx: @pbx)
+      else
+        @add_on.update!(fulfillment_status: "carrier_ready")
+      end
     rescue CarrierFulfillment::Invalid, Fulfillment::Invalid, ActiveRecord::RecordNotFound,
            LightekVault::Service::AccessDenied, LightekVault::Crypto::DecryptionError
       @add_on.update!(fulfillment_status: "needs_attention")

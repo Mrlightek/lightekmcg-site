@@ -79,6 +79,28 @@ module LightekCommunications
       { "carrier" => "voip_ms", "carrier_verified_at" => Time.current.iso8601 }
     end
 
+    def server_for_pop!(pop)
+      data = fetch!("getServersInfo", server_pop: pop)
+      server = Array(data["servers"]).find { |row| row.is_a?(Hash) && row["server_pop"].to_s == pop.to_s }
+      host = server&.fetch("server_hostname", nil).to_s.downcase
+      return host if host.match?(/\A[a-z0-9-]+\.voip\.ms\z/)
+
+      raise Unavailable, "VoIP.ms did not confirm the configured server."
+    end
+
+    def ensure_subaccount!(account:, password:, description:)
+      existing = subaccount(account)
+      if existing
+        raise Unavailable, "The SIP account belongs to a different setup." unless existing["description"] == description
+        return
+      end
+
+      response = fetch!("createSubAccount", username: account.split("_", 2).last, password: password,
+        description: description, protocol: 1, auth_type: 1, device_type: 1, lock_international: 1,
+        international_route: 1, music_on_hold: "default", allowed_codecs: "ulaw", dtmf_mode: "AUTO", nat: "yes")
+      raise Unavailable, "VoIP.ms did not confirm the new SIP account." unless response["account"] == account
+    end
+
     def search_numbers!(area_code:)
       numbers = fetch!("searchDIDsUSA", type: "starts", query: area_code, success: %w[success no_dids no_did no_numbers])["dids"]
       Array(numbers).filter_map do |row|
@@ -128,19 +150,28 @@ module LightekCommunications
 
     def validate_e911!(did:, account:, fields:)
       verify_route!(account: account, phone_number: "+1#{did}")
-      fetch!("e911Validate", **fields.merge(did: did, country: "US"))
+      fetch!("e911Validate", **fields.except(:zip).merge(did: did, country: "US", zip_code: fields.fetch(:zip)))
     end
 
     def provision_e911!(did:, fields:)
-      fetch!("e911Provision", **fields.merge(did: did, country: "US"))
+      fetch!("e911Provision", **fields.except(:zip).merge(did: did, country: "US", zip_code: fields.fetch(:zip)))
       info = fetch!("e911Info", did: did)["info"]
-      unless info.is_a?(Hash) && info["did"].to_s == did && info["street_number"].to_s == fields[:street_number].to_s &&
-          info["state"].to_s.casecmp?(fields[:state]) && info["zip"].to_s.first(5) == fields[:zip].first(5)
+      address_matches = info.is_a?(Hash) && info["did"].to_s == did &&
+        %i[street_number street_name address_type address_number city state].all? do |key|
+          info[key.to_s].to_s.squish.casecmp?(fields[key].to_s.squish)
+        end
+      unless address_matches && (info["zip_code"] || info["zip"]).to_s.first(5) == fields[:zip].first(5)
         raise Unavailable, "VoIP.ms did not confirm the submitted E911 address."
       end
     end
 
     private
+
+    def subaccount(account)
+      rows = fetch!("getSubAccounts", account: account, success: %w[success no_subaccount])["accounts"]
+      rows = [rows] if rows.is_a?(Hash)
+      Array(rows).find { |row| row.is_a?(Hash) && row["account"] == account }
+    end
 
     def verify_route!(account:, phone_number:)
       did = phone_number.delete_prefix("+1")

@@ -63,6 +63,9 @@
       <% if request["option"] == "port" %><p>Number transfer requested for the line ending in <%= request.fetch("last_four") %>.</p><% end %>
       <% if request["option"] == "new" %><p>New number requested in area code <%= request.fetch("area_code") %>.</p><% end %>
     <% end %>
+    <% if @voice["device_settings"] %>
+      <%= button_to "Set up your phone", dashboard_installation_voice_device_path, form: { data: { turbo: false } } %>
+    <% end %>
     <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %></p>
   </section>
 </main>

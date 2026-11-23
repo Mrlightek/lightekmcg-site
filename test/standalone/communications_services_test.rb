@@ -38,11 +38,19 @@ require Rails.root.join("app/services/lightek_communications/carrier_fulfillment
 require Rails.root.join("db/migrate/20261123142000_add_automatic_voice_fulfillment").to_s
 AddAutomaticVoiceFulfillment.new.migrate(:up)
 LightekCommunications::VoiceAddOn.reset_column_information
+require Rails.root.join("app/services/lightek_communications/asterisk_voice").to_s
+require Rails.root.join("app/services/lightek_communications/managed_voice_trunk").to_s
 require Rails.root.join("app/services/lightek_communications/voice_setup").to_s
 require Rails.root.join("app/services/lightek_communications/automatic_voice_fulfillment").to_s
 
 require Rails.root.join("app/jobs/application_job").to_s
 require Rails.root.join("app/jobs/lightek_communications/voice_provisioning_job").to_s
+
+module LightekVault
+  class Secret
+    def self.exists?(**) = false
+  end
+end
 
 module LightekVault::Service
   def self.store!(**) = true
@@ -239,7 +247,7 @@ class CommunicationsServicesTest < CommerceHostingTest
       calls << [method, parameters]
       case method
       when "getDIDsInfo" then { "dids" => [{ "did" => "2125550123", "routing" => "account:123456_pbx" }] }
-      when "e911Info" then { "info" => { "did" => "2125550123", "street_number" => "100", "state" => "NY", "zip" => "10001" } }
+      when "e911Info" then { "info" => { "did" => "2125550123", "street_number" => "100", "street_name" => "Main St", "city" => "New York", "state" => "NY", "zip_code" => "10001" } }
       when "getPortability" then { "portable" => "yes" }
       when "searchDIDsUSA" then { "dids" => [{ "did" => "2125550123", "perminute_setup" => "1.50", "perminute_monthly" => "1.00" }] }
       when "getRegistrationStatus" then { "registered" => "yes" }
@@ -313,6 +321,62 @@ class CommunicationsServicesTest < CommerceHostingTest
     service = LightekCommunications::Service.sole
     assert_equal "provisioning", service.status
     assert_nil service.events.sole.operator
+  end
+
+  def test_managed_paid_order_registers_its_trunk_and_activates_once
+    add_on, _, _, payload = automatic_add_on("new")
+    payload["destination"] = payload.fetch("destination").except("sip_account").merge("managed" => true)
+    client, calls = carrier_stub
+    pbx_changes = []
+    pbx = Object.new
+    pbx.define_singleton_method(:connect_number!) { |did| pbx_changes << did }
+    trunk = Object.new
+    trunk.define_singleton_method(:register!) { |_| { "account" => "123456_pbx" } }
+    proof = { "inbound" => "PBX-IN", "outbound" => "PBX-OUT", "emergency" => "PBX-E911" }
+    LightekCommunications::VoiceSetup.stub(:checkout!, payload) do
+      LightekCommunications::ManagedVoiceTrunk.stub(:new, trunk) do
+        LightekCommunications::AsteriskVoice.stub(:new, pbx) do
+          LightekCommunications::AsteriskVoice.stub(:deployment_proof, proof) do
+            VoipMs.stub(:for_paid_voice, client) do
+              2.times { LightekCommunications::AutomaticVoiceFulfillment.call(add_on.reload) }
+            end
+          end
+        end
+      end
+    end
+    assert_equal ["2125550123"], pbx_changes
+    assert_equal "carrier_ready", add_on.reload.fulfillment_status
+    line = LightekCommunications::Service.sole
+    assert_equal "in_service", line.status
+    assert_equal "PBX-E911", line.events.find_by!(action: "activate").evidence["pbx_deployment_emergency_reference"]
+    assert_equal 1, calls.count { |method, _| method == "orderDID" }
+    assert_equal "10001", calls.find { |method, _| method == "e911Provision" }.last.fetch(:zip_code)
+  end
+
+  def test_voip_ms_recovers_a_subaccount_write_after_a_lost_carrier_reply
+    carrier = VoipMs.new({})
+    account = "123456_lt4abcdef"
+    description = "Lightek Voice lt4abcdef"
+    created = false
+    writes = []
+    carrier.define_singleton_method(:fetch!) do |method, **fields|
+      case method
+      when "getSubAccounts"
+        raise "Wrong account" unless fields.fetch(:account) == account
+        { "accounts" => created ? [{ "account" => account, "description" => description }] : [] }
+      when "createSubAccount"
+        writes << fields.fetch(:username)
+        created = true
+        raise VoipMs::Unavailable, "Lost carrier response"
+      else
+        raise "Unexpected carrier call"
+      end
+    end
+
+    assert_raises(VoipMs::Unavailable) { carrier.ensure_subaccount!(account: account, password: "test", description: description) }
+    carrier.ensure_subaccount!(account: account, password: "test", description: description)
+    assert_equal ["lt4abcdef"], writes
+    assert_raises(VoipMs::Unavailable) { carrier.ensure_subaccount!(account: account, password: "test", description: "different owner") }
   end
 
   def test_automatic_port_polls_then_routes_and_provisions_e911_without_resubmitting

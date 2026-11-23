@@ -5,6 +5,8 @@ on:
     branches: [develop]
     paths:
       - 'deploy/communications/**'
+      - 'app/services/lightek_communications/**'
+      - 'test/standalone/managed_voice_pbx_smoke.rb'
       - '.github/workflows/communications-pilot.yml'
 
 permissions:
@@ -31,3 +33,11 @@ jobs:
             sudo mknod /dev/ppp c 108 0
           fi
       - run: sh deploy/communications/gateway/check.sh --live-egress
+
+  managed-voice-pbx:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends asterisk
+      - run: ruby test/standalone/managed_voice_pbx_smoke.rb

@@ -72,6 +72,37 @@ module LightekCommunications
 
     private_class_method :register_paid!
 
+    def self.activate_managed_voice!(add_on:, service:, number:, route:, pbx:)
+      deployment_proof = AsteriskVoice.deployment_proof
+      raise AsteriskVoice::Unavailable, "The PBX deployment has not passed call acceptance." unless deployment_proof
+
+      order = add_on.order
+      order.with_lock do
+        subscription = order.commerce_subscription
+        subscription.with_lock do
+          service.with_lock do
+            raise Invalid, "Voice line cannot be activated." unless service.subscription_id == subscription.id &&
+              service.kind == "voice" && service.status.in?(%w[provisioning in_service])
+            receipt = billing_receipt(subscription)
+            raise Invalid, "Activation needs a current paid subscription receipt." unless receipt
+            proof = { phone_number: "+1#{number.did}", sip_account: route.fetch("sip_account") }
+            require_carrier_completion!(service, proof)
+            pbx.connect_number!(number.did)
+
+            if service.status == "provisioning"
+              service.events.create!(action: "activate", billing_invoice: receipt, evidence: proof.merge(
+                carrier_reference: number.carrier_reference || "carrier-operation-#{number.id}",
+                pbx_deployment_inbound_reference: deployment_proof.fetch("inbound"),
+                pbx_deployment_outbound_reference: deployment_proof.fetch("outbound"),
+                pbx_deployment_emergency_reference: deployment_proof.fetch("emergency")))
+              service.update!(status: "in_service")
+            end
+            add_on.update!(fulfillment_status: "carrier_ready")
+          end
+        end
+      end
+    end
+
     def self.transition!(service:, action:, operator:, evidence:)
       check_operator!(operator)
       transition = TRANSITIONS[action]

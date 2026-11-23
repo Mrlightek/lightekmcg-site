@@ -15,6 +15,10 @@ class Dashboard::InstallationVoiceController < DymondDash::ApplicationController
     @voice = @installation.request("installation/voice/status")
   end
 
+  def device
+    @device = @installation.request("installation/voice/device")
+  end
+
   def checkout
     setup = LightekCommunications::VoiceSetup
     fields = params.permit(:plan, number_request: %i[option area_code phone_number],

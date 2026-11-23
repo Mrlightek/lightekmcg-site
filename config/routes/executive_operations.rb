@@ -92,6 +92,15 @@ scope '/dashboard/shared-drives', controller: 'dashboard/shared_drives' do
   get '/:id/download/:entry_id', action: :download, as: :download_dashboard_shared_drive
 end
 
+scope '/dashboard/shared-drives/:drive_id/office', controller: 'dashboard/team_office' do
+  get '/', action: :index, as: :dashboard_drive_office
+  post '/', action: :create
+  patch '/:file_id', action: :update, as: :update_dashboard_drive_office
+  get '/:file_id/live', action: :live, as: :live_dashboard_drive_office
+  post '/:file_id/restore', action: :restore, as: :restore_dashboard_drive_office
+  get '/:file_id/export', action: :export, as: :export_dashboard_drive_office
+end
+
 resources :dashboard_shared_calendars, path: '/dashboard/shared-calendars', controller: 'dashboard/shared_calendars', only: %i[index show create] do
   post :schedule, on: :member
   patch 'events/:event_id', action: :reschedule, as: :reschedule, on: :member

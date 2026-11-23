@@ -55,6 +55,7 @@
           editor.editor.loadHTML(html);
         } else {
           content.value = snapshot.content;
+          content.dispatchEvent(new Event("office-snapshot"));
         }
         savedContent = content.value;
         applying = false;

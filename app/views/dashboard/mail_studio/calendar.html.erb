@@ -1,0 +1,38 @@
+<% content_for :page_title, "Mail calendar" %>
+<%= render "style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Back to inbox", dashboard_mail_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1>Mail calendar</h1>
+      <p class="muted"><%= @account.address %> · <%= l(@date, format: :long) %> – <%= l(@date + 6, format: :long) %></p>
+    </div>
+    <nav class="reader-actions" aria-label="Calendar navigation">
+      <%= link_to "Previous week", calendar_dashboard_mail_path(account_id: @account.id, date: @date - 7), class: "button secondary" %>
+      <%= link_to "This week", calendar_dashboard_mail_path(account_id: @account.id), class: "button secondary" %>
+      <%= link_to "Next week", calendar_dashboard_mail_path(account_id: @account.id, date: @date + 7), class: "button secondary" %>
+    </nav>
+  </header>
+
+  <% if @invitations.empty? %>
+    <p>No accepted or tentative invitations this week. Respond to a calendar invitation in your inbox to add it here.</p>
+  <% end %>
+  <div class="conversation-stack">
+    <% @invitations.each do |invitation| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <div>
+            <h2><%= invitation.title %></h2>
+            <p><%= render "calendar_time", starts_at: invitation.starts_at, ends_at: invitation.ends_at, all_day: invitation.all_day? %></p>
+            <p class="muted"><%= invitation.organizer %> · <%= invitation.response.humanize %></p>
+            <% if invitation.location.present? %><p><%= invitation.location %></p><% end %>
+            <% if invitation.description.present? %><p style="white-space: pre-wrap"><%= invitation.description %></p><% end %>
+          </div>
+          <% if invitation.source_message && !invitation.source_message.trashed? %>
+            <%= link_to "Open invitation", dashboard_mail_message_path(account_id: @account.id, id: invitation.source_message_id), class: "button secondary" %>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+  </div>
+</main>

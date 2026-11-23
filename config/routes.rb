@@ -749,6 +749,8 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   post "/accounts/:account_id/receiving-check", action: :check_receiving, as: :check_receiving_dashboard_mail
   post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token
   get "/accounts/:account_id/compose", action: :compose, as: :compose_dashboard_mail
+  get "/accounts/:account_id/calendar", action: :calendar, as: :calendar_dashboard_mail
+  post "/accounts/:account_id/messages/:id/calendar", action: :respond_to_calendar, as: :respond_to_dashboard_mail_calendar
   post "/accounts/:account_id/bulk", action: :bulk_messages, as: :bulk_dashboard_mail
   post "/accounts/:account_id/undo", action: :undo_messages, as: :undo_dashboard_mail
   post "/accounts/:account_id/messages", action: :create_message, as: :dashboard_mail_messages

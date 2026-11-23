@@ -53,6 +53,15 @@
               class: "dd-topbar-btn dd-btn-ghost" %>
           <% end %>
         </nav>
+        <details><summary>Import a Word document</summary>
+          <p>Convert the document body to editable rich text. Standard headings, lists, links, and common emphasis carry over.
+            Table text becomes paragraphs. Images, page layout, and header and footer content stay in the original file.</p>
+          <%= form_with url: import_word_dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id) do |form| %>
+            <%= form.label :document, "Word document (.docx, up to 5 MB)" %>
+            <%= form.file_field :document, accept: ".docx", required: true %>
+            <%= form.submit "Import Word document", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
         <details><summary>New folder</summary>
           <%= form_with url: add_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :entry do |form| %>
             <%= form.hidden_field :parent_id, value: @folder&.id %>

@@ -42,6 +42,10 @@ Finishing owner password setup queues creation of the installation's own branded
 
 Use **Mail Studio** settings for mail on domains you own. Add and verify your domain and create mailboxes for it. Custom-domain mail uses that installation's existing DNS and mail transport configuration. The branded installation mailbox uses the Lightek hub's verified mail domain and delivery service.
 
+## Importing Word documents into Shared Drives
+
+In the destination folder, open **Import a Word document** and choose a standard `.docx` up to 5 MB. The imported file opens in the rich-text editor. The import preserves ordinary paragraphs, headings 1–3, basic bulleted and numbered lists, safe web and email links, and common emphasis. Table text becomes paragraphs. Images, page layout, headers, and footers stay in the original file. The editable text limit is 64 KB.
+
 ## Repeating shared calendar events
 
 Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates RSVP to each occurrence. The organizer or owner can edit a single occurrence or cancel it and the remaining series. Monthly events use the last day of shorter months.

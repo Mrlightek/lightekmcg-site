@@ -99,6 +99,7 @@ scope '/dashboard/shared-drives/:drive_id/office', controller: 'dashboard/team_o
   get '/:file_id/live', action: :live, as: :live_dashboard_drive_office
   post '/:file_id/restore', action: :restore, as: :restore_dashboard_drive_office
   get '/:file_id/export', action: :export, as: :export_dashboard_drive_office
+  post '/import-word', action: :import_word, as: :import_word_dashboard_drive_office
 end
 
 resources :dashboard_shared_calendars, path: '/dashboard/shared-calendars', controller: 'dashboard/shared_calendars', only: %i[index show create] do

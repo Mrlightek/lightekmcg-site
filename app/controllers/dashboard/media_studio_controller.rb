@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
+  include StudioBlobStreaming
+
   skip_before_action :require_settings_operator!
   before_action :load_context
   protect_from_forgery with: :exception
@@ -95,6 +97,8 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     flavor={"input"=>:ai_input,"original"=>:file,"native"=>:native,"bundle"=>:bundle,"proxy"=>:proxy,"thumbnail"=>:thumbnail}.fetch(params[:flavor]) { raise ActiveRecord::RecordNotFound }
     attachment=asset.public_send(flavor)
     raise ActiveRecord::RecordNotFound unless attachment.attached?
+    return stream_blob(attachment.blob) if %w[proxy thumbnail].include?(params[:flavor])
+
     redirect_to Rails.application.routes.url_helpers.rails_blob_path(attachment,only_path:true)
   end
 

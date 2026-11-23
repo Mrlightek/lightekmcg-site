@@ -29,6 +29,7 @@
         <p><small>Edited by <%= @file.fetch("editor") %> · <%= @file.fetch("organization") %></small></p>
         <%= link_to "Download", export_dashboard_network_office_path(params[:key], @file.fetch("key")) %>
         <% if @rows %>
+          <%= link_to "Download Excel (.xlsx)", export_dashboard_network_office_path(params[:key], @file.fetch("key"), download: "xlsx") %>
           <div class="office-sheet">
             <table aria-label="Calculated spreadsheet">
               <thead><tr><th></th><% (@rows.map(&:size).max || 0).times do |column| %><th scope="col"><%= ('A'.ord + column).chr %></th><% end %></tr></thead>

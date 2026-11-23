@@ -85,7 +85,13 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   def export
     file = files.find(params[:file_id])
     body, extension, mime = case file.kind
-    when 'spreadsheet' then [LightekOffice::Content.csv(file.content), 'csv', 'text/csv']
+    when 'spreadsheet'
+      if params[:download] == 'xlsx'
+        return send_data LightekOffice::ExcelExport.call(file.content),
+          filename: LightekOffice::ExcelExport.filename(file.title), type: LightekOffice::ExcelExport::CONTENT_TYPE
+      end
+
+      [LightekOffice::Content.csv(file.content), 'csv', 'text/csv']
     when 'presentation' then [file.content, 'md', 'text/markdown']
     else
       file.rich_text? ? [LightekOffice::Document.export(file.content), 'html', 'text/html; charset=utf-8'] : [file.content, 'txt', 'text/plain']

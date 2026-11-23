@@ -33,6 +33,7 @@
         <p><small>Edited by <%= @file.editor.full_name %> · <%= l(@file.updated_at, format: :short) %></small></p>
         <%= link_to "Download", office_action_path(:export, @file) %>
         <% if @rows %>
+          <%= link_to "Download Excel (.xlsx)", office_action_path(:export, @file, download: "xlsx") %>
           <div class="office-sheet">
             <table aria-label="Calculated spreadsheet">
               <thead><tr><th></th><% (@rows.map(&:size).max || 0).times do |column| %><th scope="col"><%= ('A'.ord + column).chr %></th><% end %></tr></thead>

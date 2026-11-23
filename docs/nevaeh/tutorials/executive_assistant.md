@@ -51,3 +51,7 @@ Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates 
 On an upcoming event, choose **Add video meeting**. Select a website owned by the calendar's organization if prompted. The website must have Lightek meeting media configured, and the event must last 15–480 whole minutes. For a recurring event, add a meeting to each occurrence that needs one.
 
 Organizers and invited teammates can open the meeting from Shared Calendars or their exported calendar event. Guests sign in and wait for the host to admit them. Moving the event before its meeting opens keeps the same link. Cancelling the event ends the linked room.
+
+## Exporting spreadsheets to Excel
+
+From a saved spreadsheet in Shared Drives, Team Chat, or a Network channel, choose **Download Excel (.xlsx)** for an editable single worksheet. Formulas supported by the spreadsheet grammar and scoped to the current grid stay editable. Unsupported expressions and text resembling formulas export as text. Excel recalculates formulas on opening. **Download** still provides a CSV of calculated values.

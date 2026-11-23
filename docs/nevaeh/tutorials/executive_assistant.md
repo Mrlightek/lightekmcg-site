@@ -23,7 +23,7 @@ Nevaeh supports Lightek's CEO across company operations, communications, schedul
 
 ## Shared drives and calendars
 
-- Open **Shared drives** from Team Chat or the Dashboard. An organization owner creates a drive and grants active teammates viewer or editor access. Editors can upload files up to 25 MB, create folders, rename or move items, and search by name. Office files are created and live-edited in Team Chat channels.
+- Open **Shared drives** from Team Chat or the Dashboard. An organization owner creates a drive and grants active teammates viewer or editor access. Editors can upload files up to 25 MB, create folders, rename or move items, and search by name. Editors can create and live-edit native Office documents, spreadsheets, and presentations directly in any drive folder. Drive viewers can read and export them. Team Chat channels also keep their own Office files. Spreadsheets open with an editable grid and preserve existing formulas and CSV exports.
 - Open **Shared calendars** to schedule events, invite active teammates through Dashboard notifications, track RSVPs, and check shared-calendar availability. The organizer or owner can edit, reschedule, or cancel events. Use the calendar download to open an event in another calendar application. Personal CEO agenda entries are excluded from team availability.
 
 ## Shared team channels

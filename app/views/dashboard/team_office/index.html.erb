@@ -4,19 +4,25 @@
   <%= render "dashboard/office/editor_assets" if @file.kind == "document" %>
 <% end %>
 <main class="network-collaboration" data-turbo="false">
-  <%= link_to "← ##{@channel.name}", dashboard_team_channel_path(@channel, employer_id: @employer.id) %>
-  <h1>Shared files</h1>
-  <p>Members with access to #<%= @channel.name %> can view and edit these files.</p>
+  <% if @drive %>
+    <%= link_to "← #{@folder&.name || @drive.name}", dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id) %>
+    <h1><%= @drive.name %></h1>
+    <p>Drive members with editor access can edit these files.</p>
+  <% else %>
+    <%= link_to "← ##{@channel.name}", dashboard_team_channel_path(@channel, employer_id: @employer.id) %>
+    <h1>Shared files</h1>
+    <p>Members with access to #<%= @channel.name %> can view and edit these files.</p>
+  <% end %>
   <div class="network-columns">
     <aside class="network-pane">
-      <nav aria-label="Create shared file">
+      <% if @can_edit %><nav aria-label="Create shared file">
         <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
-          <%= link_to "New #{label.downcase}", dashboard_team_office_path(@channel, employer_id: @employer.id, kind: kind) %>
+          <%= link_to "New #{label.downcase}", office_path(kind: kind) %>
         <% end %>
-      </nav>
+      </nav><% end %>
       <ul>
         <% @files.each do |file| %>
-          <li><%= link_to file.title, dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: file.id) %>
+          <li><%= link_to file.title, office_path(file_id: file.id) %>
             <small><%= file.kind_label %></small></li>
         <% end %>
       </ul>
@@ -25,7 +31,7 @@
       <% if @file.persisted? %>
         <h2><%= @file.title %></h2>
         <p><small>Edited by <%= @file.editor.full_name %> · <%= l(@file.updated_at, format: :short) %></small></p>
-        <%= link_to "Download", export_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) %>
+        <%= link_to "Download", office_action_path(:export, @file) %>
         <% if @rows %>
           <div class="office-sheet">
             <table aria-label="Calculated spreadsheet">
@@ -38,9 +44,9 @@
         <% elsif @slide %>
           <article class="office-slide"><h3><%= @slide.first %></h3><p class="network-text"><%= @slide.last %></p></article>
           <nav aria-label="Slides">
-            <% if @slide_number > 1 %><%= link_to "Previous slide", dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id, slide: @slide_number - 1) %><% end %>
+            <% if @slide_number > 1 %><%= link_to "Previous slide", office_path(file_id: @file.id, slide: @slide_number - 1) %><% end %>
             <span>Slide <%= @slide_number %> of <%= @slides.size %></span>
-            <% if @slide_number < @slides.size %><%= link_to "Next slide", dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id, slide: @slide_number + 1) %><% end %>
+            <% if @slide_number < @slides.size %><%= link_to "Next slide", office_path(file_id: @file.id, slide: @slide_number + 1) %><% end %>
           </nav>
         <% elsif @file.kind == "document" %>
           <%= render "dashboard/office/document", content: @file.content, rich_text: @file.rich_text? %>
@@ -53,33 +59,35 @@
         </details>
       <% end %>
       <% if @file.errors.any? %><ul role="alert"><% @file.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul><% end %>
-      <details<%= " open" if @file.new_record? || @file.errors.any? || @stale %>>
+      <% if @can_edit %><details<%= " open" if @file.new_record? || @file.errors.any? || @stale %>>
         <summary><%= @file.persisted? ? "Edit file" : "Create a file" %></summary>
-        <% destination = @file.persisted? ? update_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) : dashboard_team_office_path(@channel, employer_id: @employer.id) %>
+        <% destination = @file.persisted? ? office_action_path(:update, @file) : office_path %>
         <%= form_with model: @file, scope: :office_file, url: destination, method: (@file.persisted? ? :patch : :post) do |form| %>
           <%= form.hidden_field :lock_version if @file.persisted? %>
           <%= form.hidden_field :kind if @file.new_record? %>
           <%= form.label :title %><%= form.text_field :title, required: true, maxlength: 160 %>
           <% if @file.kind == "document" %>
             <%= render "dashboard/office/document_editor", form: form, content: @file.content, rich_text: @file.rich_text? %>
+          <% elsif @file.kind == "spreadsheet" %>
+            <%= render "dashboard/office/spreadsheet_editor", form: form, content: @file.content %>
           <% else %>
             <%= form.label :content, "Contents" %><%= form.text_area :content, required: true, rows: 12 %>
           <% end %>
-          <% if @file.kind == "spreadsheet" %><p><small>Spreadsheets use CSV rows. Enter formulas such as <code>=SUM(A1:A5)</code> in a cell.</small></p><% end %>
           <% if @file.kind == "presentation" %><p><small>Start each slide with its title. Put three dashes on a line between slides.</small></p><% end %>
           <% if @file.persisted? && !@file.errors.any? %>
-            <%= render "dashboard/office/live", read_url: live_dashboard_team_office_path(@channel, @file, employer_id: @employer.id),
-              write_url: update_dashboard_team_office_path(@channel, @file, employer_id: @employer.id, format: :json), write_method: "PATCH" %>
+            <%= render "dashboard/office/live", read_url: office_action_path(:live, @file),
+              write_url: office_action_path(:update, @file, format: :json), write_method: "PATCH" %>
           <% end %>
           <%= form.submit "Save shared file", class: "dd-topbar-btn dd-btn-primary" %>
         <% end %>
-      </details>
+      </details><% end %>
       <% if @file.persisted? %>
         <%= render "dashboard/office/history", revisions: @history, version: @file.lock_version,
-          restore_url: restore_dashboard_team_office_path(@channel, @file, employer_id: @employer.id) %>
+          restore_url: (@can_edit ? office_action_path(:restore, @file) : nil) %>
       <% end %>
     </section>
   </div>
 </main>
-<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">
-<script src="/lightek/office-live.js" defer data-turbo-track="reload"></script>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=4">
+<script src="/lightek/office-live.js?v=2" defer data-turbo-track="reload"></script>
+<script src="/lightek/office-grid.js" defer data-turbo-track="reload"></script>

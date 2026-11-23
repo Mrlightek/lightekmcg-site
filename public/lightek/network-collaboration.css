@@ -32,3 +32,7 @@
 }
 .network-pane trix-toolbar { margin-top: .5rem; }
 .network-pane trix-toolbar .trix-button-group--file-tools { display: none; }
+
+[data-office-grid] [hidden] { display: none !important; }
+.office-edit-grid th, .office-edit-grid td { padding: 2px 4px; }
+.network-pane .office-edit-grid textarea { min-width: 8rem; margin: 0; resize: vertical; }

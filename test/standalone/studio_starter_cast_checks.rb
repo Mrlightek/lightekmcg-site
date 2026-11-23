@@ -87,6 +87,25 @@ class StudioStarterCastTest < StudioProductionTest
     assert_includes asset.error_message,"4.4"
     assert_equal id,start_cast[:asset_id];assert_equal "uploaded",asset.reload.status
   end
+  def test_starter_cast_retry_reaches_bundle_download_with_a_production_lts_worker
+    id=start_cast(character:{rig:"ellie_v2"})[:asset_id]
+    asset=StudioAsset.find(id)
+    asset.update!(status:"failed",error_message:"Malformed version number string 4.5.16 LTS")
+    retry_result=action("starter_scene_create",retry_asset_id:id)
+    assert_equal id,retry_result[:asset_id]
+
+    Rails.stub(:env,ActiveSupport::StringInquirer.new("production")) do
+      Studio::MediaProcess.stub(:run!, "LIGHTEK_BLENDER_RUNTIME_READY=4.5.16 LTS\n") do
+        download=->(_url,_path,**_args) do
+          assert_equal "importing_ellie_v2",asset.reload.metadata.dig("starter_cast","phase")
+          raise "Stopped at fixture bundle download"
+        end
+        Studio::NativeBlender::DemoImport.stub(:download,download) { StudioStarterCastJob.perform_now(id) }
+      end
+    end
+    assert_equal "Stopped at fixture bundle download",asset.reload.error_message
+  end
+
   def test_starter_cast_retries_the_original_delayed_asset_once
     id=start_cast[:asset_id]
     asset=StudioAsset.find(id)

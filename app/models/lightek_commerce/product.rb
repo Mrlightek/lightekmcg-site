@@ -6,8 +6,10 @@ module LightekCommerce
     self.table_name = "lightek_commerce_products"
     COMMUNICATIONS_SLUGS = { "lightek-internet" => "internet", "lightek-voice" => "voice" }.freeze
 
+    VOICE_PLAN_SLUG = /\Alightek-voice(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\z/
+
     def communications_kind
-      kind = COMMUNICATIONS_SLUGS[slug]
+      kind = VOICE_PLAN_SLUG.match?(slug.to_s) ? "voice" : COMMUNICATIONS_SLUGS[slug]
       return unless kind && product_type == "service" && billing_interval.in?(%w[month year])
 
       kind if site.tenant&.role == "super_admin"

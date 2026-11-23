@@ -705,6 +705,7 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
     get :carrier, on: :collection
     patch :carrier, on: :collection, action: :save_carrier
     post :verify_carrier, on: :collection
+    post :carrier_action, on: :member
   end
   get "/dashboard/customer-service", to: "dashboard/customer_service#index", as: :dashboard_customer_service
   get "/dashboard/customer-service/sender", to: "dashboard/customer_service#sender_settings", as: :dashboard_customer_service_sender

@@ -16,35 +16,42 @@ module LightekCommunications
       order = VoiceAddOn.find_by(peer: @peer)&.order
       subscription = order&.commerce_subscription
       service = Service.find_by(subscription: subscription) if subscription
-      offer = catalog_offer
+      offers = catalog_offers
       state = service&.status || case order&.status
       when "pending_payment" then "pending_payment"
       when "paid", "fulfilled" then "provisioning"
-      when "canceled", nil then offer ? "available" : "unavailable"
+      when "canceled", nil then offers.any? ? "available" : "unavailable"
       else "needs_review"
       end
 
       {
         status: state,
         billing_status: subscription&.status,
-        can_checkout: (state == "pending_payment" || state == "available"),
-        price_cents: state == "pending_payment" ? order.subtotal_cents : offer&.price_cents,
-        currency: state == "pending_payment" ? order.currency : offer&.currency,
-        billing_interval: state == "pending_payment" ? order.items.sole.purchase_snapshot.fetch("billing_interval") : offer&.billing_interval
+        can_checkout: (state == "pending_payment" || (state == "available" && offers.one?)),
+        offers: state == "available" ? offers.map { |offer| summarize_offer(offer) } : [],
+        price_cents: state == "pending_payment" ? order.subtotal_cents : offers.one? ? offers.first.price_cents : nil,
+        billing_interval: state == "pending_payment" ? order.items.sole.purchase_snapshot.fetch("billing_interval") : offers.one? ? offers.first.billing_interval : nil
       }
     end
 
-    def checkout!
+    def checkout!(plan: nil)
       destination = return_url
       order = @peer.with_lock do
         add_on = VoiceAddOn.find_or_initialize_by(peer: @peer)
         previous = add_on.order
-        next previous if previous&.status == "pending_payment"
+        if previous&.status == "pending_payment"
+          if plan.present? && previous.items.sole.purchase_snapshot["voice_plan"] != plan
+            raise Unavailable, "Resume the pending checkout before choosing a different plan."
+          end
+          next previous
+        end
         if previous && previous.status != "canceled"
           raise Unavailable, "This installation already has a Voice order."
         end
 
-        product = catalog_offer || raise(Unavailable, "Lightek Voice is not available for signup yet.")
+        offers = catalog_offers
+        product = plan.present? ? offers.find { |offer| offer.slug == plan } : offers.one? ? offers.first : nil
+        raise Unavailable, "Choose an available Lightek Voice plan." unless product
         order = LightekCommerce::OrderPlacement.call(site: product.site, customer_email: @peer.merchant.email_address,
           quantities: { product.id => 1 })
         add_on.update!(order: order)
@@ -67,13 +74,19 @@ module LightekCommunications
 
     private
 
-    def catalog_offer
+    def summarize_offer(offer)
+      { key: offer.slug, name: offer.name, description: offer.short_description,
+        price_cents: offer.price_cents, currency: offer.currency, billing_interval: offer.billing_interval }
+    end
+
+    def catalog_offers
       origin = URI.parse(LightekReservations::Federation::Issuer.origin)
       site = DymondSite::Site.find_by(host: origin.host)
-      return if !site || LightekReservations::Federation::Client.config(site).present?
+      return [] if !site || LightekReservations::Federation::Client.config(site).present?
 
-      product = LightekCommerce::Product.find_by(site: site, slug: "lightek-voice", published: true)
-      product if product&.communications_kind == "voice" && product.price_cents.positive?
+      LightekCommerce::Product.where(site: site, published: true, product_type: "service", billing_interval: %w[month year])
+        .where("slug = ? OR slug LIKE ?", "lightek-voice", "lightek-voice-%").where("price_cents > 0")
+        .order(:position, :name, :id).select { |product| product.communications_kind == "voice" }
     end
 
     def return_url

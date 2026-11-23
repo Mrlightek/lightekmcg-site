@@ -38,3 +38,5 @@ Rails.application.config.filter_parameters += [:travel_person, :dcp_delivery, :n
 Rails.application.config.filter_parameters += [:support_case, :support_reply, :phone_number, :starting_amount, :ending_amount]
 Rails.application.config.filter_parameters += ['show.brief']
 Rails.application.config.filter_parameters += %w[brief.recipient brief.email brief.contact_basis brief.facts brief.response brief.notes]
+
+Rails.application.config.filter_parameters += [:carrier_order]

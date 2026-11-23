@@ -70,6 +70,7 @@ module LightekCommunications
 
       proof = validated_evidence(service.kind, action, evidence)
       if service.kind == "voice" && action != "suspend"
+        require_carrier_completion!(service, proof)
         proof.merge!(VoipMs.verify!(operator: operator, account: proof.fetch(:sip_account), phone_number: proof.fetch(:phone_number)))
       end
 
@@ -83,6 +84,7 @@ module LightekCommunications
             receipt = billing_receipt(subscription) unless action == "suspend"
             raise Invalid, "Activation needs a current paid subscription receipt." if action != "suspend" && !receipt
 
+            require_carrier_completion!(service, proof) if service.kind == "voice" && action != "suspend"
             service.events.create!(operator: operator, action: action, billing_invoice: receipt,
               evidence: proof)
             service.update!(status: to)
@@ -90,6 +92,16 @@ module LightekCommunications
         end
       end
     end
+
+    def self.require_carrier_completion!(service, proof)
+      request = VoiceCarrierOperation.find_by(service: service, operation: CarrierFulfillment::NUMBER_ACTIONS)
+      return unless request
+      return if request.state == "confirmed" && proof.fetch(:phone_number) == "+1#{request.did}" &&
+        VoiceCarrierOperation.exists?(service: service, operation: "provision_e911", did: request.did, state: "confirmed")
+
+      raise Invalid, "Finish the carrier number and E911 steps for this phone number before activation."
+    end
+    private_class_method :require_carrier_completion!
 
     def self.order_kind(order)
       return unless order.purpose == "purchase" && order.site.tenant&.role == "super_admin"

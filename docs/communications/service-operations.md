@@ -11,8 +11,8 @@ or initiate a charge.
 Lightek Voice is the customer-facing service. Lightek owns signup, pricing,
 billing, PBX and extensions, and customer support. VoIP.ms is the wholesale
 upstream for phone numbers, public telephone network interconnection, E911,
-and number porting. The operator uses the carrier portal for those upstream
-actions and records the resulting confirmations in Dashboard.
+and number porting. Open the paid Voice service in Dashboard to send these
+requests from the main installation and view the carrier confirmations.
 
 Customers bring new-number requests, port requests, emergency address
 changes, and service issues to Lightek. Lightek submits and tracks the
@@ -22,10 +22,13 @@ for the wholesale service model.
 
 ## Products and provisioning
 
-Use Commerce service products with the slugs `lightek-voice` and
-`lightek-internet` on a platform-owned storefront. Set the monthly or annual
-price in Commerce. Confirm serviceability before offering a checkout. Neither
-product is created or published automatically.
+Use Commerce service products on the platform-owned storefront. Voice plans
+use `lightek-voice` or a slug starting with `lightek-voice-`. Internet uses
+`lightek-internet`. Create a separate product for each price and billing period,
+such as `lightek-voice-standard-monthly` and `lightek-voice-standard-annual`.
+The owner sees published plans and their monthly or annual prices. An existing
+checkout retains its selected plan and price. Confirm serviceability before
+publishing checkout offers.
 
 An eligible checkout snapshots the communications product type. After that
 checkout settles through the existing signed Dymond Bank callback, open the
@@ -38,7 +41,7 @@ gateway or carrier operation.
 
 ## Voice as an installation add-on
 
-Publish the recurring `lightek-voice` service product on the platform-owned
+Publish at least one recurring Voice service product on the platform-owned
 storefront at the central federation origin once Voice is available for signup.
 The owner of a connected paid installation opens **Your workspace → Your
 services → Lightek Voice** to see the central price and start a separate
@@ -88,8 +91,16 @@ receipt in Dashboard after verification.
   read-only lookups to confirm SIP registration and, when provided, the exact
   number route. In **Check SIP registration**, leave the public number blank
   until one is assigned.
-- Order or port the public number through VoIP.ms and route it to the SIP
-  subaccount on the same PoP as the PBX.
+- Open the paid Voice service in Dashboard. Search US numbers by area code
+  and order the selected DID with its SIP subaccount, PoP and carrier rate.
+  To transfer an existing US business landline, submit the authorized port,
+  send the supporting invoice PDF, refresh the carrier status and route the
+  number after it appears in the carrier inventory.
+- Enter the customer-confirmed US emergency address in Dashboard. Lightek
+  verifies the number route, validates the address, provisions E911 through
+  VoIP.ms and checks the returned record. Carrier writes hold an audit
+  receipt immediately before submission. If the outcome is unclear, review
+  the carrier result before another request.
 - Verify inbound and outbound calls with audio and confirm the exact
   dispatchable location in the carrier portal. Use the carrier's
   [emergency calling test instructions](https://wiki.voip.ms/article/E911)

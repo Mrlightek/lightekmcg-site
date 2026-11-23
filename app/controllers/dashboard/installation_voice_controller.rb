@@ -14,7 +14,7 @@ class Dashboard::InstallationVoiceController < DymondDash::ApplicationController
   end
 
   def checkout
-    result = @installation.request("installation/voice/checkout")
+    result = @installation.request("installation/voice/checkout", plan: params[:plan].to_s.presence)
     url = LightekCommunications::InstallationVoice.checkout_url!(result["checkout_url"])
     redirect_to url, allow_other_host: true, status: :see_other
   end

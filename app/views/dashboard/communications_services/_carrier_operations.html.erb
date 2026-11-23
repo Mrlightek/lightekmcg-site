@@ -1,0 +1,102 @@
+<section class="card">
+  <h2>Phone number and E911</h2>
+  <% action_path = carrier_action_dashboard_communications_service_path(@service) %>
+  <% number_request = @carrier_operations["order_number"] || @carrier_operations["port_number"] %>
+  <% port = @carrier_operations["port_number"] %>
+  <% @carrier_operations.values.each do |receipt| %>
+    <p><strong><%= receipt.operation.humanize %></strong> · +1<%= receipt.did %> · <%= receipt.state.humanize %>
+      <% if receipt.carrier_status.present? %> · <%= receipt.carrier_status %><% end %>
+      <% if receipt.carrier_reference.present? %> · Reference <%= receipt.carrier_reference %><% end %>
+    </p>
+    <% if receipt.state.in?(%w[submitting review]) %><p>Verify the outcome in VoIP.ms before taking further action.</p><% end %>
+  <% end %>
+  <% if @receipt && !number_request && @service.status == "provisioning" %>
+    <%= form_with url: action_path, scope: :carrier_order, data: { turbo: false } do |form| %>
+      <%= form.hidden_field :operation, value: "search_numbers" %>
+      <%= form.label :area_code, "US area code" %>
+      <%= form.text_field :area_code, required: true, maxlength: 3, inputmode: "numeric" %>
+      <%= form.submit "Find numbers" %>
+    <% end %>
+    <% if @carrier_numbers %>
+      <% if @carrier_numbers.empty? %><p>No numbers found.</p><% end %>
+      <% @carrier_numbers.each do |number| %>
+        <p>+1<%= number["did"] %> · <%= number["ratecenter"] %>
+          <% if number["perminute_monthly"] %> · Per-minute plan <%= number_to_currency(number["perminute_monthly"]) %>/month<% end %>
+          <% if number["flat_monthly"] %> · Flat plan <%= number_to_currency(number["flat_monthly"]) %>/month<% end %>
+        </p>
+      <% end %>
+    <% end %>
+    <details>
+      <summary>Order a new number</summary>
+      <%= form_with url: action_path, scope: :carrier_order do |form| %>
+        <%= form.hidden_field :operation, value: "order_number" %>
+        <%= form.label :phone_number, "Phone number (+1…)" %>
+        <%= form.telephone_field :phone_number, required: true %>
+        <%= render "carrier_sip_route", form: form %>
+        <%= form.label :billing_type, "Wholesale carrier rate" %>
+        <%= form.select :billing_type, [["Per minute", "1"], ["Flat", "2"]], include_blank: "Choose a rate", required: true %>
+        <%= render "carrier_authorization", form: form, wording: "Place this carrier order and accept its wholesale charges." %>
+        <%= form.submit "Order number" %>
+      <% end %>
+    </details>
+    <details>
+      <summary>Port a US business landline</summary>
+      <%= form_with url: action_path, scope: :carrier_order do |form| %>
+        <%= form.hidden_field :operation, value: "port_number" %>
+        <% {phone_number: "Phone number (+1…)", statementName: "Business name on the statement", firstName: "Account holder first name",
+          lastName: "Account holder last name", address1: "Carrier service address", address2: "Unit or suite (optional)",
+          city: "City", state: "State", zip: "ZIP code", providerName: "Current carrier", providerAccount: "Current account number",
+          pin: "Port PIN (if required)"}.each do |key, label| %>
+          <%= form.label key, label %>
+          <%= form.text_field key, maxlength: 140, required: !key.in?(%i[pin address2]), autocomplete: "off" %>
+        <% end %>
+        <%= form.label :isPartial, "Are other lines staying with the current carrier?" %>
+        <%= form.select :isPartial, [["Yes", "1"], ["No", "0"]], include_blank: "Choose one", required: true %>
+        <%= render "carrier_authorization", form: form, wording: "The customer authorized this number transfer." %>
+        <%= form.submit "Submit port request" %>
+      <% end %>
+    </details>
+  <% end %>
+  <% if port&.state == "confirmed" %>
+    <%= button_to "Refresh port status", action_path, params: { carrier_order: { operation: "refresh_port" } } %>
+    <% if @receipt && !@carrier_operations["port_document"] %>
+      <details>
+        <summary>Send supporting document</summary>
+        <%= form_with url: action_path, scope: :carrier_order, multipart: true do |form| %>
+          <%= form.hidden_field :operation, value: "port_document" %>
+          <%= form.label :document, "Carrier invoice PDF" %>
+          <%= form.file_field :document, required: true, accept: "application/pdf" %>
+          <%= render "carrier_authorization", form: form, wording: "Send this customer-authorized document to the carrier." %>
+          <%= form.submit "Send document" %>
+        <% end %>
+      </details>
+    <% end %>
+    <% if @receipt && !@carrier_operations["route_port"] %>
+      <details>
+        <summary>Route the completed port</summary>
+        <%= form_with url: action_path, scope: :carrier_order do |form| %>
+          <%= form.hidden_field :operation, value: "route_port" %>
+          <%= render "carrier_sip_route", form: form %>
+          <%= render "carrier_authorization", form: form, wording: "Route this ported number to the selected PBX." %>
+          <%= form.submit "Route ported number" %>
+        <% end %>
+      </details>
+    <% end %>
+  <% end %>
+  <% if @receipt && number_request&.state == "confirmed" && !@carrier_operations["provision_e911"] %>
+    <details>
+      <summary>Set up E911</summary>
+      <%= form_with url: action_path, scope: :carrier_order do |form| %>
+        <%= form.hidden_field :operation, value: "provision_e911" %>
+        <% {sip_account: "SIP subaccount", full_name: "Emergency contact name", street_number: "Street number",
+          street_name: "Street name", address_type: "Unit type (optional)", address_number: "Unit number (optional)",
+          city: "City", state: "State", zip: "ZIP code"}.each do |key, label| %>
+          <%= form.label key, label %>
+          <%= form.text_field key, maxlength: 140, required: !key.in?(%i[address_type address_number]) %>
+        <% end %>
+        <%= render "carrier_authorization", form: form, wording: "The customer confirmed this emergency service address." %>
+        <%= form.submit "Validate address and provision E911" %>
+      <% end %>
+    </details>
+  <% end %>
+</section>

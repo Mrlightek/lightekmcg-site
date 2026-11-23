@@ -62,6 +62,7 @@ module LightekCommerce
             "track_inventory" => variant_id ? true : product.track_inventory?, "subscription_plan_id" => product.subscription_plan_id}
           kind = product.communications_kind
           snapshot["communications_kind"] = kind if kind
+          snapshot["voice_plan"] = product.slug if kind == "voice"
           package = product.respond_to?(:effective_hosting_package) ? product.effective_hosting_package : product.hosting_package
           snapshot["pricing_tier"] = "agency_wholesale" if direct_package
           if package

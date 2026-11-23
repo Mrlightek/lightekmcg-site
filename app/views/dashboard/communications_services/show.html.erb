@@ -6,6 +6,7 @@
   <p class="intro">Order #<%= @subscription.order_id %> · <%= @subscription.order.customer_email %> · <%= @service.status.humanize %></p>
   <% if @installation_host %><p>Customer installation <strong><%= @installation_host %></strong></p><% end %>
   <div class="grid">
+    <%= render "carrier_operations" if @carrier_operations %>
     <section class="card">
       <h2>Billing</h2>
       <p>Commerce subscription #<%= @subscription.id %> · <%= @subscription.status.humanize %></p>

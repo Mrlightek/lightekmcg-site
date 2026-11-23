@@ -45,8 +45,13 @@ module LightekCommunications
         raise Unavailable, "Enter a VoIP.ms SIP subaccount and a North American public phone number."
       end
 
+      for_operator(operator).verify!(account: account, phone_number: phone_number)
+    end
+
+    def self.for_operator(operator)
+      Fulfillment.check_operator!(operator)
       credentials = LightekVault::Service.checkout!(slug: SLUG, consumer: name, purpose: PURPOSE, requested_by: "user:#{operator.id}")
-      new(credentials).verify!(account: account, phone_number: phone_number)
+      new(credentials)
     rescue ActiveRecord::RecordNotFound, LightekVault::Service::AccessDenied,
         LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError
       raise Unavailable, "Connect the voice carrier in Vault before verifying activation."
@@ -64,6 +69,62 @@ module LightekCommunications
       { "carrier" => "voip_ms", "carrier_verified_at" => Time.current.iso8601 }
     end
 
+    def search_numbers!(area_code:)
+      numbers = fetch!("searchDIDsUSA", type: "starts", query: area_code, success: %w[success no_dids])["dids"]
+      Array(numbers).filter_map do |row|
+        if row.is_a?(Hash) && NANP_NUMBER.match?("+1#{row["did"]}")
+          row.slice("did", "ratecenter", "perminute_setup", "perminute_monthly", "flat_setup", "flat_monthly")
+        end
+      end.first(20)
+    end
+
+    def order_number!(did:, routing:, pop:, billing_type:)
+      fetch!("orderDID", did: did, routing: routing, pop: pop, billing_type: billing_type, dialtime: 60, cnam: 0)
+    end
+
+    def verify_portability!(did)
+      result = fetch!("getPortability", did: did)
+      unless %w[1 yes true].include?(result["portable"].to_s.downcase)
+        raise Unavailable, "VoIP.ms did not confirm that this number can be ported."
+      end
+    end
+
+    def port_number!(did:, fields:)
+      fetch!("addLNPPort", **fields.merge(numbers: did, portType: 1, country: "US"))
+    end
+
+    def port_status!(reference)
+      fetch!("getLNPStatus", portid: reference)
+    end
+
+    def attach_port_file!(reference, base64_document)
+      fetch!("addLNPFile", post: true, portid: reference, file: base64_document)
+    end
+
+    def route_port!(did:, account:, pop:)
+      inventory = fetch!("getDIDsInfo", did: did).fetch("dids", [])
+      unless inventory.is_a?(Array) && inventory.any? { |row| row.is_a?(Hash) && row["did"].to_s == did }
+        raise Unavailable, "The ported number is not yet present in your VoIP.ms inventory."
+      end
+      fetch!("setDIDPOP", did: did, pop: pop)
+      fetch!("setDIDRouting", did: did, routing: "account:#{account}")
+      verify_route!(account: account, phone_number: "+1#{did}")
+    end
+
+    def validate_e911!(did:, account:, fields:)
+      verify_route!(account: account, phone_number: "+1#{did}")
+      fetch!("e911Validate", **fields.merge(did: did, country: "US"))
+    end
+
+    def provision_e911!(did:, fields:)
+      fetch!("e911Provision", **fields.merge(did: did, country: "US"))
+      info = fetch!("e911Info", did: did)["info"]
+      unless info.is_a?(Hash) && info["did"].to_s == did && info["street_number"].to_s == fields[:street_number].to_s &&
+          info["state"].to_s.casecmp?(fields[:state]) && info["zip"].to_s.first(5) == fields[:zip].first(5)
+        raise Unavailable, "VoIP.ms did not confirm the submitted E911 address."
+      end
+    end
+
     private
 
     def verify_route!(account:, phone_number:)
@@ -74,12 +135,15 @@ module LightekCommunications
       raise Unavailable, "The carrier did not confirm this number routes to the selected SIP subaccount."
     end
 
-    def fetch!(method, **parameters)
-      query = URI.encode_www_form(parameters.merge(method: method, content_type: "json",
-        api_username: @credentials.fetch("email"), api_password: @credentials.fetch("password")))
-      # The carrier authenticates in the HTTPS query. Use a fixed origin, no proxy
-      # or redirects, and never propagate the request target or response body.
-      request = Net::HTTP::Get.new("#{API.path}?#{query}")
+    def fetch!(method, post: false, success: ["success"], **parameters)
+      fields = parameters.merge(method: method, content_type: "json", api_username: @credentials.fetch("email"),
+        api_password: @credentials.fetch("password"))
+      # Use a fixed HTTPS origin and never propagate the request target or response body.
+      request = if post
+        Net::HTTP::Post.new(API.path).tap { |message| message.set_form(fields.to_a, "multipart/form-data") }
+      else
+        Net::HTTP::Get.new("#{API.path}?#{URI.encode_www_form(fields)}")
+      end
       http = Net::HTTP.new(API.host, API.port, nil)
       http.use_ssl = true
       http.open_timeout = 4
@@ -100,7 +164,7 @@ module LightekCommunications
         end
       end
       payload = JSON.parse(body)
-      raise Unavailable, "The carrier rejected the lookup. Check the API connection and its IP allowlist." unless payload.is_a?(Hash) && payload["status"] == "success"
+      raise Unavailable, "The carrier rejected the lookup. Check the API connection and its IP allowlist." unless payload.is_a?(Hash) && success.include?(payload["status"])
 
       payload
     rescue IOError, SocketError, SystemCallError, Timeout::Error, OpenSSL::SSL::SSLError, Net::HTTPBadResponse, JSON::ParserError, KeyError

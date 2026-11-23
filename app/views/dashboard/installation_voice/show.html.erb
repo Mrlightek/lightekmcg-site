@@ -13,10 +13,21 @@
       "needs_review" => "Contact support about this order",
       "unavailable" => "Phone service signup is unavailable"
     }.fetch(@voice["status"], "Phone service status unavailable") %></h2>
-    <% if @voice["can_checkout"] %>
-      <p><%= number_to_currency(@voice.fetch("price_cents") / 100.0) %> per <%= @voice.fetch("billing_interval") %>, plus applicable taxes.</p>
+    <% if @voice["status"] == "available" %>
       <p>Voice is billed separately from your existing service.</p>
-      <%= button_to @voice["status"] == "pending_payment" ? "Resume checkout" : "Add Lightek Voice", dashboard_installation_voice_path %>
+      <div class="grid">
+        <% @voice.fetch("offers").each do |offer| %>
+          <section class="card">
+            <h3><%= offer.fetch("name") %></h3>
+            <% if offer["description"].present? %><p><%= offer["description"] %></p><% end %>
+            <p><%= number_to_currency(offer.fetch("price_cents") / 100.0) %> per <%= offer.fetch("billing_interval") %>, plus applicable taxes.</p>
+            <%= button_to "Choose #{offer.fetch("name")}", dashboard_installation_voice_path, params: { plan: offer.fetch("key") } %>
+          </section>
+        <% end %>
+      </div>
+    <% elsif @voice["status"] == "pending_payment" %>
+      <p><%= number_to_currency(@voice.fetch("price_cents") / 100.0) %> per <%= @voice.fetch("billing_interval") %>, plus applicable taxes.</p>
+      <%= button_to "Resume checkout", dashboard_installation_voice_path %>
     <% elsif @voice["billing_status"].present? %>
       <p>Subscription <%= @voice["billing_status"].humanize.downcase %></p>
     <% end %>

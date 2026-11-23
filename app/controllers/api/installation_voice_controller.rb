@@ -11,7 +11,7 @@ class Api::InstallationVoiceController < Api::ReservationFederationController
   end
 
   def checkout
-    render json: LightekCommunications::InstallationVoice.new(@peer).checkout!
+    render json: LightekCommunications::InstallationVoice.new(@peer).checkout!(plan: params[:plan].to_s.presence)
   end
 
   private

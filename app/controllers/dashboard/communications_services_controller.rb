@@ -4,7 +4,7 @@ class Dashboard::CommunicationsServicesController < DymondDash::ApplicationContr
   layout "dymond_dash/layouts/dymond_dash"
 
   before_action :require_super_admin!
-  before_action :find_service, only: %i[show update]
+  before_action :find_service, only: %i[show update carrier_action]
 
   def index
     @services = LightekCommunications::Service.includes(subscription: :order).order(created_at: :desc, id: :desc).limit(100)
@@ -21,6 +21,31 @@ class Dashboard::CommunicationsServicesController < DymondDash::ApplicationContr
     @installation_host = LightekCommunications::VoiceAddOn.find_by(order_id: @subscription.order_id)&.peer&.site&.host
     @receipt = LightekCommunications::Fulfillment.billing_receipt(@subscription)
     @events = @service.events.includes(:operator).order(id: :desc).limit(30)
+    @carrier_operations = LightekCommunications::VoiceCarrierOperation.where(service: @service).index_by(&:operation) if @service.kind == "voice"
+  end
+
+  def carrier_action
+    runner = LightekCommunications::CarrierFulfillment.new(@service, current_user)
+    fields = params.require(:carrier_order).permit(:operation, :authorized, :phone_number, :sip_account, :pop, :billing_type,
+      :area_code, :isPartial, :address2, :pin, :address_type, :address_number, :document,
+      *LightekCommunications::CarrierFulfillment::PORT_FIELDS, *LightekCommunications::CarrierFulfillment::E911_FIELDS)
+    case fields[:operation]
+    when "search_numbers"
+      @carrier_numbers = runner.search_numbers!(fields[:area_code])
+      show
+      return render :show
+    when "order_number" then runner.order_number!(fields)
+    when "port_number" then runner.port_number!(fields)
+    when "refresh_port" then runner.refresh_port!
+    when "port_document" then runner.attach_port_file!(fields[:document], fields)
+    when "route_port" then runner.route_port!(fields)
+    when "provision_e911" then runner.provision_e911!(fields)
+    else
+      raise LightekCommunications::CarrierFulfillment::Invalid, "Choose a carrier action."
+    end
+    redirect_to dashboard_communications_service_path(@service), status: :see_other, notice: "Carrier action confirmed."
+  rescue LightekCommunications::VoipMs::Unavailable, LightekCommunications::CarrierFulfillment::Invalid => error
+    redirect_to dashboard_communications_service_path(@service), status: :see_other, alert: error.message
   end
 
   def create

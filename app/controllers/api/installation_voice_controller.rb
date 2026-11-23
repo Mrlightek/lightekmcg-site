@@ -11,7 +11,9 @@ class Api::InstallationVoiceController < Api::ReservationFederationController
   end
 
   def checkout
-    render json: LightekCommunications::InstallationVoice.new(@peer).checkout!(plan: params[:plan].to_s.presence)
+    fields = params.permit(:plan, number_request: %i[option area_code phone_number])
+    render json: LightekCommunications::InstallationVoice.new(@peer).checkout!(
+      plan: fields[:plan].presence, number_request: fields.fetch(:number_request, {}).to_h)
   end
 
   private

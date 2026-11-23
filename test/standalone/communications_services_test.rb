@@ -72,7 +72,7 @@ class CommunicationsServicesTest < CommerceHostingTest
       OpenStruct.new(url: "https://checkout.stripe.com/c/pay")
     end
     LightekCommerce::StripeCheckout.stub(:start!, checkout) do
-      assert_equal "https://checkout.stripe.com/c/pay", addon.checkout![:checkout_url]
+      assert_equal "https://checkout.stripe.com/c/pay", addon.checkout!(number_request: {"option" => "new", "area_code" => "212"})[:checkout_url]
       addon.checkout!
     end
     order = requests.first.fetch(:order)
@@ -99,12 +99,17 @@ class CommunicationsServicesTest < CommerceHostingTest
     assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout!(plan: "lightek-voice-hidden") }
     checkout = ->(**args) { OpenStruct.new(url: "https://checkout.stripe.com/c/pay") }
     LightekCommerce::StripeCheckout.stub(:start!, checkout) do
-      addon.checkout!(plan: "lightek-voice-annual")
+      addon.checkout!(plan: "lightek-voice-annual", number_request: {"option" => "port", "phone_number" => "(212) 555-0123"})
       assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout!(plan: "lightek-voice-monthly") }
       addon.checkout!
     end
     receipt = LightekCommunications::VoiceAddOn.last.order.items.sole.purchase_snapshot
     assert_equal "lightek-voice-annual", receipt["voice_plan"]
+    assert_equal({ "option" => "port", "phone_number" => "+12125550123" }, receipt["voice_number_request"])
+    assert_equal({ "option" => "port", "last_four" => "0123" }, addon.status.fetch(:number_request))
+    assert_raises(LightekCommunications::InstallationVoice::Unavailable) do
+      addon.checkout!(number_request: { "option" => "new", "area_code" => "212" })
+    end
     assert_equal "year", addon.status[:billing_interval]
     assert_equal 24_000, addon.status[:price_cents]
   end
@@ -206,6 +211,28 @@ class CommunicationsServicesTest < CommerceHostingTest
       end
     end
     [client, calls]
+  end
+
+  def test_new_checkout_requires_a_valid_number_choice_without_creating_an_order
+    product(slug: "lightek-voice")
+    addon = LightekCommunications::InstallationVoice.new(voice_peer("number-choice"))
+    [{}, { "option" => "new", "area_code" => "123" }, { "option" => "port", "phone_number" => "555-1234" }].each do |choice|
+      assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout!(number_request: choice) }
+    end
+    assert_empty LightekCommunications::VoiceAddOn.all
+  end
+
+  def test_carrier_cannot_order_a_new_number_for_customer_who_requested_a_port
+    order, = paid_subscription("lightek-voice")
+    item = order.items.sole
+    item.update!(purchase_snapshot: item.purchase_snapshot.merge(
+      "voice_number_request" => { "option" => "port", "phone_number" => "+12125550123" }))
+    service = Fulfillment.register!(order: order, operator: @operator)
+    runner = LightekCommunications::CarrierFulfillment.new(service, @operator)
+    assert_raises(LightekCommunications::CarrierFulfillment::Invalid) do
+      runner.order_number!(authorized: "1", phone_number: "+12125550124", sip_account: "123456_pbx", pop: "5", billing_type: "1")
+    end
+    assert_empty LightekCommunications::VoiceCarrierOperation.where(service: service)
   end
 
   def test_installation_voice_requires_active_peer_and_rejects_untrusted_checkout_urls

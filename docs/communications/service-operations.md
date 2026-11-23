@@ -50,6 +50,12 @@ authenticated peer and its billing account. It reuses an existing pending
 order and sends payment through the central Dymond Bank-backed checkout.
 Stripe payment verification uses the existing signed callback.
 
+At signup, the owner chooses a new number in a US area code or asks to transfer
+an existing US business landline. The checkout and provisioning record retain
+the selection. Lightek operators see it alongside the paid service and submit
+the matching carrier request. The customer page shows the area code or the
+last four digits of the number to transfer.
+
 The child installation's scoped federation credential authorizes the request
 back to main. VoIP.ms credentials stay in the central Vault. Customer
 installations receive checkout and service status only. A paid order appears

@@ -15,21 +15,45 @@
     }.fetch(@voice["status"], "Phone service status unavailable") %></h2>
     <% if @voice["status"] == "available" %>
       <p>Voice is billed separately from your existing service.</p>
-      <div class="grid">
-        <% @voice.fetch("offers").each do |offer| %>
-          <section class="card">
-            <h3><%= offer.fetch("name") %></h3>
-            <% if offer["description"].present? %><p><%= offer["description"] %></p><% end %>
-            <p><%= number_to_currency(offer.fetch("price_cents") / 100.0) %> per <%= offer.fetch("billing_interval") %>, plus applicable taxes.</p>
-            <%= button_to "Choose #{offer.fetch("name")}", dashboard_installation_voice_path, params: { plan: offer.fetch("key") } %>
-          </section>
+      <%= form_with url: dashboard_installation_voice_path do |form| %>
+        <fieldset>
+          <legend>Choose a plan</legend>
+          <% @voice.fetch("offers").each do |offer| %>
+            <div>
+              <%= form.radio_button :plan, offer.fetch("key"), required: true %>
+              <%= form.label :plan, value: offer.fetch("key") do %>
+                <%= offer.fetch("name") %> · <%= number_to_currency(offer.fetch("price_cents") / 100.0) %> per <%= offer.fetch("billing_interval") %>
+              <% end %>
+              <% if offer["description"].present? %><p><%= offer["description"] %></p><% end %>
+            </div>
+          <% end %>
+          <p>Applicable taxes are shown at checkout.</p>
+        </fieldset>
+        <%= fields_for :number_request do |number| %>
+          <fieldset>
+            <legend>Choose your phone number</legend>
+            <%= number.radio_button :option, "new", required: true %>
+            <%= number.label :option, "Get a new number", value: "new" %>
+            <%= number.label :area_code, "Preferred US area code" %>
+            <%= number.text_field :area_code, inputmode: "numeric", maxlength: 3, pattern: "[2-9][0-9]{2}" %>
+            <%= number.radio_button :option, "port", required: true %>
+            <%= number.label :option, "Keep my existing number", value: "port" %>
+            <%= number.label :phone_number, "US business landline to transfer" %>
+            <%= number.telephone_field :phone_number, maxlength: 30 %>
+            <p>Keep your current service active until the transfer completes.</p>
+          </fieldset>
         <% end %>
-      </div>
+        <%= form.submit "Continue to checkout" %>
+      <% end %>
     <% elsif @voice["status"] == "pending_payment" %>
       <p><%= number_to_currency(@voice.fetch("price_cents") / 100.0) %> per <%= @voice.fetch("billing_interval") %>, plus applicable taxes.</p>
       <%= button_to "Resume checkout", dashboard_installation_voice_path %>
     <% elsif @voice["billing_status"].present? %>
       <p>Subscription <%= @voice["billing_status"].humanize.downcase %></p>
+    <% end %>
+    <% if (request = @voice["number_request"]) %>
+      <% if request["option"] == "port" %><p>Number transfer requested for the line ending in <%= request.fetch("last_four") %>.</p><% end %>
+      <% if request["option"] == "new" %><p>New number requested in area code <%= request.fetch("area_code") %>.</p><% end %>
     <% end %>
     <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %></p>
   </section>

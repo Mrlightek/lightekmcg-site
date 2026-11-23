@@ -112,10 +112,12 @@ module LightekCommunications
       raise Invalid, "Confirm this carrier request before submitting." unless fields[:authorized] == "1"
 
       require_paid_voice!
+      verify_number_request!(operation, did) if NUMBER_ACTIONS.include?(operation)
       carrier
       preflight&.call
       receipt = @service.with_lock do
         require_paid_voice!
+        verify_number_request!(operation, did) if NUMBER_ACTIONS.include?(operation)
         if NUMBER_ACTIONS.include?(operation) &&
             (@service.status != "provisioning" || VoiceCarrierOperation.exists?(service: @service, operation: NUMBER_ACTIONS))
           raise Invalid, "Only a new Voice service without a number request can order or port a number."
@@ -136,6 +138,15 @@ module LightekCommunications
         raise Invalid, "VoIP.ms did not confirm this request. Review the carrier account before trying again."
       end
       raise
+    end
+
+    def verify_number_request!(operation, did)
+      request = @service.subscription.order.items.sole.purchase_snapshot["voice_number_request"]
+      return unless request
+      return if request["option"] == "new" && operation == "order_number" && did.start_with?(request.fetch("area_code"))
+      return if request["option"] == "port" && operation == "port_number" && "+1#{did}" == request["phone_number"]
+
+      raise Invalid, "Use the number option and number or area code the customer selected at checkout."
     end
 
     def require_paid_voice!

@@ -3,6 +3,9 @@
   <% action_path = carrier_action_dashboard_communications_service_path(@service) %>
   <% number_request = @carrier_operations["order_number"] || @carrier_operations["port_number"] %>
   <% port = @carrier_operations["port_number"] %>
+  <% choice = @voice_number_request.to_h %>
+  <% if choice["option"] == "new" %><p>Customer requested a new number in area code <strong><%= choice.fetch("area_code") %></strong>.</p><% end %>
+  <% if choice["option"] == "port" %><p>Customer requested a transfer of <strong><%= choice.fetch("phone_number") %></strong>.</p><% end %>
   <% @carrier_operations.values.each do |receipt| %>
     <p><strong><%= receipt.operation.humanize %></strong> · +1<%= receipt.did %> · <%= receipt.state.humanize %>
       <% if receipt.carrier_status.present? %> · <%= receipt.carrier_status %><% end %>
@@ -11,10 +14,11 @@
     <% if receipt.state.in?(%w[submitting review]) %><p>Verify the outcome in VoIP.ms before taking further action.</p><% end %>
   <% end %>
   <% if @receipt && !number_request && @service.status == "provisioning" %>
+    <% unless choice["option"] == "port" %>
     <%= form_with url: action_path, scope: :carrier_order, data: { turbo: false } do |form| %>
       <%= form.hidden_field :operation, value: "search_numbers" %>
       <%= form.label :area_code, "US area code" %>
-      <%= form.text_field :area_code, required: true, maxlength: 3, inputmode: "numeric" %>
+      <%= form.text_field :area_code, value: choice["area_code"], required: true, maxlength: 3, inputmode: "numeric" %>
       <%= form.submit "Find numbers" %>
     <% end %>
     <% if @carrier_numbers %>
@@ -39,6 +43,8 @@
         <%= form.submit "Order number" %>
       <% end %>
     </details>
+    <% end %>
+    <% unless choice["option"] == "new" %>
     <details>
       <summary>Port a US business landline</summary>
       <%= form_with url: action_path, scope: :carrier_order do |form| %>
@@ -48,7 +54,9 @@
           city: "City", state: "State", zip: "ZIP code", providerName: "Current carrier", providerAccount: "Current account number",
           pin: "Port PIN (if required)"}.each do |key, label| %>
           <%= form.label key, label %>
-          <%= form.text_field key, maxlength: 140, required: !key.in?(%i[pin address2]), autocomplete: "off" %>
+          <%= form.text_field key, value: (choice["phone_number"] if key == :phone_number),
+            readonly: key == :phone_number && choice["phone_number"].present?, maxlength: 140,
+            required: !key.in?(%i[pin address2]), autocomplete: "off" %>
         <% end %>
         <%= form.label :isPartial, "Are other lines staying with the current carrier?" %>
         <%= form.select :isPartial, [["Yes", "1"], ["No", "0"]], include_blank: "Choose one", required: true %>
@@ -56,6 +64,7 @@
         <%= form.submit "Submit port request" %>
       <% end %>
     </details>
+    <% end %>
   <% end %>
   <% if port&.state == "confirmed" %>
     <%= button_to "Refresh port status", action_path, params: { carrier_order: { operation: "refresh_port" } } %>

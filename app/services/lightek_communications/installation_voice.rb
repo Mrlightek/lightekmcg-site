@@ -17,6 +17,7 @@ module LightekCommunications
       subscription = order&.commerce_subscription
       service = Service.find_by(subscription: subscription) if subscription
       offers = catalog_offers
+      number_request = order&.items&.sole&.purchase_snapshot.to_h["voice_number_request"]
       state = service&.status || case order&.status
       when "pending_payment" then "pending_payment"
       when "paid", "fulfilled" then "provisioning"
@@ -27,6 +28,8 @@ module LightekCommunications
       {
         status: state,
         billing_status: subscription&.status,
+        number_request: number_request&.slice("option", "area_code")&.merge(
+          "last_four" => number_request["phone_number"]&.last(4)),
         can_checkout: (state == "pending_payment" || (state == "available" && offers.one?)),
         offers: state == "available" ? offers.map { |offer| summarize_offer(offer) } : [],
         price_cents: state == "pending_payment" ? order.subtotal_cents : offers.one? ? offers.first.price_cents : nil,
@@ -34,7 +37,7 @@ module LightekCommunications
       }
     end
 
-    def checkout!(plan: nil)
+    def checkout!(plan: nil, number_request: {})
       destination = return_url
       order = @peer.with_lock do
         add_on = VoiceAddOn.find_or_initialize_by(peer: @peer)
@@ -42,6 +45,10 @@ module LightekCommunications
         if previous&.status == "pending_payment"
           if plan.present? && previous.items.sole.purchase_snapshot["voice_plan"] != plan
             raise Unavailable, "Resume the pending checkout before choosing a different plan."
+          end
+          if number_request.values.any?(&:present?) &&
+              requested_number!(number_request) != previous.items.sole.purchase_snapshot["voice_number_request"]
+            raise Unavailable, "Resume your pending checkout to keep its original number request."
           end
           next previous
         end
@@ -52,8 +59,11 @@ module LightekCommunications
         offers = catalog_offers
         product = plan.present? ? offers.find { |offer| offer.slug == plan } : offers.one? ? offers.first : nil
         raise Unavailable, "Choose an available Lightek Voice plan." unless product
+        selection = requested_number!(number_request)
         order = LightekCommerce::OrderPlacement.call(site: product.site, customer_email: @peer.merchant.email_address,
           quantities: { product.id => 1 })
+        item = order.items.sole
+        item.update!(purchase_snapshot: item.purchase_snapshot.merge("voice_number_request" => selection))
         add_on.update!(order: order)
         order
       end
@@ -73,6 +83,26 @@ module LightekCommunications
     end
 
     private
+
+    def requested_number!(fields)
+      case fields["option"]
+      when "new"
+        area_code = fields["area_code"].to_s.strip
+        raise Unavailable, "Enter a three-digit US area code for your new number." unless area_code.match?(/\A[2-9][0-9]{2}\z/)
+
+        { "option" => "new", "area_code" => area_code }
+      when "port"
+        digits = fields["phone_number"].to_s.delete(" +().-")
+        phone_number = "+1#{digits.delete_prefix('1')}"
+        if fields["phone_number"].to_s.length > 30 || !VoipMs::NANP_NUMBER.match?(phone_number)
+          raise Unavailable, "Enter the US business landline number you want to transfer."
+        end
+
+        { "option" => "port", "phone_number" => phone_number }
+      else
+        raise Unavailable, "Choose a new phone number or keep your existing number."
+      end
+    end
 
     def summarize_offer(offer)
       { key: offer.slug, name: offer.name, description: offer.short_description,

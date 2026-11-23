@@ -10,10 +10,20 @@ module LightekCommunications
     PORT_FIELDS = %i[statementName firstName lastName address1 city state zip providerName providerAccount].freeze
     E911_FIELDS = %i[full_name street_number street_name city state zip].freeze
 
-    def initialize(service, operator)
-      Fulfillment.check_operator!(operator)
+    def initialize(service, operator, connection: nil)
+      Fulfillment.check_operator!(operator) unless connection
       @service = service
       @operator = operator
+      @carrier = connection
+    end
+
+    def self.for_paid_voice(service, add_on)
+      unless add_on.setup_secret_slug.present? && service.subscription.order_id == add_on.order_id &&
+          service.kind == "voice" && Fulfillment.billing_receipt(service.subscription)
+        raise Invalid, "The paid Voice order could not be verified."
+      end
+
+      new(service, nil, connection: VoipMs.for_paid_voice(add_on.order_id))
     end
 
     def search_numbers!(area_code)

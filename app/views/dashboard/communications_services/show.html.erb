@@ -48,7 +48,7 @@
       <% @events.each do |event| %>
         <div class="setting-link">
           <strong><%= { "register" => "Provisioning started", "activate" => "Activation recorded", "restore" => "Restoration recorded", "suspend" => "Suspension recorded" }.fetch(event.action) %></strong>
-          <small><%= l(event.created_at, format: :long) %> · <%= event.operator.email_address %><%= " · Receipt ##{event.billing_invoice_id}" if event.billing_invoice_id %></small>
+          <small><%= l(event.created_at, format: :long) %> · <%= event.operator&.email_address || "Automatic fulfillment" %><%= " · Receipt ##{event.billing_invoice_id}" if event.billing_invoice_id %></small>
           <% event.evidence.each do |field, value| %><small><%= field.humanize %> · <%= value %></small><% end %>
         </div>
       <% end %>

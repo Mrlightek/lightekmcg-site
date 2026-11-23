@@ -5,6 +5,6 @@ module LightekCommunications
     self.table_name = "lightek_voice_carrier_operations"
 
     belongs_to :service, class_name: "LightekCommunications::Service"
-    belongs_to :operator, class_name: "User"
+    belongs_to :operator, class_name: "User", optional: true
   end
 end

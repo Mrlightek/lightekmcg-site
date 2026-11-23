@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "base64"
+
 class Dashboard::InstallationVoiceController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
@@ -7,15 +9,23 @@ class Dashboard::InstallationVoiceController < DymondDash::ApplicationController
   before_action :load_installation
   rescue_from LightekPeople::Access::Denied, with: -> { head :forbidden }
   rescue_from LightekReservations::Federation::Client::Unavailable,
-    LightekCommunications::InstallationVoice::Unavailable, with: :unavailable
+    LightekCommunications::InstallationVoice::Unavailable, LightekCommunications::VoiceSetup::Invalid, with: :unavailable
 
   def show
     @voice = @installation.request("installation/voice/status")
   end
 
   def checkout
-    fields = params.permit(:plan, number_request: %i[option area_code phone_number])
-    result = @installation.request("installation/voice/checkout", fields.to_h)
+    setup = LightekCommunications::VoiceSetup
+    fields = params.permit(:plan, number_request: %i[option area_code phone_number],
+      voice_setup: [:confirm_emergency_address, :authorize_port, :document, { emergency: setup::ADDRESS_FIELDS, port: setup::PORT_FIELDS }]).to_h
+    if (document = fields.dig("voice_setup", "document"))
+      unless document.is_a?(ActionDispatch::Http::UploadedFile) && document.size.between?(1, 2.megabytes)
+        raise setup::Invalid, "Upload your current carrier invoice as a PDF of up to 2 MB."
+      end
+      fields["voice_setup"]["document"] = Base64.strict_encode64(document.read(2.megabytes + 1))
+    end
+    result = @installation.request("installation/voice/checkout", fields)
     url = LightekCommunications::InstallationVoice.checkout_url!(result["checkout_url"])
     redirect_to url, allow_other_host: true, status: :see_other
   end

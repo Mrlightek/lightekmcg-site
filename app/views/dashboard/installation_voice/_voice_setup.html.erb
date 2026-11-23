@@ -1,0 +1,42 @@
+<%= fields_for :voice_setup do |setup| %>
+  <fieldset>
+    <legend>Emergency service address</legend>
+    <p>Enter the physical address where this phone service will be used.</p>
+    <%= fields_for "voice_setup[emergency]" do |address| %>
+      <% { full_name: "Contact name", street_number: "Street number", street_name: "Street name",
+        address_type: "Unit type (optional)", address_number: "Unit number (optional)", city: "City",
+        state: "State (two letters)", zip: "ZIP code" }.each do |key, label| %>
+        <%= address.label key, label %>
+        <%= address.text_field key, required: !key.in?(%i[address_type address_number]), maxlength: 140 %>
+      <% end %>
+    <% end %>
+    <%= setup.label :confirm_emergency_address do %>
+      <%= setup.check_box :confirm_emergency_address, required: true %>
+      I confirm this emergency service address.
+    <% end %>
+  </fieldset>
+  <details>
+    <summary>Transfer details if you’re keeping your number</summary>
+    <%= fields_for "voice_setup[port]" do |port| %>
+      <% { statementName: "Business name on the carrier statement", firstName: "Account holder first name",
+        lastName: "Account holder last name", address1: "Current carrier service address", address2: "Unit (optional)",
+        city: "City", state: "State", zip: "ZIP code", providerName: "Current carrier",
+        providerAccount: "Current carrier account number", pin: "Port PIN (if required)" }.each do |key, label| %>
+        <%= port.label key, label %>
+        <% if key == :pin %>
+          <%= port.password_field key, maxlength: 40, autocomplete: "off" %>
+        <% else %>
+          <%= port.text_field key, maxlength: 140, autocomplete: "off" %>
+        <% end %>
+      <% end %>
+      <%= port.label :isPartial, "Are any other lines staying with your current carrier?" %>
+      <%= port.select :isPartial, [["Yes", "1"], ["No", "0"]], include_blank: "Choose one" %>
+    <% end %>
+    <%= setup.label :document, "Current carrier invoice PDF (up to 2 MB)" %>
+    <%= setup.file_field :document, accept: "application/pdf" %>
+    <%= setup.label :authorize_port do %>
+      <%= setup.check_box :authorize_port %>
+      I am authorized to transfer this number to Lightek Voice.
+    <% end %>
+  </details>
+<% end %>

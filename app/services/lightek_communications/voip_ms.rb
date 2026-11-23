@@ -50,12 +50,22 @@ module LightekCommunications
 
     def self.for_operator(operator)
       Fulfillment.check_operator!(operator)
-      credentials = LightekVault::Service.checkout!(slug: SLUG, consumer: name, purpose: PURPOSE, requested_by: "user:#{operator.id}")
+      connect("user:#{operator.id}")
+    end
+
+    def self.for_paid_voice(order_id)
+      connect("paid-voice:#{order_id}")
+    end
+
+    def self.connect(requested_by)
+      credentials = LightekVault::Service.checkout!(slug: SLUG, consumer: name, purpose: PURPOSE, requested_by: requested_by)
       new(credentials)
     rescue ActiveRecord::RecordNotFound, LightekVault::Service::AccessDenied,
         LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError
       raise Unavailable, "Connect the voice carrier in Vault before verifying activation."
     end
+
+    private_class_method :connect
 
     def initialize(credentials)
       @credentials = credentials
@@ -70,7 +80,7 @@ module LightekCommunications
     end
 
     def search_numbers!(area_code:)
-      numbers = fetch!("searchDIDsUSA", type: "starts", query: area_code, success: %w[success no_dids])["dids"]
+      numbers = fetch!("searchDIDsUSA", type: "starts", query: area_code, success: %w[success no_dids no_did no_numbers])["dids"]
       Array(numbers).filter_map do |row|
         if row.is_a?(Hash) && NANP_NUMBER.match?("+1#{row["did"]}")
           row.slice("did", "ratecenter", "perminute_setup", "perminute_monthly", "flat_setup", "flat_monthly")
@@ -99,6 +109,11 @@ module LightekCommunications
 
     def attach_port_file!(reference, base64_document)
       fetch!("addLNPFile", post: true, portid: reference, file: base64_document)
+    end
+
+    def number_on_account?(did)
+      rows = fetch!("getDIDsInfo", did: did, success: %w[success no_did no_dids no_numbers])["dids"]
+      rows.is_a?(Array) && rows.any? { |row| row.is_a?(Hash) && row["did"].to_s == did }
     end
 
     def route_port!(did:, account:, pop:)

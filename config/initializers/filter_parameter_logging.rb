@@ -40,3 +40,5 @@ Rails.application.config.filter_parameters += ['show.brief']
 Rails.application.config.filter_parameters += %w[brief.recipient brief.email brief.contact_basis brief.facts brief.response brief.notes]
 
 Rails.application.config.filter_parameters += [:carrier_order]
+
+Rails.application.config.filter_parameters += [:voice_setup]

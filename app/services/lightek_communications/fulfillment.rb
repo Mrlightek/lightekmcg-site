@@ -42,6 +42,15 @@ module LightekCommunications
 
     def self.register!(order:, operator:)
       check_operator!(operator)
+      register_paid!(order, operator)
+    end
+
+    def self.register_paid_voice!(add_on)
+      raise Invalid, "Voice setup is missing." if add_on.setup_secret_slug.blank? || order_kind(add_on.order) != "voice"
+      register_paid!(add_on.order, nil)
+    end
+
+    def self.register_paid!(order, operator)
       order.with_lock do
         subscription = order.commerce_subscription
         kind = order_kind(order)
@@ -60,6 +69,8 @@ module LightekCommunications
         end
       end
     end
+
+    private_class_method :register_paid!
 
     def self.transition!(service:, action:, operator:, evidence:)
       check_operator!(operator)

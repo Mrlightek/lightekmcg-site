@@ -1,4 +1,5 @@
 require_relative "commerce_hosting_test"
+require "active_job"
 
 require Rails.root.join("db/migrate/20261123135000_create_lightek_communications_services").to_s
 CreateLightekCommunicationsServices.new.migrate(:up)
@@ -34,6 +35,19 @@ CreateLightekVoiceCarrierOperations.new.migrate(:up)
 require Rails.root.join("app/models/lightek_communications/voice_carrier_operation").to_s
 require Rails.root.join("app/services/lightek_communications/carrier_fulfillment").to_s
 
+require Rails.root.join("db/migrate/20261123142000_add_automatic_voice_fulfillment").to_s
+AddAutomaticVoiceFulfillment.new.migrate(:up)
+LightekCommunications::VoiceAddOn.reset_column_information
+require Rails.root.join("app/services/lightek_communications/voice_setup").to_s
+require Rails.root.join("app/services/lightek_communications/automatic_voice_fulfillment").to_s
+
+require Rails.root.join("app/jobs/application_job").to_s
+require Rails.root.join("app/jobs/lightek_communications/voice_provisioning_job").to_s
+
+module LightekVault::Service
+  def self.store!(**) = true
+end
+
 class Current
   class_attribute :session
 end
@@ -43,11 +57,33 @@ class CommunicationsServicesTest < CommerceHostingTest
 
   Fulfillment = LightekCommunications::Fulfillment
   VoipMs = LightekCommunications::VoipMs
+  VoipMs.define_singleton_method(:configured?) { true }
   INTERNET_PROOF = {
     access_reference: "access-1",
     gateway_reference: "gateway-1",
     traffic_test_reference: "probe-1"
   }.freeze
+
+  def setup
+    super
+    @previous_voice_routes = ENV["LIGHTEK_VOICE_PBX_ROUTES"]
+    @voice_routes = {}
+  end
+
+  def teardown
+    ENV["LIGHTEK_VOICE_PBX_ROUTES"] = @previous_voice_routes
+    super
+  end
+
+  def carrier_setup(port: false)
+    fields = { "confirm_emergency_address" => "1", "emergency" => { "full_name" => "Business", "street_number" => "100",
+      "street_name" => "Main St", "city" => "New York", "state" => "NY", "zip" => "10001" } }
+    return fields unless port
+
+    fields.merge("authorize_port" => "1", "document" => Base64.strict_encode64("%PDF-1.4"),
+      "port" => { "statementName" => "Business", "firstName" => "Test", "lastName" => "Owner", "address1" => "100 Main St",
+        "city" => "New York", "state" => "NY", "zip" => "10001", "providerName" => "Carrier", "providerAccount" => "acct", "isPartial" => "0" })
+  end
 
   def paid_subscription(slug = "lightek-internet")
     order = order_for(product(slug: slug))
@@ -72,7 +108,7 @@ class CommunicationsServicesTest < CommerceHostingTest
       OpenStruct.new(url: "https://checkout.stripe.com/c/pay")
     end
     LightekCommerce::StripeCheckout.stub(:start!, checkout) do
-      assert_equal "https://checkout.stripe.com/c/pay", addon.checkout!(number_request: {"option" => "new", "area_code" => "212"})[:checkout_url]
+      assert_equal "https://checkout.stripe.com/c/pay", addon.checkout!(number_request: {"option" => "new", "area_code" => "212"}, voice_setup: carrier_setup)[:checkout_url]
       addon.checkout!
     end
     order = requests.first.fetch(:order)
@@ -99,7 +135,7 @@ class CommunicationsServicesTest < CommerceHostingTest
     assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout!(plan: "lightek-voice-hidden") }
     checkout = ->(**args) { OpenStruct.new(url: "https://checkout.stripe.com/c/pay") }
     LightekCommerce::StripeCheckout.stub(:start!, checkout) do
-      addon.checkout!(plan: "lightek-voice-annual", number_request: {"option" => "port", "phone_number" => "(212) 555-0123"})
+      addon.checkout!(plan: "lightek-voice-annual", number_request: {"option" => "port", "phone_number" => "(212) 555-0123"}, voice_setup: carrier_setup(port: true))
       assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout!(plan: "lightek-voice-monthly") }
       addon.checkout!
     end
@@ -205,6 +241,8 @@ class CommunicationsServicesTest < CommerceHostingTest
       when "getDIDsInfo" then { "dids" => [{ "did" => "2125550123", "routing" => "account:123456_pbx" }] }
       when "e911Info" then { "info" => { "did" => "2125550123", "street_number" => "100", "state" => "NY", "zip" => "10001" } }
       when "getPortability" then { "portable" => "yes" }
+      when "searchDIDsUSA" then { "dids" => [{ "did" => "2125550123", "perminute_setup" => "1.50", "perminute_monthly" => "1.00" }] }
+      when "getRegistrationStatus" then { "registered" => "yes" }
       when "addLNPPort" then { "port" => "42" }
       when "getLNPStatus" then { "post_status_description" => "Complete" }
       else { "status" => "success" }
@@ -220,6 +258,82 @@ class CommunicationsServicesTest < CommerceHostingTest
       assert_raises(LightekCommunications::InstallationVoice::Unavailable) { addon.checkout!(number_request: choice) }
     end
     assert_empty LightekCommunications::VoiceAddOn.all
+  end
+
+  def automatic_add_on(option)
+    order, subscription, invoice = paid_subscription("lightek-voice")
+    peer = voice_peer("automatic")
+    choice = option == "port" ? { "option" => "port", "phone_number" => "+12125550123" } : { "option" => "new", "area_code" => "212" }
+    item = order.items.sole
+    item.update!(purchase_snapshot: item.purchase_snapshot.merge("voice_number_request" => choice))
+    add_on = LightekCommunications::VoiceAddOn.create!(peer: peer, order: order, setup_secret_slug: "voice-setup-order-#{order.id}")
+    payload = carrier_setup(port: option == "port").merge("destination" => LightekCommunications::VoiceSetup.route(peer))
+    [add_on, subscription, invoice, payload]
+  end
+
+  def test_signed_checkout_handler_submits_voice_job_after_settlement
+    order = order_for(product(slug: "lightek-voice"))
+    order.update!(payment_provider: "stripe", payment_reference: "cs_voice")
+    LightekCommunications::VoiceAddOn.create!(peer: voice_peer("settle"), order: order, setup_secret_slug: "voice-setup-order-#{order.id}")
+    session = OpenStruct.new(id: "cs_voice", metadata: LightekCommerce::PaymentIdentity.metadata(order), currency: "usd",
+      mode: "subscription", payment_status: "unpaid", subscription: "sub_voice", invoice: "in_voice",
+      amount_subtotal: 2500, amount_total: 2500, total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0))
+    event = OpenStruct.new(type: "checkout.session.completed", data: OpenStruct.new(object: session))
+    enqueued = []
+    LightekCommunications::VoiceProvisioningJob.stub(:perform_later, ->(id) {
+      assert_equal order.id, LightekCommerce::BillingInvoice.find_by!(processor_reference: "in_voice").settlement_order_id
+      enqueued << id
+    }) do
+      LightekCommerce::StripeEvents.process!(event)
+      assert_empty enqueued
+      session.payment_status = "paid"
+      Stripe::Subscription.stub(:retrieve, remote_subscription(order)) do
+        LightekCommerce::StripeEvents.process!(event)
+      end
+    end
+    assert_equal [order.id], enqueued
+  end
+
+  def test_verified_payment_automatically_orders_and_configures_e911_once
+    add_on, _, invoice, payload = automatic_add_on("new")
+    client, calls = carrier_stub
+    runner = LightekCommunications::AutomaticVoiceFulfillment
+    LightekCommunications::VoiceSetup.stub(:checkout!, payload) do
+      VoipMs.stub(:for_paid_voice, client) do
+        invoice.update!(amount_paid_cents: 0)
+        runner.call(add_on)
+        assert_empty calls
+        invoice.update!(amount_paid_cents: 2500)
+        2.times { runner.call(add_on.reload) }
+      end
+    end
+    assert_equal "carrier_ready", add_on.reload.fulfillment_status
+    assert_equal 1, calls.count { |method, _| method == "orderDID" }
+    assert_equal 1, calls.count { |method, _| method == "e911Provision" }
+    service = LightekCommunications::Service.sole
+    assert_equal "provisioning", service.status
+    assert_nil service.events.sole.operator
+  end
+
+  def test_automatic_port_polls_then_routes_and_provisions_e911_without_resubmitting
+    add_on, _, _, payload = automatic_add_on("port")
+    client, calls = carrier_stub
+    ready = false
+    client.define_singleton_method(:number_on_account?) { |_| ready }
+    runner = LightekCommunications::AutomaticVoiceFulfillment
+    LightekCommunications::VoiceSetup.stub(:checkout!, payload) do
+      VoipMs.stub(:for_paid_voice, client) do
+        assert_equal :waiting_for_carrier, runner.call(add_on)
+        assert_equal "port_pending", add_on.reload.fulfillment_status
+        refute calls.any? { |method, _| method == "e911Provision" }
+        ready = true
+        runner.call(add_on.reload)
+      end
+    end
+    assert_equal "carrier_ready", add_on.reload.fulfillment_status
+    assert_equal 1, calls.count { |method, _| method == "addLNPPort" }
+    assert_equal 1, calls.count { |method, _| method == "addLNPFile" }
+    assert_equal 1, calls.count { |method, _| method == "setDIDRouting" }
   end
 
   def test_carrier_cannot_order_a_new_number_for_customer_who_requested_a_port
@@ -250,6 +364,8 @@ class CommunicationsServicesTest < CommerceHostingTest
   def voice_peer(label)
     owner = User.create!(role: "client", email_address: "#{label}@example.com")
     site = DymondSite::Site.create!(tenant: owner, host: "#{label}.example.com")
+    @voice_routes[site.host] = { "sip_account" => "123456_pbx", "pop" => 5, "max_setup_cents" => 400, "max_monthly_cents" => 500 }
+    ENV["LIGHTEK_VOICE_PBX_ROUTES"] = JSON.generate(@voice_routes)
     LightekReservations::Peer.create!(merchant: owner, site: site)
   end
 

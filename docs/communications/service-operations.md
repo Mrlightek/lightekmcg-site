@@ -11,12 +11,9 @@ or initiate a charge.
 Lightek Voice is the customer-facing service. Lightek owns signup, pricing,
 billing, PBX and extensions, and customer support. VoIP.ms is the wholesale
 upstream for phone numbers, public telephone network interconnection, E911,
-and number porting. Open the paid Voice service in Dashboard to send these
-requests from the main installation and view the carrier confirmations.
-
-Customers bring new-number requests, port requests, emergency address
-changes, and service issues to Lightek. Lightek submits and tracks the
-upstream work with VoIP.ms and communicates the result to the customer.
+and number porting. The main installation sends carrier requests and
+Dashboard shows the confirmations. Customers start new-number and port
+requests in their own service workspace.
 Use the [VoIP.ms reseller program](https://main.voip.ms/partners/reseller-program/)
 for the wholesale service model.
 
@@ -31,9 +28,9 @@ checkout retains its selected plan and price. Confirm serviceability before
 publishing checkout offers.
 
 An eligible checkout snapshots the communications product type. After that
-checkout settles through the existing signed Dymond Bank callback, open the
-original order from the Dashboard queue. The order and its current
-subscription need a settled billing receipt. Activation and restoration
+checkout settles through the existing signed Dymond Bank callback, a Voice
+add-on with completed signup details starts provisioning automatically. The
+order and its current subscription need a settled billing receipt. Activation and restoration
 recheck billing and store the receipt beside the evidence and operator.
 If billing lapses, the Dashboard continues to show the last confirmed
 technical state. An operator can record suspension after the corresponding
@@ -51,17 +48,21 @@ order and sends payment through the central Dymond Bank-backed checkout.
 Stripe payment verification uses the existing signed callback.
 
 At signup, the owner chooses a new number in a US area code or asks to transfer
-an existing US business landline. The checkout and provisioning record retain
-the selection. Lightek operators see it alongside the paid service and submit
-the matching carrier request. The customer page shows the area code or the
-last four digits of the number to transfer.
+an existing US business landline. The owner confirms their emergency address.
+For a transfer, the owner supplies the current carrier account details,
+confirms their authorization, and uploads the current carrier invoice as a
+PDF. Main stores the setup details in Vault. The customer page shows the
+requested area code or the last four digits of the transfer number.
 
 The child installation's scoped federation credential authorizes the request
-back to main. VoIP.ms credentials stay in the central Vault. Customer
-installations receive checkout and service status only. A paid order appears
-in the central communications queue, where the operator can see the customer
-installation and complete the carrier setup and activation checks. Customers
-see the resulting status on their own Lightek Voice page.
+back to main. VoIP.ms credentials stay in the central Vault. Verified checkout
+or invoice payment schedules the background job immediately. It buys a number
+within the configured carrier limits or files the port with the supporting
+PDF, then checks port status until the number appears in the carrier inventory.
+After routing, it validates and provisions E911 and verifies the number route
+and SIP registration. Customers see progress on their Lightek Voice page.
+Dashboard records carrier results and flags exceptions for support. An
+existing paid order missing signup details can be fulfilled from Dashboard.
 
 ## First Lightek-operated internet connection
 
@@ -93,20 +94,19 @@ receipt in Dashboard after verification.
   Keep SIP credentials on the PBX through its credential management.
 - Enable the account API, set its separate API password, and allowlist the
   Dashboard server's outbound IP. Save the carrier email and API password
-  under **Voice carrier settings**. Rails stores them in Vault and uses two
-  read-only lookups to confirm SIP registration and, when provided, the exact
-  number route. In **Check SIP registration**, leave the public number blank
-  until one is assigned.
-- Open the paid Voice service in Dashboard. Search US numbers by area code
-  and order the selected DID with its SIP subaccount, PoP and carrier rate.
-  To transfer an existing US business landline, submit the authorized port,
-  send the supporting invoice PDF, refresh the carrier status and route the
-  number after it appears in the carrier inventory.
-- Enter the customer-confirmed US emergency address in Dashboard. Lightek
-  verifies the number route, validates the address, provisions E911 through
-  VoIP.ms and checks the returned record. Carrier writes hold an audit
-  receipt immediately before submission. If the outcome is unclear, review
-  the carrier result before another request.
+  under **Voice carrier settings**. In **Check SIP registration**, leave the
+  public number blank until one is assigned.
+- On main, set `LIGHTEK_VOICE_PBX_ROUTES` to a JSON object keyed by connected
+  installation hostname. Each entry specifies its registered SIP subaccount,
+  carrier PoP ID and maximum wholesale setup and monthly charges in cents for
+  new per-minute DIDs. For example,
+  `{"client.example.test":{"sip_account":"123456_client","pop":1,"max_setup_cents":300,"max_monthly_cents":200}}`.
+  These caps control carrier purchases. Commerce products set retail prices.
+- Run the normal Rails background worker. View the paid Voice service in
+  Dashboard to inspect its carrier receipts. If a carrier write has an
+  uncertain result, reconcile it before another request so the carrier does
+  not receive a duplicate purchase, port, or E911 enrollment.
+
 - Verify inbound and outbound calls with audio and confirm the exact
   dispatchable location in the carrier portal. Use the carrier's
   [emergency calling test instructions](https://wiki.voip.ms/article/E911)

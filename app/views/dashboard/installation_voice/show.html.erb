@@ -15,7 +15,7 @@
     }.fetch(@voice["status"], "Phone service status unavailable") %></h2>
     <% if @voice["status"] == "available" %>
       <p>Voice is billed separately from your existing service.</p>
-      <%= form_with url: dashboard_installation_voice_path do |form| %>
+      <%= form_with url: dashboard_installation_voice_path, multipart: true do |form| %>
         <fieldset>
           <legend>Choose a plan</legend>
           <% @voice.fetch("offers").each do |offer| %>
@@ -43,6 +43,7 @@
             <p>Keep your current service active until the transfer completes.</p>
           </fieldset>
         <% end %>
+        <%= render "voice_setup" %>
         <%= form.submit "Continue to checkout" %>
       <% end %>
     <% elsif @voice["status"] == "pending_payment" %>
@@ -51,7 +52,14 @@
     <% elsif @voice["billing_status"].present? %>
       <p>Subscription <%= @voice["billing_status"].humanize.downcase %></p>
     <% end %>
-    <% if (request = @voice["number_request"]) %>
+    <% if @voice["fulfillment_status"] == "processing" %><p>We’re setting up your service automatically.</p>
+    <% elsif @voice["fulfillment_status"] == "port_pending" %><p>Your transfer is with the carrier. Keep the current line active until the transfer is complete.</p>
+    <% elsif @voice["fulfillment_status"] == "carrier_ready" && @voice["status"] == "provisioning" %><p>Your carrier setup is complete. Line testing is pending.</p>
+    <% elsif @voice["fulfillment_status"] == "needs_attention" %><p>Your order needs attention. Contact Customer Service & Billing for help.</p>
+    <% end %>
+    <% if @voice["phone_number"].present? %>
+      <p>Your phone number is <strong><%= @voice["phone_number"] %></strong>.</p>
+    <% elsif (request = @voice["number_request"]) %>
       <% if request["option"] == "port" %><p>Number transfer requested for the line ending in <%= request.fetch("last_four") %>.</p><% end %>
       <% if request["option"] == "new" %><p>New number requested in area code <%= request.fetch("area_code") %>.</p><% end %>
     <% end %>

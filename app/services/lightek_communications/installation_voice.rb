@@ -13,7 +13,8 @@ module LightekCommunications
     end
 
     def status
-      order = VoiceAddOn.find_by(peer: @peer)&.order
+      add_on = VoiceAddOn.find_by(peer: @peer)
+      order = add_on&.order
       subscription = order&.commerce_subscription
       service = Service.find_by(subscription: subscription) if subscription
       offers = catalog_offers
@@ -28,16 +29,18 @@ module LightekCommunications
       {
         status: state,
         billing_status: subscription&.status,
+        fulfillment_status: add_on&.fulfillment_status,
+        phone_number: assigned_number(service, add_on),
         number_request: number_request&.slice("option", "area_code")&.merge(
           "last_four" => number_request["phone_number"]&.last(4)),
-        can_checkout: (state == "pending_payment" || (state == "available" && offers.one?)),
+        can_checkout: state.in?(%w[pending_payment available]),
         offers: state == "available" ? offers.map { |offer| summarize_offer(offer) } : [],
         price_cents: state == "pending_payment" ? order.subtotal_cents : offers.one? ? offers.first.price_cents : nil,
         billing_interval: state == "pending_payment" ? order.items.sole.purchase_snapshot.fetch("billing_interval") : offers.one? ? offers.first.billing_interval : nil
       }
     end
 
-    def checkout!(plan: nil, number_request: {})
+    def checkout!(plan: nil, number_request: {}, voice_setup: {})
       destination = return_url
       order = @peer.with_lock do
         add_on = VoiceAddOn.find_or_initialize_by(peer: @peer)
@@ -64,7 +67,8 @@ module LightekCommunications
           quantities: { product.id => 1 })
         item = order.items.sole
         item.update!(purchase_snapshot: item.purchase_snapshot.merge("voice_number_request" => selection))
-        add_on.update!(order: order)
+        slug = VoiceSetup.store!(peer: @peer, order: order, selection: selection, fields: voice_setup)
+        add_on.update!(order: order, setup_secret_slug: slug, fulfillment_status: nil)
         order
       end
 
@@ -83,6 +87,13 @@ module LightekCommunications
     end
 
     private
+
+    def assigned_number(service, add_on)
+      return unless service && add_on.fulfillment_status == "carrier_ready"
+
+      operation = VoiceCarrierOperation.find_by(service: service, operation: CarrierFulfillment::NUMBER_ACTIONS, state: "confirmed")
+      "+1#{operation.did}" if operation
+    end
 
     def requested_number!(fields)
       case fields["option"]
@@ -110,6 +121,8 @@ module LightekCommunications
     end
 
     def catalog_offers
+      return [] unless VoiceSetup.route(@peer) && VoipMs.configured?
+
       origin = URI.parse(LightekReservations::Federation::Issuer.origin)
       site = DymondSite::Site.find_by(host: origin.host)
       return [] if !site || LightekReservations::Federation::Client.config(site).present?

@@ -22,12 +22,20 @@ function renderRoles(force=false){
  const signature=JSON.stringify([data.roles,query,filter,selected?.id]);
  if(!force&&fields.roles.dataset.signature===signature)return;
  remember(fields.roles);const scroll=fields.roles.scrollTop;fields.roles.dataset.signature=signature;fields.roles.replaceChildren();
- const visible=data.roles.filter(r=>(filter==='all'||ready(r))&&[r.name,r.department,r.purpose].join(' ').toLowerCase().includes(query));
+ const visible=data.roles.filter(r=>(filter==='all'||ready(r))&&[r.name,r.department,r.purpose,r.documentation_page?.title].join(' ').toLowerCase().includes(query));
  fields.count.textContent=`${data.roles.filter(ready).length} specialists have task templates or connected actions. Choose All specialists to see paused or unconnected roles.`;
  for(const role of visible){
   const card=n('article',undefined,'workforce-card');card.dataset.roleId=String(role.id);card.classList.toggle('selected',selected?.id===role.id);
-  card.append(n('small',role.department),n('h3',role.name),n('p',role.purpose),n('span',!role.enabled?'Paused':available(role)?'Tasks available':'Not connected yet','workforce-status'));
-  if(!available(role))card.append(n('p','No automated tasks are connected to this specialist yet.','workforce-hint'));
+  card.append(n('small',role.department),n('h3',role.name),n('p',role.purpose),n('span',!role.enabled?'Paused':available(role)?(role.page_worker?'Answers page questions':'Tasks available'):'Not connected yet','workforce-status'));
+  if(role.documentation_page){
+   const page=n('a',role.documentation_page.title);
+   page.href='/dashboard/nevaeh/guide?topic='+encodeURIComponent(role.documentation_page.topic);
+   const source=n('p','Assigned page · ','workforce-hint');source.append(page);card.append(source);
+  }
+  if(!available(role)){
+   const reason=role.page_worker?(role.documentation_page?'This specialist needs permission to answer questions on its assigned page.':'The assigned documentation is missing or unavailable to this account.'):'No automated tasks are connected to this workforce role yet.';
+   card.append(n('p',reason,'workforce-hint'));
+  }
   const controls=n('div',undefined,'workforce-actions'),assignButton=button('Assign work',()=>select(role),'btn primary');assignButton.disabled=!ready(role);controls.append(assignButton);card.append(controls);
   if(available(role)){
    const details=disclosure('role:'+role.id,`${role.capabilities.length?role.capabilities.length+' available actions':'Task templates'} · ${role.tasks} assigned tasks`);

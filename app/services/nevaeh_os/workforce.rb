@@ -65,10 +65,21 @@ module NevaehOs
       catalog=Guide.catalog(actor:actor)
       NevaehOsAgent.where(user:actor,deleted_at:nil).order(:id).map do |agent|
         role=ROLES[agent.system_key]
-        connected=catalog.select { |entry| entry[:availability]=='connected' && match?(agent.allowed_capabilities.presence || ['*'],execution_key(entry[:key])) }.map { |entry| entry.slice(:key,:title,:inputs,:example) }.first(80)
-        examples=(role&.[](4) || (agent.system_key.to_s.start_with?('page_') ? ["/page #{agent.system_key.delete_prefix('page_')} YOUR_QUESTION"] : [])).select { |example| key=example.start_with?('/operations ') ? SpecialistTasks.capability(agent.system_key) : (example.start_with?('/website page ') ? 'site.page.create' : nil); !key || match?(agent.allowed_capabilities.presence || ['*'],key) }
+        page_worker = agent.system_key.to_s.start_with?('page_')
+        if page_worker
+          page = DocumentationWorkers.assignment(actor, agent.system_key)
+          can_answer = page && %w[nevaeh.documentation_question nevaeh.documentation_answer].all? do |capability|
+            match?(agent.allowed_capabilities.presence || ['*'], capability)
+          end
+          connected = []
+          examples = can_answer ? ["/page #{page[:topic]} YOUR_QUESTION"] : []
+        else
+          connected=catalog.select { |entry| entry[:availability]=='connected' && match?(agent.allowed_capabilities.presence || ['*'],execution_key(entry[:key])) }.map { |entry| entry.slice(:key,:title,:inputs,:example) }.first(80)
+          examples=Array(role&.[](4)).select { |example| key=example.start_with?('/operations ') ? SpecialistTasks.capability(agent.system_key) : (example.start_with?('/website page ') ? 'site.page.create' : nil); !key || match?(agent.allowed_capabilities.presence || ['*'],key) }
+        end
         {id:agent.id,name:agent.name,department:agent.role,purpose:agent.instructions.presence || role&.[](2) || 'Custom worker role',system_key:agent.system_key,enabled:agent.enabled?,autonomy:agent.autonomy,
           examples:examples,capabilities:connected,availability:examples.any? || connected.any? ? 'task_ready' : 'adapter_needed',allowed_capabilities:agent.allowed_capabilities,
+          page_worker:page_worker,documentation_page:page,
           tasks:agent.agent_workers.where(deleted_at:nil).count,deletable:agent.system_key!='nevaeh'}
       end
     end

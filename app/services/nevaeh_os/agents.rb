@@ -47,6 +47,7 @@ module NevaehOs
       return unless command['agent_id']
       agent=NevaehOsAgent.where(user:actor).find(command['agent_id'])
       raise ArgumentError,'This agent is paused' unless agent.enabled? && agent.deleted_at.nil?
+      DocumentationWorkers.authorize_question!(actor: actor, command: command, agent: agent) if agent.system_key.to_s.start_with?('page_')
       allowed=agent.allowed_capabilities
       key=capability(command)
       unless allowed.empty? || allowed.any? { |entry| entry==key || (entry.end_with?('.*') && key.start_with?(entry.delete_suffix('*'))) }

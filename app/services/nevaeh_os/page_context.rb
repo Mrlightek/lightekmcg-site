@@ -76,9 +76,9 @@ module NevaehOs
       summary+=" Media is selected in this workspace." if context['asset_id'] || context['artifact_id']
       summary+="\n\nPage specialists: #{playbook[:actions].map { |task| task[:worker][:name] }.uniq.join(', ')}. Choose a page task to provide its missing inputs and delegate it." if playbook[:actions].any?
       summary+="\n\n#{sources.map { |source| source[:title]+"\n"+source[:excerpt] }.join("\n\n")}" if sources.any?
-      summary+="\n\nDirect task connections are still needed for this area. The page's controls remain available; the capability audit can record the missing connections." if connected.empty?
+      summary+="\n\nDirect task connections are still needed for this page. The page's controls remain available; the capability audit can record the missing connections." if playbook[:actions].empty?
       {page:context.slice('path','title','site_id','scene_id','project_id').merge('area'=>info[2]),text:summary,guide_url:"/dashboard/nevaeh/guide?topic=#{topic}",sources:sources,
-        actions:connected.first(12).map { |row| {key:row[:key],title:row[:title],example:row[:example],inputs:row[:inputs]} },specialists:info[5].filter_map { |key| role=Workforce::ROLES[key];role && {key:key,name:role[0],purpose:role[2]} },missing_connections:entries.count { |row| row[:availability]!='connected' },playbook:playbook}
+        actions:connected.first(12).map { |row| {key:row[:key],title:row[:title],example:row[:example],inputs:row[:inputs]} },specialists:playbook[:actions].map { |task| task[:worker] }.uniq,missing_connections:entries.count { |row| row[:availability]!='connected' },playbook:playbook}
     end
     def coverage(actor,catalog:nil)
       entries=catalog || Guide.catalog(actor:actor)

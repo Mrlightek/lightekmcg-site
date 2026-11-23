@@ -19,6 +19,7 @@ end
 
 Dir.mktmpdir("managed-voice-smoke-") do |fixture|
   %w[etc keys lines spool run log db].each { |folder| Dir.mkdir(File.join(fixture, folder)) }
+  FileUtils.cp_r(Dir.glob("/etc/asterisk/*"), File.join(fixture, "etc"))
   module_path = Dir.glob("/usr/lib/*/asterisk/modules").first || "/usr/lib/asterisk/modules"
   config = File.join(fixture, "asterisk.conf")
   File.write(config, <<~CONF)
@@ -27,7 +28,7 @@ Dir.mktmpdir("managed-voice-smoke-") do |fixture|
     astmoddir => #{module_path}
     astvarlibdir => #{fixture}/db
     astdbdir => #{fixture}/db
-    astdatadir => /var/lib/asterisk
+    astdatadir => /usr/share/asterisk
     astspooldir => #{fixture}/spool
     astrundir => #{fixture}/run
     astlogdir => #{fixture}/log

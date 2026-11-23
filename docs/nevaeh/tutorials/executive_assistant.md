@@ -42,6 +42,14 @@ Finishing owner password setup queues creation of the installation's own branded
 
 Use **Mail Studio** settings for mail on domains you own. Add and verify your domain and create mailboxes for it. Custom-domain mail uses that installation's existing DNS and mail transport configuration. The branded installation mailbox uses the Lightek hub's verified mail domain and delivery service.
 
+## Importing Word documents into Shared Drives
+
+In the destination folder, open **Import a Word document** and choose a standard `.docx` up to 5 MB. The imported file opens in the rich-text editor. The import preserves ordinary paragraphs, headings 1–3, basic bulleted and numbered lists, safe web and email links, and common emphasis. Table text becomes paragraphs. Images, page layout, headers, and footers stay in the original file. The editable text limit is 64 KB.
+
+## Importing Excel into Shared Drives
+
+In the destination folder, open **Import an Excel spreadsheet** and choose an `.xlsx` workbook up to 5 MB. The import creates a new editable spreadsheet within the drive. A workbook must have one worksheet that fits the Workspace grid (100 rows by 26 columns, up to 64 KB of editable content). Values and supported local formulas are retained. Save separate copies of individual worksheets for multi-sheet workbooks. Formatting, charts, and other workbook features stay in the original file.
+
 ## Repeating shared calendar events
 
 Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates RSVP to each occurrence. The organizer or owner can edit a single occurrence or cancel it and the remaining series. Monthly events use the last day of shorter months.
@@ -51,3 +59,11 @@ Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates 
 On an upcoming event, choose **Add video meeting**. Select a website owned by the calendar's organization if prompted. The website must have Lightek meeting media configured, and the event must last 15–480 whole minutes. For a recurring event, add a meeting to each occurrence that needs one.
 
 Organizers and invited teammates can open the meeting from Shared Calendars or their exported calendar event. Guests sign in and wait for the host to admit them. Moving the event before its meeting opens keeps the same link. Cancelling the event ends the linked room.
+
+### Import a Drive export
+
+Open a Shared Drive where you have edit access and select **Import Drive ZIP**. Choose the destination folder and preview the archive. The preview shows each path, editable Office conversions, downloads, duplicates, and conflicts.
+
+Import a single ZIP up to 50 MB with up to 100 MB expanded, 500 total files and folders, and individual files up to 25 MB. Supported Word, Excel, and PowerPoint exports become editable Office files. Other files, including Office files outside the converter limits, stay available as downloads. Imported items follow the destination drive's access settings.
+
+Select **Start import** and refresh the status as needed. The same archive can be imported again without making copies. Existing files at conflicting paths are left in place and shown in the report. A failed job can resume without copying files it already saved.

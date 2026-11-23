@@ -1,0 +1,25 @@
+<% content_for :page_title, "Import Drive ZIP" %>
+<main class="network-collaboration" data-turbo="false">
+  <p><%= link_to "← #{@drive.name}", dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id) %></p>
+  <h1>Import Drive ZIP</h1>
+  <% if flash[:alert].present? %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <section class="network-pane">
+    <p>Choose a ZIP up to 50 MB. Supported Word, Excel, and PowerPoint files become editable. Other files remain downloads. Keep the original export for formatting or media that the Office converters omit.</p>
+    <%= form_with url: dashboard_shared_drive_imports_path(@drive, employer_id: @employer.id), multipart: true do |form| %>
+      <%= form.label :folder, "Destination folder" %>
+      <%= form.collection_select :folder, @folders, :id, :name, {include_blank: "Drive root", selected: @folder&.id} %>
+      <%= form.label :archive, "ZIP archive" %>
+      <%= form.file_field :archive, accept: ".zip,application/zip", required: true %>
+      <%= form.submit "Preview import", class: "dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  </section>
+  <% if @imports.any? %>
+    <section class="network-pane">
+      <h2>Recent imports</h2>
+      <ul><% @imports.each do |run| %>
+        <li><%= link_to run.filename, dashboard_shared_drive_import_path(@drive, run, employer_id: @employer.id) %> · <%= run.state.humanize %></li>
+      <% end %></ul>
+    </section>
+  <% end %>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

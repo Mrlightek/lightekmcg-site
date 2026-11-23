@@ -1,0 +1,37 @@
+<% content_for :page_title, "Drive ZIP import" %>
+<main class="network-collaboration" data-turbo="false">
+  <p><%= link_to "← ZIP imports", dashboard_shared_drive_imports_path(@drive, employer_id: @employer.id, folder: @import.folder_id) %></p>
+  <h1><%= @import.filename %></h1>
+  <p><%= @drive.name %> / <%= @import.folder&.name || "Drive root" %> · <%= @import.state.humanize %></p>
+  <% if flash[:alert].present? || @import.error_message.present? %>
+    <p role="alert"><%= flash[:alert].presence || @import.error_message %></p>
+  <% end %>
+  <div class="network-actions">
+    <% if @import.state == "preview" || @import.retryable? %>
+      <%= button_to (@import.state == "preview" ? "Start import" : "Retry import"), start_dashboard_shared_drive_import_path(@drive, @import, employer_id: @employer.id),
+        class: "dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+    <% if @import.state.in?(%w[queued running]) %>
+      <%= link_to "Refresh status", dashboard_shared_drive_import_path(@drive, @import, employer_id: @employer.id), class: "dd-topbar-btn dd-btn-ghost" %>
+    <% else %>
+      <%= link_to "Open destination", dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @import.folder_id), class: "dd-topbar-btn dd-btn-ghost" %>
+    <% end %>
+    <% if @import.state == "preview" %>
+      <%= button_to "Discard preview", dashboard_shared_drive_import_path(@drive, @import, employer_id: @employer.id), method: :delete,
+        class: "dd-topbar-btn dd-btn-ghost" %>
+    <% end %>
+  </div>
+  <section class="network-pane">
+    <h2>Files and folders</h2>
+    <% states = @import.items.pluck("status").tally %>
+    <p><%= states.map { |status, count| "#{count} #{status}" }.join(" · ") %></p>
+    <ul>
+      <% @import.items.each do |item| %>
+        <li><strong><%= item.fetch("path") %></strong> · <%= item.fetch("type").humanize %> · <%= item.fetch("status").humanize %>
+          <% if item["message"].present? %><p><%= item.fetch("message") %></p><% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+</main>
+<link rel="stylesheet" href="/lightek/network-collaboration.css?v=3">

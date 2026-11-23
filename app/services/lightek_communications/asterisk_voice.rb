@@ -64,7 +64,7 @@ module LightekCommunications
         changed = replace!(path, pjsip(addresses))
         result = command!("pjsip show registration #{@trunk}")
         if ingress_changed || changed || !result.include?(@trunk)
-          command!("pjsip reload")
+          command!("core reload")
           result = command!("pjsip show registration #{@trunk}")
         end
         unless result.match?(/\bRegistered\b/)

@@ -11,6 +11,11 @@ on:
       - 'app/views/dashboard/mail_transport/**'
       - 'test/standalone/lightek_transactional_mail_test.rb'
       - 'test/standalone/lightek_mailbox_management_test.rb'
+      - 'test/standalone/mail_discovery_checks.rb'
+      - 'config/routes/mail_discovery.rb'
+      - 'app/controllers/dashboard/mail_discovery_controller.rb'
+      - 'app/views/dashboard/mail_discovery/**'
+      - 'db/migrate/*mail_discovery*'
       - 'app/models/lightek_mail/**'
       - 'db/migrate/*lightek_mailbox*'
       - 'lib/scripts/*lightek_mail*'
@@ -28,10 +33,12 @@ jobs:
         with:
           ruby-version: '3.3'
       - name: Install public mail test dependencies
-        run: gem install --no-document actionmailer:8.0.5.1 actionpack:8.0.5.1 activerecord:8.0.5.1 sqlite3:2.7.4 minitest:5.25.4
+        run: gem install --no-document actionmailer:8.0.5.1 actionpack:8.0.5.1 activerecord:8.0.5.1 activestorage:8.0.5.1 railties:8.0.5.1 sqlite3:2.7.4 minitest:5.25.4 rubyzip:3.4.1
       - name: Verify actual SMTP submission and guarded Gmail retirement
         run: ruby test/standalone/lightek_transactional_mail_test.rb
       - name: Verify mailbox lifecycle groups and spam rules
         run: ruby test/standalone/lightek_mailbox_management_test.rb
+      - name: Verify mail holds, retention, and scoped discovery exports
+        run: ruby test/standalone/mail_discovery_checks.rb
       - name: Verify authoritative mailbox route updates
         run: python3 -m unittest test.operations.lightek_mail_routes_test test.operations.lightek_mail_remote_routes_test

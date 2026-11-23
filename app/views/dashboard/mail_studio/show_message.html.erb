@@ -9,7 +9,7 @@
     <%= button_to 'Mark unread', flag_dashboard_mail_message_path(account_id: @account.id, id: @message.id), method: :patch, params: {flag: 'unread', value: '1'}, class: 'secondary' if @message.direction == 'inbound' %>
     <%= link_to 'Copy draft', compose_dashboard_mail_path(account_id: @account.id, draft_id: @message.id), class: 'button secondary' if @message.state == 'draft' %>
     <%= button_to 'Send draft ↗', send_dashboard_mail_message_path(account_id: @account.id, id: @message.id), method: :post, data: {turbo_confirm: 'Send this draft?' } if @message.state == 'draft' %>
-    <%= button_to 'Delete permanently', purge_dashboard_mail_message_path(account_id: @account.id, id: @message.id), method: :delete, class: 'secondary', data: {turbo_confirm: 'Permanently delete this message and its attachments?' } if @message.trashed? %>
+    <%= button_to 'Delete from mailbox', purge_dashboard_mail_message_path(account_id: @account.id, id: @message.id), method: :delete, class: 'secondary', form: {data: {turbo_confirm: 'Delete this message and its attachments from your mailbox?' }} if @message.trashed? %>
   </div>
   <% if @message.direction == 'inbound' %><div class="toolbar"><%= button_to(@message.junk? ? "Not spam · move to inbox" : "Mark as spam", flag_dashboard_mail_message_path(account_id: @account.id, id: @message.id), method: :patch, params: {flag: "junk", value: @message.junk? ? "0" : "1"}, class: "secondary") %><% if @message.spam_reason.present? %><small class="muted"><%= @message.spam_reason %></small><% end %></div><% end %>
   <% if @message.error_message.present? %><p class="notice danger"><%= @message.error_message %></p><% end %>

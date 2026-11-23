@@ -1,0 +1,94 @@
+<% content_for :page_title, "Mail discovery matter" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Mail retention & discovery", dashboard_mail_discovery_path, class: "back-link" %>
+  <header class="mail-header"><h1><%= @matter.name %></h1></header>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+
+  <section class="conversation-card" aria-labelledby="matter-holds">
+    <h2 id="matter-holds">Mailboxes on hold</h2>
+    <% if @holds.empty? %><p class="muted">There are no mailbox holds in this matter.</p><% end %>
+    <% @holds.each do |hold| %>
+      <div class="message-tools">
+        <span><%= hold.account.original_address.presence || hold.account.address %></span>
+        <% if @can_manage %>
+          <%= button_to "Release hold", release_dashboard_mail_matter_path(@matter), method: :delete,
+            params: {account_id: hold.account_id}, class: "secondary",
+            form: {data: {turbo_confirm: "Release this hold? Copies outside other holds or retention rules will become eligible for expiry."}} %>
+        <% end %>
+      </div>
+    <% end %>
+    <% if @available_mailboxes&.any? %>
+      <%= form_with url: hold_dashboard_mail_matter_path(@matter), namespace: "place_hold" do |form| %>
+        <%= form.label :account_id, "Mailbox to preserve" %>
+        <%= form.collection_select :account_id, @available_mailboxes, :id, ->(mailbox) { mailbox.original_address.presence || mailbox.address },
+          {prompt: "Choose a mailbox"}, required: true %>
+        <%= form.submit "Place hold" %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <% if @search_mailboxes.any? %>
+    <section class="conversation-card" aria-labelledby="matter-search">
+      <h2 id="matter-search">Search matter mail</h2>
+      <% selected_mailbox = @selected_mailbox || (@search_mailboxes.first if @search_mailboxes.one?) %>
+      <%= form_with url: search_dashboard_mail_matter_path(@matter), namespace: "search_mail", data: {turbo: false} do |form| %>
+        <p><%= form.label :account_id, "Mailbox to search" %><br>
+          <%= form.collection_select :account_id, @search_mailboxes, :id, ->(mailbox) { mailbox.original_address.presence || mailbox.address },
+            {selected: selected_mailbox&.id, prompt: "Choose a mailbox"}, required: true %></p>
+        <p><%= form.label :mail_discovery_query, "Subject, sender, or body contains" %><br>
+          <%= form.search_field :mail_discovery_query, maxlength: 160, value: params[:mail_discovery_query] %></p>
+        <p><%= form.label :from_date, "From date" %> <%= form.date_field :from_date, value: params[:from_date] %>
+          <%= form.label :through_date, "Through date" %> <%= form.date_field :through_date, value: params[:through_date] %></p>
+        <%= form.submit "Search mail" %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @matches %>
+    <section class="conversation-stack" aria-labelledby="matter-results">
+      <h2 id="matter-results">Search results</h2>
+      <% limit = LightekMail::DiscoverySearch::LIMIT %>
+      <% if @matches.size > limit %>
+        <p role="status">Showing the latest <%= limit %> messages. Narrow the search to export.</p>
+      <% elsif @matches.empty? %>
+        <p role="status">No messages matched.</p>
+      <% else %>
+        <%= button_to "Download ZIP export", export_dashboard_mail_matter_path(@matter),
+          params: {account_id: @selected_mailbox.id, mail_discovery_query: params[:mail_discovery_query],
+            from_date: params[:from_date], through_date: params[:through_date]}, form: {data: {turbo: false}} %>
+      <% end %>
+      <% @matches.first(limit).each do |match| %>
+        <article class="conversation-card">
+          <strong><%= match.message.subject.presence || "(No subject)" %></strong>
+          <p class="muted"><%= match.message.from_address %> · <%= l(match.timestamp, format: :short) %>
+            · <%= match.retained ? "Preserved after deletion" : "In mailbox" %></p>
+        </article>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @can_manage %>
+    <section class="conversation-card" aria-labelledby="matter-reviewers">
+      <h2 id="matter-reviewers">Reviewers</h2>
+      <p>Reviewers can search and download mail covered by this matter.</p>
+      <% @reviewers.each do |reviewer| %>
+        <div class="message-tools">
+          <span><%= reviewer.user.full_name.presence || reviewer.user.email %></span>
+          <%= button_to "Revoke access", revoke_dashboard_mail_matter_path(@matter, reviewer_id: reviewer.user_id),
+            method: :delete, class: "secondary" %>
+        </div>
+      <% end %>
+      <% if @eligible_reviewers.any? %>
+        <%= form_with url: grant_dashboard_mail_matter_path(@matter) do |form| %>
+          <%= form.label :reviewer_id, "Workspace member" %>
+          <%= form.collection_select :reviewer_id, @eligible_reviewers, :id, ->(user) { user.full_name.presence || user.email },
+            {prompt: "Choose a reviewer"}, required: true %>
+          <%= form.submit "Grant review access" %>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+  <% if @activity %><%= render "activity", activity: @activity %><% end %>
+</main>

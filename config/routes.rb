@@ -60,6 +60,7 @@ Rails.application.routes.draw do
   draw :broadcast_network
   draw :people
   draw :executive_operations
+  draw :mail_discovery
   draw :lifecycle
   draw :enterprise_identity
   draw :agency_demos

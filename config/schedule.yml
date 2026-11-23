@@ -192,3 +192,9 @@ nevaeh_journal_editorial:
   class: "NevaehOs::JournalEditorialSweepJob"
   queue: default
   active_job: true
+
+mail_retention_expiry:
+  cron: "10,25,40,55 * * * *"
+  class: "LightekMail::ExpireRetainedMailJob"
+  queue: default
+  active_job: true

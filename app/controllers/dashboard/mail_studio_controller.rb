@@ -193,13 +193,11 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   end
 
   def purge_message
-    message = @account.messages.find(params[:id])
-    @account.with_lock do
-      message.reload
-      raise ArgumentError, "Move a completed message or draft to Trash before deleting it." unless message.trashed? && !message.state.in?(%w[queued submitting])
-      message.destroy!
-    end
-    redirect_to dashboard_mail_path(account_id: @account.id, folder: "trash"), notice: "Message permanently deleted."
+    LightekMail::Retention.remove!(account: @account, message_id: params[:id], actor: current_user)
+    redirect_to dashboard_mail_path(account_id: @account.id, folder: "trash"), notice: "Message removed from your mailbox.", status: :see_other
+  rescue ActiveRecord::InvalidForeignKey
+    redirect_to dashboard_mail_path(account_id: @account.id, folder: "trash"),
+      alert: "This message is linked to an existing workflow and remains in Trash.", status: :see_other
   end
 
   def attachment

@@ -4,6 +4,9 @@
 <% end %>
 <main class="lm mail-app" data-mail-app data-account="<%= @account&.id %>">
   <header class="mail-topbar"><a class="mail-brand" href="<%= dashboard_mail_path(account_id: @account&.id) %>" data-mail-nav><span class="brand-mark" aria-hidden="true">L<span>✦</span></span><span>Lightek <strong>Mail</strong></span></a><span class="mail-topline">A little more connected.</span><button class="secondary icon-button" data-mail-help aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">?</button><%= link_to 'Settings', dashboard_mail_path(account_id: @account&.id, view: 'settings'), class: 'button secondary', data: {mail_nav: true} %></header>
+  <% if LightekMail::DiscoveryAccess.visible?(current_user) %>
+    <p><%= link_to "Mail retention & discovery", dashboard_mail_discovery_path, class: "button secondary", data: {turbo: false} %></p>
+  <% end %>
   <% unless LightekMail::SendingPolicy.current.sending_enabled? %><p class="notice danger">Outgoing mail is paused across the platform. Reading and saving drafts remain available.</p><% end %>
   <div data-mail-shell>
   <% if flash[:alert] %><p class="notice danger" role="alert" data-mail-notice><%= flash[:alert] %></p><% elsif flash[:notice] && !flash[:mail_undo] %><p class="notice" role="status" data-mail-notice><%= flash[:notice] %></p><% end %>

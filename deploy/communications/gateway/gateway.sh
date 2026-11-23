@@ -32,6 +32,11 @@ touch "$state/port-map"
 printf 'client pppoe {\n ipaddr = 127.0.0.1\n secret = %s\n require_message_authenticator = no\n limit_proxy_state = yes\n}\n' \
     "$(cat "$state/radclient-secret")" > "$radius_config/clients.conf"
 rm -f "$radius_config/sites-enabled/default" "$radius_config/sites-enabled/inner-tunnel"
+# Load only the modules used by this private RADIUS site.
+rm -f "$radius_config"/mods-enabled/*
+for module in always detail files pap; do
+    ln -s "../mods-available/$module" "$radius_config/mods-enabled/$module"
+done
 install -m 0640 -o root -g freerad radius-site "$radius_config/sites-enabled/lightek-gateway"
 install -m 0640 -o root -g freerad radius-access "$radius_config/mods-enabled/lightek-subscriber-access"
 sed "s/__UPSTREAM_IF__/$upstream_if/g" forward.nft | nft -f -

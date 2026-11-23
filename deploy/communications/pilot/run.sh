@@ -58,6 +58,11 @@ openssl rand -hex 24 > "$pilot_dir/radius-secret"
 printf 'client lightek_pilot {\n ipaddr = 127.0.0.1\n secret = %s\n require_message_authenticator = yes\n}\n' \
     "$(cat "$pilot_dir/radius-secret")" > "$radius_config/clients.conf"
 rm -f "$radius_config/sites-enabled/default" "$radius_config/sites-enabled/inner-tunnel"
+# Load only the modules used by this private RADIUS site.
+rm -f "$radius_config"/mods-enabled/*
+for module in detail files pap; do
+    ln -s "../mods-available/$module" "$radius_config/mods-enabled/$module"
+done
 install -m 0640 -o root -g freerad radius-site "$radius_config/sites-enabled/lightek-pilot"
 
 radius_request() {
@@ -82,7 +87,7 @@ PACKET
 }
 
 start_radius() {
-    freeradius -f > "$pilot_dir/radius.log" 2>&1 &
+    freeradius -f -l stdout > "$pilot_dir/radius.log" 2>&1 &
     radius_pid=$!
     for attempt in $(seq 1 15); do
         if authenticate "$1" 2>/dev/null; then return; fi

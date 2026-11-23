@@ -2,7 +2,7 @@
 <section class="infra-panel">
   <h2>Create a Workspace plan</h2>
   <% if @workspace_sources.any? %>
-    <p>Choose a tier and its hosting configuration. Drafts start at $25 per month for one seat and $7 per additional seat. The minimum price can be higher based on hosting costs, fees, and your target margin.</p>
+    <p>Choose a tier and its hosting configuration. Drafts start at $25 per month for three seats and $7 per additional seat. The minimum price can be higher based on hosting costs, fees, and your target margin.</p>
     <%= form_with scope: :workspace, url: create_workspace_dashboard_hosting_packages_path, class: "infra-form" do |form| %>
       <div class="infra-fields">
         <div class="infra-field">
@@ -10,7 +10,7 @@
           <%= form.select :tier, Gatekeeper::Hosting::WorkspacePlans::TIERS.map { |key, tier|
             seats = tier.fetch(:seats)
             price = Gatekeeper::Hosting::WorkspacePlans.target_price(seats.begin)
-            label = seats.size == 1 ? pluralize(seats.begin, "seat") : "#{seats.begin}–#{seats.end} seats"
+            label = seats.end ? "#{seats.begin}–#{seats.end} seats" : "#{seats.begin}+ seats"
             ["#{tier.fetch(:name)} · from #{number_to_currency(price / 100.0)}/month · #{label}", key] } %>
         </div>
         <div class="infra-field">

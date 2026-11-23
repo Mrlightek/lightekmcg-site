@@ -64,12 +64,13 @@ module LightekCommerce
           seat_range = workspace.seats_for(product) if workspace && product.product_type == "lightek_instance"
           if seat_range
             seats = workspace_seats.nil? ? seat_range.begin : workspace_seats
-            unless seats.is_a?(Integer) && seat_range.cover?(seats)
+            limit = workspace.checkout_seat_limit(starting_price: price, seat_range: seat_range)
+            unless seats.is_a?(Integer) && seats.between?(seat_range.begin, limit)
               raise Invalid, "Choose a seat count offered by this Workspace plan"
             end
 
             name = "#{name} (#{seats} #{seats == 1 ? 'seat' : 'seats'})"
-            price = workspace.monthly_price(first_seat_price: price, seats: seats, seat_range: seat_range)
+            price = workspace.monthly_price(starting_price: price, seats: seats, seat_range: seat_range)
           elsif workspace_seats
             raise Invalid, "Choose a Workspace plan"
           end

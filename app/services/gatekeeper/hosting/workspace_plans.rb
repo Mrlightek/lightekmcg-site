@@ -3,23 +3,24 @@
 module Gatekeeper
   module Hosting
     class WorkspacePlans
-      CORE_FEATURES = %w[website design mail messaging rooms pwa].freeze
-      TEAM_FEATURES = %w[people].freeze
+      CORE_FEATURES = %w[website design mail messaging rooms pwa people].freeze
       BUSINESS_FEATURES = %w[directory commerce accounting payments].freeze
       BASE_PRICE_CENTS = 2_500
+      INCLUDED_SEATS = 3
+      MAX_CHECKOUT_CENTS = 99_999_999 # Upper bound for USD payment amounts.
       ADDITIONAL_SEAT_CENTS = 700
       TIERS = {
-        "solo" => {
-          name: "Lightek Workspace Solo", seats: 1..1,
-          summary: "A CMS website, business email, documents, calendar and meetings for one person."
+        "starter" => {
+          name: "Lightek Workspace Starter", seats: 3..4,
+          summary: "A CMS website, business email, documents, calendar and meetings. Three seats included."
         }.freeze,
         "team" => {
-          name: "Lightek Workspace Team", seats: 2..5,
-          summary: "A CMS website and business email, plus documents, shared drives, team calendars and meetings for up to five people."
+          name: "Lightek Workspace Team", seats: 5..10,
+          summary: "A CMS website and business email, plus documents, shared drives, team calendars and meetings for 5–10 people."
         }.freeze,
         "business" => {
-          name: "Lightek Workspace Business", seats: 6..10,
-          summary: "A CMS website, business email and collaboration for up to ten people, plus directory controls, CRM, invoicing and bookkeeping."
+          name: "Lightek Workspace Business", seats: (10..),
+          summary: "A CMS website, business email and collaboration for teams of 10 or more, plus directory controls, CRM, invoicing and bookkeeping."
         }.freeze
       }.freeze
 
@@ -33,11 +34,16 @@ module Gatekeeper
       end
 
       def self.target_price(seats)
-        BASE_PRICE_CENTS + (seats - 1) * ADDITIONAL_SEAT_CENTS
+        BASE_PRICE_CENTS + (seats - INCLUDED_SEATS) * ADDITIONAL_SEAT_CENTS
       end
 
-      def self.monthly_price(first_seat_price:, seats:, seat_range:)
-        first_seat_price + (seats - seat_range.begin) * ADDITIONAL_SEAT_CENTS
+      def self.monthly_price(starting_price:, seats:, seat_range:)
+        starting_price + (seats - seat_range.begin) * ADDITIONAL_SEAT_CENTS
+      end
+
+      def self.checkout_seat_limit(starting_price:, seat_range:)
+        payment_limit = seat_range.begin + (MAX_CHECKOUT_CENTS - starting_price).div(ADDITIONAL_SEAT_CENTS)
+        [seat_range.end, payment_limit].compact.min
       end
 
       def self.create!(source:, tier:, actor:)
@@ -88,6 +94,7 @@ module Gatekeeper
           if publish
             floor = LightekCommerce::MerchantPayouts.minimum_charge_cents(package.monthly_cost_ceiling_cents + package.minimum_margin_cents)
             raise Access::Denied, "Price must cover the cost ceiling, margin and payment fees" if product.price_cents < floor
+            raise Access::Denied, "Price exceeds the Workspace checkout limit" if product.price_cents > MAX_CHECKOUT_CENTS
 
             PackagePurchase.validate!(snapshot: package.snapshot, retail_cents: product.price_cents, actor: actor)
           end
@@ -98,13 +105,12 @@ module Gatekeeper
       end
 
       def self.policy(tier, source_product)
-        allowed = CORE_FEATURES.dup
-        allowed.concat(TEAM_FEATURES) if tier != "solo"
-        allowed.concat(BUSINESS_FEATURES) if tier == "business"
+        allowed = tier == "business" ? CORE_FEATURES + BUSINESS_FEATURES : CORE_FEATURES
+        seat_range = TIERS.fetch(tier).fetch(:seats)
         storage_limit = LightekAgency::PackagePolicy.for_product(source_product).dig("limits", "max_storage_bytes")
         LightekAgency::PackagePolicy.normalize(
           "features" => LightekAgency::PackagePolicy::FEATURES.keys.to_h { |feature| [feature, { "enabled" => allowed.include?(feature) }] },
-          "limits" => { "max_sites" => 1, "max_users" => TIERS.fetch(tier).fetch(:seats).end, "max_storage_bytes" => storage_limit }
+          "limits" => { "max_sites" => 1, "max_users" => seat_range.end || seat_range.begin, "max_storage_bytes" => storage_limit }
         )
       end
 

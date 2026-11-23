@@ -1,7 +1,7 @@
 <div id="lightek-cart">
 <section id="cart" class="lt-shop-cart"><h2>Your cart</h2><% @cart.each do |id, quantity| %><% if (product = @products.find { |p| p.id.to_s == id.split(":").first }) %><% variant = id.include?(":") ? product.variants.find_by(id: id.split(":").last) : nil %><% workspace_seats = Gatekeeper::Hosting::WorkspacePlans.seats_for(product) %>
 <% if workspace_seats&.cover?(quantity) %>
-  <% total = Gatekeeper::Hosting::WorkspacePlans.monthly_price(first_seat_price: product.price_cents, seats: quantity, seat_range: workspace_seats) %>
+  <% total = Gatekeeper::Hosting::WorkspacePlans.monthly_price(starting_price: product.price_cents, seats: quantity, seat_range: workspace_seats) %>
   <p><%= product.name %> · <%= pluralize(quantity, "seat") %> — <%= number_to_currency(total / 100.0) %>
 <% else %>
   <p><%= product.name %><%= " / #{variant.name}" if variant %> × <%= quantity %> — <%= number_to_currency((variant&.price_cents || product.price_cents) * quantity.to_i / 100.0) %>

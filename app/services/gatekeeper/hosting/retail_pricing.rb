@@ -24,10 +24,14 @@ module Gatekeeper
           if package.wholesale_price_cents && package.wholesale_price_cents < LightekCommerce::MerchantPayouts.minimum_charge_cents(floor)
             raise Access::Denied, 'Agency wholesale price must cover vendor cost, your minimum margin and payment fees'
           end
+          workspace_plan = WorkspacePlans.subscription_plan(package.product)
+          if workspace_plan && price > WorkspacePlans::MAX_CHECKOUT_CENTS
+            raise Access::Denied, "Price exceeds the Workspace checkout limit"
+          end
           package.product.assign_attributes(price_cents: price)
           package.save!
           package.product.save!
-          WorkspacePlans.subscription_plan(package.product)&.update!(price_monthly_cents: price)
+          workspace_plan&.update!(price_monthly_cents: price)
         end
         # Existing order line prices, processor subscriptions and hosting
         # snapshots remain unchanged. Only future checkouts use this price.

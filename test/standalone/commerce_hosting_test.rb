@@ -532,7 +532,7 @@ class CommerceHostingTest < Minitest::Test
 
   def test_workspace_tiers_create_separate_hidden_offers_with_runtime_entitlements
     source = workspace_source
-    plans = {"solo" => [2500, 1], "team" => [3200, 5], "business" => [6000, 10]}.map do |tier, (price, seats)|
+    plans = {"starter" => [2500, 4], "team" => [3900, 10], "business" => [7400, 10]}.map do |tier, (price, seats)|
       package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
       assert_equal package, Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
       assert_equal price, package.product.price_cents
@@ -542,7 +542,7 @@ class CommerceHostingTest < Minitest::Test
       policy = LightekAgency::PackagePolicy.for_product(package.product)
       assert_equal({"max_sites" => 1, "max_users" => seats, "max_storage_bytes" => 1.gigabyte}, policy.fetch("limits"))
       %w[website mail messaging rooms].each { |feature| assert policy.dig("features", feature, "enabled") }
-      assert_equal tier != "solo", policy.dig("features", "people", "enabled")
+      assert policy.dig("features", "people", "enabled")
       %w[directory commerce accounting].each { |feature| assert_equal tier == "business", policy.dig("features", feature, "enabled") }
       plan = Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product)
       assert_equal price, plan.price_monthly_cents
@@ -555,7 +555,7 @@ class CommerceHostingTest < Minitest::Test
 
   def test_workspace_price_floor_and_published_checkout_snapshot
     source = workspace_source(cost: 2600)
-    package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: "solo", actor: @operator)
+    package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: "starter", actor: @operator)
     expected_price = LightekCommerce::MerchantPayouts.minimum_charge_cents(3100)
     assert_equal expected_price, package.product.price_cents
     catalog = {"plans" => [{"id" => "standard", "monthly_cents" => 2700}], "regions" => [{"id" => "us-east"}],
@@ -575,7 +575,7 @@ class CommerceHostingTest < Minitest::Test
       order = order_for(package.product)
       assert_equal expected_price, order.total_cents
       assert_equal package.id, order.items.sole.purchase_snapshot.dig("hosting", "package_id")
-      assert_equal 1, order.items.sole.purchase_snapshot.dig("managed_package", "policy", "limits", "max_users")
+      assert_equal 3, order.items.sole.purchase_snapshot.dig("managed_package", "policy", "limits", "max_users")
 
       Gatekeeper::Hosting::RetailPricing.update!(package: package, actor: @operator, price_cents: expected_price + 200)
       assert_equal expected_price + 200, Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product).price_monthly_cents
@@ -591,7 +591,11 @@ class CommerceHostingTest < Minitest::Test
 
   def test_workspace_seat_choice_sets_one_monthly_line_and_freezes_the_entitlement
     source = workspace_source
-    expected = {"team" => {2 => 3200, 5 => 5300}, "business" => {6 => 6000, 10 => 8800}}
+    expected = {
+      "starter" => {3 => 2500, 4 => 3200},
+      "team" => {5 => 3900, 10 => 7400},
+      "business" => {10 => 7400, 11 => 8100, 101 => 71_100}
+    }
     expected.each do |tier, totals|
       package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
       Gatekeeper::Hosting::PackagePurchase.stub(:validate!, true) do
@@ -621,9 +625,14 @@ class CommerceHostingTest < Minitest::Test
           end
         end
       end
-      assert_raises(LightekCommerce::OrderPlacement::Invalid) do
-        LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
-          quantities: quantities, workspace_seats: totals.keys.max + 1)
+      assert_equal totals.keys.min, order_for(package.product).items.sole.purchase_snapshot.fetch("workspace_seats")
+      range = Gatekeeper::Hosting::WorkspacePlans.seats_for(package.product)
+      upper_limit = Gatekeeper::Hosting::WorkspacePlans.checkout_seat_limit(starting_price: package.product.price_cents, seat_range: range)
+      [totals.keys.min - 1, upper_limit + 1].each do |seats|
+        assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+          LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+            quantities: quantities, workspace_seats: seats)
+        end
       end
     end
     unrelated = product

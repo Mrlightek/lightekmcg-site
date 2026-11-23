@@ -33,10 +33,11 @@ class CommerceController < ApplicationController
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
-    quantity = Integer(params.fetch(:quantity, 1))
-    raise ArgumentError unless quantity.between?(1, 100)
+    quantity = Integer(params.fetch(:quantity, 1).to_s, 10)
     seat_range = Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
     return select_workspace(product, quantity, seat_range) if seat_range
+
+    raise ArgumentError unless quantity.between?(1, 100)
 
     if workspace_in_cart
       return redirect_to commerce_shop_path(site_id: @site.id), alert: "Check out your Workspace plan separately."
@@ -94,7 +95,8 @@ class CommerceController < ApplicationController
   end
 
   def select_workspace(product, quantity, seat_range)
-    if params[:variant_id].present? || !seat_range.cover?(quantity)
+    limit = Gatekeeper::Hosting::WorkspacePlans.checkout_seat_limit(starting_price: product.price_cents, seat_range: seat_range)
+    if params[:variant_id].present? || !quantity.between?(seat_range.begin, limit)
       return redirect_to commerce_shop_path(site_id: @site.id), alert: "Choose a seat count offered by this Workspace plan."
     end
     if cart.any? && workspace_in_cart.nil?

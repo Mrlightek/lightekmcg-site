@@ -1,7 +1,7 @@
 class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceController
   before_action :load_calendar, except: %i[index create]
-  rescue_from ActiveRecord::RecordInvalid, ArgumentError, LightekSessions::Access::Denied do |error|
-    redirect_to(@calendar ? dashboard_shared_calendar_path(@calendar, employer_id: @employer.id) : dashboard_shared_calendars_path(employer_id: @employer.id),
+  rescue_from ActiveRecord::RecordInvalid, ArgumentError, LightekSessions::Access::Denied, LightekMail::Access::Denied do |error|
+    redirect_to(@calendar ? dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: (params[:date] unless action_name == 'show')) : dashboard_shared_calendars_path(employer_id: @employer.id),
       alert: error.message, status: :see_other)
   end
 
@@ -23,6 +23,12 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
     if @events.any? { |event| !event.session_room_id? && event.starts_at.future? && can_manage_event?(event) }
       @meeting_sites = meeting_sites.order(:name, :id).limit(100)
     end
+    cancelled = @calendar.events.where.not(cancelled_at: nil).during(first, last)
+    cancelled = cancelled.where(organizer: current_user) unless @owner
+    @cancelled_with_invitations = cancelled.where(id: LightekWorkspace::ExternalInvitation.select(:event_id)).order(:starts_at, :id).limit(150)
+    managed_ids = @events.select { |event| can_manage_event?(event) }.map(&:id) + @cancelled_with_invitations.map(&:id)
+    @external_invitations = LightekWorkspace::ExternalInvitation.where(event_id: managed_ids).includes(:message).order(:attendee_address).group_by(&:event_id)
+    @sending_mailboxes = owned_mailboxes if @events.any? { |event| event.ends_at.future? && can_manage_event?(event) }
     @coworkers = @workspace.roster.order(:first_name, :last_name, :id)
     if params[:availability_user_id].present?
       @person = @coworkers.find(params[:availability_user_id])
@@ -52,6 +58,50 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
       scheduled.first
     end
     back(date: event.starts_at.to_date)
+  end
+
+  def invite_external
+    event = @calendar.events.scheduled.find(params[:event_id])
+    raise LightekPeople::Access::Denied unless can_manage_event?(event)
+
+    mailbox = owned_mailboxes.find { |account| account.id.to_s == params.require(:mailbox_id) }
+    raise ArgumentError, 'Choose an active Lightek Mail mailbox you own.' unless mailbox
+    addresses = LightekMail::Submission.addresses(params.require(:attendee_address))
+    unless addresses.one? && LightekWorkspace::CalendarInvitationMail::ADDRESS.match?(addresses.first) && addresses.first != mailbox.address
+      raise ArgumentError, 'Enter one guest email address different from the organizer mailbox.'
+    end
+
+    event.with_lock do
+      raise ActiveRecord::RecordNotFound if event.cancelled_at? || event.ends_at.past?
+
+      invitations = event.external_invitations
+      if invitations.exists?(attendee_address: addresses.first)
+        raise ArgumentError, 'This guest already has an invitation.'
+      end
+      raise ArgumentError, 'Invite up to 50 external guests per event.' if invitations.count >= 50
+
+      invitations.create!(mailbox: mailbox, organizer_address: mailbox.address,
+        attendee_address: addresses.first, uid: "#{SecureRandom.uuid}@calendar.lightek").enqueue_delivery
+    end
+    back(date: params[:date].presence || event.starts_at.to_date, notice: 'Calendar invitation queued.')
+  end
+
+  def retry_external_invitation
+    event = @calendar.events.find(params[:event_id])
+    raise LightekPeople::Access::Denied unless can_manage_event?(event)
+
+    event.with_lock do
+      invitation = event.external_invitations.find(params[:invitation_id])
+      if invitation.message&.state == 'failed'
+        invitation.revise!
+      elsif invitation.delivery_error? && !invitation.message_id?
+        invitation.update!(delivery_error: nil)
+        invitation.enqueue_delivery
+      else
+        raise ArgumentError, 'Only failed calendar deliveries can be retried here.'
+      end
+    end
+    back(date: params[:date].presence || event.starts_at.to_date, notice: 'Calendar delivery queued.')
   end
 
   def add_meeting
@@ -88,6 +138,9 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
       raise ActiveRecord::RecordNotFound if event.cancelled_at?
 
       event.update!(values)
+      if event.saved_changes.keys.intersect?(%w[title details starts_at ends_at])
+        event.external_invitations.each(&:revise!)
+      end
       if event.saved_change_to_starts_at? || event.saved_change_to_ends_at?
         move_meeting!(event) if event.session_room_id?
         event.guests.update_all(response: 'pending', updated_at: Time.current)
@@ -124,6 +177,7 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
       cancelled = occurrences.order(:id).lock.to_a
       rooms = cancelled.filter_map do |occurrence|
         occurrence.update!(cancelled_at: Time.current)
+        occurrence.external_invitations.each(&:revise!)
         close_meeting!(occurrence.session_room)
       end
       if cancelled.any?
@@ -159,6 +213,12 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
     @owner || event.organizer_id == current_user.id
   end
   helper_method :can_manage_event?
+
+  def owned_mailboxes
+    LightekMail::Access.accounts(current_user).where(user: current_user, enabled: true).includes(:domain).order(:address).select(&:sending_ready?)
+  rescue LightekMail::Access::Denied
+    []
+  end
 
   def meeting_sites
     LightekSettings::WebsiteIdentity.sites_for(current_user).where(tenant: @employer)
@@ -206,7 +266,7 @@ class Dashboard::SharedCalendarsController < Dashboard::SharedWorkspaceControlle
       url: dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: event.starts_at.to_date))
   end
 
-  def back(date: params[:date].presence)
-    redirect_to dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: date), status: :see_other
+  def back(date: params[:date].presence, notice: nil)
+    redirect_to dashboard_shared_calendar_path(@calendar, employer_id: @employer.id, date: date), status: :see_other, notice: notice
   end
 end

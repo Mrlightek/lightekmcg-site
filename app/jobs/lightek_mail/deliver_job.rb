@@ -52,6 +52,11 @@ module LightekMail
             message.update!(state: "failed", error_message: "The agency onboarding follow-up is no longer current.")
             next false
           end
+          if message.idempotency_key.to_s.start_with?(LightekWorkspace::ExternalInvitation::MESSAGE_PREFIX) &&
+              !LightekWorkspace::ExternalInvitation.current_message?(message, account)
+            message.update!(state: "failed", error_message: "The calendar notice was superseded or the organizer mailbox changed.")
+            next false
+          end
           if policy.sending_enabled? && account.sending_ready? && NevaehOs::PublicRelations.delivery_allowed?(message, account)
             SendingLimits.dispatch!(account, message)
             true

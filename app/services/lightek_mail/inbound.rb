@@ -81,7 +81,10 @@ module LightekMail
           end
           message
         end
-        AutoResponder.call(account, saved, mail) if saved && !saved.junk?
+        next unless saved && !saved.junk?
+        next if LightekWorkspace::CalendarInvitationMail.record_reply(account: account, envelope: envelope, mail: mail)
+
+        AutoResponder.call(account, saved, mail)
       end
     end
   end

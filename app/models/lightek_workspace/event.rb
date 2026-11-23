@@ -6,6 +6,7 @@ module LightekWorkspace
     belongs_to :organizer, class_name: 'User'
     belongs_to :session_room, class_name: 'LightekSessions::Room', optional: true
     has_many :guests, class_name: 'LightekWorkspace::EventGuest'
+    has_many :external_invitations, class_name: 'LightekWorkspace::ExternalInvitation', inverse_of: :event
     validates :title, presence: true, length: {maximum: 160}
     validates :details, length: {maximum: 4_000}
     validates :starts_at, :ends_at, presence: true

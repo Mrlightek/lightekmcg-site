@@ -107,6 +107,8 @@ resources :dashboard_shared_calendars, path: '/dashboard/shared-calendars', cont
   post 'events/:event_id/meeting', action: :add_meeting, as: :add_meeting, on: :member
   post 'events/:event_id/respond', action: :respond, as: :respond, on: :member
   post 'events/:event_id/cancel', action: :cancel, as: :cancel_event, on: :member
+  post 'events/:event_id/external-invitations', action: :invite_external, as: :invite_external, on: :member
+  post 'events/:event_id/external-invitations/:invitation_id/retry', action: :retry_external_invitation, as: :retry_external_invitation, on: :member
   get 'events/:event_id/ics', action: :ics, as: :event_ics, on: :member
 end
 

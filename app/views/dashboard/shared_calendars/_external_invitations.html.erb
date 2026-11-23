@@ -1,0 +1,39 @@
+<% invitations = @external_invitations.fetch(event.id, []) %>
+<% if invitations.any? || !event.cancelled_at? && event.ends_at.future? %>
+  <details>
+    <summary>External guests<%= " (#{invitations.size})" if invitations.any? %></summary>
+    <% if invitations.any? %>
+      <ul>
+        <% invitations.each do |invitation| %>
+          <% message = invitation.message %>
+          <li>
+            <%= invitation.attendee_address %>
+            <% unless event.cancelled_at? %> · <%= invitation.response == 'pending' ? 'Awaiting RSVP' : invitation.response.humanize %><% end %>
+            · <%= invitation.delivery_error? ? 'Delivery failed' : (message&.state || 'queued').humanize %>
+            <% if (error = invitation.delivery_error.presence || message&.error_message.presence) %>
+              <small><%= error %></small>
+            <% end %>
+            <% if invitation.delivery_error? || message&.state == 'failed' %>
+              <%= button_to 'Retry delivery', retry_external_invitation_dashboard_shared_calendar_path(@calendar, event, invitation,
+                employer_id: @employer.id, date: @date), class: 'dd-topbar-btn dd-btn-ghost' %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+    <% if !event.cancelled_at? && event.ends_at.future? %>
+      <% if @sending_mailboxes.present? %>
+        <p>The invitation includes the event title, time, and description.</p>
+        <%= form_with url: invite_external_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id, date: @date) do |form| %>
+          <%= form.label :mailbox_id, 'Send from', for: "invitation-mailbox-#{event.id}" %>
+          <%= form.collection_select :mailbox_id, @sending_mailboxes, :id, :address, {}, id: "invitation-mailbox-#{event.id}", required: true %>
+          <%= form.label :attendee_address, 'Guest email', for: "invitation-guest-#{event.id}" %>
+          <%= form.email_field :attendee_address, id: "invitation-guest-#{event.id}", maxlength: 254, required: true %>
+          <%= form.submit 'Send invitation', class: 'dd-topbar-btn dd-btn-primary' %>
+        <% end %>
+      <% else %>
+        <p>Activate a Lightek Mail mailbox to send external invitations.</p>
+      <% end %>
+    <% end %>
+  </details>
+<% end %>

@@ -74,6 +74,7 @@ Dir.mktmpdir("managed-voice-smoke-") do |fixture|
 
     20.times do |attempt|
       begin
+        pbx.prepare!
         pbx.register!
         break
       rescue LightekCommunications::AsteriskVoice::Unavailable, RuntimeError

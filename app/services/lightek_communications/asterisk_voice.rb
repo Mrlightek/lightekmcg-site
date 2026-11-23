@@ -44,10 +44,18 @@ module LightekCommunications
       end
     end
 
-    def register!
+    def prepare!
       raise Unavailable, "The dedicated PBX is unavailable." unless File.writable?(DIRECTORY) && File.executable?(CONTROL)
 
       command!("core waitfullybooted")
+      %w[lightek-carrier lightek-devices].each do |transport|
+        unless command!("pjsip show transport #{transport}").match?(/^\s*Transport:\s+#{transport}\s/)
+          raise Unavailable, "The PBX has not loaded both phone transports."
+        end
+      end
+    end
+
+    def register!
       locked do
         path = File.join(DIRECTORY, "#{@device}.pjsip.conf")
         addresses = provider_addresses
@@ -142,6 +150,9 @@ module LightekCommunications
         type=endpoint
         transport=lightek-carrier
         context=from-lightek-carrier
+        identify_by=ip
+        deny=0.0.0.0/0
+        #{permits(addresses)}
         disallow=all
         allow=ulaw
         direct_media=no
@@ -153,8 +164,11 @@ module LightekCommunications
       CONF
     end
 
+    def permits(addresses)
+      addresses.map { |address| "permit=#{address}/32" }.join("\n")
+    end
+
     def pjsip(addresses)
-      permitted = addresses.map { |address| "permit=#{address}/32" }.join("\n")
       <<~CONF
         [#{@trunk}]
         type=registration
@@ -184,7 +198,7 @@ module LightekCommunications
         allow=ulaw
         direct_media=no
         deny=0.0.0.0/0
-        #{permitted}
+        #{permits(addresses)}
 
         [#{@device}]
         type=endpoint

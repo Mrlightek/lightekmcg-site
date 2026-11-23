@@ -33,9 +33,11 @@ module LightekCommunications
 
     def register!(destination)
       details = credentials!(destination)
+      pbx = AsteriskVoice.new(@add_on.order_id, details)
+      pbx.prepare!
       @carrier.ensure_subaccount!(account: details.fetch("account"), password: details.fetch("trunk_password"),
         description: details.fetch("description"))
-      AsteriskVoice.new(@add_on.order_id, details).register!
+      pbx.register!
       @carrier.verify!(account: details.fetch("account"))
       details
     end

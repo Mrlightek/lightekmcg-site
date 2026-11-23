@@ -19,7 +19,7 @@ Rails.application.initialize!
 ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:')
 ActiveRecord::Migration.verbose = false
 ActiveRecord::Schema.define do
-  create_table(:products) { |t| t.integer :price_cents }
+  create_table(:products) { |t| t.integer :price_cents; t.string :product_type }
   create_table(:hosting_packages) { |t| t.references :product; t.boolean :active, default: true; t.integer :monthly_cost_ceiling_cents; t.integer :minimum_margin_cents; t.integer :wholesale_price_cents; t.integer :reseller_minimum_margin_cents, default: 500 }
   create_table(:agreements) { |t| t.integer :price_cents; t.string :processor_reference }
 end
@@ -51,6 +51,7 @@ class ApplicationController < ActionController::Base
   end
 end
 module Dashboard; end
+require ROOT + '/app/services/gatekeeper/hosting/workspace_plans'
 require ROOT + '/app/services/gatekeeper/hosting/retail_pricing'
 require ROOT + '/app/controllers/dashboard/hosting_packages_controller'
 Rails.application.routes.draw do

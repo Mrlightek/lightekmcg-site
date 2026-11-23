@@ -618,6 +618,7 @@ resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboa
     patch :update_terms
   end
 end
+post "/dashboard/hosting/packages/workspace", to: "dashboard/hosting_packages#create_workspace", as: :create_workspace_dashboard_hosting_packages
 resources :dashboard_hosting_packages, path: "/dashboard/hosting/packages", controller: "dashboard/hosting_packages", only: %i[index create update]
 post "/dashboard/hosting/purchase", to: "dashboard/hosting_purchases#create", as: :dashboard_hosting_purchase
 resources :dashboard_application_launches, path: "/dashboard/applications/install", controller: "dashboard/application_launches", only: %i[new create] do

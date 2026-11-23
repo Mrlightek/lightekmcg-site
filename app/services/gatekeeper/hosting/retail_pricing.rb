@@ -27,6 +27,7 @@ module Gatekeeper
           package.product.assign_attributes(price_cents: price)
           package.save!
           package.product.save!
+          WorkspacePlans.subscription_plan(package.product)&.update!(price_monthly_cents: price)
         end
         # Existing order line prices, processor subscriptions and hosting
         # snapshots remain unchanged. Only future checkouts use this price.

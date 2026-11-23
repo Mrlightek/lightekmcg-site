@@ -5,7 +5,7 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.STUDIO_CHROMIUM_EXECUTABLE?{executablePath:process.env.STUDIO_CHROMIUM_EXECUTABLE}:{}),args:['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
- const page=await browser.newPage(),errors=[];let handoffRequests=0;page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage(),errors=[];let handoffRequests=0,firstCharacterSave;page.on('pageerror',e=>errors.push(e.message));
  let projectCreations=0,starterRequests=0,starterPolls=0,variantRequests=0,variantPolls=0,photoUploads=0,photoBuilds=0,editUploads=0,rigUploads=0,editAssetReads=0,editSaves=0;
  const scene={id:1,name:'Episode one',settings:{},objects:[{id:10,name:'Hero',object_type:'cube',definition:{location:[0,0,1],scale:[1,1,2],material:{color:'#c9a35d'}}}],lock_version:0},second={id:2,name:'Scene two',settings:{},objects:[],lock_version:0},project={id:1,name:'Lightek Sessions',productions:[],unassigned_scenes:[scene,second],scenes:[scene,second]};
  const modules=['nevaeh-client','studio-dashboard','studio-app','studio-native','studio-authoring','studio-media','studio-create','studio-performance','studio-visual','vendor/tone/Tone-15.1.22','vendor/tone/Midi-2.0.28','studio-music-core','studio-music-audio','studio-music','studio-production','studio-edit-workbench','studio-ai','studio-delivery'];
@@ -33,16 +33,24 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
     variantRequests++;
     assert.equal(req.payload.name,'Detective Avery');
     assert.deepEqual(req.payload.character,{rig:'ellie_v2',height:1.15,facing:30,tint:'#b08050',pose:'waving'});
+    if(!firstCharacterSave){
+      firstCharacterSave=req.payload.request_key;
+      return route.fulfill({status:503,json:{error:'The character worker is temporarily unavailable.'}});
+    }
+    assert.equal(req.payload.request_key,firstCharacterSave,'retry uses the original request key');
     result={asset_id:100,name:'Detective Avery',variant:true,status:'uploaded',phase:'queued'};
    }else{
      starterRequests++;assert.equal(req.payload.name,'Rain and Snow');result={asset_id:99,name:'Rain and Snow',status:'uploaded',phase:'queued'};
-   }}else if(req.capability.endsWith('starter.scene.status')){result=variantRequests?{asset_id:100,name:'Detective Avery',variant:true,status:++variantPolls>1?'ready':'processing',phase:variantPolls>1?'ready':'building_scene',scene_id:4,project_id:3}:starterRequests?{asset_id:99,name:'Rain and Snow',status:++starterPolls>1?'ready':'processing',phase:starterPolls>1?'ready':'importing_rain_v3',scene_id:3,project_id:2}:null;}else if(req.capability.endsWith('project.create')){projectCreations++;if(req.payload.studio_entry==='stage')scene.settings.studio_entry='stage';result={project_id:1,scene_id:1};}else if(req.capability==='studio.pwa.bootstrap')result={projects:[project,...(starterPolls>1?[{id:2,name:'Rain and Snow',productions:[],unassigned_scenes:[{id:3,name:'Rain and Snow',settings:{},objects:[],lock_version:0}]}]:[]),...(variantPolls>1?[{id:3,name:'Detective Avery',productions:[],unassigned_scenes:[{id:4,name:'Detective Avery',settings:{rigged_character:true},objects:[],lock_version:0}]}]:[])]};else if(req.capability.endsWith('ai.status'))result={connected:true,device:{type:'cuda',vram_total:24*1073741824,vram_free:18*1073741824},recipes:[{id:'wan22_video',name:'Wan 2.2',kind:'video',steps:20,ready:true}],performances:[{id:'musetalk',name:'MuseTalk',action:'Lip sync a performance',configured:false}]};else if(req.capability.endsWith('ai.jobs'))result=[{asset_id:12,status:'ready',kind:'video',name:'Latest shot',prompt:'Portrait close-up',seed:42,steps:20,preview_url:'/shot.mp4'}];else if(req.capability.endsWith('ai.setup.status'))result={can_manage:false};else if(req.capability.endsWith('asset.import')){
+   }}else if(req.capability.endsWith('starter.scene.status')){result=variantRequests>1?{asset_id:100,name:'Detective Avery',variant:true,status:++variantPolls>1?'ready':'processing',phase:variantPolls>1?'ready':'building_scene',scene_id:4,project_id:3}:starterRequests?{asset_id:99,name:'Rain and Snow',status:++starterPolls>1?'ready':'processing',phase:starterPolls>1?'ready':'importing_rain_v3',scene_id:3,project_id:2}:null;}else if(req.capability.endsWith('project.create')){projectCreations++;if(req.payload.studio_entry==='stage')scene.settings.studio_entry='stage';result={project_id:1,scene_id:1};}else if(req.capability==='studio.pwa.bootstrap')result={projects:[project,...(starterPolls>1?[{id:2,name:'Rain and Snow',productions:[],unassigned_scenes:[{id:3,name:'Rain and Snow',settings:{},objects:[],lock_version:0}]}]:[]),...(variantPolls>1?[{id:3,name:'Detective Avery',productions:[],unassigned_scenes:[{id:4,name:'Detective Avery',settings:{rigged_character:true},objects:[],lock_version:0}]}]:[])]};else if(req.capability.endsWith('ai.status'))result={connected:true,device:{type:'cuda',vram_total:24*1073741824,vram_free:18*1073741824},recipes:[{id:'wan22_video',name:'Wan 2.2',kind:'video',steps:20,ready:true}],performances:[{id:'musetalk',name:'MuseTalk',action:'Lip sync a performance',configured:false}]};else if(req.capability.endsWith('ai.jobs'))result=[{asset_id:12,status:'ready',kind:'video',name:'Latest shot',prompt:'Portrait close-up',seed:42,steps:20,preview_url:'/shot.mp4'}];else if(req.capability.endsWith('ai.setup.status'))result={can_manage:false};else if(req.capability.endsWith('asset.import')){
    if(req.payload.signed_id==='rig-upload-token')result={asset_id:172,status:'uploaded'};
    else{
      assert.equal(req.payload.signed_id,'edit-upload-token');
      editAssetReads=0;
      result={asset_id:171,status:'uploaded'};
    }
+ }else if(req.capability.endsWith('performance.preview')&&req.payload.scene_id===4){
+   assert.equal(req.payload.scene_playback,true);
+   result={status:'completed',url:'/character-preview.mp4'};
  }else if(req.capability.endsWith('blender.preview')&&req.payload.scene_id===4){
    result={status:'completed',url:'/preview.png'};
  }else if(req.capability.endsWith('assets.list')){
@@ -132,8 +140,29 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  try{await builder.getByText('guest-rig.blend is ready. Choose it under Starting point.').waitFor({timeout:8000});}
  catch(error){throw Error((await builder.innerText())+' · upload requests '+rigUploads+' · '+error.message);}
  await builder.getByRole('button',{name:'Create a character'}).click();
- const character=page.getByRole('dialog');
- await character.getByLabel('Character name').fill('Detective Avery');
+ const character=page.getByRole('dialog',{name:'Create a character'});
+ const characterName=character.getByLabel('Character name');
+ const saveCharacter=character.getByRole('button',{name:'Save character',exact:true});
+ assert(await characterName.evaluate(input=>input===document.activeElement),'name is focused on open');
+ const contrast=await saveCharacter.evaluate(button=>{
+   const {color,backgroundColor}=getComputedStyle(button);
+   const luminance=value=>value.match(/\d+/g).slice(0,3).map(channel=>Number(channel)/255)
+     .map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4)
+     .reduce((sum,channel,index)=>sum+channel*[.2126,.7152,.0722][index],0);
+   if(backgroundColor==='rgba(0, 0, 0, 0)')return 0;
+   const pair=[luminance(color),luminance(backgroundColor)].sort((a,b)=>b-a);
+   return (pair[0]+.05)/(pair[1]+.05);
+ });
+ assert(contrast>=4.5,'Save character button has readable contrast');
+ await character.getByLabel('Palette tint',{exact:true}).waitFor({state:'hidden'});
+ await saveCharacter.click();
+ await character.getByText('Enter a character name.').waitFor();
+ assert.equal(await characterName.getAttribute('aria-invalid'),'true');
+ await characterName.fill('   ');
+ await saveCharacter.click();
+ assert.equal(variantRequests,0,'blank names must not submit a build');
+ await characterName.fill('Detective Avery');
+ await character.getByText('Enter a character name.').waitFor({state:'hidden'});
  assert.equal(await character.getByLabel('Starting point').inputValue(),'library:172');
  await character.getByLabel('Starting point').selectOption('ellie_v2');
  await character.getByLabel('Starting pose').selectOption('waving');
@@ -147,13 +176,21 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  await character.getByLabel('Facing').selectOption('30');
  await character.getByLabel('Apply a palette tint').check();
  await character.getByLabel('Palette tint',{exact:true}).fill('#b08050');
- await character.getByRole('button',{name:'Create character',exact:true}).click();
+ await saveCharacter.click();
+ await character.getByText('The character worker is temporarily unavailable.').waitFor();
+ assert.equal(await characterName.inputValue(),'Detective Avery');
+ assert.equal(await character.getByLabel('Starting pose').inputValue(),'waving');
+ assert.equal(await character.getByLabel('Height').inputValue(),'115');
+ assert(await saveCharacter.isEnabled());
+ await saveCharacter.click();
  await builder.getByText('Detective Avery · Building your character scene').waitFor();
  await builder.getByRole('link',{name:'Open character scene →'}).click({timeout:12000});
  await page.waitForFunction(()=>location.hash==='#/studio/4/stage');
  await page.locator('[data-vw-guide]').getByRole('button',{name:'Render camera preview'}).click();
  await page.getByRole('img',{name:'Rendered camera preview'}).waitFor();
- assert.equal(variantRequests,1);
+ await page.locator('[data-vw-guide]').getByRole('button',{name:'Play scene',exact:true}).click();
+ await page.locator('.vw-render-stage video[src="/character-preview.mp4"]').waitFor();
+ assert.equal(variantRequests,2);
  scene.settings.timeline={output:'video',width:1280,height:720,clips:[]};
  editAssetReads=0;
  const editUrl='http://localhost:18447/dashboard/studio-broadcasting/workspace/1?site_id=2';

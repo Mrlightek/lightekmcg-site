@@ -14,7 +14,7 @@ async function check(){
   if(url.pathname==='/api/nevaeh/execute'){
    const request=route.request().postDataJSON();requests.push(request);const {capability,payload}=request;let result={};
    if(capability==='studio.pwa.bootstrap')result={projects:scene?[{id:1,name:scene.name,productions:[],unassigned_scenes:[scene]}]:[],object_types:['cube','sphere','cylinder','camera']};
-   else if(capability.endsWith('project.create')){scene={id:2,name:payload.name,lock_version:0,objects:[],settings:{studio_entry:'stage'}};result={scene_id:2};}
+   else if(capability.endsWith('project.create')){scene={id:2,name:payload.name,lock_version:0,objects:[],settings:{studio_entry:payload.studio_entry}};result={scene_id:2};}
    else if(capability.endsWith('cast.create'))result={asset_id:77,status:'processing'};
    else if(capability.endsWith('cast.place')){assert.equal(payload.asset_id,77);assert.equal(payload.scene_id,2);scene.objects.push({id:5,name:'Explorer',object_type:'cube',definition:{character_profile:{motions:[{id:'wave',name:'Wave',fps:24,frame_start:1,frame_end:25}]}}});result={object_id:5};}
    else if(capability.endsWith('motion.save')){scene.objects[0].definition.motion_clips=payload.clips;result={};}
@@ -28,21 +28,14 @@ async function check(){
  });
 
  await page.goto('https://studio.test/lightek/index.html#/studio');
- const start=page.getByRole('button',{name:'Start a scene'});
- await start.waitFor();
- const name=page.getByRole('textbox',{name:'Project name'});
- assert.equal(await name.isVisible(),false);
- await page.getByText('Name your scene or change its format',{exact:true}).click();
- await name.fill('My phone scene');
- await name.focus();
- await name.evaluate(el=>{window.initialName=el;el.setSelectionRange(3,8);});
- await page.evaluate(async()=>{ST.loaded=false;await A.studioLoad(true);render(1);});
- assert(await name.evaluate(el=>el===window.initialName&&el===document.activeElement&&el.selectionStart===3&&el.selectionEnd===8));
- assert.equal(await name.inputValue(),'My phone scene');
- await name.fill('');
+ const start=page.getByRole('button',{name:'New project'});
+ await page.getByLabel('Start with').selectOption('stage');
  await start.click();
  await page.getByText('Who’s in your scene?',{exact:true}).waitFor();
- assert.equal(requests.find(r=>r.capability.endsWith('project.create')).payload.name,'My scene');
+ const created=requests.find(r=>r.capability.endsWith('project.create'));
+ assert.equal(created.payload.name,'My scene');
+ assert.equal(created.payload.studio_entry,'stage');
+ assert.equal(new URL(page.url()).hash,'#/studio/2/stage');
  const stage=page.locator('.studio-viewport');
  await stage.waitFor();
  const canvas=await stage.boundingBox();
@@ -57,8 +50,13 @@ async function check(){
  await page.locator('[data-vw-guide]').getByRole('button',{name:'Play scene',exact:true}).click();
  await page.locator('.vw-render-stage video').waitFor();
  assert.equal(requests.filter(r=>r.capability.endsWith('cast.place')).length,1);
+ await page.goto('https://studio.test/lightek/index.html#/studio');
+ const saved=page.getByRole('link',{name:/My scene/});
+ assert.equal(await saved.getAttribute('href'),'#/studio/2/stage');
+ await saved.click();
+ await page.locator('.studio-viewport').waitFor();
  assert.deepEqual(errors,[]);
- console.log('MOBILE_GUIDED_STUDIO_PASS physical-width stage, stable typing, visual choices, auto-place and preview');
+ console.log('MOBILE_GUIDED_STUDIO_PASS physical-width stage, visual choices, auto-place, preview and stage reopen');
  }finally{await browser.close();}
 }
 check().catch(error=>{console.error(error);process.exitCode=1;});

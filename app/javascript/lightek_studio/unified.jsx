@@ -317,7 +317,10 @@ export default function LightekUnifiedStudio({api,route,home}) {
     if(creating)return;
     setCreating(true);setError('');
     try{
-      const result=await api.call('project.create',{name:name.trim()||'Untitled project',format:'landscape',request_key:key});
+      const result=await api.call('project.create',{
+        name:name.trim()||(entry==='stage'?'My scene':'Untitled project'),
+        format:'landscape',request_key:key,...(entry==='stage'?{studio_entry:'stage'}:{})
+      });
       await loadProjects();setName('');setKey(requestKey());
       if(['music','stage'].includes(entry))location.assign(api.native(result.scene_id,entry));
       else selectScene(result.scene_id,entry);
@@ -336,11 +339,13 @@ export default function LightekUnifiedStudio({api,route,home}) {
       {selected&&!record&&<p role="status">The selected scene is unavailable. Choose a project below.</p>}
       <p>Edit your media, make music or animate a scene. AI generation is an optional workspace.</p>
       {api.dashboard&&<nav className="ls-row" aria-label="Start an editor"><a href={api.editor('photo')}>Photo &amp; graphics</a><a href={api.editor('video')}>Full video editor</a></nav>}
-      <form onSubmit={create}><label>Project name (optional)<input value={name} maxLength="120" onChange={event=>{setKey(requestKey());setName(event.target.value);}}/></label><label>Start with<select value={entry} onChange={event=>setEntry(event.target.value)}><option value="timeline">Video editing</option><option value="music">Music &amp; audio</option><option value="stage">Animation &amp; characters</option><option value="create">AI generation</option></select></label><button className="ls-primary" disabled={creating}><Plus size={16}/> New project</button></form>
+      <form onSubmit={create}><label>Project name (optional)<input value={name} maxLength="120" onChange={event=>{setKey(requestKey());setName(event.target.value);}}/></label><label>Start with<select value={entry} onChange={event=>{setKey(requestKey());setEntry(event.target.value);}}><option value="timeline">Video editing</option><option value="music">Music &amp; audio</option><option value="stage">Animation &amp; characters</option><option value="create">AI generation</option></select></label><button className="ls-primary" disabled={creating}><Plus size={16}/> New project</button></form>
       <div className="ls-assets">{projects.map(item=>{
         const kind=item.scene.settings?.editor_kind;
         const content=<><strong>{item.project.name}</strong><small>{item.scene.name}</small></>;
-        return api.dashboard&&['photo','video'].includes(kind)?<a key={item.scene.id} href={api.editor(kind,item.scene.id)}>{content}</a>:<button type="button" key={item.scene.id} onClick={()=>selectScene(item.scene.id,'timeline')}>{content}</button>;
+        if(api.dashboard&&['photo','video'].includes(kind))return <a key={item.scene.id} href={api.editor(kind,item.scene.id)}>{content}</a>;
+        if(item.scene.settings?.studio_entry==='stage')return <a key={item.scene.id} href={api.native(item.scene.id,'stage')}>{content}</a>;
+        return <button type="button" key={item.scene.id} onClick={()=>selectScene(item.scene.id,'timeline')}>{content}</button>;
       })}</div>
     </>}
   </main>;

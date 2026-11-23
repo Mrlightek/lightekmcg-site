@@ -78,9 +78,12 @@
   function riggedCharacterForm(){
     const saved=state.assets.filter(riggedAsset);
     return `<form data-vw-form="rigged-character">
-      <h2>Create a character</h2>
+      <h2 id="vw-character-dialog-title">Create a character</h2>
       <p>Save a new editable Blender scene with lights and a camera.</p>
-      <label class="vw-field"><span>Character name</span><input name="name" required maxlength="120" placeholder="Character name"></label>
+      <label class="vw-field"><span>Character name <small>(required)</small></span>
+        <input name="name" required autofocus maxlength="120" placeholder="e.g. Detective Avery" aria-describedby="vw-character-name-error">
+      </label>
+      <p id="vw-character-name-error" role="alert" hidden></p>
       <label class="vw-field"><span>Starting point</span><select name="rig" aria-describedby="vw-base-help">
         <optgroup label="Animation rigs">
           <option value="rain_v3">Rain</option><option value="snow_v4">Snow</option><option value="ellie_v2">Ellie</option>
@@ -103,11 +106,18 @@
         <label class="vw-field"><span>Facing</span><select name="facing"><option value="0">Forward</option><option value="-30">Left</option><option value="30">Right</option></select></label>
       </div>
       <p class="vw-help">Height is a percentage of the selected character’s size.</p>
-      <label><input type="checkbox" name="apply_tint"> Apply a palette tint</label>
-      ${field('tint','Palette tint','#e8bfa6','color')}
-      <p data-rigged-error role="alert"></p>
-      <div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">Create character</button></div>
+      <label class="vw-tint-toggle"><input type="checkbox" name="apply_tint" aria-controls="vw-palette-tint"> Apply a palette tint</label>
+      <div id="vw-palette-tint" hidden>${field('tint','Palette tint','#e8bfa6','color')}</div>
+      <p data-rigged-error role="alert" hidden></p>
+      <div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">Save character</button></div>
     </form>`;
+  }
+  function showCharacterNameError(input, invalid){
+    const error=input.form.querySelector('#vw-character-name-error');
+    error.textContent=invalid?'Enter a character name.':'';
+    error.hidden=!invalid;
+    if(invalid){input.setAttribute('aria-invalid','true');input.focus();}
+    else input.removeAttribute('aria-invalid');
   }
   async function starterPoll(){
     if(state.starterLoading)return;state.starterLoading=true;
@@ -143,7 +153,7 @@
   function refresh(preserve=false){if(!enabled())return;if(preserve&&window.LightekStudioForms?.composing()){LightekStudioForms.defer();return;}const editing=preserve?window.LightekStudioForms?.capture():null;const form=preserve?app.querySelector('[data-vw-inspector] form'):null,saved=form?{kind:form.dataset.vwForm,values:Object.fromEntries(new FormData(form))}:null;const left=app.querySelector('[data-vw-assets]'),right=app.querySelector('[data-vw-inspector]'),tracks=app.querySelector('[data-vw-lanes]');if(left)left.innerHTML=assetsPanel();if(right){right.innerHTML=inspector();if(saved){const restored=right.querySelector(`[data-vw-form="${saved.kind}"]`);if(restored)for(const [name,value] of Object.entries(saved.values)){const input=restored.elements.namedItem(name);if(input)input.value=value;}}}if(tracks)tracks.innerHTML=lanes();const range=app.querySelector('[data-vw-playhead]');if(range)range.max=duration();const guide=app.querySelector('[data-vw-guide]');if(guide&&current())guide.innerHTML=sceneGuide(current().scene);if(preserve)window.LightekStudioForms?.restore(editing);}
   function sceneGuide(scene){
     if(scene.settings?.character_base_mesh)return `<p>Your human base mesh is ready for modeling. Edit its geometry and materials, or render a camera preview.</p><div>${button('advanced','Edit mesh & materials')} ${button('preview','Render camera preview')}</div>`;
-    if(scene.settings?.rigged_character)return `<p>Your Blender rig is in this scene. Edit its native objects and materials, or render the camera view.</p><div>${button('advanced','Edit rig & materials')} ${button('preview','Render camera preview')}</div>`;
+    if(scene.settings?.rigged_character)return `<p>Edit the rig or play a short video preview from the scene camera.</p><div>${button('play-scene','Play scene')} ${button('advanced','Edit rig & materials')} ${button('preview','Render camera preview')}</div>`;
     const cast=scene.objects.find(object=>object.definition?.character_profile);
     const hasAction=scene.objects.some(object=>object.definition?.motion_clips?.length||object.definition?.performance);
     if(!cast)return `<p>Who’s in your scene?</p><div>${button('create-character','Pick a character')} ${button('create-photo','Use a photo')}</div>`;
@@ -165,8 +175,9 @@
   }
   async function addAsset(id){const a=state.assets.find(a=>a.id===id);if(!a||a.status!=='ready')throw Error('Wait for this asset to finish processing.');const scene=current().scene,media=['audio','image','video'].includes(a.kind);if(window.LightekStudioTimeline.dirty?.())await window.LightekStudioTimeline.save();const result=await call(a.metadata?.character_profile?'cast.place':media?'asset.use':'asset.place',{asset_id:id,scene_id:scene.id,lock_version:scene.lock_version,placement:'append',request_key:pendingCharacters.get(placementKey(scene.id,id))?.requestKey||key()});pendingCharacters.delete(placementKey(scene.id,id));if(result.object_id)ST.selectedObjectId=result.object_id;await reload();notice(media?'Added to the media edit. Press Play edit to watch it.':'Added to the stage. Select Move to position it.');if(media){state.mode='edit';showStage();}}
   async function preview(video=false,scenePlayback=false){const id=current().scene.id,token=++state.poll,frame=Number(current().scene.settings.frame_current||current().scene.settings.frame_start||1),action=video?'performance.preview':'blender.preview';window.LightekStudioTimeline.stop();state.mode='render';state.preview={status:'Queued'};showStage();notice('');let result=await call(action,{scene_id:id,frame,...(scenePlayback?{scene_playback:true}:{})});let attempts=0;while(token===state.poll&&current()?.scene.id===id){state.preview={...result,video};showStage();if(result.error||result.url||!['pending','running','queued'].includes(result.status))break;if(++attempts>=120){notice('Preview is still processing. You can return to layout and check it later.');break;}await new Promise(resolve=>setTimeout(resolve,2500));if(token!==state.poll||current()?.scene.id!==id)return;result=await call(action,{scene_id:id,frame,operation_id:result.operation_id});}if(token===state.poll&&!result.url&&!result.error&&!['pending','running','queued'].includes(result.status)){state.preview={error:'No preview was returned. Try playing the scene again.'};showStage();}if(result.stale)notice('The scene changed. Render a new preview.');}
-  function dialog(html){
+  function dialog(html,labelledBy){
     const el=document.createElement('dialog');el.className='vw-dialog';el.innerHTML=html;
+    if(labelledBy)el.setAttribute('aria-labelledby',labelledBy);
     el.addEventListener('close',()=>{if(el.photoUrl)URL.revokeObjectURL(el.photoUrl);el.remove();});
     app.append(el);el.showModal();return el;
   }
@@ -279,7 +290,10 @@
       dialog(characterEditor(asset,action==='create-photo'));return;
     }
     if(action==='rigged-character'){
-      dialog(riggedCharacterForm());
+      const modal=dialog(riggedCharacterForm(),'vw-character-dialog-title');
+      const name=modal.querySelector('[name="name"]');
+      name.addEventListener('invalid',event=>{event.preventDefault();showCharacterNameError(name,true);});
+      name.addEventListener('input',()=>{if(name.value.trim())showCharacterNameError(name,false);});
       return;
     }
     if(action==='close'){b.closest('dialog').close();return;}
@@ -320,6 +334,10 @@
       return;
     }
     const characterForm=input.closest('[data-vw-form="rigged-character"]');
+    if(characterForm&&input.name==='apply_tint'){
+      characterForm.querySelector('#vw-palette-tint').hidden=!input.checked;
+      return;
+    }
     if(characterForm&&input.name==='rig'){
       const ellie=input.value==='ellie_v2';
       characterForm.querySelector('[data-vw-ellie-pose]').hidden=!ellie;
@@ -356,7 +374,16 @@
     });
   });
   app.addEventListener('input',e=>{if(e.target.matches('[data-vw-playhead]')){const value=Number(e.target.value);if(state.mode==='edit')window.LightekStudioTimeline.seek(value);app.querySelector('[data-vw-time]').textContent=`${Math.floor(value/60).toString().padStart(2,'0')}:${(value%60).toFixed(1).padStart(4,'0')}`;}});
-  app.addEventListener('submit',e=>{const form=e.target.closest('[data-vw-form]');if(!form)return;e.preventDefault();const data=Object.fromEntries(new FormData(form)),kind=form.dataset.vwForm,scene=current()?.scene,object=selected(),clipIndex=state.clip;run(async()=>{
+  app.addEventListener('submit',e=>{
+    const form=e.target.closest('[data-vw-form]');
+    if(!form)return;
+    e.preventDefault();
+    const data=Object.fromEntries(new FormData(form)),kind=form.dataset.vwForm,scene=current()?.scene,object=selected(),clipIndex=state.clip;
+    if(kind==='rigged-character'&&!data.name.trim()){
+      showCharacterNameError(form.elements.namedItem('name'),true);
+      return;
+    }
+    run(async()=>{
     if(kind==='rigged-character'){
       const modal=form.closest('dialog'), error=form.querySelector('[data-rigged-error]'), submit=form.querySelector('[type="submit"]');
       const [rig,assetId]=data.rig.split(':');
@@ -366,6 +393,8 @@
       const signature=JSON.stringify([name,character]);
       if(form.characterRequest?.signature!==signature)form.characterRequest={signature,id:key()};
       submit.disabled=true;
+      submit.textContent='Saving…';
+      error.hidden=true;
       error.textContent='';
       try{
         state.starter=await call('starter.scene.create',{name,character,request_key:form.characterRequest.id});
@@ -373,9 +402,11 @@
         updateHomeSection('.vw-starter-cast',starterPanel(),true);
         await starterPoll();
       }catch(failure){
-        error.textContent=failure.message;
+        error.textContent=failure.message||'The character build could not be started. Try again.';
+        error.hidden=false;
       }finally{
         submit.disabled=false;
+        submit.textContent='Save character';
         notice('');
       }
     }

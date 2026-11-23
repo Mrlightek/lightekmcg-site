@@ -6,6 +6,20 @@ each service to one paid Commerce subscription and its existing Dymond Bank
 billing integration. It does not create a second payment processor connection
 or initiate a charge.
 
+## Who operates Lightek Voice
+
+Lightek Voice is the customer-facing service. Lightek owns signup, pricing,
+billing, PBX and extensions, and customer support. VoIP.ms is the wholesale
+upstream for phone numbers, public telephone network interconnection, E911,
+and number porting. The operator uses the carrier portal for those upstream
+actions and records the resulting confirmations in Dashboard.
+
+Customers bring new-number requests, port requests, emergency address
+changes, and service issues to Lightek. Lightek submits and tracks the
+upstream work with VoIP.ms and communicates the result to the customer.
+Use the [VoIP.ms reseller program](https://main.voip.ms/partners/reseller-program/)
+for the wholesale service model.
+
 ## Products and provisioning
 
 Use Commerce service products with the slugs `lightek-voice` and
@@ -56,8 +70,8 @@ receipt in Dashboard after verification.
   read-only lookups to confirm SIP registration and, when provided, the exact
   number route. In **Check SIP registration**, leave the public number blank
   until one is assigned.
-- After you acquire a public number, route it to the SIP subaccount on the
-  same PoP as the PBX.
+- Order or port the public number through VoIP.ms and route it to the SIP
+  subaccount on the same PoP as the PBX.
 - Verify inbound and outbound calls with audio and confirm the exact
   dispatchable location in the carrier portal. Use the carrier's
   [emergency calling test instructions](https://wiki.voip.ms/article/E911)

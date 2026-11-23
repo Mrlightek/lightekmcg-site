@@ -4,7 +4,8 @@
   <p><%= link_to "Voice & Internet services", dashboard_communications_services_path %></p>
   <h1>Voice carrier settings</h1>
   <section class="card">
-    <h2>VoIP.ms</h2>
+    <h2>VoIP.ms upstream connection</h2>
+    <p>Use VoIP.ms for public calling, phone numbers, E911, and number porting.</p>
     <p><%= @configured ? "Vault credential saved." : "Add the API credentials to check number routing and SIP registration." %></p>
     <p>Enable API access in VoIP.ms and allowlist this installation’s outbound IP. Use the API password from the carrier portal.</p>
     <%= form_with scope: :carrier, url: carrier_dashboard_communications_services_path, method: :patch do |form| %>

@@ -1,7 +1,7 @@
 <% if @advanced_workspace %>
 <% content_for :page_title, "Lightek Studio" %>
 <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
-<%= stylesheet_link_tag "/lightek/studio-visual.css?v=97" %>
+<%= stylesheet_link_tag "/lightek/studio-visual.css?v=98" %>
 <%= stylesheet_link_tag "/lightek/studio-authoring.css?v=84" %>
 <%= stylesheet_link_tag "/lightek/studio-music.css?v=80" %>
 <%= stylesheet_link_tag "/lightek/studio-dashboard.css?v=98" %>
@@ -12,7 +12,7 @@
 <%= javascript_include_tag "/lightek/nevaeh-client.js?v=66", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard.js?v=94", defer:true %>
 <% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-motion studio-visual].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=#{name == "studio-visual" ? 101 : 99}", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=#{name == "studio-visual" ? 103 : 99}", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
@@ -52,5 +52,5 @@
     </section>
   </div>
   <%= javascript_include_tag "/lightek/nevaeh-client.js?v=66", defer: true %>
-  <%= javascript_include_tag "/lightek/studio-unified.js?v=32", defer: true %>
+  <%= javascript_include_tag "/lightek/studio-unified.js?v=33", defer: true %>
 <% end %>

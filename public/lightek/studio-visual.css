@@ -47,6 +47,33 @@ body.lt-visual #studio-app-exit{display:flex;align-items:center;position:sticky;
   .vw-transport .vw-btn{min-height:44px}
   .vw-dialog{max-height:90dvh;padding:16px}
 }
+/* Studio dialogs are mounted alongside the workbench and have their own palette. */
+.vw-dialog{
+  --vw-gold:#e5bb62;
+  box-sizing:border-box;
+  inset:0;
+  margin:auto;
+  color-scheme:dark;
+}
+.vw-dialog :focus-visible{outline:2px solid var(--vw-gold);outline-offset:2px}
+.vw-dialog [data-vw-form="rigged-character"]{
+  --dd-input-bg:#0d1017;
+  --dd-input-text:#f1f3f8;
+  --dd-input-border:#475064;
+  --dd-text-secondary:#9ca7ba;
+  --dd-form-scheme:dark;
+  --dd-accent:#e5bb62;
+  --dd-danger:#f0ae94;
+}
+.vw-dialog [data-vw-form="rigged-character"] .vw-field :is(input,select){min-height:36px}
+.vw-dialog [data-vw-form="rigged-character"] .vw-field small{font-weight:400}
+.vw-dialog .vw-tint-toggle{display:flex;align-items:center;gap:8px;margin:10px 0 14px}
+.vw-dialog .vw-tint-toggle input{accent-color:var(--vw-gold)}
+.vw-dialog [data-vw-form="rigged-character"] [role="alert"]{color:#f0ae94}
+.vw-dialog [data-vw-form="rigged-character"] [aria-invalid="true"]{border-color:#f0ae94}
+.vw-dialog [data-vw-form="rigged-character"] .vw-actions{flex-wrap:wrap}
+.vw-dialog .vw-btn:disabled{opacity:.65;cursor:wait}
+
 .vw-character-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border:0;padding:0;margin:12px 0}
 .vw-character-choices legend{padding:0;margin-bottom:6px}
 .vw-character-choices label{display:flex;position:relative;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border:1px solid #586074;border-radius:8px;cursor:pointer}

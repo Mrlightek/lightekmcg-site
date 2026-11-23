@@ -132,8 +132,29 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  try{await builder.getByText('guest-rig.blend is ready. Choose it under Starting point.').waitFor({timeout:8000});}
  catch(error){throw Error((await builder.innerText())+' · upload requests '+rigUploads+' · '+error.message);}
  await builder.getByRole('button',{name:'Create a character'}).click();
- const character=page.getByRole('dialog');
- await character.getByLabel('Character name').fill('Detective Avery');
+ const character=page.getByRole('dialog',{name:'Create a character'});
+ const characterName=character.getByLabel('Character name');
+ const createCharacter=character.getByRole('button',{name:'Create character',exact:true});
+ assert(await characterName.evaluate(input=>input===document.activeElement),'name is focused on open');
+ const contrast=await createCharacter.evaluate(button=>{
+   const {color,backgroundColor}=getComputedStyle(button);
+   const luminance=value=>value.match(/\d+/g).slice(0,3).map(channel=>Number(channel)/255)
+     .map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4)
+     .reduce((sum,channel,index)=>sum+channel*[.2126,.7152,.0722][index],0);
+   if(backgroundColor==='rgba(0, 0, 0, 0)')return 0;
+   const pair=[luminance(color),luminance(backgroundColor)].sort((a,b)=>b-a);
+   return (pair[0]+.05)/(pair[1]+.05);
+ });
+ assert(contrast>=4.5,'Create character button has readable contrast');
+ await character.getByLabel('Palette tint',{exact:true}).waitFor({state:'hidden'});
+ await createCharacter.click();
+ await character.getByText('Enter a character name.').waitFor();
+ assert.equal(await characterName.getAttribute('aria-invalid'),'true');
+ await characterName.fill('   ');
+ await createCharacter.click();
+ assert.equal(variantRequests,0,'blank names must not submit a build');
+ await characterName.fill('Detective Avery');
+ await character.getByText('Enter a character name.').waitFor({state:'hidden'});
  assert.equal(await character.getByLabel('Starting point').inputValue(),'library:172');
  await character.getByLabel('Starting point').selectOption('ellie_v2');
  await character.getByLabel('Starting pose').selectOption('waving');
@@ -147,7 +168,7 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  await character.getByLabel('Facing').selectOption('30');
  await character.getByLabel('Apply a palette tint').check();
  await character.getByLabel('Palette tint',{exact:true}).fill('#b08050');
- await character.getByRole('button',{name:'Create character',exact:true}).click();
+ await createCharacter.click();
  await builder.getByText('Detective Avery · Building your character scene').waitFor();
  await builder.getByRole('link',{name:'Open character scene →'}).click({timeout:12000});
  await page.waitForFunction(()=>location.hash==='#/studio/4/stage');

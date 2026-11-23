@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v132-character-assets"
+const CACHE = "lightek-shell-v133-character-dialog"
 
 const SHELL = [
   "/lightek/index.html",

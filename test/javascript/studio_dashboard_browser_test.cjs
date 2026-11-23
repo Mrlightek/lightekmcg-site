@@ -48,6 +48,9 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
      editAssetReads=0;
      result={asset_id:171,status:'uploaded'};
    }
+ }else if(req.capability.endsWith('performance.preview')&&req.payload.scene_id===4){
+   assert.equal(req.payload.scene_playback,true);
+   result={status:'completed',url:'/character-preview.mp4'};
  }else if(req.capability.endsWith('blender.preview')&&req.payload.scene_id===4){
    result={status:'completed',url:'/preview.png'};
  }else if(req.capability.endsWith('assets.list')){
@@ -185,6 +188,8 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  await page.waitForFunction(()=>location.hash==='#/studio/4/stage');
  await page.locator('[data-vw-guide]').getByRole('button',{name:'Render camera preview'}).click();
  await page.getByRole('img',{name:'Rendered camera preview'}).waitFor();
+ await page.locator('[data-vw-guide]').getByRole('button',{name:'Play scene',exact:true}).click();
+ await page.locator('.vw-render-stage video[src="/character-preview.mp4"]').waitFor();
  assert.equal(variantRequests,2);
  scene.settings.timeline={output:'video',width:1280,height:720,clips:[]};
  editAssetReads=0;

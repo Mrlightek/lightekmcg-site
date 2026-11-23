@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v133-character-dialog"
+const CACHE = "lightek-shell-v134-character-stage"
 
 const SHELL = [
   "/lightek/index.html",
@@ -15,7 +15,7 @@ const SHELL = [
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/nevaeh-reply-stream.js?v=1",
-  "/lightek/studio-unified.js?v=32",
+  "/lightek/studio-unified.js?v=33",
   "/lightek/studio-unified.css?v=6",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

@@ -12,7 +12,7 @@
 <%= javascript_include_tag "/lightek/nevaeh-client.js?v=66", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard.js?v=94", defer:true %>
 <% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-motion studio-visual].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=#{name == "studio-visual" ? 102 : 99}", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=#{name == "studio-visual" ? 103 : 99}", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
@@ -52,5 +52,5 @@
     </section>
   </div>
   <%= javascript_include_tag "/lightek/nevaeh-client.js?v=66", defer: true %>
-  <%= javascript_include_tag "/lightek/studio-unified.js?v=32", defer: true %>
+  <%= javascript_include_tag "/lightek/studio-unified.js?v=33", defer: true %>
 <% end %>

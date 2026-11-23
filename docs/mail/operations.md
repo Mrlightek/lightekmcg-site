@@ -16,7 +16,7 @@ Use `mail.lightekmcg.com` for the central SMTP server hostname. The HTTPS submis
 
 This is a central service first. Dedicated client mail servers can follow for isolation, scale or contractual requirements, with their own SMTP egress, DNS and reputation. A single central IP also means a shared reputation and operational failure domain; enforce mailbox limits and monitor the queue.
 
-Action Mailer is the sender, Action Mailbox is the incoming processor. The Rails web inbox is the client UI. IMAP/POP access from Apple Mail/Outlook/Thunderbird requires an additional mailbox backend such as Dovecot and synchronization/provisioning; it is not implemented by Action Mailbox or this release. Calendar, contacts, advanced spam quarantine, mailbox migration, shared-team delegation, campaigns, delivery webhooks and billing fulfillment are separate work. HTTPS submission is not a telephone media/signaling implementation.
+Action Mailer is the sender, Action Mailbox is the incoming processor. The Rails web inbox is the client UI. IMAP/POP access from Apple Mail/Outlook/Thunderbird requires an additional mailbox backend such as Dovecot and synchronization/provisioning; it is not implemented by Action Mailbox or this release. Calendar, contacts, advanced spam quarantine, shared-team delegation, campaigns, delivery webhooks and billing fulfillment are separate work. HTTPS submission is not a telephone media/signaling implementation.
 
 ## Activate a customer
 
@@ -285,3 +285,9 @@ Incoming mail is scanned by the existing loopback Rspamd service before inbox cl
 Mailbox settings expose standard/strict filtering plus up to 200 allowed and blocked sender addresses or domains. Blocked entries win. Allowed entries cannot bypass a missing scan, a score of 6 or higher, or a reject/discard/quarantine/deferral verdict. Junk has its own folder; message and bulk actions support spam/not-spam moves. These moves do not train a global spam model or change sender lists automatically.
 
 This release requires the `AddLightekMailboxManagement` database migration. Focused fixtures cover mailbox lifecycle, group isolation, snapshot delivery, spam classification, user controls and safe empty-route exports. Recipient inbox placement and live Rspamd/DNS/MTA readiness still require host verification.
+
+## Import Gmail message history
+
+In **Mail Studio → Import mail**, map an extracted Gmail or Google Workspace `.mbox` export to a mailbox you can manage. Files up to 512 MB can be previewed. For larger mailboxes, export smaller selections of Gmail labels and import the resulting files one at a time. Keep the originating mail service available during import.
+
+The preview estimates new storage and reports unreadable messages. After reviewing the destination, start the import and check its progress. Imported mail retains its original date, attachments, reply references, and Gmail labels. Search labels from **All mail** using `label:"Client receipts"`. A successful import skips messages already in the destination. Use **Retry from last checkpoint** after fixing a quota or storage problem. Remove the archive from the import page when finished. Removing an archive leaves the imported mail in place.

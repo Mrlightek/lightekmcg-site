@@ -764,6 +764,15 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   patch "/accounts/:account_id/templates/:id", action: :save_template, as: :dashboard_mail_template
   post "/accounts/:account_id/templates/preview", action: :preview_template, as: :preview_dashboard_mail_template
 end
+scope "/dashboard/mail/accounts/:account_id", controller: "dashboard/mailbox_imports" do
+  get "/imports", action: :index, as: :dashboard_mailbox_imports
+  post "/imports", action: :create
+  get "/imports/:id", action: :show, as: :dashboard_mailbox_import
+  post "/imports/:id/start", action: :start, as: :start_dashboard_mailbox_import
+  post "/imports/:id/retry", action: :retry_import, as: :retry_dashboard_mailbox_import
+  delete "/imports/:id", action: :destroy
+end
+
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
 get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"

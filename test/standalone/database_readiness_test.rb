@@ -1,6 +1,9 @@
 require "minitest/autorun"
 require "minitest/mock"
-require "active_record"
+require "open3"
+require "rbconfig"
+require "rails"
+require "active_record/railtie"
 require_relative "../../lib/lightek/database_readiness"
 
 module Rails
@@ -8,6 +11,19 @@ module Rails
 end
 
 class DatabaseReadinessTest < Minitest::Test
+  def test_loads_database_configurations_before_rails_initializes
+    readiness = File.expand_path("../../lib/lightek/database_readiness.rb", __dir__)
+    output, status = Open3.capture2e(RbConfig.ruby, "-e", <<~RUBY, readiness)
+      require "rails"
+      require "active_record/railtie"
+      abort "fixture loaded Active Record models too early" if defined?(ActiveRecord::DatabaseConfigurations)
+      require ARGV.fetch(0)
+      ActiveRecord::DatabaseConfigurations.new({})
+    RUBY
+
+    assert status.success?, output
+  end
+
   def test_waits_for_the_actual_primary_database_and_releases_the_probe_pool
     configs = {"production" => {"adapter" => "postgresql", "database" => "production_app"}}
     application = Struct.new(:config).new(Struct.new(:database_configuration).new(configs))

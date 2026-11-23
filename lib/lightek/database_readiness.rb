@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "active_record/database_configurations"
+
 module Lightek
   module DatabaseReadiness
     module_function

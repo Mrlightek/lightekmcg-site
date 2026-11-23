@@ -49,6 +49,13 @@ class Dashboard::NetworkOfficeController < DymondDash::ApplicationController
 
   def export
     file = request_office('show', file_key: params.require(:file_key))
+    if params[:download] == 'docx'
+      return head :not_found unless file['kind'] == 'document'
+
+      return send_data LightekOffice::WordExport.call(file.fetch('content'), rich_text: file['rich_text']),
+        filename: LightekOffice::WordExport.filename(file['title']), type: LightekOffice::WordExport::CONTENT_TYPE
+    end
+
     if file['kind'] == 'spreadsheet'
       send_data LightekOffice::Content.csv(file.fetch('content')), filename: 'spreadsheet.csv', type: 'text/csv'
     elsif file['kind'] == 'document' && file['rich_text']

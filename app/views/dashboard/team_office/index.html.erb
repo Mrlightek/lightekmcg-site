@@ -31,7 +31,10 @@
       <% if @file.persisted? %>
         <h2><%= @file.title %></h2>
         <p><small>Edited by <%= @file.editor.full_name %> · <%= l(@file.updated_at, format: :short) %></small></p>
-        <%= link_to "Download", office_action_path(:export, @file) %>
+        <% if @file.kind == "document" %>
+          <%= link_to "Download Word (.docx)", office_action_path(:export, @file, download: "docx") %>
+        <% end %>
+        <%= link_to (@file.kind == "document" ? "Download source" : "Download"), office_action_path(:export, @file) %>
         <% if @rows %>
           <div class="office-sheet">
             <table aria-label="Calculated spreadsheet">

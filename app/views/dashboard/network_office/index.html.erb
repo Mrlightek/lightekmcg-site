@@ -27,7 +27,10 @@
       <% if @file %>
         <h2><%= @file.fetch("title") %></h2>
         <p><small>Edited by <%= @file.fetch("editor") %> · <%= @file.fetch("organization") %></small></p>
-        <%= link_to "Download", export_dashboard_network_office_path(params[:key], @file.fetch("key")) %>
+        <% if @file.fetch("kind") == "document" %>
+          <%= link_to "Download Word (.docx)", export_dashboard_network_office_path(params[:key], @file.fetch("key"), download: "docx") %>
+        <% end %>
+        <%= link_to (@file.fetch("kind") == "document" ? "Download source" : "Download"), export_dashboard_network_office_path(params[:key], @file.fetch("key")) %>
         <% if @rows %>
           <div class="office-sheet">
             <table aria-label="Calculated spreadsheet">

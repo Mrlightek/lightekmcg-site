@@ -153,7 +153,7 @@
   function refresh(preserve=false){if(!enabled())return;if(preserve&&window.LightekStudioForms?.composing()){LightekStudioForms.defer();return;}const editing=preserve?window.LightekStudioForms?.capture():null;const form=preserve?app.querySelector('[data-vw-inspector] form'):null,saved=form?{kind:form.dataset.vwForm,values:Object.fromEntries(new FormData(form))}:null;const left=app.querySelector('[data-vw-assets]'),right=app.querySelector('[data-vw-inspector]'),tracks=app.querySelector('[data-vw-lanes]');if(left)left.innerHTML=assetsPanel();if(right){right.innerHTML=inspector();if(saved){const restored=right.querySelector(`[data-vw-form="${saved.kind}"]`);if(restored)for(const [name,value] of Object.entries(saved.values)){const input=restored.elements.namedItem(name);if(input)input.value=value;}}}if(tracks)tracks.innerHTML=lanes();const range=app.querySelector('[data-vw-playhead]');if(range)range.max=duration();const guide=app.querySelector('[data-vw-guide]');if(guide&&current())guide.innerHTML=sceneGuide(current().scene);if(preserve)window.LightekStudioForms?.restore(editing);}
   function sceneGuide(scene){
     if(scene.settings?.character_base_mesh)return `<p>Your human base mesh is ready for modeling. Edit its geometry and materials, or render a camera preview.</p><div>${button('advanced','Edit mesh & materials')} ${button('preview','Render camera preview')}</div>`;
-    if(scene.settings?.rigged_character)return `<p>Edit the rig or play a short video preview from the scene camera.</p><div>${button('play-scene','Play scene')} ${button('advanced','Edit rig & materials')} ${button('preview','Render camera preview')}</div>`;
+    if(scene.settings?.rigged_character)return `<p>Your character is saved. Adjust its appearance, then preview it from the scene camera.</p><div>${button('character-appearance','Character appearance')} ${button('play-scene','Play scene')} ${button('preview','Render camera preview')} ${button('advanced','Edit rig')}</div>`;
     const cast=scene.objects.find(object=>object.definition?.character_profile);
     const hasAction=scene.objects.some(object=>object.definition?.motion_clips?.length||object.definition?.performance);
     if(!cast)return `<p>Who’s in your scene?</p><div>${button('create-character','Pick a character')} ${button('create-photo','Use a photo')}</div>`;
@@ -180,6 +180,66 @@
     if(labelledBy)el.setAttribute('aria-labelledby',labelledBy);
     el.addEventListener('close',()=>{if(el.photoUrl)URL.revokeObjectURL(el.photoUrl);el.remove();});
     app.append(el);el.showModal();return el;
+  }
+  const colorHex=values=>'#'+values.slice(0,3).map(value=>{
+    const linear=Math.max(0,Math.min(1,Number(value)));
+    const rgb=linear<=0.0031308?linear*12.92:1.055*linear**(1/2.4)-0.055;
+    return Math.round(rgb*255).toString(16).padStart(2,'0');
+  }).join('');
+  const linearColor=(hex,alpha)=>hex.slice(1).match(/../g).map(value=>{
+    const rgb=parseInt(value,16)/255;
+    return rgb<=0.04045?rgb/12.92:((rgb+0.055)/1.055)**2.4;
+  }).concat(alpha);
+  async function characterAppearance(){
+    const {scene}=current();
+    const modal=dialog(`<h2 id="vw-appearance-title">Character appearance</h2><p role="status">Loading character controls…</p>
+      <div data-vw-appearance-fields></div><div class="vw-actions">${button('close','Done')}</div>`,'vw-appearance-title');
+    const status=modal.querySelector('[role="status"]');
+    try{
+      const look=await call('look.status',{scene_id:scene.id});
+      if(!modal.open)return;
+      const objects=scene.objects.filter(object=>object.definition.native_type==='MESH'&&!object.definition.hide_viewport&&!object.definition.native_deleted&&object.name!=='Studio floor');
+      const targets=look.targets.filter(target=>objects.some(object=>object.id===target.object_id)&&target.fields?.includes('color'));
+      const shapes=objects.filter(object=>/face|eye|head|brow|lip|mouth|nose|cheek/i.test(object.name))
+        .flatMap(object=>(object.definition.shape_keys||[]).filter(shape=>shape.name!=='Basis')
+          .map(shape=>({object,name:shape.name,value:object.definition.authoring_commands?.slice().reverse().find(cmd=>cmd.kind==='shape_key'&&cmd.name===shape.name)?.value??shape.value??0})));
+      modal.appearance={sceneId:scene.id,version:look.lock_version,targets,shapes};
+      const options=(items,label)=>items.map((item,index)=>`<option value="${index}">${esc(label(item))}</option>`).join('');
+      modal.querySelector('[data-vw-appearance-fields]').innerHTML=`
+        <section class="vw-appearance-section"><h3>Colors & materials</h3>
+          ${targets.length?`<form data-vw-form="character-material"><label class="vw-field"><span>Character material</span><select name="target">${options(targets,item=>item.name)}</select></label>
+            ${field('color','Material color',colorHex(targets[0].values.color),'color')}
+            <button class="vw-btn primary" type="submit">Save color</button></form>`:'<p>This character has no editable color materials.</p>'}
+        </section>
+        <section class="vw-appearance-section"><h3>Face shapes</h3>
+          ${shapes.length?`<form data-vw-form="character-face"><label class="vw-field"><span>Face shape</span><select name="target">${options(shapes,item=>item.object.name+' / '+item.name)}</select></label>
+            <label class="vw-field"><span>Shape amount</span><input name="amount" type="number" min="-10" max="10" step="0.05" value="${esc(shapes[0].value)}" required></label>
+            <button class="vw-btn primary" type="submit">Save face shape</button></form>`:'<p>This rig has no supported face shapes.</p>'}
+        </section>`;
+      status.textContent='Save a change, then render a camera preview to see it.';
+    }catch(error){status.textContent=error.message;}
+  }
+  async function saveCharacterAppearance(form,data,kind){
+    const modal=form.closest('dialog'),status=modal.querySelector('[role="status"]'),draft=modal.appearance;
+    const color=kind==='character-material';
+    const target=(color?draft.targets:draft.shapes)[Number(data.target)];
+    const values=color?{color:linearColor(data.color,target.values.color[3]??1)}:null;
+    const payload=color?{object_id:target.object_id,slot:target.slot,target:target.target,values}:
+      {object_id:target.object.id,command:{kind:'shape_key',name:target.name,value:Number(data.amount)}};
+    const signature=JSON.stringify(payload);
+    if(form.appearanceRequest?.signature!==signature)form.appearanceRequest={signature,id:key()};
+    const submits=[...modal.querySelectorAll('[type="submit"]')];
+    submits.forEach(control=>{control.disabled=true;});
+    status.textContent='Saving…';
+    try{
+      const receipt=await call(color?'material.save':'blender.authoring.edit',
+        {...payload,scene_id:draft.sceneId,lock_version:draft.version,request_key:form.appearanceRequest.id});
+      draft.version=receipt.lock_version;
+      if(color)target.values.color=values.color;else target.value=payload.command.value;
+      delete form.appearanceRequest;
+      status.textContent='Saved. Close this panel and choose Render camera preview to see the updated character.';
+    }catch(error){status.textContent=error.message;}
+    finally{submits.forEach(control=>{control.disabled=false;});}
   }
   async function uploadAsset(file){
     const body=new FormData();
@@ -297,6 +357,7 @@
       return;
     }
     if(action==='close'){b.closest('dialog').close();return;}
+    if(action==='character-appearance'){characterAppearance();return;}
     run(async()=>{
       if(action==='starter-cast'||action==='starter-example'){
         const retry=action==='starter-cast';
@@ -331,6 +392,17 @@
       preview.hidden=!file;
       if(file)preview.src=dialog.photoUrl;
       else preview.removeAttribute('src');
+      return;
+    }
+    const appearanceForm=input.closest('[data-vw-form="character-material"],[data-vw-form="character-face"]');
+    if(appearanceForm&&input.name==='target'){
+      const draft=appearanceForm.closest('dialog').appearance;
+      const index=Number(input.value);
+      if(appearanceForm.dataset.vwForm==='character-material'){
+        appearanceForm.elements.namedItem('color').value=colorHex(draft.targets[index].values.color);
+      }else{
+        appearanceForm.elements.namedItem('amount').value=draft.shapes[index].value;
+      }
       return;
     }
     const characterForm=input.closest('[data-vw-form="rigged-character"]');
@@ -381,6 +453,10 @@
     const data=Object.fromEntries(new FormData(form)),kind=form.dataset.vwForm,scene=current()?.scene,object=selected(),clipIndex=state.clip;
     if(kind==='rigged-character'&&!data.name.trim()){
       showCharacterNameError(form.elements.namedItem('name'),true);
+      return;
+    }
+    if(kind==='character-material'||kind==='character-face'){
+      saveCharacterAppearance(form,data,kind);
       return;
     }
     run(async()=>{

@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v134-character-stage"
+const CACHE = "lightek-shell-v135-character-viewport"
 
 const SHELL = [
   "/lightek/index.html",

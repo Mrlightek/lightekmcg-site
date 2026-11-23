@@ -1,7 +1,12 @@
-<% if current_user&.persisted? && can?(:manage, NevaehWorkflow) %>
-<link rel="stylesheet" href="/lightek/nevaeh/help.css">
-<dialog class="nv-help-dialog" data-nevaeh-help-dialog aria-labelledby="nv-help-title">
-  <div class="nv-help-content"><header><span>LIGHTEK / GUIDE</span><button type="button" data-nevaeh-help-close aria-label="Close tutorial">×</button></header><h2 id="nv-help-title">Guide</h2><div data-nevaeh-help-body role="status"></div><a data-nevaeh-help-document href="<%= main_app.employee_software_library_path %>">Open Software Library →</a></div>
+<% if current_user&.persisted? %>
+<link rel="stylesheet" href="/lightek/nevaeh/help.css?v=2">
+<dialog class="nv-help-dialog" data-nevaeh-help-dialog
+  data-page-endpoint="<%= main_app.dashboard_nevaeh_page_help_path %>"
+  <% if (current_user.employee? || current_user.admin?) && can?(:manage, NevaehWorkflow) %>
+  data-topic-endpoint="<%= main_app.employee_nevaeh_help_path(topic: 'TOPIC') %>"
+  <% end %>
+  aria-labelledby="nv-help-title">
+  <div class="nv-help-content"><header><span>LIGHTEK / GUIDE</span><button type="button" data-nevaeh-help-close aria-label="Close tutorial">×</button></header><h2 id="nv-help-title">Guide</h2><div data-nevaeh-help-body role="status"></div><a data-nevaeh-help-document hidden>Open full guide →</a></div>
 </dialog>
-<script src="/lightek/nevaeh/help.js" defer></script>
+<script src="/lightek/nevaeh/help.js?v=2" defer></script>
 <% end %>

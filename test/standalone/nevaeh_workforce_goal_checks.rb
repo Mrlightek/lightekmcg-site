@@ -253,7 +253,8 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
     assert_equal %w[area path site_id title],result.fetch('page').keys.sort
     refute_includes response.body,'private-page-context-7b2b2c';refute_includes response.body,'do-not-read'
     refute result.fetch('page').key?('password')
-    assert result['specialists'].any? { |row| row['key']=='producer' }
+    assert_equal result.dig('playbook', 'actions').map { |task| task.fetch('worker') }.uniq, result.fetch('specialists')
+    refute result.fetch('specialists').any? { |row| row['key'] == 'producer' }
   end
   def test_goal_create_is_csrf_protected_and_creates_a_reviewable_draft
     @request.set_header('HTTP_X_CSRF_TOKEN','bad')

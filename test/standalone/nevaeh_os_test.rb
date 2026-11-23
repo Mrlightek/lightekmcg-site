@@ -278,6 +278,7 @@ class NevaehOsHttpTest < ActionController::TestCase
     @routes=ActionDispatch::Routing::RouteSet.new
     @routes.draw do
       get '/dashboard/nevaeh/guide',to:'dashboard/nevaeh_os#guide',as: :dashboard_nevaeh_guide
+      get '/dashboard/nevaeh/page-help',to:'dashboard/nevaeh_os#page_help',as: :dashboard_nevaeh_page_help
       get '/dashboard/nevaeh/workforce',to:'dashboard/nevaeh_os#workforce'
       post '/dashboard/nevaeh/context',to:'dashboard/nevaeh_os#page_context'
       post '/dashboard/nevaeh/goals',to:'dashboard/nevaeh_os#goals'
@@ -288,6 +289,7 @@ class NevaehOsHttpTest < ActionController::TestCase
       delete '/dashboard/nevaeh/memories/:id',to:'dashboard/nevaeh_os#forget'
       get '/dashboard/nevaeh/actions/:id',to:'dashboard/nevaeh_os#action'
     end
+    @controller.extend(@routes.url_helpers)
     @controller.allow_forgery_protection=true
     # Generate a genuine Rails masked token bound to this test's session.
     @controller.set_request!(@request)
@@ -300,6 +302,22 @@ class NevaehOsHttpTest < ActionController::TestCase
     assert_raises(ActionController::InvalidAuthenticityToken) do
       post :remember,params:{category:'Preferences',text:'blocked'},as: :json
     end
+  end
+  def test_dashboard_help_uses_the_current_area_and_respects_guide_permissions
+    get :page_help, params: {page: '/dashboard/studio-broadcasting', field: 'Character name'}, as: :json
+    assert_response :success
+    result = JSON.parse(response.body)
+    assert_equal 'Character name', result.fetch('title')
+    assert_includes result.fetch('body'), 'Studio and Blender workflows'
+    assert_equal '/dashboard/nevaeh/guide?topic=studio', result.fetch('document_url')
+
+    @request.session[:actor_id] = @other.id
+    get :page_help, params: {page: '/dashboard/mail'}, as: :json
+    assert_response :success
+    assert_equal '/dashboard/nevaeh/guide?topic=commands', JSON.parse(response.body).fetch('document_url')
+
+    get :page_help, params: {page: '//example.test/dashboard/mail'}, as: :json
+    assert_response :unprocessable_entity
   end
   def test_memory_requires_consent_and_disable_erases_it
     post :remember,params:{category:'Preferences',text:'concise'},as: :json

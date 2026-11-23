@@ -17,7 +17,9 @@ class StudioMediaSetupTest(unittest.TestCase):
         for flag in ['--background','--factory-startup','--disable-autoexec','--python-expr']:
             self.assertIn(flag,blender)
         self.assertEqual(blender[blender.index('--python-exit-code')+1],'1')
-        self.assertEqual(blender[blender.index('--memory')+1],'2g')
+        self.assertEqual(blender[blender.index('--memory')+1],'1792m')
+        self.assertEqual(blender[blender.index('--memory-swap')+1],'1792m')
+        self.assertEqual(blender[blender.index('--name')+1],'lightek-blender-slot')
         speech=next(command for command in probes if '/opt/lightek-voice/synthesize.py' in command)
         self.assertIn('--interactive',speech)
         self.assertNotIn('--tty',speech)
@@ -50,7 +52,7 @@ class StudioMediaSetupTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             folder=Path(folder)
             docker=folder/'docker'
-            docker.write_text('#!/usr/bin/env python3\nimport json,os,sys\nwith open(os.environ["STUDIO_SETUP_TRACE"],"a") as f:f.write(json.dumps(sys.argv[1:])+"\\n")\nif "/opt/lightek-voice/synthesize.py" in sys.argv:\n with open(os.environ["STUDIO_SETUP_TRACE"]+".speech","w") as f:f.write(sys.stdin.read())\nif "--python-expr" in sys.argv:print("LIGHTEK_BLENDER_RUNTIME_READY=4.4.0")\nif sys.argv[1:]==["info","--format","{{.NCPU}}"]:print("1")\n')
+            docker.write_text('#!/usr/bin/env python3\nimport json,os,sys\nwith open(os.environ["STUDIO_SETUP_TRACE"],"a") as f:f.write(json.dumps(sys.argv[1:])+"\\n")\nif "/opt/lightek-voice/synthesize.py" in sys.argv:\n with open(os.environ["STUDIO_SETUP_TRACE"]+".speech","w") as f:f.write(sys.stdin.read())\nif "--python-expr" in sys.argv:print("LIGHTEK_BLENDER_RUNTIME_READY=4.4.0")\nif sys.argv[1:]==["info","--format","{{.NCPU}}"]:print("1")\nif sys.argv[1:]==["info","--format","{{.MemTotal}} {{.MemoryLimit}} {{.SwapLimit}}"]:print("3221225472 true true")\n')
             docker.chmod(0o755)
             env=os.environ.copy()
             env.pop('STUDIO_ASSET_WORKER_IMAGE',None)
@@ -80,6 +82,7 @@ args=sys.argv[1:]
 with open(os.environ['STUDIO_SETUP_TRACE'],'a') as f:f.write(json.dumps(args)+'\\n')
 if args[:2]==['image','inspect']:print(json.dumps([{'Config':{'Labels':{'io.lightek.source-sha256':os.environ['TEST_FINGERPRINT']}}}]))
 if args==['info','--format','{{.NCPU}}']:print('1')
+if args==['info','--format','{{.MemTotal}} {{.MemoryLimit}} {{.SwapLimit}}']:print('3221225472 true true')
 if '/opt/lightek-voice/synthesize.py' in args:
  with open(os.environ['STUDIO_SETUP_TRACE']+'.speech','w') as f:f.write(sys.stdin.read())
 if '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')
@@ -99,7 +102,7 @@ if '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')
         for engine in ['node','blender','/opt/rhubarb/rhubarb','/opt/lightek-voice/synthesize.py','/opt/lightek-physics/venv/bin/python']:
             with self.subTest(engine=engine), tempfile.TemporaryDirectory() as directory:
                 folder=Path(directory); binary=folder/'docker'
-                binary.write_text("#!/usr/bin/env python3\nimport os,sys\nargs=sys.argv[1:]\nif args==['info','--format','{{.NCPU}}']:print('1')\nif args and args[0]=='run' and os.environ['FAIL_ENGINE'] in args:sys.exit(7)\nif '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')\n")
+                binary.write_text("#!/usr/bin/env python3\nimport os,sys\nargs=sys.argv[1:]\nif args==['info','--format','{{.NCPU}}']:print('1')\nif args==['info','--format','{{.MemTotal}} {{.MemoryLimit}} {{.SwapLimit}}']:print('3221225472 true true')\nif args and args[0]=='run' and os.environ['FAIL_ENGINE'] in args:sys.exit(7)\nif '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')\n")
                 binary.chmod(0o755)
                 env=dict(os.environ,PATH=str(folder)+os.pathsep+os.environ['PATH'],FAIL_ENGINE=engine,
                          STUDIO_ASSET_WORKER_IMAGE='test/studio-media:probe')

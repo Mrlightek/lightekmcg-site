@@ -25,7 +25,7 @@ class BlenderBridge:
         command=[self.blender]
         if self.backend!='viewport':command+=['--background']
         command+=['--factory-startup','--disable-autoexec','--python-exit-code','1','--python',str(script),'--','--manifest',str(manifest_path),'--output',str(self.root),'--frame-pipe',str(pipe),'--width',str(self.width),'--height',str(self.height),'--fps',str(self.fps),'--backend',self.backend]
-        if self.launcher:command=self.launcher(command,self.root)
+        if self.launcher:command=await asyncio.to_thread(self.launcher,command,self.root)
         self.tasks.append(asyncio.create_task(self._frames(pipe)))
         try:self.process=await asyncio.create_subprocess_exec(*command,stdin=asyncio.subprocess.PIPE,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.DEVNULL,start_new_session=True,limit=256*1024)
         except BaseException:

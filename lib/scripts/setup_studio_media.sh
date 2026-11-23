@@ -20,11 +20,27 @@ STUDIO_RUNTIME_CPUS="$(python3 "$STUDIO_RUNTIME_ROOT/lib/scripts/studio_worker_l
 docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
   --pids-limit 128 --memory 256m --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" \
   "$STUDIO_RUNTIME_IMAGE" node /opt/lightek-editors/movie-render.cjs --health
-# Probe with the same restrictions used by imports, without app files/secrets.
-docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
-  --pids-limit 128 --memory 2g --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \
-  "$STUDIO_RUNTIME_IMAGE" blender --background --factory-startup --disable-autoexec --python-exit-code 1 \
-  --python-expr 'import bpy, numpy; assert bpy.app.version >= (4, 4, 0); print("LIGHTEK_BLENDER_RUNTIME_READY=" + bpy.app.version_string)'
+# Probe under the same host budget and daemon-wide slot used by app jobs.
+if BLENDER_MEMORY="$(python3 "$STUDIO_RUNTIME_ROOT/lib/scripts/studio_worker_limits.py" --blender-memory 2g)"; then
+  if BLENDER_PROBE="$(docker run --rm --name lightek-blender-slot --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+    --pids-limit 128 --memory "$BLENDER_MEMORY" --memory-swap "$BLENDER_MEMORY" --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \
+    "$STUDIO_RUNTIME_IMAGE" blender --background --factory-startup --disable-autoexec --python-exit-code 1 \
+    --python-expr 'import bpy, numpy; assert bpy.app.version >= (4, 4, 0); print("LIGHTEK_BLENDER_RUNTIME_READY=" + bpy.app.version_string)' 2>&1)"; then
+    printf '%s\n' "$BLENDER_PROBE"
+  else
+    probe_status=$?
+    if [[ "$probe_status" = 125 && "$BLENDER_PROBE" == *"Conflict."*"lightek-blender-slot"* ]]; then
+      echo 'Blender runtime probe deferred because its worker is busy.'
+    else
+      printf '%s\n' "$BLENDER_PROBE" >&2
+      exit "$probe_status"
+    fi
+  fi
+else
+  probe_status=$?
+  [[ "$probe_status" = 75 ]] || exit "$probe_status"
+  echo 'Blender runtime probe deferred by the host memory guard.'
+fi
 if [[ -n "${STUDIO_RENDER_WORKER_IMAGE:-}" && "$STUDIO_RENDER_WORKER_IMAGE" != "$STUDIO_RUNTIME_IMAGE" ]]; then
   docker image inspect "$STUDIO_RENDER_WORKER_IMAGE" >/dev/null || docker pull "$STUDIO_RENDER_WORKER_IMAGE"
 fi

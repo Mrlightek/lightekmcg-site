@@ -2,7 +2,7 @@
 require 'digest'
 module NevaehOs
   module Goals
-    KINDS=%w[live_show public_relations website_page website_marketing specialist_review documentation_answer production campaign_produce marketing_kit feature_showcase marketing_follow_up backlink_draft growth_plan growth_review capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].freeze
+    KINDS=%w[live_show public_relations website_page website_marketing specialist_review documentation_question documentation_answer production campaign_produce marketing_kit feature_showcase marketing_follow_up backlink_draft growth_plan growth_review capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].freeze
     FAILURES=%w[failed blocked error cancelled needs_attention needs_review evidence_unavailable stale].freeze
     WAITING=%w[pending queued running dispatched processing publishing training].freeze
     module_function
@@ -38,6 +38,9 @@ module NevaehOs
         command=row.fetch('command');command=Command.parse(command) if command.is_a?(String)
         raise ArgumentError,'Choose a supported executable command for each step' unless command.is_a?(Hash) && KINDS.include?(command['kind'])
         command=command.except('agent_id','persona_id')
+        if command['kind'] == 'documentation_question'
+          DocumentationWorkers.authorize_question!(actor: actor, command: command, agent: agent)
+        end
         has_refs=false
         references(command) do |ref|
           has_refs=true

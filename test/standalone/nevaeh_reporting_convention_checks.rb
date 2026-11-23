@@ -143,4 +143,33 @@ class NevaehReportingConventionChecks < NevaehWorkerReportChecks
     empty=NevaehOs::DocumentationWorkers.bind!(actor:@actor,command:empty)
     assert NevaehOs::DocumentationWorkers.answer!(actor:@actor,command:empty)['needs_manager']
   end
+
+  def test_workforce_assigns_a_question_to_the_listed_documentation_page
+    assigned = NevaehOs::DocumentationWorkers.delegate_question!(
+      actor: @actor, topic: 'agents', query: 'How do I delegate?', key: SecureRandom.uuid
+    )
+    agent = NevaehAgentRun.find(assigned.fetch('agent_run_id')).nevaeh_agent_worker.nevaeh_os_agent
+    orphan = NevaehOsAgent.create!(user: @actor, system_key: 'page_retired', name: 'Retired page')
+    rows = NevaehOs::Workforce.rows(@actor).index_by { |row| row[:id] }
+    assert_equal 'docs/nevaeh/tutorials/agents.md', rows.fetch(agent.id).dig(:documentation_page, :path)
+    assert_equal 'task_ready', rows.fetch(agent.id)[:availability]
+    assert_equal 'adapter_needed', rows.fetch(orphan.id)[:availability]
+    assert_empty rows.fetch(orphan.id)[:examples]
+
+    chat = NevaehOs::Conversation.new(actor: @actor)
+    result = chat.ask(text: "/delegate #{agent.id} /page agents Show me how to delegate",
+                      request_key: SecureRandom.uuid, mode: 'operate')
+    action = NevaehOsAction.find(result.fetch('action_id'))
+    execute(action)
+    run = NevaehAgentRun.find(action.reload.result.fetch('agent_run_id'))
+    assert_equal 'documentation_answer', run.snapshot.fetch('kind')
+    assert_equal 'docs/nevaeh/tutorials/agents.md', run.snapshot.dig('documentation_contract', 'path')
+    NevaehOs::AgentWorkforce.execute!(run)
+    execute(run.reload.nevaeh_os_action)
+    assert run.nevaeh_os_action.reload.result.fetch('matches').any?
+    assert_raises(ArgumentError) do
+      chat.ask(text: "/delegate #{agent.id} /page studio Show me how to edit",
+               request_key: SecureRandom.uuid, mode: 'operate')
+    end
+  end
 end

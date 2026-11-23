@@ -85,3 +85,27 @@ body.lt-visual #studio-app-exit{display:flex;align-items:center;position:sticky;
 .vw-character-swatch[data-hair=high_top]{border-radius:20% 20% 30% 30%}
 .vw-character-customize{margin:12px 0}
 .vw-character-customize summary{cursor:pointer;min-height:32px}
+
+
+.studio-character-camera-preview{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#101720;
+  pointer-events:none;
+}
+.studio-character-camera-preview[hidden]{display:none}
+
+.vw-appearance-section{
+  border-top:1px solid #383e4e;
+  padding-block:14px;
+}
+.vw-appearance-section h3{margin:0 0 12px}
+.vw-dialog [data-vw-appearance-fields]{
+  --dd-input-bg:#0d1017;
+  --dd-input-text:#f1f3f8;
+  --dd-input-border:#475064;
+  --dd-form-scheme:dark;
+}

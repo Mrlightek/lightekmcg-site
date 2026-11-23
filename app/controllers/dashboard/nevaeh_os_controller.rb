@@ -20,6 +20,24 @@ class Dashboard::NevaehOsController < ::ApplicationController
   def index
     render layout: false
   end
+
+  def page_help
+    context = NevaehOs::PageContext.normalize('path' => params[:page])
+    area = NevaehOs::PageContext.area(context)
+    topic = NevaehOs::Guide.topics(actor: current_user).any? { |guide| guide[:id] == area[3] } ? area[3] : 'commands'
+    guide = NevaehOs::Guide.tutorial(topic, actor: current_user)
+    field = params[:field].to_s.first(120).presence
+    terms = field.to_s.downcase.scan(/[[:alnum:]]{3,}/).uniq.first(12)
+    sections = guide[:body].split(/^## /).map { |section| section.sub(/\A#\s+[^\n]+\n/, '').strip }.reject(&:blank?)
+    excerpt = sections.max_by { |section| terms.count { |term| section.downcase.include?(term) } }
+
+    render json: {
+      title: field || area[2],
+      body: [guide[:title], excerpt&.first(1200)].compact.join("\n\n"),
+      document_url: dashboard_nevaeh_guide_path(topic: topic)
+    }
+  end
+
   def guide
     @topics=NevaehOs::Guide.topics(actor:current_user)
     @catalog=NevaehOs::Guide.catalog(actor:current_user)

@@ -7,10 +7,36 @@ module NevaehOs
       'learn'=>'training','review'=>'training','model'=>'training','improve'=>'workforce','ticket'=>'agents',
       'run'=>'agents','worker_status'=>'agents','project'=>'factory','forget'=>'memory'}.freeze
     IGNORED=%w[documentation_contract documentation_read manager_context experience_contract report_dependencies].freeze
+    REGISTRY = Guide::TUTORIALS.keys.to_h do |topic|
+      ["docs/nevaeh/tutorials/#{topic}.md", "page_#{topic}"]
+    end.freeze
     module_function
     def instruction_digest(command) = PageWorkers.digest(command.except(*IGNORED))
+
+    def assignment(actor, worker_key)
+      path = REGISTRY.key(worker_key)
+      return unless path && Rails.root.join(path).file?
+
+      topic = File.basename(path, '.md')
+      return unless Guide.allowed?(Guide::TUTORIALS.fetch(topic)[1], actor)
+
+      {topic: topic, path: path, title: Guide::TUTORIALS.fetch(topic)[0]}
+    end
+
+    def authorize_question!(actor:, command:, agent:)
+      page = assignment(actor, agent.system_key)
+      unless page && page[:topic] == command['topic'] && %w[documentation_question documentation_answer].include?(command['kind'])
+        raise ArgumentError, 'This SME may only answer questions from its assigned documentation page'
+      end
+    end
+
     def bind!(actor:, command:)
       return command.tap { read!(actor:actor,command:command) } if command['documentation_contract']
+      if command['kind'] == 'documentation_question'
+        agent = NevaehOsAgent.where(user: actor).find(command.fetch('agent_id'))
+        authorize_question!(actor: actor, command: command, agent: agent)
+        command = command.merge('kind' => 'documentation_answer')
+      end
       if (stamp=command['page_contract'])
         row=PageWorkers.contracts(actor,PageContext.normalize(stamp.fetch('context'))).find { |r| r[:key]==stamp['key'] && r[:fingerprint]==stamp['fingerprint'] }
         raise ArgumentError,'Refresh the documentation page contract' unless row && row[:source]
@@ -34,8 +60,9 @@ module NevaehOs
     def read!(actor:, command:)
       stamp=command.fetch('documentation_contract') { raise ArgumentError,'This worker needs a documentation page assignment' }
       agent=NevaehOsAgent.where(user:actor).find(command.fetch('agent_id'))
-      if agent.system_key.to_s.start_with?('page_') && agent.system_key!="page_#{stamp['topic']}"
-        raise ArgumentError,'This SME may only use its assigned documentation page'
+      if agent.system_key.to_s.start_with?('page_')
+        authorize_question!(actor: actor, command: command, agent: agent)
+        raise ArgumentError, 'The source must match this SME’s assigned page' unless stamp['topic'] == command['topic']
       end
       guide=Guide.tutorial(stamp.fetch('topic'),actor:actor) # Always reread the actual file; never serve a cached lesson as its replacement.
       sha=Digest::SHA256.hexdigest(guide.fetch(:body))
@@ -50,7 +77,7 @@ module NevaehOs
     def delegate_question!(actor:,topic:,query:,key:)
       guide=Guide.tutorial(topic,actor:actor)
       raise ArgumentError,'Use a question up to 2000 characters' unless query.is_a?(String) && query.length.between?(1,2000)
-      agent=NevaehOsAgent.find_or_create_by!(user:actor,system_key:"page_#{topic}") do |role|
+      agent=NevaehOsAgent.find_or_create_by!(user:actor,system_key:REGISTRY.fetch(guide[:path])) do |role|
         role.name="#{guide[:title].first(30)} SME"
         role.role='Documentation SME'
         role.instructions="Use only #{guide[:path]}. Reread it before answering. Return source excerpts and line references; escalate missing content."

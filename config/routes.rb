@@ -238,6 +238,7 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh", to: "dashboard/nevaeh_os#index", as: :dashboard_nevaeh_os
   get "/dashboard/nevaeh/ceo", to: "dashboard/nevaeh_executive#show", as: :dashboard_nevaeh_executive
   get "/dashboard/nevaeh/guide", to: "dashboard/nevaeh_os#guide", as: :dashboard_nevaeh_guide
+  get "/dashboard/nevaeh/page-help", to: "dashboard/nevaeh_os#page_help", as: :dashboard_nevaeh_page_help
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
   post "/dashboard/agencies/onboarding/email", to: "dashboard/agencies#request_onboarding_email", as: :request_agency_onboarding_email

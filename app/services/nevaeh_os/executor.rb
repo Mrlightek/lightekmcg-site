@@ -29,8 +29,8 @@ module NevaehOs
         PlatformActions.authorize!(actor, command)
       when 'documentation_question'
         Guide.tutorial(command.fetch('topic'),actor:actor)
-        agent=NevaehOsAgent.find(command['agent_id']) if command['agent_id']
-        raise ArgumentError,'This SME may only answer its assigned page' if agent&.system_key.to_s.start_with?('page_') && agent.system_key!="page_#{command['topic']}"
+        query = command.fetch('query')
+        raise ArgumentError, 'Use a question up to 2000 characters' unless query.is_a?(String) && query.length.between?(1, 2000)
       when 'documentation_answer'
         DocumentationWorkers.read!(actor:actor,command:command)
       when 'goal'
@@ -112,6 +112,9 @@ module NevaehOs
         inner=command.fetch('command')
         raise ArgumentError,'Only executable commands can become agent tasks' if %w[agent_task agent_control agents models schema search help resources capabilities remember status briefing].include?(inner['kind'])
         agent=Agents.resolve!(command.fetch('agent_ref'),actor)
+        if inner['kind'] == 'documentation_question'
+          DocumentationWorkers.authorize_question!(actor: actor, command: inner, agent: agent)
+        end
         authorize_command!(actor:actor,command:inner.merge('agent_id'=>agent.id))
       when 'agent_control'
         NevaehAgentWorker.where(user:actor).find(command.fetch('id'))

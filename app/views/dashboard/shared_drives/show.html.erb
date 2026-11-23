@@ -29,13 +29,13 @@
       <ul>
         <% @entries.each do |entry| %>
           <li>
-            <%= render "entry_link", entry: entry %> · <%= entry.folder? ? "Folder" : "File" %>
+            <%= render "entry_link", entry: entry %> · <%= entry.folder? ? "Folder" : entry.office_file&.kind_label || "File" %>
             <% if @editor %>
               <details>
-                <summary>Rename or move</summary>
+                <summary><%= entry.office_file ? "Move" : "Rename or move" %></summary>
                 <%= form_with url: organize_dashboard_shared_drive_path(@drive, entry, employer_id: @employer.id),
                   model: entry, scope: :entry, method: :patch, namespace: "drive_entry_#{entry.id}" do |form| %>
-                  <%= form.label :name %><%= form.text_field :name, required: true, maxlength: 160 %>
+                  <% unless entry.office_file %><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 160 %><% end %>
                   <%= form.label :parent_id, "Move to" %>
                   <% folders = (@folders.to_a + [entry.parent].compact).uniq.reject { |folder| folder.id == entry.id } %>
                   <%= form.collection_select :parent_id, folders, :id, :name, {include_blank: "Drive root"} %>
@@ -47,6 +47,12 @@
         <% end %>
       </ul>
       <% if @editor %>
+        <nav aria-label="Create an Office file">
+          <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
+            <%= link_to "New #{label.downcase}", dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id, kind: kind),
+              class: "dd-topbar-btn dd-btn-ghost" %>
+          <% end %>
+        </nav>
         <details><summary>New folder</summary>
           <%= form_with url: add_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :entry do |form| %>
             <%= form.hidden_field :parent_id, value: @folder&.id %>

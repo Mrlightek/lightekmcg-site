@@ -10,7 +10,7 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
     @query = params[:q].to_s.strip.first(100)
     if @query.present?
       @results = search(LightekWorkspace::DriveEntry.where(drive_id: drives.select(:id)), @query)
-        .includes(:drive).order(:name).limit(100)
+        .includes(:drive, :office_file).order(:name).limit(100)
     end
   end
 
@@ -24,7 +24,7 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
     @folder = @drive.entries.where(folder: true).find(params[:folder]) if params[:folder].present?
     @query = params[:q].to_s.strip.first(100)
     scope = @query.present? ? search(@drive.entries, @query) : @drive.entries.where(parent: @folder)
-    @entries = scope.includes(:parent).order(folder: :desc, name: :asc, id: :asc).limit(100)
+    @entries = scope.includes(:parent, :office_file).order(folder: :desc, name: :asc, id: :asc).limit(100)
     @folders = @drive.entries.where(folder: true).order(:name, :id).limit(100) if @editor
     @coworkers = @workspace.roster.where.not(id: @employer.id).order(:first_name, :last_name) if @owner
   end
@@ -44,7 +44,7 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
 
   def organize
     @drive.with_lock do
-      raise LightekPeople::Access::Denied unless @owner || @drive.members.exists?(user: current_user, role: 'editor')
+      raise LightekPeople::Access::Denied unless @drive.editable_by?(current_user)
 
       entry = @drive.entries.find(params[:entry_id])
       attrs = params.require(:entry).permit(:name, :parent_id)
@@ -55,7 +55,7 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
 
         ancestor = ancestor.parent
       end
-      entry.update!(name: attrs[:name], parent: parent)
+      entry.update!(name: entry.office_file ? entry.name : attrs[:name], parent: parent)
       redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: entry.parent_id), status: :see_other
     end
   end
@@ -81,15 +81,12 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
   private
 
   def drives
-    scope = LightekWorkspace::Drive.where(employer: @employer)
-    return scope if @owner
-
-    scope.where(id: LightekWorkspace::DriveMember.where(user: current_user).select(:drive_id))
+    LightekWorkspace::Drive.accessible_to(current_user, @employer)
   end
 
   def load_drive
     @drive = drives.find(params[:id])
-    @editor = @owner || @drive.members.exists?(user: current_user, role: 'editor')
+    @editor = @drive.editable_by?(current_user)
   end
 
   def search(scope, query)

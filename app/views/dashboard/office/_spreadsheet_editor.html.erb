@@ -1,0 +1,5 @@
+<div data-office-grid>
+  <%= form.label :content, "Spreadsheet source" %>
+  <%= form.text_area :content, value: content, required: true, rows: 12, data: {office_grid_source: true} %>
+  <p><small>Enter values or formulas such as <code>=SUM(A1:A5)</code>. Up to 100 rows and 26 columns.</small></p>
+</div>

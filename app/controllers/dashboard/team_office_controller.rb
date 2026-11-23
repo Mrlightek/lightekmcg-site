@@ -2,7 +2,8 @@
 
 class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   protect_from_forgery with: :exception
-  before_action :team_scope!
+  before_action :load_office_scope
+  helper_method :office_path, :office_action_path
   rescue_from LightekPeople::Access::Denied, with: -> { head :forbidden }
   rescue_from ActiveRecord::RecordNotFound, with: -> { head :not_found }
   rescue_from ActiveRecord::RecordInvalid, with: :invalid_file
@@ -21,11 +22,22 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
 
   def index
     @file = params[:file_id].present? ? files.find(params[:file_id]) : files.new(kind: params[:kind].presence_in(LightekOffice::SharedFile::KINDS.keys) || 'document')
+    @folder = @file.drive_entry&.parent if @drive && @file.persisted?
+    writable! if @file.new_record?
     load_files
   end
 
   def create
-    @file = files.create!(fields.except(:lock_version).merge(creator: current_user, editor: current_user))
+    edit_scope do
+      attrs = fields.except(:lock_version).merge(creator: current_user, editor: current_user)
+      if @drive
+        entry = @drive.entries.build(parent: @folder, creator: current_user, folder: false, name: attrs[:title])
+        @file = entry.build_office_file(attrs)
+        entry.save!
+      else
+        @file = files.create!(attrs)
+      end
+    end
     saved
   end
 
@@ -35,9 +47,11 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
     attrs[:rich_text] = @file.kind == 'document' && ActiveModel::Type::Boolean.new.cast(attrs[:rich_text]) == true
     attrs[:content] = LightekOffice::Document.prepare!(attrs[:content].to_s) if attrs[:rich_text] && request.format.json?
     autosave = request.format.json?
-    result = @file.with_lock do
-      attrs[:title] = @file.title if autosave
-      LightekOffice::Changes.write!(@file, attrs, expected: fields.require(:lock_version), merge: autosave)
+    result = edit_scope do
+      @file.with_lock do
+        attrs[:title] = @file.title if autosave
+        LightekOffice::Changes.write!(@file, attrs, expected: fields.require(:lock_version), merge: autosave)
+      end
     end
     autosave ? render(json: result) : saved
   rescue ArgumentError => error
@@ -57,12 +71,14 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
 
   def restore
     @file = files.find(params[:file_id])
-    @file.with_lock do
-      LightekOffice::Changes.restore!(@file, version: params.require(:version), expected: params.require(:lock_version), actor: {editor: current_user})
+    edit_scope do
+      @file.with_lock do
+        LightekOffice::Changes.restore!(@file, version: params.require(:version), expected: params.require(:lock_version), actor: {editor: current_user})
+      end
     end
     saved
   rescue LightekOffice::Changes::Conflict
-    redirect_to dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id),
+    redirect_to office_path(file_id: @file.id),
       alert: 'Reload the file before restoring a version.', status: :see_other
   end
 
@@ -79,16 +95,57 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
 
   private
 
-  def team_scope!
+  def load_office_scope
     response.headers['Cache-Control'] = 'private, no-store'
     raise LightekPeople::Access::Denied unless current_user
 
     @employer = LightekTeam::Workspace.employers_for(current_user).find(params.require(:employer_id))
-    workspace = LightekTeam::Workspace.new(actor: current_user, employer: @employer)
-    @channel = workspace.channels.find(params.require(:channel_id))
+    @workspace = LightekTeam::Workspace.new(actor: current_user, employer: @employer)
+    if (drive_id = request.path_parameters[:drive_id])
+      @drive = LightekWorkspace::Drive.accessible_to(current_user, @employer).find(drive_id)
+      @can_edit = @drive.editable_by?(current_user)
+      @folder = @drive.entries.where(folder: true).find(params[:folder]) if params[:folder].present?
+    else
+      @channel = @workspace.channels.find(params.require(:channel_id))
+      @can_edit = true
+    end
   end
 
-  def files = LightekOffice::SharedFile.where(channel: @channel)
+  def files
+    return LightekOffice::SharedFile.where(channel: @channel) unless @drive
+
+    LightekOffice::SharedFile.where(drive_entry_id: @drive.entries.select(:id))
+  end
+
+  def writable!
+    raise LightekPeople::Access::Denied unless @can_edit
+  end
+
+  def edit_scope
+    writable!
+    return yield unless @drive
+
+    @drive.with_lock do
+      LightekTeam::Workspace.employers_for(current_user).find(@employer.id)
+      raise LightekPeople::Access::Denied unless @drive.editable_by?(current_user)
+
+      yield
+    end
+  end
+
+  def office_path(**params)
+    context = {employer_id: @employer.id}
+    if @drive
+      dashboard_drive_office_path(@drive, **context.merge(folder: @folder&.id).merge(params))
+    else
+      dashboard_team_office_path(@channel, **context.merge(params))
+    end
+  end
+
+  def office_action_path(action, file, **params)
+    location, scope = @drive ? [@drive, 'drive'] : [@channel, 'team']
+    public_send("#{action}_dashboard_#{scope}_office_path", location, file, employer_id: @employer.id, **params)
+  end
 
   def fields
     params.require(:office_file).permit(:kind, :title, :content, :lock_version, :rich_text)
@@ -111,14 +168,17 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   def saved
-    redirect_to dashboard_team_office_path(@channel, employer_id: @employer.id, file_id: @file.id),
+    redirect_to office_path(file_id: @file.id),
       notice: 'Shared file saved.', status: :see_other
   end
 
   def invalid_file(error)
     return render json: {error: error.record.errors.full_messages.to_sentence}, status: :unprocessable_entity if request.format.json?
 
-    @file = error.record
+    @file ||= error.record
+    if @file != error.record && @file.errors.empty?
+      @file.errors.add(:base, error.record.errors.full_messages.to_sentence)
+    end
     load_files
     render :index, status: :unprocessable_entity
   end

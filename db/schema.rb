@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_22_230000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2989,7 +2989,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_22_230000) do
   end
 
   create_table "lightek_office_files", force: :cascade do |t|
-    t.bigint "channel_id", null: false
+    t.bigint "channel_id"
     t.bigint "creator_id", null: false
     t.bigint "editor_id", null: false
     t.string "kind", limit: 16, null: false
@@ -2999,9 +2999,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_22_230000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "rich_text", default: false, null: false
+    t.bigint "drive_entry_id"
     t.index ["channel_id"], name: "index_lightek_office_files_on_channel_id"
     t.index ["creator_id"], name: "index_lightek_office_files_on_creator_id"
+    t.index ["drive_entry_id"], name: "index_lightek_office_files_on_drive_entry_id", unique: true
     t.index ["editor_id"], name: "index_lightek_office_files_on_editor_id"
+    t.check_constraint "(channel_id IS NULL) <> (drive_entry_id IS NULL)", name: "office_files_have_one_location"
   end
 
   create_table "lightek_office_revisions", force: :cascade do |t|
@@ -4049,6 +4052,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_22_230000) do
     t.datetime "cancelled_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "series_key", limit: 36
+    t.index ["calendar_id", "series_key", "starts_at"], name: "index_shared_events_on_series_and_start", where: "(series_key IS NOT NULL)"
     t.index ["calendar_id", "starts_at"], name: "index_lightek_shared_events_on_calendar_id_and_starts_at"
     t.index ["calendar_id"], name: "index_lightek_shared_events_on_calendar_id"
     t.index ["organizer_id"], name: "index_lightek_shared_events_on_organizer_id"
@@ -6979,6 +6984,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_22_230000) do
   add_foreign_key "lightek_messaging_participants", "profiles"
   add_foreign_key "lightek_network_office_files", "lightek_reservation_peers", column: "editor_peer_id"
   add_foreign_key "lightek_network_office_files", "lightek_team_network_channels", column: "channel_id"
+  add_foreign_key "lightek_office_files", "lightek_shared_drive_entries", column: "drive_entry_id"
   add_foreign_key "lightek_office_files", "lightek_team_channels", column: "channel_id"
   add_foreign_key "lightek_office_files", "users", column: "creator_id"
   add_foreign_key "lightek_office_files", "users", column: "editor_id"

@@ -79,10 +79,11 @@ class StudioCreationTest < NativeBlenderTest
   def test_creation_runtime_health_starts_blender_inside_the_restricted_worker
     Rails.stub(:env,ActiveSupport::StringInquirer.new("production")) do
       command=nil
-      Studio::MediaProcess.stub(:run!,->(args,**_opts){command=args; "LIGHTEK_BLENDER_RUNTIME_READY=4.0.2\n"}) do
+      Studio::MediaProcess.stub(:run!,->(args,**_opts){command=args; "LIGHTEK_BLENDER_RUNTIME_READY=4.5.16 LTS\n"}) do
         health=action("blender_runtime_status")
         assert health[:ready]
-        assert_equal "4.0.2",health[:version]
+        assert_equal "4.5.16",health[:version]
+        assert_equal "Blender 4.5.16 LTS ready",health[:message]
         assert_includes command,"--disable-autoexec"
         assert_equal "none",command[command.index("--network")+1]
         refute_includes command,"-v"
@@ -90,6 +91,14 @@ class StudioCreationTest < NativeBlenderTest
       Studio::MediaProcess.stub(:run!,->(*_args,**_opts){"Image exists but Blender never started"}) do
         refute action("blender_runtime_status")[:ready]
       end
+    end
+  end
+  def test_creation_runtime_health_reads_the_local_blender_version
+    Studio::MediaProcess.stub(:run!, "Blender 4.5.16 LTS\nBuild info\n") do
+      health=action("blender_runtime_status")
+      assert health[:ready]
+      assert_equal "4.5.16",health[:version]
+      assert_equal "Blender 4.5.16 LTS",health[:message]
     end
   end
   def test_creation_real_blender_save_and_reopen_native_asset

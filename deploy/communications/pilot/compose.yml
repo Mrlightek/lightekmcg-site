@@ -1,0 +1,4 @@
+services:
+  pilot:
+    build: .
+    network_mode: none

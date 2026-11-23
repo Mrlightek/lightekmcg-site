@@ -1,0 +1,5 @@
+exec lightek_subscriber_access {
+    wait = yes
+    program = "/usr/bin/test -f /run/freeradius/lightek-subscriber-active"
+    timeout = 1
+}

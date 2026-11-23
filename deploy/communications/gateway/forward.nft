@@ -1,0 +1,11 @@
+table inet lightek_gateway {
+    set allowed {
+        type ipv4_addr
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        iifname "ppp0" oifname "wan0" ip saddr @allowed ip daddr 172.30.249.3 accept
+        iifname "wan0" oifname "ppp0" ip saddr 172.30.249.3 ip daddr @allowed ct state established,related accept
+    }
+}

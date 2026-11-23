@@ -1,0 +1,61 @@
+#!/bin/sh
+set -eu
+cd /opt/lightek-gateway
+
+case ${PILOT_SUBSCRIBER_PASSWORD:-} in
+    ''|*[!0-9a-f]*) printf '%s\n' 'Set a hexadecimal pilot subscriber password.' >&2; exit 2 ;;
+esac
+
+state=/run/lightek-gateway
+radius_config=/etc/freeradius/3.0
+install -d -m 0700 "$state"
+install -d -m 0750 -o freerad -g freerad /run/freeradius
+
+# Keep the legacy pppd RADIUS exchange on loopback in the gateway container.
+umask 077
+secret=$(openssl rand -hex 24)
+printf '127.0.0.1 %s\n' "$secret" > "$state/servers"
+printf '%s\n' "$secret" > "$state/radclient-secret"
+unset secret
+touch "$state/port-map"
+printf 'client pppoe {\n ipaddr = 127.0.0.1\n secret = %s\n require_message_authenticator = no\n limit_proxy_state = yes\n}\n' \
+    "$(cat "$state/radclient-secret")" > "$radius_config/clients.conf"
+rm -f "$radius_config/sites-enabled/default" "$radius_config/sites-enabled/inner-tunnel"
+install -m 0640 -o root -g freerad radius-site "$radius_config/sites-enabled/lightek-gateway"
+install -m 0640 -o root -g freerad radius-access "$radius_config/mods-enabled/lightek-subscriber-access"
+nft -f forward.nft
+
+# Run only the foreground services owned by this gateway.
+radius_pid=
+pppoe_pid=
+cleanup() {
+    rm -f "$state/ready"
+    if [ -n "$pppoe_pid" ]; then kill "$pppoe_pid" 2>/dev/null || :; fi
+    if [ -n "$radius_pid" ]; then kill "$radius_pid" 2>/dev/null || :; fi
+    wait
+}
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
+sh ./access-policy.sh initialize
+freeradius -f -l stdout &
+radius_pid=$!
+sh ./access-policy.sh ready
+pppoe-server -F -k -I access0 -C Lightek -S lightek -L 100.64.82.1 -R 100.64.82.2 \
+    -N 1 -x 1 -O /opt/lightek-gateway/ppp-options -X "$state/pppoe.pid" &
+pppoe_pid=$!
+
+for attempt in $(seq 1 10); do
+    kill -0 "$pppoe_pid"
+    if [ -s "$state/pppoe.pid" ]; then break; fi
+    if [ "$attempt" -eq 10 ]; then exit 1; fi
+    sleep 1
+done
+touch "$state/ready"
+
+while kill -0 "$radius_pid" 2>/dev/null && kill -0 "$pppoe_pid" 2>/dev/null; do
+    sleep 1
+done
+printf '%s\n' 'A gateway process exited.' >&2
+exit 1

@@ -1,0 +1,17 @@
+<% content_for :page_title, "Set up your Lightek Voice phone" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Lightek Voice", dashboard_installation_voice_path %></p>
+  <h1>Set up your phone</h1>
+  <section class="card">
+    <p>Enter these settings in your SIP desk phone or softphone.</p>
+    <dl>
+      <% { host: "Server", port: "Port", transport: "Transport", media_encryption: "Media encryption",
+        username: "Username and authentication ID", password: "Password" }.each do |key, label| %>
+        <dt><%= label %></dt>
+        <dd><code><%= @device.fetch(key.to_s) %></code></dd>
+      <% end %>
+    </dl>
+  </section>
+</main>

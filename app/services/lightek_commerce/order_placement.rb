@@ -78,6 +78,9 @@ module LightekCommerce
           subtotal += line_total
           snapshot = {"product_type" => product.product_type, "billing_interval" => product.billing_interval,
             "track_inventory" => variant_id ? true : product.track_inventory?, "subscription_plan_id" => product.subscription_plan_id}
+          kind = product.communications_kind
+          snapshot["communications_kind"] = kind if kind
+          snapshot["voice_plan"] = product.slug if kind == "voice"
           snapshot["workspace_seats"] = seats if seat_range
           package = product.respond_to?(:effective_hosting_package) ? product.effective_hosting_package : product.hosting_package
           snapshot["pricing_tier"] = "agency_wholesale" if direct_package

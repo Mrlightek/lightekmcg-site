@@ -1,0 +1,59 @@
+services:
+  gateway:
+    build:
+      context: .
+      target: gateway
+    cap_add: [NET_ADMIN]
+    devices: [/dev/ppp:/dev/ppp]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/run/lightek-gateway/ready"]
+      interval: 2s
+      timeout: 1s
+      retries: 15
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    environment:
+      PILOT_SUBSCRIBER_PASSWORD: ${PILOT_SUBSCRIBER_PASSWORD:?Run check.sh or set the pilot password}
+    networks:
+      access:
+        ipv4_address: 172.30.248.2
+      upstream:
+        ipv4_address: 172.30.249.2
+
+  subscriber:
+    build:
+      context: .
+      target: network-tools
+    cap_add: [NET_ADMIN]
+    devices: [/dev/ppp:/dev/ppp]
+    environment:
+      PILOT_SUBSCRIBER_PASSWORD: ${PILOT_SUBSCRIBER_PASSWORD:?Run check.sh or set the pilot password}
+    command: ["/bin/sh", "./subscriber.sh"]
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      access:
+        ipv4_address: 172.30.248.3
+
+  probe:
+    build:
+      context: .
+      target: network-tools
+    cap_add: [NET_ADMIN]
+    command: ["/bin/sh", "-ec", "ip route replace 100.64.82.2/32 via 172.30.249.2 && exec sleep infinity"]
+    networks:
+      upstream:
+        ipv4_address: 172.30.249.3
+
+networks:
+  access:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.248.0/29
+  upstream:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.249.0/29

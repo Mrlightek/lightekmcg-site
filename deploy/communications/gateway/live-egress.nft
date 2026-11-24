@@ -1,0 +1,6 @@
+add rule inet lightek_gateway forward iifname "ppp0" oifname "__EGRESS_IF__" ip saddr @allowed ip daddr __HTTPS_IP__ tcp dport 443 accept
+add rule inet lightek_gateway forward iifname "__EGRESS_IF__" oifname "ppp0" ip saddr __HTTPS_IP__ ip daddr @allowed tcp sport 443 ct state established accept
+
+add table ip lightek_gateway_egress
+add chain ip lightek_gateway_egress postrouting { type nat hook postrouting priority srcnat; policy accept; }
+add rule ip lightek_gateway_egress postrouting oifname "__EGRESS_IF__" ip saddr 100.64.82.2 ip daddr __HTTPS_IP__ tcp dport 443 masquerade

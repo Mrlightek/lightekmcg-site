@@ -1,0 +1,45 @@
+name: Communications pilot
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'deploy/communications/**'
+      - 'app/services/lightek_communications/**'
+      - 'test/standalone/managed_voice_pbx_smoke.rb'
+      - '.github/workflows/communications-pilot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  protocols:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f deploy/communications/pilot/compose.yml run --build --rm pilot
+
+  access-gateway:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare host PPP support
+        run: |
+          sudo modprobe ppp_generic
+          sudo modprobe pppoe
+          if [ ! -c /dev/ppp ]; then
+            sudo mknod /dev/ppp c 108 0
+          fi
+      - run: sh deploy/communications/gateway/check.sh --live-egress
+
+  managed-voice-pbx:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t lightek-managed-voice-test -f deploy/communications/pbx/Test.Dockerfile deploy/communications/pbx
+      - run: >-
+          docker run --rm --network none --volume "$PWD:/source:ro" --workdir /source
+          lightek-managed-voice-test ruby test/standalone/managed_voice_pbx_smoke.rb

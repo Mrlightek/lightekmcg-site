@@ -1,0 +1,28 @@
+server lightek_pilot {
+    listen {
+        type = auth
+        ipaddr = 127.0.0.1
+        port = 1812
+    }
+
+    listen {
+        type = acct
+        ipaddr = 127.0.0.1
+        port = 1813
+    }
+
+    authorize {
+        files
+        pap
+    }
+
+    authenticate {
+        Auth-Type PAP {
+            pap
+        }
+    }
+
+    accounting {
+        detail
+    }
+}

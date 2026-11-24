@@ -35,8 +35,12 @@ Rails.application.config.filter_parameters += [:calendar_delivery, :executive_ca
 
 Rails.application.config.filter_parameters += [:travel_person, :dcp_delivery, :network_office_file, /\Acontent\z/]
 # Customer support messages may contain sensitive account details.
-Rails.application.config.filter_parameters += [:support_case, :support_reply, :starting_amount, :ending_amount]
+Rails.application.config.filter_parameters += [:support_case, :support_reply, :phone_number, :starting_amount, :ending_amount]
 Rails.application.config.filter_parameters += ['show.brief']
 Rails.application.config.filter_parameters += %w[brief.recipient brief.email brief.contact_basis brief.facts brief.response brief.notes]
+
+Rails.application.config.filter_parameters += [:carrier_order]
+
+Rails.application.config.filter_parameters += [:voice_setup]
 
 Rails.application.config.filter_parameters += [:mail_discovery_query, :mail_matter_name, :drive_discovery_query, :chat_discovery_query]

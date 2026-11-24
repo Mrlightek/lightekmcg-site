@@ -13,12 +13,12 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 | `staging-dns` | `token` | `Godaddy::DnsService` | `dns_management` |
 | `staging-msp-owner` | `owner_password` | `Gatekeeper::WebsiteDeployment` | `website_deploy` |
 
-3. Open [Add Compute Provider](https://lightekmcg.com/dashboard/infrastructure/providers/new). Create **MSP staging Linode**, slug `linode-staging`, adapter type **Builtin**, adapter class `Gatekeeper::Compute::Providers::LinodeAdapter`, credential slug `staging-compute`. Leave API base URL blank to use the adapter's fixed Linode API. On that provider's page, confirm its Linode read capabilities are selected, run the health check and read-only capability validation, then activate it.
+3. In [Compute Providers](https://lightekmcg.com/dashboard/infrastructure/providers), confirm the existing `linode` provider is active and healthy. The request uses its Linode adapter with the staging Vault entry selected on the form.
 4. In **Dashboard → Network & Domains → Domains & DNS**, verify that the existing `lightekmcg.com` GoDaddy zone is listed. The preparation form uses the same managed DNS lookup as website provisioning. It binds `batch-d-msp-r1.staging.lightekmcg.com` to `batch-d-msp-r1.staging` in that zone without changing DNS.
 ## Prepare and approve
 
 1. Sign in as an active super admin. Open **Infrastructure → Provisioning requests → Prepare provisioning request** or visit [Prepare provisioning request](https://lightekmcg.com/dashboard/infrastructure/provisioning/new).
-2. Enter `batch-d-msp-r1.staging.lightekmcg.com`, monthly cap `2400` cents and lifetime `48` hours. Select the staging client and its two Vault references, review the region and certificate contact, and click **Prepare for approval**. If staging setup is incomplete, the form links to the relevant screens. The form uses one `g6-standard-2` instance with Ubuntu 24.04 and reads the live regional quote. Published North America compute pricing is about $1.73 for 48 hours at $0.036/hour.
+2. Enter `batch-d-msp-r1.staging.lightekmcg.com`, monthly cap `2400` cents and lifetime `48` hours. Select the staging client and its staging Vault references, review the region and certificate contact, and click **Prepare for approval**. If staging setup is incomplete, the form links to the relevant screens. The form uses one `g6-standard-2` instance with Ubuntu 24.04 and reads the live regional quote. Published North America compute pricing is about $1.73 for 48 hours at $0.036/hour.
 3. Review the request’s hostname, owner, price and expiry. Click **Approve** and confirm. The page shows **approved / ready** and the approval audit entry. Share **Request #…** from that screen.
 
 Preparation reserves the hostname and checks the catalog. Approval records the funding decision. A separate Release Assurance deployment authorization is required to allocate compute. Reject an expired unallocated request before reserving its label again.

@@ -26,7 +26,7 @@ class Dashboard::ProvisioningRequestsController < DymondDash::ApplicationControl
     request = Gatekeeper::Compute::StagingRequests.prepare!(actor: current_user,
       hostname: params.require(:hostname).to_s.strip.downcase,
       budget_cents: Integer(params.require(:budget_cents)), hours: Integer(params.require(:hours)),
-      settings: params.permit(:owner, :region, :dns_vault, :owner_vault, :certificate_email)
+      settings: params.permit(:owner, :region, :compute_vault, :dns_vault, :owner_vault, :certificate_email)
         .to_h.transform_keys(&:upcase).transform_values { |value| value.to_s.strip })
     redirect_to dashboard_provisioning_request_path(request), status: :see_other,
       notice: "Staging request prepared for approval."
@@ -128,9 +128,10 @@ class Dashboard::ProvisioningRequestsController < DymondDash::ApplicationControl
     @staging_owners = staging.staging_owners.map(&:email_address)
     @staging_vault = staging.vault_choices
     @staging_provider = staging.staging_provider
+    @staging_compute_vault = @staging_vault.fetch("compute") - [@staging_provider&.credential_secret_slug]
     @staging_setup_ready = @staging_owners.any? && @staging_vault.fetch("owner").any? &&
       @staging_vault.fetch("dns").any? && @staging_provider &&
-      @staging_vault.fetch("compute").include?(@staging_provider.credential_secret_slug)
+      @staging_compute_vault.any?
   end
 
   def decide!(disposition)

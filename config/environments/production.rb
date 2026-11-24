@@ -106,6 +106,11 @@ config.action_mailbox.ingress = :postfix
   # Legacy gmail_api selections migrate to the existing Lightek SMTP transport.
   # Keep explicit HTTPS client relay and custom SMTP installations supported.
   case ENV.fetch("MAIL_DELIVERY_METHOD", "lightek_smtp")
+  when "test"
+    raise ArgumentError, "The test mail adapter is only available on a staging target" unless ENV["LIGHTEK_RELEASE_ASSURANCE_TARGET"] == "1"
+
+    config.action_mailer.delivery_method = :test
+    config.action_mailer.perform_deliveries = false
   when "lightek_smtp", "gmail_api"
     config.action_mailer.delivery_method = :lightek_smtp
     config.action_mailer.perform_deliveries = true

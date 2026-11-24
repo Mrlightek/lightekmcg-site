@@ -1,0 +1,30 @@
+name: Batch E release assurance
+on:
+  pull_request:
+    paths:
+      - 'app/**/release_assurance/**'
+      - 'app/controllers/**/*release*'
+      - 'config/routes/release_assurance.rb'
+      - 'script/lightek/release_assurance*'
+      - 'db/migrate/*release_assurance*'
+      - 'test/standalone/release_assurance*'
+      - '.github/workflows/batch-e-release-assurance.yml'
+  push:
+    branches: ["release-candidates/**"]
+permissions:
+  contents: read
+jobs:
+  assurance-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: false
+      - run: gem install 'minitest:5.25.5' 'activerecord:8.0.5' 'actionpack:8.0.5' 'activejob:8.0.5' 'sqlite3:2.7.4' --no-document
+      - run: ruby test/standalone/release_assurance_source_checks.rb
+      - run: ruby test/standalone/release_assurance_records_checks.rb
+      - run: bash -n script/lightek/release_assurance_host.sh
+      - run: node --check script/lightek/release_assurance_browser.cjs

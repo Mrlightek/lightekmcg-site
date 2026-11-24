@@ -1,0 +1,11 @@
+<% content_for :page_title, "Beta invitation" %>
+<%= render "dashboard/infrastructure/styles" %>
+<div class="infra">
+  <section class="infra-panel p-3">
+    <h1>Beta invitation</h1>
+    <p>Send the tester this one-time code over an approved private channel. Have them enter it on the beta portal.</p>
+    <p><%= link_to "Open beta portal", release_beta_url %></p>
+    <p><code><%= @invite %></code></p>
+    <%= link_to "Return to candidate", dashboard_release_assurance_path(@candidate), class: "infra-button" %>
+  </section>
+</div>

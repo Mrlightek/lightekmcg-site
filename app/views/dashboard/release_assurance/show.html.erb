@@ -1,0 +1,144 @@
+<% content_for :page_title, @candidate.name %>
+<%= render "dashboard/infrastructure/styles" %>
+<div class="infra">
+  <header class="infra-hero">
+    <div><h1><%= @candidate.name %></h1><p><%= @candidate.state.humanize %> · <%= @candidate.profile.upcase %></p></div>
+    <%= link_to "All candidates", dashboard_release_assurance_index_path, class: "infra-button" %>
+  </header>
+
+  <section class="infra-panel p-3">
+    <h2>Source revisions</h2>
+    <p>Base <code><%= @candidate.base_sha || "Pending" %></code></p>
+    <p>Candidate <code><%= @candidate.source_sha || "Pending" %></code></p>
+    <% if @candidate.assembly_error %><p role="alert"><%= @candidate.assembly_error %></p><% end %>
+    <% if @candidate.conflicts.any? %><p role="alert">Merge conflict in <%= @candidate.conflicts.join(", ") %>.</p><% end %>
+    <ul>
+      <% @candidate.sources.each do |source| %>
+        <li><%= source.fetch("selector") %> <code><%= source.fetch("sha") %></code>
+          <%= link_to "Review source diff", "https://github.com/Mrlightek/lightekmcg-site/compare/#{@candidate.base_sha}...#{source.fetch('sha')}" %>
+          <% if source.fetch("includes").any? %> includes <%= source.fetch("includes").join(", ") %><% end %>
+        </li>
+      <% end %>
+    </ul>
+    <% if @candidate.state == "assembled" %>
+      <%= form_with url: publish_dashboard_release_assurance_path(@candidate) do |form| %>
+        <%= form.label :reviewed_revision, "Enter the candidate SHA after reviewing its source and workflow changes" %>
+        <%= form.text_field :reviewed_revision, required: true, maxlength: 40, class: "form-control" %>
+        <%= form.submit "Publish reviewed revision", class: "infra-button infra-button-primary" %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="infra-panel p-3">
+    <h2>Staging environments</h2>
+    <% if @candidate.state == "published" %>
+      <p>Leave request ID blank to prepare a new Gatekeeper request using the staging runner’s configured compute plan.</p>
+      <%= form_with url: prepare_dashboard_release_assurance_path(@candidate), class: "row g-2 align-items-end" do |form| %>
+        <div class="col-md-2"><%= form.label :request_id, "Existing request ID" %><%= form.number_field :request_id, min: 1, class: "form-control" %></div>
+        <div class="col-md-4"><%= form.label :hostname, "Staging hostname" %><%= form.text_field :hostname, required: true, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :hours, "Lifetime (hours)" %><%= form.number_field :hours, required: true, min: 4, max: 168, value: 48, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.submit "Prepare", class: "infra-button" %></div>
+      <% end %>
+    <% end %>
+    <% @environments.each do |environment| %>
+      <article class="mt-3 pb-3 border-bottom">
+        <h3 class="h5"><%= environment.hostname %></h3>
+        <p><%= environment.state.humanize %> · Expires <%= l(environment.expires_at, format: :short) %> · <%= number_to_currency(environment.budget_cents / 100.0) %> monthly cap</p>
+        <p><%= environment.provisioning_request.selected_plan %> · <%= environment.provisioning_request.selected_region %> · <%= number_to_currency(environment.provisioning_request.estimated_monthly_cost_cents.to_i / 100.0) %> estimated monthly</p>
+        <% if environment.failure %><p role="alert"><%= environment.failure %></p><% end %>
+        <div class="infra-actions">
+          <%= link_to "Gatekeeper request ##{environment.provisioning_request_id}", dashboard_provisioning_request_path(environment.provisioning_request), class: "infra-button" %>
+          <% if (node = environment.provisioning_request.gatekeeper_node) %>
+            <%= link_to "View server", dashboard_server_path(node), class: "infra-button" %>
+          <% end %>
+          <% if environment.state == "prepared" %>
+            <%= button_to "Approve staging deployment", deploy_dashboard_release_assurance_path(@candidate), params: { environment_id: environment.id }, class: "infra-button infra-button-primary" %>
+          <% end %>
+          <% unless %w[deploying retired].include?(environment.state) %>
+            <%= button_to "Retire staging", retire_dashboard_release_assurance_path(@candidate), params: { environment_id: environment.id }, class: "infra-button" %>
+          <% end %>
+        </div>
+        <% if environment.active? && @testers.any? %>
+          <%= form_with url: assign_dashboard_release_assurance_path(@candidate), class: "row g-2 align-items-end mt-2" do |form| %>
+            <%= form.hidden_field :environment_id, value: environment.id %>
+            <div class="col-md-4"><%= form.label :tester_id, "Tester" %><%= form.collection_select :tester_id, @testers, :id, :name, {}, class: "form-select" %></div>
+            <div class="col-md-4"><%= form.label :scenario %><%= form.select :scenario, ReleaseAssurance::Readiness::SCENARIOS.keys.map { |key| [key.humanize, key] }, {}, class: "form-select" %></div>
+            <div class="col-md-4"><%= form.submit "Create beta invitation", class: "infra-button" %></div>
+          <% end %>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+
+  <% if @environments.any? && @rollback_candidates.any? %>
+    <section class="infra-panel p-3">
+      <h2>Staging rollback</h2>
+      <p>Prepare a fresh instance at a previously approved revision. The current instance stays available for investigation.</p>
+      <%= form_with url: rollback_dashboard_release_assurance_path(@candidate), class: "row g-2 align-items-end" do |form| %>
+        <div class="col-md-3"><%= form.label :rollback_candidate_id, "Approved candidate" %><%= form.collection_select :rollback_candidate_id, @rollback_candidates, :id, :name, {}, class: "form-select" %></div>
+        <div class="col-md-3"><%= form.label :hostname, "New staging hostname" %><%= form.text_field :hostname, required: true, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :hours, "Lifetime (hours)" %><%= form.number_field :hours, required: true, min: 4, max: 168, value: 48, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.submit "Prepare rollback", class: "infra-button" %></div>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="infra-panel p-3">
+    <h2>Acceptance test runs</h2>
+    <% if @candidate.state == "published" %>
+      <%= button_to "Refresh acceptance", accept_dashboard_release_assurance_path(@candidate), class: "infra-button" %>
+    <% end %>
+    <div class="infra-table-wrap"><table class="infra-table">
+      <thead><tr><th scope="col">Run</th><th scope="col">Verification</th><th scope="col">Result</th><th scope="col">Evidence</th></tr></thead>
+      <tbody>
+        <% @runs.each do |run| %>
+          <tr><td>#<%= run.id %> <%= run.check_key.humanize %></td><td><%= run.kind.humanize %></td><td><%= run.result.humanize %></td><td>
+            <% if run.evidence["run_id"] %>
+              <%= link_to "Workflow jobs and logs", "https://github.com/Mrlightek/lightekmcg-site/actions/runs/#{run.evidence.fetch('run_id')}/attempts/#{run.evidence.fetch('attempt')}" %>
+            <% end %>
+            <% if run.evidence["summary"] %><p><%= run.evidence.fetch("summary") %></p><% end %>
+            <% if run.screenshot.attached? %><%= link_to "Download screenshot", evidence_dashboard_release_assurance_path(@candidate, run_id: run.id) %><% end %>
+            <% if run.assignment && run.evidence["reviewer_id"].nil? %>
+              <%= button_to "Verify reported #{run.evidence.fetch('reported_result')}", verify_feedback_dashboard_release_assurance_path(@candidate), params: { run_id: run.id }, class: "infra-button" %>
+            <% end %>
+          </td></tr>
+        <% end %>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="infra-panel p-3">
+    <h2>Defects and retesting</h2>
+    <%= button_to "Review failures with Nevaeh", recommend_dashboard_release_assurance_path(@candidate), class: "infra-button" %>
+    <% @defects.each do |defect| %>
+      <article class="mt-3">
+        <h3 class="h5"><%= defect.run.check_key.humanize %> · <%= defect.status.humanize %></h3>
+        <p>Failed run #<%= defect.run_id %><% if defect.ticket_id %> · Ticket <%= defect.ticket_id %><% end %><% if defect.retest_id %> · Verified by run #<%= defect.retest_id %><% end %></p>
+        <% if defect.status == "open" %>
+          <%= form_with url: retest_dashboard_release_assurance_path(@candidate), class: "d-flex gap-2 align-items-center" do |form| %>
+            <%= form.hidden_field :defect_id, value: defect.id %>
+            <%= form.label :run_id, "Passing retest run ID" %><%= form.number_field :run_id, required: true, min: 1 %>
+            <%= form.submit "Verify retest", class: "infra-button" %>
+          <% end %>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+
+  <section class="infra-panel p-3">
+    <h2>Release readiness</h2>
+    <% if @readiness.fetch(:blockers).any? %>
+      <p>Nevaeh recommends holding this release.</p>
+      <ul><% @readiness.fetch(:blockers).each do |blocker| %><li><%= blocker %></li><% end %></ul>
+    <% else %>
+      <p><%= @readiness.fetch(:approved) ? "Promotion approved" : "Nevaeh recommends promotion after operator approval" %> for <code><%= @candidate.source_sha %></code>.</p>
+      <p>Accepted runs <%= @readiness.fetch(:evidence_ids).join(", ") %>.</p>
+      <% unless @readiness.fetch(:approved) %>
+        <%= button_to "Approve production promotion", promote_dashboard_release_assurance_path(@candidate), params: { evidence_digest: @readiness.fetch(:digest) }, class: "infra-button infra-button-primary" %>
+      <% end %>
+      <%= button_to "Record verified acceptance in Nevaeh", learn_dashboard_release_assurance_path(@candidate), class: "infra-button" %>
+    <% end %>
+  </section>
+</div>

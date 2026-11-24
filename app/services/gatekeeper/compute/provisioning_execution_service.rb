@@ -39,7 +39,12 @@ module Gatekeeper
         )
       end
 
-      def self.call(request:, requested_by:)
+      def self.call(request:, requested_by:, staging: nil)
+        if request.metadata.to_h["release_assurance_staging"]
+          raise NotExecutable, "Deploy this request from Release Assurance" unless staging
+
+          staging.authorize_compute!(request)
+        end
         new(request:, requested_by:).call
       end
 

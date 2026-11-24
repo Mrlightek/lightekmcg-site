@@ -1,5 +1,7 @@
 name: Deployment preflight
 on:
+  push:
+    branches: ["release-candidates/**"]
   pull_request:
     paths:
       - 'lib/scripts/**'

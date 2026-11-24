@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_24_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -6046,6 +6046,108 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.index ["subscription_plan_id"], name: "index_provisioning_requests_on_subscription_plan_id"
   end
 
+  create_table "release_assurance_assignments", force: :cascade do |t|
+    t.bigint "tester_id", null: false
+    t.bigint "environment_id", null: false
+    t.string "scenario", null: false
+    t.string "invite_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "redeemed_at"
+    t.datetime "account_revoked_at"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["environment_id"], name: "index_release_assurance_assignments_on_environment_id"
+    t.index ["invite_digest"], name: "index_release_assurance_assignments_on_invite_digest", unique: true
+    t.index ["tester_id"], name: "index_release_assurance_assignments_on_tester_id"
+  end
+
+  create_table "release_assurance_candidates", force: :cascade do |t|
+    t.bigint "operator_id", null: false
+    t.string "name", null: false
+    t.string "profile", null: false
+    t.string "publication_key", null: false
+    t.jsonb "selectors", default: [], null: false
+    t.string "base_sha"
+    t.jsonb "sources", default: [], null: false
+    t.string "source_sha"
+    t.jsonb "conflicts", default: [], null: false
+    t.string "state", default: "queued", null: false
+    t.string "assembly_error"
+    t.bigint "promotion_approver_id"
+    t.datetime "promotion_approved_at"
+    t.string "promotion_digest"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["operator_id"], name: "index_release_assurance_candidates_on_operator_id"
+    t.index ["promotion_approver_id"], name: "index_release_assurance_candidates_on_promotion_approver_id"
+    t.index ["publication_key"], name: "index_release_assurance_candidates_on_publication_key", unique: true
+  end
+
+  create_table "release_assurance_defects", force: :cascade do |t|
+    t.bigint "candidate_id", null: false
+    t.bigint "run_id", null: false
+    t.bigint "retest_id"
+    t.string "status", default: "open", null: false
+    t.bigint "ticket_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_release_assurance_defects_on_candidate_id"
+    t.index ["retest_id"], name: "index_release_assurance_defects_on_retest_id"
+    t.index ["run_id"], name: "index_release_assurance_defects_on_run_id", unique: true
+  end
+
+  create_table "release_assurance_environments", force: :cascade do |t|
+    t.bigint "candidate_id", null: false
+    t.bigint "provisioning_request_id", null: false
+    t.bigint "deployment_operation_id"
+    t.string "hostname", null: false
+    t.integer "budget_cents", null: false
+    t.datetime "expires_at", null: false
+    t.string "state", default: "prepared", null: false
+    t.string "approval_digest"
+    t.string "failure"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_release_assurance_environments_on_candidate_id"
+    t.index ["deployment_operation_id"], name: "idx_on_deployment_operation_id_d51ee3451b"
+    t.index ["expires_at"], name: "index_release_assurance_environments_on_expires_at"
+    t.index ["hostname"], name: "index_release_assurance_environments_on_hostname", unique: true
+    t.index ["provisioning_request_id"], name: "idx_on_provisioning_request_id_31c0d34b24", unique: true
+  end
+
+  create_table "release_assurance_runs", force: :cascade do |t|
+    t.bigint "candidate_id", null: false
+    t.bigint "environment_id"
+    t.bigint "assignment_id"
+    t.string "check_key", null: false
+    t.string "kind", null: false
+    t.string "result", null: false
+    t.string "source_sha", null: false
+    t.string "external_id"
+    t.jsonb "evidence", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assignment_id"], name: "index_release_assurance_runs_on_assignment_id"
+    t.index ["candidate_id", "check_key", "external_id"], name: "idx_release_acceptance_receipt", unique: true
+    t.index ["candidate_id"], name: "index_release_assurance_runs_on_candidate_id"
+    t.index ["environment_id"], name: "index_release_assurance_runs_on_environment_id"
+  end
+
+  create_table "release_assurance_testers", force: :cascade do |t|
+    t.bigint "operator_id", null: false
+    t.string "name", null: false
+    t.string "email", null: false
+    t.string "platform", null: false
+    t.string "device_profile", null: false
+    t.datetime "consented_at", null: false
+    t.datetime "offboarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["operator_id", "email", "platform"], name: "idx_release_tester_identity", unique: true
+    t.index ["operator_id"], name: "index_release_assurance_testers_on_operator_id"
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -7081,6 +7183,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.datetime "access_suspended_at"
     t.string "access_suspension_source"
     t.datetime "lightek_email_confirmed_at"
+    t.datetime "staging_access_expires_at"
     t.index ["agency_id"], name: "index_users_on_agency_id"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
@@ -7719,6 +7822,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
   add_foreign_key "provisioning_requests", "gatekeeper_operations"
   add_foreign_key "provisioning_requests", "provisioning_profiles"
   add_foreign_key "provisioning_requests", "subscription_infrastructure_entitlements"
+  add_foreign_key "release_assurance_assignments", "release_assurance_environments", column: "environment_id"
+  add_foreign_key "release_assurance_assignments", "release_assurance_testers", column: "tester_id"
+  add_foreign_key "release_assurance_candidates", "users", column: "operator_id"
+  add_foreign_key "release_assurance_candidates", "users", column: "promotion_approver_id"
+  add_foreign_key "release_assurance_defects", "release_assurance_candidates", column: "candidate_id"
+  add_foreign_key "release_assurance_defects", "release_assurance_runs", column: "retest_id"
+  add_foreign_key "release_assurance_defects", "release_assurance_runs", column: "run_id"
+  add_foreign_key "release_assurance_environments", "gatekeeper_operations", column: "deployment_operation_id"
+  add_foreign_key "release_assurance_environments", "provisioning_requests"
+  add_foreign_key "release_assurance_environments", "release_assurance_candidates", column: "candidate_id"
+  add_foreign_key "release_assurance_runs", "release_assurance_assignments", column: "assignment_id"
+  add_foreign_key "release_assurance_runs", "release_assurance_candidates", column: "candidate_id"
+  add_foreign_key "release_assurance_runs", "release_assurance_environments", column: "environment_id"
+  add_foreign_key "release_assurance_testers", "users", column: "operator_id"
   add_foreign_key "scene_objects", "studio_scenes"
   add_foreign_key "sessions", "lightek_identity_connections", column: "identity_connection_id"
   add_foreign_key "sessions", "users"

@@ -25,10 +25,12 @@ module ItServices
       else
         findings << "telemetry_missing_or_stale"
       end
-      patch_inventory, backup_sample = maintenance_evidence(device)
+      patch_inventory, backup_sample, staged_restore, patch_deployment = maintenance_evidence(device)
       findings << "patches_available" if patch_inventory.fetch("available_update_count", 0).positive?
       backup_sample_status = backup_sample["status"]
       findings << "backup_recovery_test_failed" if %w[mismatch unavailable].include?(backup_sample_status)
+      findings << "staged_restore_failed" if %w[failed mismatch unavailable].include?(staged_restore["status"])
+      findings << "patch_deployment_failed" if %w[failed unavailable].include?(patch_deployment["status"])
       {
         device_id: device.id,
         owner_id: owner.id,
@@ -38,20 +40,21 @@ module ItServices
         telemetry_fresh: telemetry_fresh,
         reported_telemetry: telemetry_fresh ? telemetry : {},
         backup_sample_status: backup_sample_status,
+        staged_restore_status: staged_restore["status"],
         evaluated_at: Time.current.iso8601(6),
-        limitations: "Agent-reported metrics are not independently verified; no live scan or backup restore test performed.",
+        limitations: "Agent-reported metrics are not independently verified. Maintenance results cover their approved package or backup only.",
         remote_execution_authorized: false
       }
     end
 
     def self.maintenance_evidence(device)
-      return [{}, {}] unless device.persisted? && device.enrolled_at? && device.managed_monitoring_enabled?
+      return [{}, {}, {}, {}] unless device.persisted? && device.enrolled_at? && device.managed_monitoring_enabled?
 
       observed_since = [24.hours.ago, device.enrolled_at].max
       checks = ItDeviceMaintenanceAction.where(network_managed_device: device, owner_id: device.owner_id,
         status: "reported").where(reported_at: observed_since..Time.current)
         .order(reported_at: :desc, id: :desc)
-      %w[check_patch_status verify_backup_recovery].map do |code|
+      %w[check_patch_status verify_backup_recovery stage_backup_restore deploy_apt_patch].map do |code|
         checks.find_by(action_code: code)&.result || {}
       end
     end

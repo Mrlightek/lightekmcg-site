@@ -251,6 +251,73 @@ class GatekeeperDeviceApiTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "an exact APT patch requires owner authorization and validates the installed version" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    send_action("device_enroll")
+    @device.update!(owner: owner, managed_monitoring_enabled: true)
+    start = 1.hour.from_now.change(usec: 0)
+    patch = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+      code: "deploy_apt_patch", scheduled_at: start.iso8601, patch_target: "libexample=1:2.0-2")
+    credentials = { action_id: patch.id, nonce: patch.request_nonce }
+
+    travel_to start do
+      send_action("device_maintenance_claim", **credentials)
+      assert_response :unprocessable_entity
+      post session_path, params: { email_address: owner.email_address, password: PASSWORD }
+      post consent_to_device_recovery_it_service_requests_path,
+        params: { device_id: @device.id, action_id: patch.id }
+      assert_nil patch.reload.owner_consented_at
+      post consent_to_device_patch_it_service_requests_path,
+        params: { device_id: @device.id, action_id: patch.id }
+      assert_redirected_to it_service_requests_path
+      send_action("device_maintenance_claim", **credentials)
+      assert_response :success
+      assert_equal patch.patch_target, response.parsed_body.fetch("patch_target")
+      send_action("device_maintenance_claim", **credentials)
+      assert_response :unprocessable_entity
+      send_action("device_maintenance_report", **credentials,
+        result: { status: "installed", target: "libexample=0.9" })
+      assert_response :unprocessable_entity
+      send_action("device_maintenance_report", **credentials,
+        result: { status: "installed", target: patch.patch_target })
+      assert_response :success
+      assert_equal "verified", patch.reload.result.fetch("status")
+    end
+  end
+
+  test "staged recovery binds consent and evidence to the approved archive" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    send_action("device_enroll")
+    @device.update!(owner: owner, managed_monitoring_enabled: true)
+    start = 1.hour.from_now.change(usec: 0)
+    digest = "a" * 64
+    restore = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+      code: "stage_backup_restore", scheduled_at: start.iso8601, expected_recovery_digest: digest)
+    auth = { action_id: restore.id, nonce: restore.request_nonce }
+
+    travel_to start do
+      post session_path, params: { email_address: owner.email_address, password: PASSWORD }
+      post consent_to_device_recovery_it_service_requests_path, params: { device_id: @device.id, action_id: restore.id }
+      assert_nil restore.reload.owner_consented_at
+      post consent_to_device_recovery_it_service_requests_path,
+        params: { device_id: @device.id, action_id: restore.id, staged: "1" }
+      assert_redirected_to it_service_requests_path
+      send_action("device_maintenance_claim", **auth)
+      assert_response :success
+      assert_equal digest, response.parsed_body.fetch("restore_digest")
+
+      evidence = { status: "staged", sha256: digest, file_count: 2,
+        byte_count: 12, staging_reference: "lightek-restore-#{"b" * 32}" }
+      send_action("device_maintenance_report", **auth, result: evidence.merge(file_count: 1025))
+      assert_response :unprocessable_entity
+      send_action("device_maintenance_report", **auth, result: evidence)
+      assert_response :success
+      assert_equal "verified", restore.reload.result.fetch("status")
+    end
+  end
+
   private
 
   def create_user(role: "client")

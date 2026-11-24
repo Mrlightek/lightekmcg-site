@@ -3,7 +3,10 @@ on:
   pull_request:
     paths:
       - 'scripts/lightek_device_agent.py'
+      - 'scripts/lightek_apt_patch.py'
+      - 'scripts/lightek_backup_restore.py'
       - 'scripts/test_lightek*.py'
+      - 'scripts/test_lightek_apt_integration.sh'
       - 'app/controllers/gatekeeper_controller.rb'
       - 'app/controllers/it_service_requests_controller.rb'
       - 'app/jobs/it_services/managed_fleet*.rb'
@@ -32,6 +35,11 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s scripts -p 'test_lightek*py' -v
+  debian-package-deployment:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/test_lightek_apt_integration.sh
   rails-endpoints:
     runs-on: ubuntu-24.04
     services:

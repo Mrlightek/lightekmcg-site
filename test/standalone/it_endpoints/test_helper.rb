@@ -57,6 +57,7 @@ end
   20261124160000_create_it_device_maintenance_actions:CreateItDeviceMaintenanceActions
   20261124161000_schedule_it_device_maintenance_actions:ScheduleItDeviceMaintenanceActions
   20261124162000_gate_it_device_backup_recovery:GateItDeviceBackupRecovery
+  20261124163000_add_patch_target_to_it_device_maintenance_actions:AddPatchTargetToItDeviceMaintenanceActions
 ].each do |entry|
   path, migration = entry.split(":")
   require ENDPOINT_REPO.join("db/migrate", path)
@@ -119,6 +120,7 @@ EndpointAcceptanceApp.routes.draw do
     post :managed_device_monitoring, on: :collection
     post :cancel_device_check, on: :collection
     post :consent_to_device_recovery, on: :collection
+    post :consent_to_device_patch, on: :collection
   end
 end
 

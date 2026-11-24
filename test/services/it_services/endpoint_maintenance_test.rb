@@ -2,7 +2,7 @@ require "test_helper"
 
 class ItServicesEndpointMaintenanceTest < ActiveSupport::TestCase
   test "only explicitly supported maintenance codes are permitted" do
-    assert_equal %w[refresh_inventory check_patch_status check_backup_status check_endpoint_protection verify_backup_recovery],
+    assert_equal %w[refresh_inventory check_patch_status check_backup_status check_endpoint_protection verify_backup_recovery deploy_apt_patch stage_backup_restore],
       ItDeviceMaintenanceAction::ACTIONS
     assert_not_includes ItDeviceMaintenanceAction::ACTIONS, "install_patch"
     assert_not_includes ItDeviceMaintenanceAction::ACTIONS, "restore_backup"

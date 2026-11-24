@@ -21,6 +21,7 @@ not in a shared shell history or a public file:
 - `LIGHTEK_DEVICE_IDENTIFIER` — the registered device identifier
 - `LIGHTEK_DEVICE_TOKEN` — the private device enrollment token
 
+Keep `lightek_backup_restore.py` in the same directory as the device agent.
 Run `python3 scripts/lightek_device_agent.py` on the enrolled device. On
 Windows, use `py -3 scripts/lightek_device_agent.py`.
 Schedule it with the device's local service manager only after confirming
@@ -83,5 +84,54 @@ confirm update requirements and catalog freshness.
    reference and records **Verified**, **Mismatch**, or **Unavailable**.
 
 A verified result covers the configured sample from that archive. Full-system
-recovery, live data restoration, OS patch deployment, malware removal, MDM,
+recovery, live data restoration, macOS or Windows patch deployment, malware removal, MDM,
 and device installers require additional providers and validation.
+
+## Deploy one Debian-family package update
+
+The APT deployment action upgrades one already-installed package to an exact
+version selected by an operator, accepted by the device owner, and pinned by
+the endpoint administrator. It is available on Debian-family Linux. Windows
+and macOS currently provide patch inventory.
+
+1. Install `scripts/lightek_apt_patch.py` as the executable
+   `/usr/local/libexec/lightek-apt-patch`, owned by root with mode `0755` in a
+   root-controlled directory. Create root-owned `/etc/lightek` with mode
+   `0755`, then write one `package=version` line to the root-owned
+   `/etc/lightek/endpoint-patch-target` with mode `0644`.
+2. Use `visudo` to allow the dedicated, unprivileged agent account to run
+   that exact executable without arguments. For an account named
+   `lightek-agent` the rule is
+   `lightek-agent ALL=(root) NOPASSWD: /usr/local/libexec/lightek-apt-patch ""`.
+   Keep standard APT signature verification enabled and use trusted repositories.
+3. An operator schedules **Deploy APT patch** with the matching exact
+   `package=version`. The customer authorizes that version in their maintenance
+   history. The agent claims the action once within the approved window.
+4. The broker checks the local policy and simulates the upgrade. It downloads
+   the exact package using APT, checks the archive identity, installs it, and
+   re-queries dpkg. The Dashboard shows a verified result only when the
+   authenticated endpoint reports the approved installed version.
+
+A failed, interrupted, or expired action requires inspection of the native
+package database before retrying. The agent does not request a reboot or a
+downgrade. A package may ship maintainer scripts or restart its own services.
+Cancelling monitoring prevents further authorization and reporting. A package
+installation that has already started runs to completion locally.
+
+## Restore backup files to a staging directory
+
+Support staff can schedule **Stage backup restore** for a particular ZIP
+archive by entering its SHA-256. The customer authorizes the specific archive
+in the Dashboard. The endpoint administrator configures the absolute path to
+that ZIP using `LIGHTEK_RECOVERY_ARCHIVE` and an access-controlled, writable
+staging directory using `LIGHTEK_RECOVERY_STAGING`.
+
+The agent verifies the archive digest, restores regular files into a fresh
+private directory and reads back every file. Gatekeeper records the archive
+digest, restored file count, total bytes, and local staging reference. File
+contents stay on the device. Operators can use that reference to locate the
+staged snapshot and validate it before a separate cutover. The workflow has no
+live-file overwrite or unattended cutover. It supports ZIP archives up to
+256 MiB, with up to 1,024 entries and 512 MiB of uncompressed files. It accepts
+portable relative paths, excludes links, and does not reapply archive ownership
+or permissions.

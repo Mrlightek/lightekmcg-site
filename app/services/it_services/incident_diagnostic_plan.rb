@@ -14,6 +14,8 @@ module ItServices
       "endpoint_protection_alert" => "security",
       "patches_available" => "security",
       "backup_recovery_test_failed" => "backup",
+      "staged_restore_failed" => "backup",
+      "patch_deployment_failed" => "security",
       "backup_failed" => "backup"
     }.freeze
 

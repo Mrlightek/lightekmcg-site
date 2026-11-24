@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import ssl
@@ -17,6 +18,8 @@ import urllib.parse
 import urllib.request
 import zipfile
 import zlib
+
+from lightek_backup_restore import stage_backup_restore
 
 
 RECOVERY_SAMPLE = "lightek-recovery-canary.bin"
@@ -195,6 +198,26 @@ def verify_backup_recovery():
         return unavailable
 
 
+APT_PATCH_BROKER = "/usr/local/libexec/lightek-apt-patch"
+APT_PATCH_TARGET = re.compile(r"[a-z0-9][a-z0-9+.-]{1,127}=[0-9][a-zA-Z0-9.+:~\-]{0,127}\Z")
+
+
+def deploy_apt_patch(target):
+    if (sys.platform != "linux" or not isinstance(target, str) or not APT_PATCH_TARGET.fullmatch(target)
+            or not Path(APT_PATCH_BROKER).is_file()):
+        return {"status": "unavailable"}
+    try:
+        completed = subprocess.run(
+            ["/usr/bin/sudo", "-n", APT_PATCH_BROKER], input=target + "\n",
+            capture_output=True, text=True, check=True)
+        result = json.loads(completed.stdout)
+        if result == {"status": "installed", "target": target} or result == {"status": "unavailable"}:
+            return result
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return {"status": "failed"}
+
+
 def report():
     identifier = os.environ["LIGHTEK_DEVICE_IDENTIFIER"]
     heartbeat = post({"method_type": "device_heartbeat",
@@ -214,7 +237,10 @@ def report():
         except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
             continue
         credentials = {"identifier": identifier, "action_id": action["id"], "nonce": action["nonce"]}
-        if action.get("code") == "verify_backup_recovery":
+        code = action.get("code")
+        if code == "deploy_apt_patch" and sys.platform != "linux":
+            continue
+        if code in ("verify_backup_recovery", "deploy_apt_patch", "stage_backup_restore"):
             try:
                 claim = post({"method_type": "device_maintenance_claim", **credentials})
             except urllib.error.HTTPError as error:
@@ -223,7 +249,12 @@ def report():
                 raise
             if claim.get("action_id") != action["id"] or expires_at <= datetime.now(timezone.utc):
                 continue
-            result = verify_backup_recovery()
+            if code == "deploy_apt_patch":
+                result = deploy_apt_patch(claim.get("patch_target"))
+            elif code == "stage_backup_restore":
+                result = stage_backup_restore(claim.get("restore_digest"))
+            else:
+                result = verify_backup_recovery()
         else:
             result = read_only_check(action.get("code"))
         if result is None:

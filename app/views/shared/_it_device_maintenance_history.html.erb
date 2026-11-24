@@ -21,7 +21,7 @@
         <tr>
           <td><%= action.network_managed_device.name %> (#<%= action.network_managed_device_id %>)</td>
           <% if show_operator %><td>User #<%= action.approved_by_id %></td><% end %>
-          <td><%= action.action_code.humanize %></td>
+          <td><%= action.action_code.humanize %><% if action.patch_deployment? %> · <code><%= action.patch_target %></code><% elsif action.staged_restore? %> · ZIP SHA-256 <code><%= action.expected_recovery_digest %></code><% end %></td>
           <td><%= l((action.starts_at || action.created_at).utc, format: :short) %></td>
           <td><%= l(action.expires_at.utc, format: :short) %></td>
           <td><%= status.humanize %></td>
@@ -32,9 +32,13 @@
             <% end %>
           </td>
           <td>
-            <% if status == "awaiting_customer_consent" && recovery_consent_path %>
-              <%= button_to "Authorize backup sample recovery", recovery_consent_path, method: :post,
+            <% if status == "awaiting_customer_consent" && action.patch_deployment? && patch_consent_path %>
+              <%= button_to "Authorize listed package version", patch_consent_path, method: :post,
                 params: { device_id: action.network_managed_device_id, action_id: action.id } %>
+            <% elsif status == "awaiting_customer_consent" && !action.patch_deployment? && recovery_consent_path %>
+              <%= button_to(action.staged_restore? ? "Authorize staging backup files" : "Authorize backup sample recovery",
+                recovery_consent_path, method: :post, params: { device_id: action.network_managed_device_id,
+                  action_id: action.id, staged: ("1" if action.staged_restore?) }) %>
             <% end %>
             <% if action.cancellable? %>
               <%= button_to "Cancel check", cancel_path, method: :post,

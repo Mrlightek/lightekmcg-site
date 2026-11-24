@@ -56,6 +56,8 @@ module ItServices
         false
       when "backup_recovery_test_failed"
         posture[:backup_sample_status] == "verified"
+      when "staged_restore_failed"
+        posture[:staged_restore_status] == "verified"
       when "patches_available"
         # Package inventories alone do not establish OS patch compliance.
         false

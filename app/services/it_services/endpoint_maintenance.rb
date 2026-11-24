@@ -7,12 +7,17 @@ module ItServices
     WINDOW_LENGTH = 10.minutes
     MAX_SCHEDULE_AHEAD = 30.days
 
-    def self.approve!(device:, actor:, code:, scheduled_at: nil, expected_recovery_digest: nil)
+    def self.approve!(device:, actor:, code:, scheduled_at: nil, expected_recovery_digest: nil, patch_target: nil)
       raise ArgumentError, "Unsupported action" unless ItDeviceMaintenanceAction::ACTIONS.include?(code)
       require_operator!(actor)
-      recovery_check = code == ItDeviceMaintenanceAction::RECOVERY_CHECK
+      recovery_check = [ItDeviceMaintenanceAction::RECOVERY_CHECK, ItDeviceMaintenanceAction::STAGED_RESTORE].include?(code)
       if recovery_check && (scheduled_at.blank? || !expected_recovery_digest.is_a?(String))
         raise ArgumentError, "Recovery verification requires a scheduled time and an expected SHA-256 digest"
+      end
+      patch_deployment = code == ItDeviceMaintenanceAction::PATCH_DEPLOYMENT
+      if patch_deployment && (scheduled_at.blank? || !patch_target.is_a?(String) ||
+          !ItDeviceMaintenanceAction::PATCH_TARGET.match?(patch_target))
+        raise ArgumentError, "Patch deployment requires a scheduled time and exact package=version"
       end
       device.with_lock do
         raise ArgumentError, "Customer monitoring consent required" unless available?(device)
@@ -24,6 +29,7 @@ module ItServices
           network_managed_device: device, owner_id: device.owner_id, approved_by: actor,
           action_code: code, status: "approved", request_nonce: SecureRandom.hex(24),
           starts_at: starts_at, expires_at: starts_at + WINDOW_LENGTH,
+          patch_target: (patch_target if patch_deployment),
           expected_recovery_digest: (expected_recovery_digest.strip.downcase if recovery_check)
         )
       end
@@ -45,13 +51,13 @@ module ItServices
       end
     end
 
-    def self.consent_to_recovery!(device:, action_id:, actor:)
+    def self.consent_to_recovery!(device:, action_id:, actor:, code: ItDeviceMaintenanceAction::RECOVERY_CHECK)
       device.with_lock do
         raise ActiveRecord::RecordNotFound unless actor&.persisted? && actor.id == device.owner_id
         raise ArgumentError, "Customer monitoring consent required" unless available?(device)
         action = owned_actions(device).find(action_id)
-        unless action.display_status == "awaiting_customer_consent"
-          raise ArgumentError, "Recovery verification is no longer awaiting consent"
+        unless action.display_status == "awaiting_customer_consent" && action.action_code == code
+          raise ArgumentError, "Maintenance action is no longer awaiting consent"
         end
         action.update!(owner_consented_at: Time.current)
         action
@@ -64,20 +70,20 @@ module ItServices
       owned_actions(device).where(status: "approved").where("expires_at > ?", now)
         .where("starts_at IS NULL OR starts_at <= ?", now)
         .where(claimed_at: nil)
-        .where("action_code != ? OR owner_consented_at IS NOT NULL", ItDeviceMaintenanceAction::RECOVERY_CHECK)
+        .where("action_code NOT IN (?) OR owner_consented_at IS NOT NULL", ItDeviceMaintenanceAction::CONSENT_REQUIRED)
         .order(:expires_at, :id).limit(10).map do |action|
         { id: action.id, code: action.action_code, nonce: action.request_nonce,
           expires_at: action.expires_at.iso8601 }
       end
     end
 
-    def self.claim_recovery!(device:, action_id:, nonce:)
+    def self.claim!(device:, action_id:, nonce:)
       device.with_lock do
         raise ArgumentError, "Consent revoked or device unavailable" unless available?(device)
         action = owned_actions(device).find(action_id)
-        unless action.recovery_check? && action.display_status == "awaiting_report" &&
+        unless action.consent_required? && action.display_status == "awaiting_report" &&
           ActiveSupport::SecurityUtils.secure_compare(action.request_nonce, nonce.to_s)
-          raise ArgumentError, "Recovery verification cannot be claimed"
+          raise ArgumentError, "Maintenance action cannot be claimed"
         end
         action.update!(claimed_at: Time.current)
         action
@@ -89,10 +95,15 @@ module ItServices
       device.with_lock do
         raise ArgumentError, "Consent revoked or device unavailable" unless available?(device)
         action = owned_actions(device).find(action_id)
-        expected_status = action.recovery_check? ? "running" : "awaiting_report"
+        expected_status = action.consent_required? ? "running" : "awaiting_report"
         raise ArgumentError, "Action not pending or expired" unless action.display_status == expected_status &&
           ActiveSupport::SecurityUtils.secure_compare(action.request_nonce, nonce.to_s)
-        evidence = action.recovery_check? ? verified_recovery_result(action, result) : check_result(action, result)
+        evidence = case action.action_code
+        when ItDeviceMaintenanceAction::RECOVERY_CHECK then verified_recovery_result(action, result)
+        when ItDeviceMaintenanceAction::STAGED_RESTORE then staged_restore_result(action, result)
+        when ItDeviceMaintenanceAction::PATCH_DEPLOYMENT then verified_patch_result(action, result)
+        else check_result(action, result)
+        end
         action.update!(status: "reported", reported_at: Time.current, result: evidence)
         action
       end
@@ -132,6 +143,37 @@ module ItServices
         "observation" => matched ? "Restored backup sample matched the expected digest." : "Restored backup sample did not match the expected digest." }
     end
 
+    def self.staged_restore_result(action, result)
+      data = result.stringify_keys
+      if result.size == 1 && %w[failed unavailable mismatch].include?(data["status"])
+        return { "status" => data["status"], "observation" => "A verified staged restore was not produced." }
+      end
+      if result.size != 5 || data.keys.sort != %w[byte_count file_count sha256 staging_reference status] ||
+          data["status"] != "staged" || data["sha256"] != action.expected_recovery_digest ||
+          !data["file_count"].is_a?(Integer) || !data["file_count"].between?(1, 1024) ||
+          !data["byte_count"].is_a?(Integer) || !data["byte_count"].between?(0, 512.megabytes) ||
+          !data["staging_reference"].is_a?(String) || !data["staging_reference"].match?(/\Alightek-restore-[0-9a-f]{32}\z/)
+        raise ArgumentError, "Invalid staged recovery evidence"
+      end
+
+      data.merge("status" => "verified",
+        "observation" => "The endpoint restored and read back #{data['file_count']} files in #{data['staging_reference']}.")
+    end
+
+    def self.verified_patch_result(action, result)
+      data = result.stringify_keys
+      if result.size == 1 && %w[failed unavailable].include?(data["status"])
+        return { "status" => data["status"], "observation" => "The package version could not be confirmed." }
+      end
+      unless result.size == 2 && data.keys.sort == %w[status target] && data["status"] == "installed" &&
+          data["target"] == action.patch_target
+        raise ArgumentError, "Patch result does not match the approved package and version"
+      end
+
+      { "status" => "verified", "target" => action.patch_target,
+        "observation" => "The endpoint package database confirmed the approved version." }
+    end
+
     def self.available?(device)
       device.owner_id.present? && device.managed_monitoring_enabled? && device.enrolled_at.present? &&
         device.status == "active" && LightekPeople::LifecycleAccess.active?(device.owner)
@@ -154,6 +196,6 @@ module ItServices
       Time.iso8601(value)
     end
     private_class_method :available?, :owned_actions, :require_operator!, :parse_schedule, :check_result,
-      :verified_recovery_result
+      :verified_recovery_result, :verified_patch_result, :staged_restore_result
   end
 end

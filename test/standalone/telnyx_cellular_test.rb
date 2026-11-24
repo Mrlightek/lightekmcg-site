@@ -20,7 +20,7 @@ if test_url
 end
 ActiveRecord::Base.connection.create_table(:users)
 ActiveRecord::Migration.verbose = false
-require_relative "../../db/migrate/20261123163000_create_user_esims"
+require_relative "../../db/migrate/20261123163500_create_user_esims"
 CreateUserEsims.new.migrate(:up)
 Lockbox.master_key = Lockbox.generate_key
 

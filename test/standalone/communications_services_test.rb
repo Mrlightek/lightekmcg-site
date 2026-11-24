@@ -45,7 +45,7 @@ require Rails.root.join("app/services/lightek_communications/automatic_voice_ful
 
 require Rails.root.join("app/jobs/application_job").to_s
 require Rails.root.join("app/jobs/lightek_communications/voice_provisioning_job").to_s
-require Rails.root.join("db/migrate/20261123163000_create_user_esims").to_s
+require Rails.root.join("db/migrate/20261123163500_create_user_esims").to_s
 CreateUserEsims.new.migrate(:up)
 require Rails.root.join("db/migrate/20261123164000_link_cellular_to_voice_bundles").to_s
 LinkCellularToVoiceBundles.new.migrate(:up)

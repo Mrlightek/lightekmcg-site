@@ -19,12 +19,22 @@ Nevaeh supports Lightek's CEO across company operations, communications, schedul
 - In **Executive work**, connect a phone gateway with a signing secret and optional active assignee. The callback accepts missed-call and voicemail events. The gateway sends JSON keys `event_id`, `kind` (`missed` or `voicemail`), optional `caller`, optional `summary`, and optional boolean `urgent`. Send the Unix timestamp in `X-Lightek-Timestamp` and the lowercase hexadecimal HMAC-SHA256 of `timestamp.raw_request_body` in `X-Lightek-Signature`. The installation needs a configured gateway to receive live calls.
 - For travel, send a booking request to an approved booking desk. Record the provider's itinerary or booking reference and attach the confirmation to finish. A queued message is a request. For direct flight and hotel booking, open **Direct travel booking** from the trip, connect a Duffel account, and search for flights or hotels. Flights use airport codes and hotels use coordinates. You can also load an existing flight offer or hotel rate ID. The owner reviews the total, supplies one traveler’s details, and confirms the purchase. Reconcile uncertain results by supplier ID before retrying.
 - For screenings, choose a valid web-screening license and send the attendee the protected Lightek viewing link. The existing screening endpoint rechecks playback rights. For a theater, open **Theater DCP delivery** from the screening case. Upload a prepared ZIP and record your theatrical rights reference. The signed-in theater contact receives a Dashboard notification, can download while the grant is valid, and can acknowledge the SHA-256. Archive checks do not establish server ingest or playback. Encrypted packages require a separate KDM workflow.
-- Open **Shared files** inside a Team Chat channel to co-edit Action Text documents, formula spreadsheets, or browser presentations. Spreadsheet exports contain calculated CSV values. New documents use the Trix editor for headings, lists, links, and formatting and export as HTML. Older plain-text documents still open and can be edited in Trix. Slides export as source. Open the editor and Office autosaves content. Concurrent changes to separate text ranges can merge. For overlapping edits, the editor keeps your draft so you can reconcile it against the latest version. Open **Version history** to restore a prior save. For cross-installation collaboration, open **Shared files** on a connected Network channel. Both sides edit one copy on the hub. File access follows channel membership, and disconnect archives the host’s copy and removes partner access.
+- Open **Shared files** inside a Team Chat channel to co-edit Action Text documents, formula spreadsheets, or browser presentations. Spreadsheet exports contain calculated CSV values. New documents use the Trix editor for headings, lists, links, and formatting. **Download Word (.docx)** exports an editable Word document from Shared Drives, Team Chat, or Network channels. **Download source** still exports HTML for rich-text documents and plain text for older files. Older plain-text documents still open and can be edited in Trix. Slides export as source. Open the editor and Office autosaves content. Concurrent changes to separate text ranges can merge. For overlapping edits, the editor keeps your draft so you can reconcile it against the latest version. Open **Version history** to restore a prior save. For cross-installation collaboration, open **Shared files** on a connected Network channel. Both sides edit one copy on the hub. File access follows channel membership, and disconnect archives the host’s copy and removes partner access.
+
+### Exporting presentations to PowerPoint
+
+Open a saved presentation in Shared Drives, Team Chat, or a Network channel. **Download PowerPoint (.pptx)** exports a widescreen deck with editable titles and body text. The deck follows the saved slide order. **Download** still gives you the presentation source.
 
 ## Shared drives and calendars
 
 - Open **Shared drives** from Team Chat or the Dashboard. An organization owner creates a drive and grants active teammates viewer or editor access. Editors can upload files up to 25 MB, create folders, rename or move items, and search by name. Editors can create and live-edit native Office documents, spreadsheets, and presentations directly in any drive folder. Drive viewers can read and export them. Team Chat channels also keep their own Office files. Spreadsheets open with an editable grid and preserve existing formulas and CSV exports.
 - Open **Shared calendars** to schedule events, invite active teammates through Dashboard notifications, track RSVPs, and check shared-calendar availability. The organizer or owner can edit, reschedule, or cancel events. Use the calendar download to open an event in another calendar application. Personal CEO agenda entries are excluded from team availability.
+
+### Incoming invitations in Lightek Mail
+
+Open an incoming calendar invitation in your own mailbox and select **Accept**, **Tentative**, or **Decline**. Lightek sends your response to the organizer. Accepted and tentative events appear under **Mail Studio → Calendar**. Use **Open invitation** from the calendar to change your response.
+
+Verified updates move the same event, and verified cancellations remove it. For a sender that Lightek Mail could not verify, open the update or cancellation email to review and apply it. Mail Calendar supports individual events with an explicit time zone and all-day events. Recurring series and invitations with sender-defined time zones remain available in the original email.
 
 ## Shared team channels
 
@@ -42,12 +52,38 @@ Finishing owner password setup queues creation of the installation's own branded
 
 Use **Mail Studio** settings for mail on domains you own. Add and verify your domain and create mailboxes for it. Custom-domain mail uses that installation's existing DNS and mail transport configuration. The branded installation mailbox uses the Lightek hub's verified mail domain and delivery service.
 
+## Importing Word documents into Shared Drives
+
+In the destination folder, open **Import a Word document** and choose a standard `.docx` up to 5 MB. The imported file opens in the rich-text editor. The import preserves ordinary paragraphs, headings 1–3, basic bulleted and numbered lists, safe web and email links, and common emphasis. Table text becomes paragraphs. Images, page layout, headers, and footers stay in the original file. The editable text limit is 64 KB.
+
+## Importing Excel into Shared Drives
+
+In the destination folder, open **Import an Excel spreadsheet** and choose an `.xlsx` workbook up to 5 MB. The import creates a new editable spreadsheet within the drive. A workbook must have one worksheet that fits the Workspace grid (100 rows by 26 columns, up to 64 KB of editable content). Values and supported local formulas are retained. Save separate copies of individual worksheets for multi-sheet workbooks. Formatting, charts, and other workbook features stay in the original file.
+
 ## Repeating shared calendar events
 
 Choose daily, weekly, or monthly repeat and enter 2–52 occurrences. Teammates RSVP to each occurrence. The organizer or owner can edit a single occurrence or cancel it and the remaining series. Monthly events use the last day of shorter months.
+
+## External guests on shared calendars
+
+Open **External guests** on an upcoming event you manage. Choose a sending-ready Lightek Mail mailbox you own, enter the guest's email address, and select **Send invitation**. The email includes the event title, time, and description. The guest can respond in a calendar app that sends calendar replies to the organizer. The event displays each guest's RSVP and delivery status.
+
+Edits and cancellations queue updated calendar notices from the original mailbox. Send an invitation for each recurring occurrence that the guest should attend. Use **Retry delivery** when a send fails. Cancellation delivery status appears on the original event's week under **Cancelled events with external guests**.
 
 ## Video meetings on shared calendars
 
 On an upcoming event, choose **Add video meeting**. Select a website owned by the calendar's organization if prompted. The website must have Lightek meeting media configured, and the event must last 15–480 whole minutes. For a recurring event, add a meeting to each occurrence that needs one.
 
 Organizers and invited teammates can open the meeting from Shared Calendars or their exported calendar event. Guests sign in and wait for the host to admit them. Moving the event before its meeting opens keeps the same link. Cancelling the event ends the linked room.
+
+### Import a Drive export
+
+Open a Shared Drive where you have edit access and select **Import Drive ZIP**. Choose the destination folder and preview the archive. The preview shows each path, editable Office conversions, downloads, duplicates, and conflicts.
+
+Import a single ZIP up to 50 MB with up to 100 MB expanded, 500 total files and folders, and individual files up to 25 MB. Supported Word, Excel, and PowerPoint exports become editable Office files. Other files, including Office files outside the converter limits, stay available as downloads. Imported items follow the destination drive's access settings.
+
+Select **Start import** and refresh the status as needed. The same archive can be imported again without making copies. Existing files at conflicting paths are left in place and shown in the report. A failed job can resume without copying files it already saved.
+
+## Exporting spreadsheets to Excel
+
+From a saved spreadsheet in Shared Drives, Team Chat, or a Network channel, choose **Download Excel (.xlsx)** for an editable single worksheet. Formulas supported by the spreadsheet grammar and scoped to the current grid stay editable. Unsupported expressions and text resembling formulas export as text. Excel recalculates formulas on opening. **Download** still provides a CSV of calculated values.

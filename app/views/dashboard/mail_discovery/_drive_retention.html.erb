@@ -1,0 +1,35 @@
+<section class="conversation-card" aria-labelledby="drive-retention">
+  <h2 id="drive-retention">Shared Drive version retention</h2>
+  <p>Set how long to keep earlier Office versions after they enter version history. An active hold pauses expiry. Current files and uploaded originals stay in the drive.</p>
+  <% if @retention_drives.any? %>
+    <%= form_with url: dashboard_discovery_drive_retention_path, namespace: "drive_retention", data: {turbo: false} do |form| %>
+      <p><%= form.label :drive_id, "Shared Drive" %><br>
+        <%= form.collection_select :drive_id, @retention_drives, :id, :name,
+          {prompt: "Choose a drive", selected: @drive_retention_preview&.fetch(:drive)&.id}, required: true %></p>
+      <p><%= form.label :days, "Keep earlier versions for days" %><br>
+        <%= form.number_field :days, value: @drive_retention_preview&.fetch(:days), min: 1,
+          max: LightekWorkspace::DriveRetention::DAY_RANGE.end, step: 1, required: true %></p>
+      <%= button_tag "Preview version expiry", name: :operation, value: "preview", type: :submit, class: "secondary" %>
+    <% end %>
+  <% else %>
+    <p class="muted">Create a Shared Drive to set version retention.</p>
+  <% end %>
+  <% if @drive_retention_preview %>
+    <p role="status" class="notice">
+      <strong><%= @drive_retention_preview.fetch(:drive).name %></strong> ·
+      <%= pluralize(@drive_retention_preview.fetch(:count), "earlier version") %>
+      <% if @drive_retention_preview.fetch(:on_hold) %>would qualify after the hold is released.
+      <% else %>would be eligible for expiry.<% end %>
+    </p>
+    <%= button_to "Save drive retention", dashboard_discovery_drive_retention_path,
+      params: {drive_id: @drive_retention_preview.fetch(:drive).id, days: @drive_retention_preview.fetch(:days), operation: "save"} %>
+  <% end %>
+  <% @retention_drives.each do |drive| %>
+    <% next unless drive.revision_retention_days %>
+    <div class="message-tools">
+      <span><%= drive.name %> · <%= pluralize(drive.revision_retention_days, "day") %></span>
+      <%= button_to "Remove drive rule", dashboard_discovery_drive_retention_path,
+        params: {drive_id: drive.id, operation: "remove"}, class: "secondary" %>
+    </div>
+  <% end %>
+</section>

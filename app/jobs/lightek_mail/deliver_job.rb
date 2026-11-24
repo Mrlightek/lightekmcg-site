@@ -42,6 +42,11 @@ module LightekMail
             message.update!(state: "failed", error_message: "Mail access was revoked before SMTP submission.")
             next false
           end
+          if message.idempotency_key.to_s.start_with?(IncomingCalendar::REPLY_PREFIX) &&
+              !IncomingCalendar.current_reply?(account, message)
+            message.update!(state: "failed", error_message: "A newer calendar notice or response superseded this RSVP.")
+            next false
+          end
           if message.idempotency_key.to_s.start_with?("support_event_", "billing_reminder_") &&
             !NevaehCustomerService::Outbound.current?(message)
             message.update!(state: "failed", error_message: "The support or billing notification is no longer current.")
@@ -50,6 +55,11 @@ module LightekMail
           if message.idempotency_key.to_s.start_with?('agency_onboarding_') &&
               !NevaehImprovement::Agency.current_message?(message)
             message.update!(state: "failed", error_message: "The agency onboarding follow-up is no longer current.")
+            next false
+          end
+          if message.idempotency_key.to_s.start_with?(LightekWorkspace::ExternalInvitation::MESSAGE_PREFIX) &&
+              !LightekWorkspace::ExternalInvitation.current_message?(message, account)
+            message.update!(state: "failed", error_message: "The calendar notice was superseded or the organizer mailbox changed.")
             next false
           end
           if policy.sending_enabled? && account.sending_ready? && NevaehOs::PublicRelations.delivery_allowed?(message, account)

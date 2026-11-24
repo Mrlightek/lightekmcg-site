@@ -4,6 +4,9 @@
 <% end %>
 <main class="lm mail-app" data-mail-app data-account="<%= @account&.id %>">
   <header class="mail-topbar"><a class="mail-brand" href="<%= dashboard_mail_path(account_id: @account&.id) %>" data-mail-nav><span class="brand-mark" aria-hidden="true">L<span>✦</span></span><span>Lightek <strong>Mail</strong></span></a><span class="mail-topline">A little more connected.</span><button class="secondary icon-button" data-mail-help aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">?</button><%= link_to 'Settings', dashboard_mail_path(account_id: @account&.id, view: 'settings'), class: 'button secondary', data: {mail_nav: true} %></header>
+  <% if LightekMail::DiscoveryAccess.visible?(current_user) %>
+    <p><%= link_to "Workspace discovery", dashboard_mail_discovery_path, class: "button secondary", data: {turbo: false} %></p>
+  <% end %>
   <% unless LightekMail::SendingPolicy.current.sending_enabled? %><p class="notice danger">Outgoing mail is paused across the platform. Reading and saving drafts remain available.</p><% end %>
   <div data-mail-shell>
   <% if flash[:alert] %><p class="notice danger" role="alert" data-mail-notice><%= flash[:alert] %></p><% elsif flash[:notice] && !flash[:mail_undo] %><p class="notice" role="status" data-mail-notice><%= flash[:notice] %></p><% end %>
@@ -13,13 +16,20 @@
   <% else %>
   <div class="mail-commandbar">
     <%= form_with url: dashboard_mail_path, method: :get, local: true, data: {mail_search: true}, class: 'mail-search' do %><%= hidden_field_tag :account_id, @account.id %><%= hidden_field_tag :folder, params[:q].present? ? @folder : 'all' %><span aria-hidden="true">⌕</span><%= search_field_tag :q, params[:q], maxlength: 240, placeholder: 'Search your mail', aria: {label: 'Search mail'} %><button class="secondary" type="submit">Search</button><% end %>
-    <details class="search-help"><summary>Search tips</summary><p>Combine words with <code>from:</code>, <code>to:</code>, <code>subject:</code>, <code>is:unread</code>, <code>is:starred</code>, <code>has:attachment</code>, <code>after:2026-01-01</code> or <code>before:2027-01-01</code>. Put phrases in quotes.</p><p>Example: <code>from:tiff has:attachment</code></p></details>
+    <% if @account.user_id == current_user.id %>
+      <%= link_to "Contacts", dashboard_mail_contacts_path(account_id: @account.id), class: "button secondary" %>
+    <% end %>
+    <%= link_to "Import mail", dashboard_mailbox_imports_path(account_id: @account.id), class: "button secondary" %>
+    <details class="search-help"><summary>Search tips</summary><p>Combine words with <code>from:</code>, <code>to:</code>, <code>subject:</code>, <code>is:unread</code>, <code>is:starred</code>, <code>has:attachment</code>, <code>label:"Client receipts"</code>, <code>after:2026-01-01</code> or <code>before:2027-01-01</code>. Put phrases in quotes.</p><p>Example: <code>from:tiff has:attachment</code></p></details>
   </div>
   <div class="mail-desk" data-folder="<%= @folder %>">
     <aside class="mail-rail" aria-label="Mailbox navigation">
       <%= link_to compose_dashboard_mail_path(account_id: @account.id), class: 'button compose-launch', data: {mail_dock: true} do %><%= render "icon", name: "compose" %> Compose<% end %>
       <%= form_with url: dashboard_mail_path, method: :get, local: true, data: {mail_search: true}, class: 'mailbox-picker' do %><label for="account_id">Mailbox</label><%= select_tag :account_id, options_from_collection_for_select(@accounts, :id, :address, @account.id), data: {mail_switch: true} %><noscript><%= submit_tag 'Switch mailbox' %></noscript><% end %>
       <nav class="folder-nav" aria-label="Mail folders"><% {'inbox'=>['▣','Inbox'], 'unread'=>['●','Unread'], 'junk'=>['!','Junk & spam'], 'starred'=>['☆','Starred'], 'sent'=>['↗','Sent'], 'draft'=>['▤','Drafts'], 'outbox'=>['◷','Outbox & issues'], 'archived'=>['▱','Archive'], 'all'=>['≡','All mail'], 'trash'=>['♧','Trash']}.each do |key, pair| %><%= link_to dashboard_mail_path(account_id: @account.id, folder: key), aria: {current: @folder == key ? 'page' : nil}, data: {mail_nav: true} do %><span class="folder-symbol" aria-hidden="true"><%= render "icon", name: key %></span><span><%= pair.last %></span><span class="folder-count"><%= @folder_counts[key] %></span><% end %><% end %></nav>
+      <% if @account.user_id == current_user.id %>
+        <%= link_to 'Calendar', calendar_dashboard_mail_path(account_id: @account.id), class: 'button secondary' %>
+      <% end %>
       <div class="rail-bottom"><span class="eyebrow">MAKE IT YOURS</span><%= link_to '✦ Email designs', dashboard_mail_path(account_id: @account.id, view: 'settings', anchor: 'mail-designs'), data: {mail_nav: true} %><small><%= @account.display_name %></small><progress value="<%= [@storage_used, @account.storage_limit].min %>" max="<%= @account.storage_limit %>" aria-label="Mailbox storage used"></progress><small><%= number_to_human_size(@storage_used) %> of <%= number_to_human_size(@account.storage_limit) %></small></div>
     </aside>
     <section class="mail-list-pane" aria-label="Messages">

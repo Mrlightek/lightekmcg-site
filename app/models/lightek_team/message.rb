@@ -14,7 +14,14 @@ module LightekTeam
     validates :request_key, format: {with: /\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/}
     validate :replies_stay_in_channel
 
+    before_update :protect_held_message
+    before_destroy :protect_held_message
+
     private
+
+    def protect_held_message
+      DiscoveryChannelHold.protect!(self, Channel.find(channel_id_in_database))
+    end
 
     def replies_stay_in_channel
       return unless reply_to && reply_to.channel_id != channel_id

@@ -16,7 +16,7 @@ Use `mail.lightekmcg.com` for the central SMTP server hostname. The HTTPS submis
 
 This is a central service first. Dedicated client mail servers can follow for isolation, scale or contractual requirements, with their own SMTP egress, DNS and reputation. A single central IP also means a shared reputation and operational failure domain; enforce mailbox limits and monitor the queue.
 
-Action Mailer is the sender, Action Mailbox is the incoming processor. The Rails web inbox is the client UI. IMAP/POP access from Apple Mail/Outlook/Thunderbird requires an additional mailbox backend such as Dovecot and synchronization/provisioning; it is not implemented by Action Mailbox or this release. Calendar, contacts, advanced spam quarantine, mailbox migration, shared-team delegation, campaigns, delivery webhooks and billing fulfillment are separate work. HTTPS submission is not a telephone media/signaling implementation.
+Action Mailer is the sender, Action Mailbox is the incoming processor. The Rails web inbox is the client UI. IMAP/POP access from Apple Mail/Outlook/Thunderbird requires an additional mailbox backend such as Dovecot and synchronization/provisioning; it is not implemented by Action Mailbox or this release. Calendar, contacts, advanced spam quarantine, shared-team delegation, campaigns, delivery webhooks and billing fulfillment are separate work. HTTPS submission is not a telephone media/signaling implementation.
 
 ## Activate a customer
 
@@ -285,3 +285,27 @@ Incoming mail is scanned by the existing loopback Rspamd service before inbox cl
 Mailbox settings expose standard/strict filtering plus up to 200 allowed and blocked sender addresses or domains. Blocked entries win. Allowed entries cannot bypass a missing scan, a score of 6 or higher, or a reject/discard/quarantine/deferral verdict. Junk has its own folder; message and bulk actions support spam/not-spam moves. These moves do not train a global spam model or change sender lists automatically.
 
 This release requires the `AddLightekMailboxManagement` database migration. Focused fixtures cover mailbox lifecycle, group isolation, snapshot delivery, spam classification, user controls and safe empty-route exports. Recipient inbox placement and live Rspamd/DNS/MTA readiness still require host verification.
+
+## Import Gmail message history
+
+In **Mail Studio → Import mail**, map an extracted Gmail or Google Workspace `.mbox` export to a mailbox you can manage. Files up to 512 MB can be previewed. For larger mailboxes, export smaller selections of Gmail labels and import the resulting files one at a time. Keep the originating mail service available during import.
+
+The preview estimates new storage and reports unreadable messages. After reviewing the destination, start the import and check its progress. Imported mail retains its original date, attachments, reply references, and Gmail labels. Search labels from **All mail** using `label:"Client receipts"`. A successful import skips messages already in the destination. Use **Retry from last checkpoint** after fixing a quota or storage problem. Remove the archive from the import page when finished. Removing an archive leaves the imported mail in place.
+
+### Move a team
+
+A workspace owner can open **Mail Studio → Import mail → Team mail migrations** and upload a UTF-8 CSV with the headers `source_email,destination_email`. Destination mailboxes must already belong to active members of that workspace. Upload one extracted Gmail archive per mapped person. Members review and approve archives uploaded to their mailboxes from **Mail Studio → Import mail**. Approval lets the owner process that file and see progress and counts. Mailbox access continues to use existing permissions.
+
+Select **Start ready imports** after the previews finish. A failed mailbox can be retried from its own checkpoint while the rest of the team keeps its progress. Imported messages remain in each member's mailbox after the uploaded archive is removed.
+
+### Move Google Contacts
+
+In Mail Studio, open **Contacts** for your mailbox. Select a Google Contacts CSV up to 2 MB or 2,000 rows and preview it. Lightek imports names, email addresses, phone numbers, and labels. Matching addresses and repeat rows are skipped. Existing contact edits are preserved. Start typing a contact name or address in the **To** field and select the address you want to use.
+
+For a team migration, each member can use **Import contacts** on their mailbox import. The team page shows when that mailbox has imported contacts. The address book is visible to the mailbox owner.
+
+### Move calendar history
+
+Open **Mail Studio → Calendar → Import calendar**, or use **Import calendar** from your team mailbox import. Preview one uncompressed `.ics` export up to 2 MB and 2,000 entries, then confirm the import. Mail Calendar displays imported events alongside invitations. Imports keep the source event and occurrence identities so repeat uploads skip them. Calendar history imports do not send invitations or RSVPs.
+
+The importer handles all-day events, UTC and recognized time zones, daily through yearly recurrence rules with supported date filters, excluded and additional dates, and individual moved or cancelled occurrences. The preview identifies entries with unsupported rules, floating times, or custom time zones. The team page reports import completion and the mailbox owner sees the imported event details.

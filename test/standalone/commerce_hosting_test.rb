@@ -39,7 +39,12 @@ ActiveRecord::Schema.define do
     t.boolean :rails_database, default: true; t.boolean :rails_worker, default: false
   end
   create_table(:gatekeeper_application_launches) { |t| t.references :gatekeeper_node }
-  create_table(:dymond_bank_subscription_plans) { |t| t.string :name }
+  create_table(:dymond_bank_subscription_plans) do |t|
+    t.string :name, :slug, :currency
+    t.text :description
+    t.integer :price_monthly_cents
+    t.boolean :active
+  end
   create_table(:dymond_bank_subscriptions) do |t|
     t.string :status; t.datetime :current_period_end; t.datetime :current_period_start; t.datetime :trial_ends_at
     t.references :subscriber, polymorphic: true; t.integer :plan_id
@@ -102,7 +107,9 @@ end
 class GatekeeperNode < ApplicationRecord
   belongs_to :owner, polymorphic: true
 end
-class SubscriptionInfrastructureEntitlement < ApplicationRecord; end
+class SubscriptionInfrastructureEntitlement < ApplicationRecord
+  belongs_to :subscription_plan, class_name: "DymondBank::SubscriptionPlan"
+end
 class ComputeProvider < ApplicationRecord
   def self.active = all
 end
@@ -214,7 +221,7 @@ require Rails.root.join('app/services/lightek_agency/hosting_catalog').to_s
   require Rails.root.join("app/models/#{path}").to_s
 end
 %w[lightek_commerce/network_accounts lightek_commerce/network_gateway lightek_commerce/network_checkout lightek_shipping/payload lightek_shipping/fedex lightek_shipping/quotes lightek_shipping/purchases lightek_shipping/labels lightek_commerce/fulfillment gatekeeper/hosting/access lightek_commerce/payment_identity lightek_commerce/revenue_sharing lightek_commerce/merchant_payouts lightek_commerce/order_placement
-  gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment].each do |path|
+  gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase gatekeeper/hosting/workspace_plans gatekeeper/hosting/retail_pricing lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment].each do |path|
   require Rails.root.join("app/services/#{path}").to_s
 end
 module LightekCommerce
@@ -510,6 +517,143 @@ class CommerceHostingTest < Minitest::Test
       assert_raises(Gatekeeper::Hosting::Access::Denied) { Gatekeeper::Hosting::PackagePurchase.validate!(snapshot: snapshot, retail_cents: 1200, actor: @operator) }
       catalog["plans"].first["monthly_cents"] = 2400
       assert_raises(Gatekeeper::Hosting::Access::Denied) { Gatekeeper::Hosting::PackagePurchase.validate!(snapshot: snapshot, retail_cents: 2500, actor: @operator) }
+    end
+  end
+
+  def workspace_source(cost: 1200)
+    plan = DymondBank::SubscriptionPlan.create!(name: "Hosting")
+    SubscriptionInfrastructureEntitlement.create!(subscription_plan: plan, max_sites: 2)
+    listing = product(product_type: "lightek_instance", price_cents: 5000, subscription_plan_id: plan.id,
+      package_policy: {"limits" => {"max_storage_bytes" => 1.gigabyte}})
+    HostingPackage.create!(product: listing, compute_provider: ComputeProvider.create!(slug: "linode", health_status: "healthy"),
+      gatekeeper_application_template: GatekeeperApplicationTemplate.create!(name: "Lightek", kind: "native_rails"),
+      region: "us-east", provider_plan: "standard", monthly_cost_ceiling_cents: cost, minimum_margin_cents: 500)
+  end
+
+  def test_workspace_tiers_create_separate_hidden_offers_with_runtime_entitlements
+    source = workspace_source
+    plans = {"starter" => [2500, 4], "team" => [3900, 10], "business" => [7400, 10]}.map do |tier, (price, seats)|
+      package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
+      assert_equal package, Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
+      assert_equal price, package.product.price_cents
+      refute package.active?
+      refute package.product.published?
+      assert_raises(LightekCommerce::OrderPlacement::Invalid) { order_for(package.product) }
+      policy = LightekAgency::PackagePolicy.for_product(package.product)
+      assert_equal({"max_sites" => 1, "max_users" => seats, "max_storage_bytes" => 1.gigabyte}, policy.fetch("limits"))
+      %w[website mail messaging rooms].each { |feature| assert policy.dig("features", feature, "enabled") }
+      assert policy.dig("features", "people", "enabled")
+      %w[directory commerce accounting].each { |feature| assert_equal tier == "business", policy.dig("features", feature, "enabled") }
+      plan = Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product)
+      assert_equal price, plan.price_monthly_cents
+      refute plan.active?
+      assert_equal 1, SubscriptionInfrastructureEntitlement.find_by!(subscription_plan: plan).max_sites
+      plan.id
+    end
+    assert_equal 3, plans.uniq.size
+  end
+
+  def test_workspace_price_floor_and_published_checkout_snapshot
+    source = workspace_source(cost: 2600)
+    package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: "starter", actor: @operator)
+    expected_price = LightekCommerce::MerchantPayouts.minimum_charge_cents(3100)
+    assert_equal expected_price, package.product.price_cents
+    catalog = {"plans" => [{"id" => "standard", "monthly_cents" => 2700}], "regions" => [{"id" => "us-east"}],
+      "images" => [{"id" => "linode/ubuntu24.04"}]}
+    Gatekeeper::Compute::LinodeCatalogService.stub(:call, catalog) do
+      assert_raises(Gatekeeper::Hosting::Access::Denied) do
+        Gatekeeper::Hosting::WorkspacePlans.toggle!(package: package, actor: @operator)
+      end
+      refute package.reload.active?
+      refute package.product.published?
+      catalog["plans"].first["monthly_cents"] = 2600
+
+      Gatekeeper::Hosting::WorkspacePlans.toggle!(package: package, actor: @operator)
+      assert package.reload.active?
+      assert package.product.published?
+      assert Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product).active?
+      order = order_for(package.product)
+      assert_equal expected_price, order.total_cents
+      assert_equal package.id, order.items.sole.purchase_snapshot.dig("hosting", "package_id")
+      assert_equal 3, order.items.sole.purchase_snapshot.dig("managed_package", "policy", "limits", "max_users")
+
+      Gatekeeper::Hosting::RetailPricing.update!(package: package, actor: @operator, price_cents: expected_price + 200)
+      assert_equal expected_price + 200, Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product).price_monthly_cents
+      assert_equal expected_price, order.reload.total_cents
+      assert_equal expected_price + 200, order_for(package.product).total_cents
+    end
+    Gatekeeper::Hosting::WorkspacePlans.toggle!(package: package, actor: @operator)
+    refute package.reload.active?
+    refute package.product.published?
+    refute Gatekeeper::Hosting::WorkspacePlans.subscription_plan(package.product).active?
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) { order_for(package.product) }
+  end
+
+  def test_workspace_seat_choice_sets_one_monthly_line_and_freezes_the_entitlement
+    source = workspace_source
+    expected = {
+      "starter" => {3 => 2500, 4 => 3200},
+      "team" => {5 => 3900, 10 => 7400},
+      "business" => {10 => 7400, 11 => 8100, 101 => 71_100}
+    }
+    expected.each do |tier, totals|
+      package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: tier, actor: @operator)
+      Gatekeeper::Hosting::PackagePurchase.stub(:validate!, true) do
+        Gatekeeper::Hosting::WorkspacePlans.toggle!(package: package, actor: @operator)
+      end
+      quantities = {package.product_id.to_s => 1}
+      totals.each do |seats, price|
+        order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+          quantities: quantities, workspace_seats: seats)
+        line = order.items.sole
+        assert_equal 1, line.quantity
+        assert_equal price, line.unit_price_cents
+        assert_equal price, order.total_cents
+        assert_equal seats, line.purchase_snapshot.fetch("workspace_seats")
+        assert_equal seats, line.purchase_snapshot.dig("managed_package", "policy", "limits", "max_users")
+        if seats == totals.keys.max
+          Gatekeeper::Hosting::PackagePurchase.stub(:validate!, true) do
+            Stripe::Checkout::Session.stub(:create, ->(params, _) {
+              assert_equal "subscription", params[:mode]
+              assert_equal 1, params[:line_items].sole[:quantity]
+              assert_equal price, params[:line_items].sole.dig(:price_data, :unit_amount)
+              OpenStruct.new(id: "cs_workspace_#{seats}")
+            }) do
+              LightekCommerce::StripeCheckout.start!(order: order, success_url: "https://shop.example.com/ok",
+                cancel_url: "https://shop.example.com/cancel")
+            end
+          end
+        end
+      end
+      assert_equal totals.keys.min, order_for(package.product).items.sole.purchase_snapshot.fetch("workspace_seats")
+      range = Gatekeeper::Hosting::WorkspacePlans.seats_for(package.product)
+      upper_limit = Gatekeeper::Hosting::WorkspacePlans.checkout_seat_limit(starting_price: package.product.price_cents, seat_range: range)
+      [totals.keys.min - 1, upper_limit + 1].each do |seats|
+        assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+          LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+            quantities: quantities, workspace_seats: seats)
+        end
+      end
+    end
+    unrelated = product
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(site: @site, customer_email: "buyer@example.com",
+        quantities: {unrelated.id.to_s => 1}, workspace_seats: 1)
+    end
+  end
+
+  def test_workspace_creation_checks_storefront_authority_and_rejects_unrelated_slug
+    source = workspace_source
+    customer = User.create!(role: "client")
+    other_operator = User.create!(role: "super_admin")
+    [customer, other_operator].each do |actor|
+      assert_raises(Gatekeeper::Hosting::Access::Denied) do
+        Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: "team", actor: actor)
+      end
+    end
+    product(slug: "lightek-workspace-team")
+    assert_raises(Gatekeeper::Hosting::Access::Denied) do
+      Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: "team", actor: @operator)
     end
   end
 

@@ -1,0 +1,19 @@
+<section class="conversation-stack" aria-labelledby="discovery-activity">
+  <h2 id="discovery-activity">Recent audit activity</h2>
+  <% if activity.empty? %><p class="muted">No activity yet.</p><% end %>
+  <% activity.each do |event| %>
+    <article class="conversation-card">
+      <strong><%= event.action.humanize %></strong>
+      <span class="muted">
+        · <%= event.actor&.full_name.presence || "System" %>
+        · <%= l(event.created_at, format: :short) %>
+        <% if event.account %> · <%= event.account.original_address.presence || event.account.address %><% end %>
+        <% if event.details["days"] %> · <%= pluralize(event.details.fetch("days"), "day") %><% end %>
+        <% if event.details["reviewer_id"] %> · Reviewer ID <%= event.details.fetch("reviewer_id") %><% end %>
+        <% if event.drive %> · <%= event.drive.name %><% end %>
+        <% if event.channel %> · #<%= event.channel.name %><% end %>
+        <% if event.result_count %> · <%= pluralize(event.result_count, event.action.start_with?("drive_") ? "file or version" : "message") %><% end %>
+      </span>
+    </article>
+  <% end %>
+</section>

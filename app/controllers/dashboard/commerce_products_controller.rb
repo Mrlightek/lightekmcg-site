@@ -4,6 +4,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   helper DymondDash::TemplateSchemaHelper
   before_action :set_site
   before_action :set_product, only: %i[edit update destroy]
+  before_action :redirect_workspace_management, only: %i[edit update destroy]
   def index
     @products = LightekCommerce::Product.where(site: @site).order(:position, :id)
   end
@@ -57,6 +58,14 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product removed."
   end
   private
+  def redirect_workspace_management
+    return unless @product.hosting_package && Gatekeeper::Hosting::WorkspacePlans.workspace?(@product)
+
+    raise CanCan::AccessDenied unless current_user.role == "super_admin"
+
+    redirect_to dashboard_hosting_packages_path, notice: "Manage Workspace pricing and availability in Hosting packages."
+  end
+
   def authorize_instance_product!
     requested_type = params.fetch(:product, {})[:product_type].to_s
     is_installation = requested_type == "lightek_instance" || @product&.product_type == "lightek_instance"

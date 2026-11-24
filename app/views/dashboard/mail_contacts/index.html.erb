@@ -1,0 +1,48 @@
+<% content_for :page_title, "Mail contacts" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Mail Studio", dashboard_mail_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header">
+    <div><h1>Contacts</h1><p class="muted"><%= @account.address %></p></div>
+  </header>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <section class="conversation-card" aria-labelledby="contacts-import-heading">
+    <div class="message-tools">
+      <div>
+        <h2 id="contacts-import-heading">Import Google Contacts</h2>
+        <% if @team_mailbox %><p class="muted">Migration · <%= @team_mailbox.migration.name %></p><% end %>
+        <%= form_with url: dashboard_mail_contacts_preview_path(account_id: @account.id), multipart: true, data: {turbo: false} do |form| %>
+          <%= hidden_field_tag :team_mailbox_id, @team_mailbox.id if @team_mailbox %>
+          <p><%= form.label :contacts_csv, "Google Contacts CSV" %><br><%= form.file_field :contacts_csv, accept: ".csv,text/csv", required: true %></p>
+          <%= form.submit "Preview contacts" %>
+        <% end %>
+      </div>
+    </div>
+  </section>
+  <section class="conversation-stack" aria-label="Saved contacts">
+    <%= form_with url: dashboard_mail_contacts_path(account_id: @account.id), method: :get do |form| %>
+      <%= hidden_field_tag :team_mailbox_id, @team_mailbox.id if @team_mailbox %>
+      <p><%= form.label :q, "Find a saved contact" %><br><%= form.search_field :q, value: @query, maxlength: 100 %></p>
+      <%= form.submit "Search", class: "secondary" %>
+    <% end %>
+    <% if @contacts.empty? %><p class="muted"><%= @query.present? ? "No matching contacts." : "Your address book is empty." %></p><% end %>
+    <% @contacts.first(50).each do |contact| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <div>
+            <h2><%= contact.display_name %></h2>
+            <% if contact.emails.any? %><p><%= contact.emails.join(", ") %></p><% end %>
+            <% if contact.phones.any? %><p><%= contact.phones.join(", ") %></p><% end %>
+            <% if contact.labels.any? %><p class="muted"><%= contact.labels.join(", ") %></p><% end %>
+          </div>
+          <%= link_to "Edit", edit_dashboard_mail_contact_path(account_id: @account.id, id: contact.id), class: "button secondary", aria: {label: "Edit #{contact.display_name}"} %>
+        </div>
+      </article>
+    <% end %>
+    <nav class="reader-actions" aria-label="Contact pages">
+      <% if @page > 1 %><%= link_to "Previous", dashboard_mail_contacts_path(account_id: @account.id, q: @query, page: @page - 1, team_mailbox_id: @team_mailbox&.id) %><% end %>
+      <% if @contacts.size > 50 %><%= link_to "Next", dashboard_mail_contacts_path(account_id: @account.id, q: @query, page: @page + 1, team_mailbox_id: @team_mailbox&.id) %><% end %>
+    </nav>
+  </section>
+</main>

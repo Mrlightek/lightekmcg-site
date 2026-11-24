@@ -110,7 +110,7 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
         raise ArgumentError, 'Server activation is confirmed by the provisioning pipeline' if reservation.server?
         raise ArgumentError, 'Payment must be verified before check-in' unless reservation.access_ready?
         reservation.update!(status: params[:status])
-        LightekCommerce::Fulfillment.complete!(order: reservation.order, reference: reservation.reference) if reservation.status == 'completed' && reservation.order&.status == 'paid'
+        LightekReservations::Settlement.complete_appointment!(reservation) if reservation.status == 'completed'
       end
     end
     redirect_to dashboard_reservations_path(site_id: @site.id), notice: 'Reservation updated.'

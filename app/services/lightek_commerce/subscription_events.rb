@@ -3,14 +3,14 @@ module LightekCommerce
     TYPES = %w[customer.subscription.created customer.subscription.updated customer.subscription.deleted invoice.paid invoice.payment_failed].freeze
 
     def self.reference(event)
-      object = event.data.object.to_h.deep_stringify_keys
+      object = event.data.object.to_hash.deep_stringify_keys
       return object["id"] if event.type.start_with?("customer.subscription.")
       value = object["subscription"] || object.dig("parent", "subscription_details", "subscription")
       value.is_a?(Hash) ? value["id"] : value
     end
 
     def self.metadata(event)
-      object = event.data.object.to_h.deep_stringify_keys
+      object = event.data.object.to_hash.deep_stringify_keys
       object["metadata"].presence || object.dig("parent", "subscription_details", "metadata") || object["subscription_details"]&.fetch("metadata", {}) || {}
     end
 
@@ -19,7 +19,7 @@ module LightekCommerce
       raise StripeEvents::Rejected, "Subscription identity missing" if reference.blank?
       Stripe.api_key = DymondBank::StripeCredentials.secret_key
       remote = Stripe::Subscription.retrieve(reference)
-      data = remote.to_h.deep_stringify_keys
+      data = remote.to_hash.deep_stringify_keys
       expected = PaymentIdentity.metadata(order).stringify_keys
       raise StripeEvents::Rejected, "Subscription order mismatch" unless expected.all? { |key, value| data.fetch("metadata", {})[key] == value }
       item = order.items.sole
@@ -46,10 +46,10 @@ module LightekCommerce
       # Read the processor's current state so delayed or duplicated events cannot
       # reactivate a canceled subscription or shorten a paid billing period.
       Stripe.api_key = DymondBank::StripeCredentials.secret_key
-      data = Stripe::Subscription.retrieve(reference).to_h.deep_stringify_keys
+      data = Stripe::Subscription.retrieve(reference).to_hash.deep_stringify_keys
       subscription.with_lock do
         apply!(subscription: subscription, data: data)
-        record_invoice!(subscription: subscription, invoice: event.data.object.to_h.deep_stringify_keys, at: Time.at(event.created)) if event.type == "invoice.paid"
+        record_invoice!(subscription: subscription, invoice: event.data.object.to_hash.deep_stringify_keys, at: Time.at(event.created)) if event.type == "invoice.paid"
       end
       if event.type == "invoice.paid" && defined?(LightekCommunications::VoiceProvisioningJob)
         LightekCommunications::VoiceProvisioningJob.enqueue_paid!(subscription.order)
@@ -68,6 +68,7 @@ module LightekCommerce
       raise StripeEvents::Rejected, "Invoice is not paid" unless invoice["status"] == "paid" && invoice["currency"] == subscription.currency
       record = BillingInvoice.find_or_initialize_by(processor_reference: invoice.fetch("id"))
       if record.persisted?
+        ItServices::InvoiceCoverage.record!(record, invoice) if defined?(ItServices::InvoiceCoverage) && record.subscription_id == subscription.id
         LightekPwa::CreatorSupport.record!(order: record.settlement_order, original_order: subscription.order) if defined?(LightekPwa::CreatorSupport) && record.settlement_order
         settle_agency_renewal!(subscription, invoice, record)
         return record
@@ -96,6 +97,7 @@ module LightekCommerce
         end
       end
       record.save!
+      ItServices::InvoiceCoverage.record!(record, invoice) if defined?(ItServices::InvoiceCoverage)
       settle_agency_renewal!(subscription, invoice, record)
       LightekPwa::CreatorSupport.record!(order: record.settlement_order, original_order: original) if defined?(LightekPwa::CreatorSupport) && record.settlement_order
       LightekPwa::RevenueEligibility.record!(subscription: subscription, reference: "invoice:#{record.processor_reference}") if defined?(LightekPwa::RevenueEligibility)

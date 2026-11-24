@@ -1,0 +1,50 @@
+name: IT Services business acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'app/**/it_service*'
+      - 'app/**/it_services/**'
+      - 'app/services/gatekeeper/it_service_billing_policy.rb'
+      - 'app/services/lightek_commerce/**'
+      - 'app/services/lightek_people/**'
+      - 'app/services/lightek_reservations/**'
+      - 'config/routes.rb'
+      - 'config/routes/it_services_billing.rb'
+      - 'config/initializers/it_services_billing.rb'
+      - 'db/migrate/*it_service*'
+      - 'script/lightek/it_service_release_check.rb'
+      - 'test/standalone/it_service_business_checks.rb'
+      - '.github/workflows/it-services-business-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  business-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: it_services_test
+          POSTGRES_DB: it_services_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      RESERVATIONS_DATABASE_URL: postgres://postgres:it_services_test@127.0.0.1:5432/it_services_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: false
+      - name: Install isolated dependencies
+        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' 'stripe:19.6.2' pg --no-document
+      - name: Exercise billing, booking, Nevaeh completion, and payroll on PostgreSQL
+        run: ruby test/standalone/it_service_business_checks.rb
+      - name: Check deployment probe syntax
+        run: ruby -c script/lightek/it_service_release_check.rb

@@ -1,0 +1,104 @@
+<% content_for :page_title, "IT Services finance" %>
+<main>
+  <h1>IT Services finance</h1>
+  <p><%= @site.name %></p>
+  <nav aria-label="IT Services finance">
+    <%= link_to "Commerce orders and refunds", dashboard_commerce_orders_path(site_id: @site.id) %>
+    <%= link_to "People & Payroll", dashboard_people_path(employer_id: @access.employer.id, tab: "payroll") %>
+  </nav>
+  <section aria-labelledby="managed-it-plans">
+    <h2 id="managed-it-plans">Managed IT plans</h2>
+    <% @plans.each do |plan| %>
+      <p><strong><%= plan.product.name %></strong> · <%= number_to_currency(plan.product.price_cents / 100.0) %>/<%= plan.product.billing_interval %> · <%= plan.resource.name %> · <%= plan.available? ? "Available" : "Unavailable" %></p>
+    <% end %>
+    <% if @access.owner? %>
+      <%= form_with url: dashboard_it_service_plan_path(site_id: @site.id), method: :post do |form| %>
+        <p>Use a dedicated recurring product from Commerce and an included service from Reservations.</p>
+        <div>
+          <%= form.label :product_id, "Recurring product" %>
+          <%= form.collection_select :product_id, @products, :id, :name, { prompt: "Choose a product" }, required: true %>
+        </div>
+        <div>
+          <%= form.label :resource_id, "Included reservation" %>
+          <%= form.collection_select :resource_id, @resources, :id, :name, { prompt: "Choose a service" }, required: true %>
+        </div>
+        <%= form.submit "Link plan" %>
+      <% end %>
+    <% end %>
+  </section>
+  <section aria-labelledby="one-time-appointments">
+    <h2 id="one-time-appointments">One-time appointments</h2>
+    <% @appointment_resources.select(&:it_service_appointment?).each do |resource| %>
+      <p><%= resource.name %> · <%= number_to_currency(resource.price_cents / 100.0) %></p>
+    <% end %>
+    <% if @access.owner? && @appointment_resources.any? { |resource| !resource.it_service_appointment? } %>
+      <%= form_with url: dashboard_it_service_appointment_path(site_id: @site.id), method: :post do |form| %>
+        <%= form.label :resource_id, "Priced appointment" %>
+        <%= form.collection_select :resource_id, @appointment_resources.reject(&:it_service_appointment?), :id, :name, { prompt: "Choose an appointment" }, required: true %>
+        <%= form.submit "Mark as IT Services appointment" %>
+      <% end %>
+    <% end %>
+  </section>
+  <section aria-labelledby="technician-payouts">
+    <h2 id="technician-payouts">Technician payouts</h2>
+    <% if @requests.empty? %><p>No customer-confirmed cases are available for this website.</p><% end %>
+    <% eligible = @requests.any? { |record| @payouts[record.id].nil? || @payouts[record.id].settlement_status == "Canceled" } %>
+    <% can_prepare = eligible && @access.payroll?(:prepare) && @runs.any? %>
+    <%= form_with url: dashboard_it_service_payout_path(site_id: @site.id), method: :post do |form| %>
+      <% if @requests.any? %>
+        <table>
+          <thead><tr><th scope="col">Case</th><th scope="col">Technician</th><th scope="col">Customer confirmation date</th><th scope="col">Payout status</th><% if can_prepare %><th scope="col">Gross cents</th><% end %></tr></thead>
+          <tbody>
+            <% @requests.each do |record| %>
+              <% payout = @payouts[record.id] %>
+              <% selectable = can_prepare && (payout.nil? || payout.settlement_status == "Canceled") %>
+              <tr>
+                <td>
+                  <% if selectable %>
+                    <%= check_box_tag "request_ids[]", record.id, false, id: "case_#{record.id}" %>
+                    <%= label_tag "case_#{record.id}", "Case ##{record.id}" %>
+                  <% else %>
+                    #<%= record.id %>
+                  <% end %>
+                </td>
+                <td><%= record.technician.full_name %></td>
+                <td><%= l(record.closed_at.to_date, format: :long) if record.closed_at %></td>
+                <td>
+                  <%= payout ? payout.settlement_status : "Ready for review" %>
+                  <% if payout %><%= link_to "Payroll statement", dashboard_people_path(employer_id: @access.employer.id, tab: "payroll", run_id: payout.pay_statement.pay_run_id) %><% end %>
+                </td>
+                <% if can_prepare %>
+                  <td>
+                    <% if selectable %>
+                      <%= number_field_tag "gross_amounts[#{record.id}]", payout&.gross_cents, min: 1, step: 1, aria: { label: "Gross cents for case #{record.id}" } %>
+                    <% elsif payout %>
+                      <%= payout.gross_cents %>
+                    <% end %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+      <% if can_prepare %>
+        <p>Select cases for one technician in the draft pay run.</p>
+        <div>
+          <%= form.label :run_id, "Draft pay run" %>
+          <%= form.select :run_id, @runs.map { |run| ["#{run.period_start} through #{run.period_end}, pay date #{run.pay_date}", run.id] }, { prompt: "Choose a pay run" }, required: true %>
+        </div>
+        <fieldset>
+          <legend>Reviewed deductions</legend>
+          <div><%= label_tag "deductions[tax_cents]", "Worker tax (cents)" %><%= number_field_tag "deductions[tax_cents]", nil, min: 0, step: 1, required: true %></div>
+          <div><%= label_tag "deductions[employer_tax_cents]", "Employer tax (cents)" %><%= number_field_tag "deductions[employer_tax_cents]", nil, min: 0, step: 1, required: true %></div>
+          <div><%= label_tag "deductions[other_deductions_cents]", "Other deductions (cents)" %><%= number_field_tag "deductions[other_deductions_cents]", nil, min: 0, step: 1, required: true %></div>
+          <div><%= label_tag "deductions[tax_reference]", "Tax review reference" %><%= text_field_tag "deductions[tax_reference]", nil, maxlength: 300, required: true %></div>
+          <div><%= check_box_tag :tax_reviewed, "1", false, required: true %><%= label_tag :tax_reviewed, "I reviewed taxes and deductions for this pay period" %></div>
+        </fieldset>
+        <%= form.submit "Stage for payroll approval" %>
+      <% elsif eligible && @access.payroll?(:prepare) %>
+        <p>Create a draft pay run in People & Payroll to stage a payout.</p>
+      <% end %>
+    <% end %>
+  </section>
+</main>

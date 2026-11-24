@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2044,6 +2044,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.index ["user_id"], name: "index_lightek_connect_sandboxes_on_user_id"
   end
 
+  create_table "lightek_discovery_channel_holds", force: :cascade do |t|
+    t.bigint "matter_id", null: false
+    t.bigint "channel_id", null: false
+    t.datetime "released_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["channel_id"], name: "index_lightek_discovery_channel_holds_on_channel_id"
+    t.index ["matter_id", "channel_id"], name: "idx_on_matter_id_channel_id_126201b550", unique: true
+  end
+
+  create_table "lightek_discovery_drive_holds", force: :cascade do |t|
+    t.bigint "matter_id", null: false
+    t.bigint "drive_id", null: false
+    t.datetime "released_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["drive_id"], name: "index_lightek_discovery_drive_holds_on_drive_id"
+    t.index ["matter_id", "drive_id"], name: "index_lightek_discovery_drive_holds_on_matter_id_and_drive_id", unique: true
+  end
+
   create_table "lightek_experiment_assignments", force: :cascade do |t|
     t.bigint "experiment_id", null: false
     t.string "visitor_digest", null: false
@@ -2584,12 +2604,120 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.index ["account_id"], name: "index_lightek_mail_auto_replies_on_account_id"
   end
 
+  create_table "lightek_mail_calendar_history_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "uid", limit: 255, null: false
+    t.string "occurrence_key", limit: 32, default: "", null: false
+    t.string "title", limit: 160, null: false
+    t.string "location", limit: 300
+    t.text "description"
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.boolean "all_day", default: false, null: false
+    t.boolean "cancelled", default: false, null: false
+    t.string "zone"
+    t.string "rule"
+    t.jsonb "added_dates", default: [], null: false
+    t.jsonb "excluded_dates", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "starts_at"], name: "idx_mail_history_calendar_dates"
+    t.index ["account_id", "uid", "occurrence_key"], name: "idx_mail_history_event_identity", unique: true
+    t.index ["account_id"], name: "index_lightek_mail_calendar_history_events_on_account_id"
+  end
+
+  create_table "lightek_mail_calendar_history_previews", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "team_mailbox_id"
+    t.jsonb "events", default: [], null: false
+    t.jsonb "issues", default: [], null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_lightek_mail_calendar_history_previews_on_account_id"
+    t.index ["expires_at"], name: "index_lightek_mail_calendar_history_previews_on_expires_at"
+    t.index ["team_mailbox_id"], name: "idx_on_team_mailbox_id_ba9c41c2a6"
+  end
+
+  create_table "lightek_mail_calendar_invitations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "source_message_id"
+    t.bigint "reply_message_id"
+    t.string "uid", limit: 255, null: false
+    t.string "organizer", limit: 254, null: false
+    t.string "attendee", limit: 254, null: false
+    t.string "title", limit: 160, null: false
+    t.text "description"
+    t.string "location", limit: 300
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.boolean "all_day", default: false, null: false
+    t.integer "sequence", null: false
+    t.datetime "stamp", null: false
+    t.string "response", default: "pending", null: false
+    t.datetime "reply_stamp"
+    t.integer "response_revision", default: 0, null: false
+    t.boolean "cancelled", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "attendee", "organizer", "uid"], name: "idx_mail_calendar_invitation_identity", unique: true
+    t.index ["account_id", "attendee", "starts_at"], name: "idx_mail_calendar_invitation_agenda"
+    t.index ["reply_message_id"], name: "index_lightek_mail_calendar_invitations_on_reply_message_id"
+    t.index ["source_message_id"], name: "index_lightek_mail_calendar_invitations_on_source_message_id"
+  end
+
+  create_table "lightek_mail_contact_previews", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "team_mailbox_id"
+    t.jsonb "contacts", default: [], null: false
+    t.integer "invalid_rows", default: 0, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_lightek_mail_contact_previews_on_account_id"
+    t.index ["expires_at"], name: "index_lightek_mail_contact_previews_on_expires_at"
+    t.index ["team_mailbox_id"], name: "index_lightek_mail_contact_previews_on_team_mailbox_id"
+  end
+
+  create_table "lightek_mail_contacts", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", limit: 200, null: false
+    t.string "import_key", limit: 64, null: false
+    t.jsonb "source_emails", default: [], null: false
+    t.jsonb "emails", default: [], null: false
+    t.jsonb "phones", default: [], null: false
+    t.jsonb "labels", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "import_key"], name: "idx_mail_contact_import_identity", unique: true
+    t.index ["account_id"], name: "index_lightek_mail_contacts_on_account_id"
+  end
+
   create_table "lightek_mail_customer_suspensions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "reason", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_lightek_mail_customer_suspensions_on_user_id", unique: true
+  end
+
+  create_table "lightek_mail_discovery_events", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.bigint "matter_id"
+    t.bigint "account_id"
+    t.bigint "actor_id"
+    t.string "action", null: false
+    t.json "details", default: {}, null: false
+    t.integer "result_count"
+    t.datetime "created_at", null: false
+    t.bigint "drive_id"
+    t.bigint "channel_id"
+    t.index ["account_id"], name: "index_lightek_mail_discovery_events_on_account_id"
+    t.index ["actor_id"], name: "index_lightek_mail_discovery_events_on_actor_id"
+    t.index ["channel_id"], name: "index_lightek_mail_discovery_events_on_channel_id"
+    t.index ["drive_id"], name: "index_lightek_mail_discovery_events_on_drive_id"
+    t.index ["employer_id", "created_at"], name: "idx_mail_discovery_activity"
+    t.index ["matter_id"], name: "index_lightek_mail_discovery_events_on_matter_id"
   end
 
   create_table "lightek_mail_domains", force: :cascade do |t|
@@ -2634,6 +2762,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.index ["member_id"], name: "index_lightek_mail_group_members_on_member_id"
   end
 
+  create_table "lightek_mail_imports", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "requested_by_id", null: false
+    t.string "mailbox_address", null: false
+    t.string "state", default: "queued", null: false
+    t.string "phase", default: "preview", null: false
+    t.string "run_token", null: false
+    t.bigint "archive_bytes", null: false
+    t.bigint "byte_offset", default: 0, null: false
+    t.jsonb "preview", default: {}, null: false
+    t.jsonb "results", default: {}, null: false
+    t.string "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "team_mailbox_id"
+    t.datetime "approved_at"
+    t.index ["account_id"], name: "index_lightek_mail_imports_on_account_id"
+    t.index ["requested_by_id"], name: "index_lightek_mail_imports_on_requested_by_id"
+    t.index ["team_mailbox_id"], name: "index_lightek_mail_imports_on_team_mailbox_id", unique: true
+  end
+
+  create_table "lightek_mail_matter_holds", force: :cascade do |t|
+    t.bigint "matter_id", null: false
+    t.bigint "account_id", null: false
+    t.datetime "released_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_lightek_mail_matter_holds_on_account_id"
+    t.index ["matter_id", "account_id"], name: "index_lightek_mail_matter_holds_on_matter_id_and_account_id", unique: true
+  end
+
+  create_table "lightek_mail_matter_reviewers", force: :cascade do |t|
+    t.bigint "matter_id", null: false
+    t.bigint "user_id", null: false
+    t.index ["matter_id", "user_id"], name: "index_lightek_mail_matter_reviewers_on_matter_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_lightek_mail_matter_reviewers_on_user_id"
+  end
+
+  create_table "lightek_mail_matters", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "name", limit: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id"], name: "index_lightek_mail_matters_on_employer_id"
+  end
+
   create_table "lightek_mail_messages", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "direction", null: false
@@ -2661,9 +2835,36 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.float "spam_score"
     t.string "spam_reason"
     t.datetime "spam_scanned_at"
+    t.jsonb "calendar_notice", default: {}, null: false
+    t.datetime "imported_at"
+    t.jsonb "imported_labels", default: [], null: false
     t.index ["account_id", "created_at"], name: "idx_mail_recent"
     t.index ["account_id", "idempotency_key"], name: "idx_mail_idempotency", unique: true
+    t.index ["account_id", "message_id"], name: "idx_mail_account_message_identity"
     t.index ["account_id"], name: "index_lightek_mail_messages_on_account_id"
+  end
+
+  create_table "lightek_mail_retained_messages", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "original_id", null: false
+    t.datetime "sent_or_received_at", null: false
+    t.string "subject", null: false
+    t.string "from_address", null: false
+    t.text "text_body"
+    t.json "snapshot", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "sent_or_received_at"], name: "idx_mail_retained_by_date"
+    t.index ["original_id"], name: "index_lightek_mail_retained_messages_on_original_id", unique: true
+  end
+
+  create_table "lightek_mail_retention_rules", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.integer "days", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_lightek_mail_retention_rules_on_account_id", unique: true
+    t.check_constraint "days >= 1 AND days <= 36500", name: "mail_retention_days"
   end
 
   create_table "lightek_mail_send_reservations", force: :cascade do |t|
@@ -4014,6 +4215,36 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.index ["parent_id"], name: "index_lightek_shared_drive_entries_on_parent_id"
   end
 
+  create_table "lightek_shared_drive_import_receipts", force: :cascade do |t|
+    t.bigint "drive_id", null: false
+    t.bigint "entry_id"
+    t.string "source_key", limit: 64, null: false
+    t.string "digest", limit: 64, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["drive_id", "source_key"], name: "idx_drive_import_receipt_source", unique: true
+    t.index ["drive_id"], name: "index_lightek_shared_drive_import_receipts_on_drive_id"
+    t.index ["entry_id"], name: "index_lightek_shared_drive_import_receipts_on_entry_id"
+  end
+
+  create_table "lightek_shared_drive_imports", force: :cascade do |t|
+    t.bigint "drive_id", null: false
+    t.bigint "folder_id"
+    t.bigint "actor_id", null: false
+    t.string "filename", null: false
+    t.string "state", default: "preview", null: false
+    t.string "run_token"
+    t.jsonb "items", default: [], null: false
+    t.string "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "team_migration_id"
+    t.index ["actor_id"], name: "index_lightek_shared_drive_imports_on_actor_id"
+    t.index ["drive_id"], name: "index_lightek_shared_drive_imports_on_drive_id"
+    t.index ["folder_id"], name: "index_lightek_shared_drive_imports_on_folder_id"
+    t.index ["team_migration_id"], name: "index_lightek_shared_drive_imports_on_team_migration_id"
+  end
+
   create_table "lightek_shared_drive_members", force: :cascade do |t|
     t.bigint "drive_id", null: false
     t.bigint "user_id", null: false
@@ -4028,7 +4259,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.string "name", limit: 120, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "revision_retention_days"
     t.index ["employer_id"], name: "index_lightek_shared_drives_on_employer_id"
+    t.check_constraint "revision_retention_days >= 1 AND revision_retention_days <= 36500", name: "shared_drive_revision_retention_days"
   end
 
   create_table "lightek_shared_event_guests", force: :cascade do |t|
@@ -4053,11 +4286,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "series_key", limit: 36
+    t.bigint "session_room_id"
     t.index ["calendar_id", "series_key", "starts_at"], name: "index_shared_events_on_series_and_start", where: "(series_key IS NOT NULL)"
     t.index ["calendar_id", "starts_at"], name: "index_lightek_shared_events_on_calendar_id_and_starts_at"
     t.index ["calendar_id"], name: "index_lightek_shared_events_on_calendar_id"
     t.index ["organizer_id"], name: "index_lightek_shared_events_on_organizer_id"
+    t.index ["session_room_id"], name: "index_lightek_shared_events_on_session_room_id", unique: true
     t.check_constraint "ends_at > starts_at", name: "shared_event_positive_duration"
+  end
+
+  create_table "lightek_shared_external_invitations", force: :cascade do |t|
+    t.bigint "event_id", null: false
+    t.bigint "mailbox_id", null: false
+    t.bigint "message_id"
+    t.string "organizer_address", limit: 254, null: false
+    t.string "attendee_address", limit: 254, null: false
+    t.string "uid", null: false
+    t.integer "sequence", default: 0, null: false
+    t.string "response", default: "pending", null: false
+    t.datetime "reply_timestamp"
+    t.string "delivery_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_id", "attendee_address"], name: "idx_on_event_id_attendee_address_f1b75f2f68", unique: true
+    t.index ["mailbox_id"], name: "index_lightek_shared_external_invitations_on_mailbox_id"
+    t.index ["message_id"], name: "index_lightek_shared_external_invitations_on_message_id"
+    t.index ["uid"], name: "index_lightek_shared_external_invitations_on_uid", unique: true
   end
 
   create_table "lightek_shipping_accounts", force: :cascade do |t|
@@ -4284,6 +4538,34 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
     t.datetime "updated_at", null: false
     t.index ["creator_id"], name: "index_lightek_team_channels_on_creator_id"
     t.index ["employer_id", "name"], name: "index_lightek_team_channels_on_employer_id_and_name", unique: true
+  end
+
+  create_table "lightek_team_mail_migration_mailboxes", force: :cascade do |t|
+    t.bigint "migration_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "mailbox_user_id", null: false
+    t.string "source_address", limit: 254, null: false
+    t.string "destination_address", limit: 254, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "contacts_imported_at"
+    t.datetime "calendar_imported_at"
+    t.jsonb "contacts_import_result", default: {}, null: false
+    t.jsonb "calendar_import_result", default: {}, null: false
+    t.index ["account_id"], name: "index_lightek_team_mail_migration_mailboxes_on_account_id"
+    t.index ["mailbox_user_id"], name: "index_lightek_team_mail_migration_mailboxes_on_mailbox_user_id"
+    t.index ["migration_id", "account_id"], name: "idx_team_mail_destination", unique: true
+    t.index ["migration_id", "source_address"], name: "idx_team_mail_source", unique: true
+  end
+
+  create_table "lightek_team_mail_migrations", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "name", limit: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "pilot", default: false, null: false
+    t.datetime "pilot_verified_at"
+    t.index ["employer_id"], name: "index_lightek_team_mail_migrations_on_employer_id"
   end
 
   create_table "lightek_team_memberships", force: :cascade do |t|
@@ -6867,6 +7149,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
   add_foreign_key "lightek_connect_grants", "sessions", column: "authorization_session_id", on_delete: :nullify
   add_foreign_key "lightek_connect_sandboxes", "gatekeeper_nodes"
   add_foreign_key "lightek_connect_sandboxes", "users"
+  add_foreign_key "lightek_discovery_channel_holds", "lightek_mail_matters", column: "matter_id"
+  add_foreign_key "lightek_discovery_channel_holds", "lightek_team_channels", column: "channel_id", on_delete: :cascade
+  add_foreign_key "lightek_discovery_drive_holds", "lightek_mail_matters", column: "matter_id"
+  add_foreign_key "lightek_discovery_drive_holds", "lightek_shared_drives", column: "drive_id"
   add_foreign_key "lightek_experiment_assignments", "lightek_experiments", column: "experiment_id"
   add_foreign_key "lightek_experiment_outcomes", "lightek_experiment_assignments", column: "assignment_id"
   add_foreign_key "lightek_growth_audit_findings", "dymond_site_sites", column: "site_id"
@@ -6939,13 +7225,38 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
   add_foreign_key "lightek_mail_accounts", "lightek_reservation_peers", column: "installation_peer_id"
   add_foreign_key "lightek_mail_accounts", "users"
   add_foreign_key "lightek_mail_auto_replies", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_calendar_history_events", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_calendar_history_previews", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_calendar_history_previews", "lightek_team_mail_migration_mailboxes", column: "team_mailbox_id"
+  add_foreign_key "lightek_mail_calendar_invitations", "lightek_mail_accounts", column: "account_id", on_delete: :cascade
+  add_foreign_key "lightek_mail_calendar_invitations", "lightek_mail_messages", column: "reply_message_id", on_delete: :nullify
+  add_foreign_key "lightek_mail_calendar_invitations", "lightek_mail_messages", column: "source_message_id", on_delete: :nullify
+  add_foreign_key "lightek_mail_contact_previews", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_contact_previews", "lightek_team_mail_migration_mailboxes", column: "team_mailbox_id"
+  add_foreign_key "lightek_mail_contacts", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_customer_suspensions", "users"
+  add_foreign_key "lightek_mail_discovery_events", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_discovery_events", "lightek_mail_matters", column: "matter_id"
+  add_foreign_key "lightek_mail_discovery_events", "lightek_shared_drives", column: "drive_id", on_delete: :nullify
+  add_foreign_key "lightek_mail_discovery_events", "lightek_team_channels", column: "channel_id", on_delete: :nullify
+  add_foreign_key "lightek_mail_discovery_events", "users", column: "actor_id"
+  add_foreign_key "lightek_mail_discovery_events", "users", column: "employer_id"
   add_foreign_key "lightek_mail_domains", "users"
   add_foreign_key "lightek_mail_envelopes", "action_mailbox_inbound_emails", column: "inbound_email_id", on_delete: :cascade
   add_foreign_key "lightek_mail_feedback_events", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_group_members", "lightek_mail_accounts", column: "group_id"
   add_foreign_key "lightek_mail_group_members", "lightek_mail_accounts", column: "member_id"
+  add_foreign_key "lightek_mail_imports", "lightek_mail_accounts", column: "account_id", on_delete: :cascade
+  add_foreign_key "lightek_mail_imports", "lightek_team_mail_migration_mailboxes", column: "team_mailbox_id"
+  add_foreign_key "lightek_mail_imports", "users", column: "requested_by_id"
+  add_foreign_key "lightek_mail_matter_holds", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_matter_holds", "lightek_mail_matters", column: "matter_id"
+  add_foreign_key "lightek_mail_matter_reviewers", "lightek_mail_matters", column: "matter_id"
+  add_foreign_key "lightek_mail_matter_reviewers", "users"
+  add_foreign_key "lightek_mail_matters", "users", column: "employer_id"
   add_foreign_key "lightek_mail_messages", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_retained_messages", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_retention_rules", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_send_reservations", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_send_reservations", "users"
   add_foreign_key "lightek_mail_templates", "lightek_mail_accounts", column: "account_id"
@@ -7112,13 +7423,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
   add_foreign_key "lightek_shared_drive_entries", "lightek_shared_drive_entries", column: "parent_id"
   add_foreign_key "lightek_shared_drive_entries", "lightek_shared_drives", column: "drive_id"
   add_foreign_key "lightek_shared_drive_entries", "users", column: "creator_id"
+  add_foreign_key "lightek_shared_drive_import_receipts", "lightek_shared_drive_entries", column: "entry_id", on_delete: :nullify
+  add_foreign_key "lightek_shared_drive_import_receipts", "lightek_shared_drives", column: "drive_id"
+  add_foreign_key "lightek_shared_drive_imports", "lightek_shared_drive_entries", column: "folder_id"
+  add_foreign_key "lightek_shared_drive_imports", "lightek_shared_drives", column: "drive_id"
+  add_foreign_key "lightek_shared_drive_imports", "lightek_team_mail_migrations", column: "team_migration_id"
+  add_foreign_key "lightek_shared_drive_imports", "users", column: "actor_id"
   add_foreign_key "lightek_shared_drive_members", "lightek_shared_drives", column: "drive_id"
   add_foreign_key "lightek_shared_drive_members", "users"
   add_foreign_key "lightek_shared_drives", "users", column: "employer_id"
   add_foreign_key "lightek_shared_event_guests", "lightek_shared_events", column: "event_id"
   add_foreign_key "lightek_shared_event_guests", "users"
+  add_foreign_key "lightek_shared_events", "lightek_session_rooms", column: "session_room_id"
   add_foreign_key "lightek_shared_events", "lightek_shared_calendars", column: "calendar_id"
   add_foreign_key "lightek_shared_events", "users", column: "organizer_id"
+  add_foreign_key "lightek_shared_external_invitations", "lightek_mail_accounts", column: "mailbox_id"
+  add_foreign_key "lightek_shared_external_invitations", "lightek_mail_messages", column: "message_id", on_delete: :nullify
+  add_foreign_key "lightek_shared_external_invitations", "lightek_shared_events", column: "event_id", on_delete: :cascade
   add_foreign_key "lightek_shipping_profiles", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_shipping_quotes", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_shipping_quotes", "lightek_commerce_orders", column: "purchase_order_id"
@@ -7142,6 +7463,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_23_091000) do
   add_foreign_key "lightek_social_top_people", "profiles", column: "person_id"
   add_foreign_key "lightek_team_channels", "users", column: "creator_id"
   add_foreign_key "lightek_team_channels", "users", column: "employer_id"
+  add_foreign_key "lightek_team_mail_migration_mailboxes", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_team_mail_migration_mailboxes", "lightek_team_mail_migrations", column: "migration_id"
+  add_foreign_key "lightek_team_mail_migration_mailboxes", "users", column: "mailbox_user_id"
+  add_foreign_key "lightek_team_mail_migrations", "users", column: "employer_id"
   add_foreign_key "lightek_team_memberships", "lightek_team_channels", column: "channel_id"
   add_foreign_key "lightek_team_memberships", "users"
   add_foreign_key "lightek_team_messages", "lightek_team_channels", column: "channel_id"

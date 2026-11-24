@@ -44,6 +44,14 @@ class ProvisioningRequest < ApplicationRecord
       node_label.present?
   end
 
+  def compute_adapter(requested_by:, operation_id: nil)
+    if metadata.to_h["release_assurance_staging"]
+      return Gatekeeper::Compute::StagingRequests.adapter_for!(self, requested_by: requested_by, operation_id: operation_id)
+    end
+
+    compute_provider.adapter(requested_by: requested_by, operation_id: operation_id)
+  end
+
   def destroy_approved?
     destroy_approval_status == "approved"
   end

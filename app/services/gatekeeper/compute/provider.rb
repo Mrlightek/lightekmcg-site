@@ -6,10 +6,11 @@ module Gatekeeper
 
       attr_reader :provider, :requested_by, :operation_id
 
-      def initialize(provider:, requested_by: "system", operation_id: nil)
+      def initialize(provider:, requested_by: "system", operation_id: nil, credential_slug: nil)
         @provider = provider
         @requested_by = requested_by.to_s
         @operation_id = operation_id
+        @credential_slug = credential_slug
       end
 
       def regions = unsupported!(:regions)
@@ -31,7 +32,7 @@ module Gatekeeper
       protected
 
       def vault_payload(purpose: "compute_management")
-        slug = provider.credential_secret_slug
+        slug = @credential_slug || provider.credential_secret_slug
         raise ConfigurationError, "Provider has no Vault credential configured" if slug.blank?
 
         LightekVault::Service.checkout!(

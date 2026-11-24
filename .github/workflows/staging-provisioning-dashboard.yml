@@ -23,5 +23,7 @@ jobs:
         with:
           ruby-version: .ruby-version
           bundler-cache: false
-      - run: gem install 'rails:8.0.5.1' 'minitest:5.25.5' 'sqlite3:2.7.4' --no-document
-      - run: ruby test/standalone/staging_provisioning_dashboard_checks.rb
+      - run: gem install 'rails:8.0.5.1' 'minitest:5.25.5' 'sqlite3:2.7.4' 'json:2.21.2' --no-document
+      - run: >-
+          ruby -e 'gem "json", "2.21.2"; load ARGV.fetch(0)'
+          test/standalone/staging_provisioning_dashboard_checks.rb

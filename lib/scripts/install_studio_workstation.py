@@ -111,6 +111,12 @@ def patch_vhosts(text, app_root, domain, include_path):
         return re.sub(r'</VirtualHost\s*>','    '+marker+'\n</VirtualHost>',block,count=1,flags=re.I)
     return re.sub(r'<VirtualHost\s+([^>]+)>.*?</VirtualHost\s*>',update,text,flags=re.I|re.S),count
 
+def reload_active_apache(*, check=True):
+    # A failed release can leave Apache stopped until Rails passes boot validation.
+    if subprocess.run(["systemctl", "is-active", "--quiet", "apache2"]).returncode == 0:
+        subprocess.run(["systemctl", "reload", "apache2"], check=check)
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--app-root',type=Path,required=True);parser.add_argument('--app-user',required=True);parser.add_argument('--app-name',required=True);parser.add_argument('--state-root',type=Path);parser.add_argument('--port',type=int);parser.add_argument('--domain',required=True);parser.add_argument('--dry-run',action='store_true');args=parser.parse_args()
     state=args.state_root or args.app_root/'storage/studio-workstations'
@@ -143,7 +149,8 @@ def main():
         for path,content in changed.items():path.write_text(content)
         run(['a2enmod','proxy','proxy_http','headers'])
         run(['apache2ctl','configtest']);run(['systemctl','daemon-reload']);run(['systemctl','enable','--now',config['service']]);run(['systemctl','restart',config['service']]);run(['systemctl','is-active','--quiet',config['service']])
-        run(['systemctl','enable','--now',cleanup_timer.name]);run(['systemctl','reload','apache2'])
+        run(['systemctl','enable','--now',cleanup_timer.name])
+        reload_active_apache()
     except Exception:
         if not timer_active:subprocess.run(['systemctl','disable','--now',cleanup_timer.name])
         if not previously_active:subprocess.run(['systemctl','stop',config['service']])
@@ -152,7 +159,8 @@ def main():
             else:path.write_bytes(content)
         subprocess.run(['systemctl','daemon-reload'])
         if previously_active:subprocess.run(['systemctl','restart',config['service']])
-        if subprocess.run(['apache2ctl','configtest']).returncode==0:subprocess.run(['systemctl','reload','apache2'])
+        if subprocess.run(['apache2ctl','configtest']).returncode==0:
+            reload_active_apache(check=False)
         raise
 
 

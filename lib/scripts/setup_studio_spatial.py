@@ -117,7 +117,10 @@ def main():
     run(['a2enmod','proxy','proxy_http','proxy_wstunnel']);run(['apache2ctl','configtest'])
     if pathlib.Path('/etc/ufw/ufw.conf').exists() and 'ENABLED=yes' in pathlib.Path('/etc/ufw/ufw.conf').read_text():
       for port in ['3478/tcp','3478/udp','49160:49200/udp']:run(['ufw','allow',port])
-    run(['systemctl','daemon-reload']);run(['systemctl','enable','--now','coturn']);run(['systemctl','restart','coturn']);run(['systemctl','enable',setup['service']]);run(['systemctl','restart',setup['service']]);run(['systemctl','reload','apache2'])
+    run(['systemctl','daemon-reload']);run(['systemctl','enable','--now','coturn']);run(['systemctl','restart','coturn']);run(['systemctl','enable',setup['service']]);run(['systemctl','restart',setup['service']])
+    # Release activation starts Apache after Rails passes boot validation.
+    if subprocess.run(['systemctl', 'is-active', '--quiet', 'apache2']).returncode == 0:
+      run(['systemctl', 'reload', 'apache2'])
     for attempt in range(20):
       try:
         with urllib.request.urlopen(config['STUDIO_SPATIAL_URL']+'/health',timeout=2) as response:health=json.load(response)

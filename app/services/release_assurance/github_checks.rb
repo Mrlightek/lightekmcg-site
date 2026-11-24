@@ -13,9 +13,9 @@ module ReleaseAssurance
       @candidate = candidate
     end
 
-    def sync!
+    def sync!(require_current: false)
       checks = Readiness::CI
-      checks = checks.slice("application", "preflight", "assurance_contracts") unless @candidate.profile == "msp"
+      checks = checks.except(*Readiness::SIMULATED_CI) unless @candidate.profile == "msp"
       checks.each do |key, (path, required_jobs)|
         payload = request("actions/workflows/#{File.basename(path)}/runs",
           head_sha: @candidate.source_sha, branch: @candidate.publication_ref, per_page: MAX_RUNS)
@@ -25,7 +25,11 @@ module ReleaseAssurance
             %w[push workflow_dispatch].include?(run["event"])
         end
         run = matching.max_by { |entry| entry.fetch("id") }
-        next unless run
+        if run.nil?
+          raise Unavailable, "Required GitHub Actions run is missing for #{key}" if require_current
+
+          next
+        end
 
         jobs = if run["status"] == "completed"
           request("actions/runs/#{Integer(run.fetch('id'))}/attempts/#{Integer(run.fetch('run_attempt'))}/jobs", per_page: 100).fetch("jobs")
@@ -36,7 +40,7 @@ module ReleaseAssurance
         @candidate.with_lock do
           receipt = @candidate.runs.find_or_initialize_by(check_key: key,
             external_id: "github:#{run.fetch('id')}:#{run.fetch('run_attempt')}")
-          receipt.update!(source_sha: @candidate.source_sha, kind: key.in?(%w[application preflight assurance_contracts]) ? "automated" : "simulated",
+          receipt.update!(source_sha: @candidate.source_sha, kind: Readiness::SIMULATED_CI.include?(key) ? "simulated" : "automated",
             result: result, evidence: { "run_id" => run.fetch("id"), "attempt" => run.fetch("run_attempt"), "workflow" => path })
         end
       end

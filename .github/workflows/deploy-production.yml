@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      release_candidate_id:
+        required: false
+        type: string
       project_id:
         required: false
         type: string
@@ -48,6 +51,14 @@ jobs:
           ruby test/scripts/paid_dns_recovery_standalone.rb
           python3 -m unittest discover -s test/scripts -p 'test_paid_instance_verification.py' -v
           python3 -m unittest discover -s test/scripts -p 'test_manual_instance_config.py' -v
+
+      - name: Verify revision-bound Gatekeeper promotion approval
+        env:
+          LIGHTEK_RELEASE_ASSURANCE_REQUIRED: ${{ vars.LIGHTEK_RELEASE_ASSURANCE_REQUIRED }}
+          LIGHTEK_RELEASE_ASSURANCE_CANDIDATE_ID: ${{ inputs.release_candidate_id || vars.LIGHTEK_RELEASE_ASSURANCE_CANDIDATE_ID }}
+          LIGHTEK_RELEASE_PROMOTION_URL: ${{ vars.LIGHTEK_RELEASE_PROMOTION_URL }}
+          LIGHTEK_RELEASE_PROMOTION_TOKEN: ${{ secrets.LIGHTEK_RELEASE_PROMOTION_TOKEN }}
+        run: bash script/lightek/verify_release_promotion.sh
 
       - name: Configure SSH
         env:

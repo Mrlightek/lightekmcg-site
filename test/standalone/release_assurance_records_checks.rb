@@ -31,7 +31,7 @@ class GatekeeperOperation < ApplicationRecord; end
 require_relative "../../app/services/lightek_people/lifecycle_access"
 require_relative "../../db/migrate/20261124210000_create_release_assurance"
 CreateReleaseAssurance.new.migrate(:up)
-%w[source policy readiness github_checks beta_access].each { |name| require_relative "../../app/services/release_assurance/#{name}" }
+%w[source policy readiness github_checks beta_access production_promotion].each { |name| require_relative "../../app/services/release_assurance/#{name}" }
 %w[candidate environment tester assignment run defect].each { |name| require_relative "../../app/models/release_assurance/#{name}" }
 
 module Gatekeeper
@@ -86,6 +86,34 @@ class ReleaseAssuranceRecordsTest < Minitest::Test
     assert_equal "/dashboard/release_assurance/12/evidence/3", helpers.evidence_dashboard_release_assurance_path(12, run_id: 3)
     assert_equal "/dashboard/release_assurance/12/rollback", helpers.rollback_dashboard_release_assurance_path(12)
     assert_equal "/release-beta", helpers.release_beta_path
+  end
+
+  def test_production_verification_binds_main_and_candidate_to_the_same_tree
+    @readiness.required.each { |key, kind| run_check(key, kind) }
+    @readiness.approve!(@operator, evidence_digest: @readiness.evaluation.fetch(:digest))
+    revision = "b" * 40
+    tree = "c" * 40
+    resolver = Module.new do
+      def refresh_ci!(*) = nil
+
+      define_method(:github_sha) do |path|
+        case path
+        when "git/ref/heads/main" then { "object" => { "sha" => revision } }
+        when "git/commits/#{revision}", "git/commits/#{'a' * 40}" then { "tree" => { "sha" => tree } }
+        end
+      end
+    end
+    verifier = Class.new(ProductionPromotion)
+    verifier.singleton_class.prepend(resolver)
+    decision = verifier.verify!(@candidate, revision: revision, tree: tree, profile: "msp")
+    assert_equal revision, decision.fetch(:production_sha)
+    assert_equal @candidate.source_sha, decision.fetch(:source_sha)
+    assert_raises(Policy::Denied) { verifier.verify!(@candidate, revision: "d" * 40, tree: tree, profile: "msp") }
+    assert_raises(Policy::Denied) { verifier.verify!(@candidate, revision: revision, tree: "d" * 40, profile: "msp") }
+    assert_raises(Policy::Denied) { verifier.verify!(@candidate, revision: revision, tree: tree, profile: "standard") }
+
+    @environment.update!(expires_at: 1.minute.ago)
+    assert_raises(Policy::Denied) { verifier.verify!(@candidate, revision: revision, tree: tree, profile: "msp") }
   end
 
   def test_a_new_passing_receipt_does_not_preserve_a_stale_approval

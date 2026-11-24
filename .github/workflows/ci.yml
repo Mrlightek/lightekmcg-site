@@ -43,6 +43,8 @@ jobs:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
+          repositories: dymond_bank,dymond_booking,dymond_catalog,dymond_compute,dymond_dash,dymond_dispatch,dymond_kb,dymond_site,dymond_studio,dymond_theme,lightek_kernel,lightek_ui,marlon
+          permission-contents: read
 
       - name: Configure Lightek private dependency access
         shell: bash
@@ -88,6 +90,8 @@ jobs:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
+          repositories: dymond_bank,dymond_booking,dymond_catalog,dymond_compute,dymond_dash,dymond_dispatch,dymond_kb,dymond_site,dymond_studio,dymond_theme,lightek_kernel,lightek_ui,marlon
+          permission-contents: read
 
       - name: Configure Lightek private dependency access
         shell: bash
@@ -132,6 +136,8 @@ jobs:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
+          repositories: dymond_bank,dymond_booking,dymond_catalog,dymond_compute,dymond_dash,dymond_dispatch,dymond_kb,dymond_site,dymond_studio,dymond_theme,lightek_kernel,lightek_ui,marlon
+          permission-contents: read
 
       - name: Configure Lightek private dependency access
         shell: bash
@@ -204,6 +210,8 @@ jobs:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
+          repositories: dymond_bank,dymond_booking,dymond_catalog,dymond_compute,dymond_dash,dymond_dispatch,dymond_kb,dymond_site,dymond_studio,dymond_theme,lightek_kernel,lightek_ui,marlon
+          permission-contents: read
 
       - name: Configure Lightek private dependency access
         shell: bash
@@ -259,7 +267,7 @@ jobs:
           gem install rails -v 8.0.4 --no-document
           gem install minitest -v '~> 5.25' --no-document
           gem install uri -v 0.13.3 --no-document
-          gem install pg --no-document
+          gem install pg icalendar:2.12.1 --no-document
       - name: Run real mail classes against PostgreSQL (not native host login)
         run: ruby test/support/lightek_mail_workspace_fixture.rb
       - name: Verify server helpers and fresh private bootstrap

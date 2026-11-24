@@ -30,3 +30,5 @@ post "/release-beta/launch", to: "release_beta#launch", as: :launch_release_beta
 post "/release-beta/feedback", to: "release_beta#feedback", as: :feedback_release_beta
 post "/release-beta/account", to: "release_beta#account"
 post "/release-beta/account/revoke", to: "release_beta#revoke"
+
+post "/gatekeeper/release-promotion", to: "gatekeeper/release_promotions#create"

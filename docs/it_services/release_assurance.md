@@ -33,7 +33,9 @@ Use separate staging-scoped provider and DNS credentials. Grant Git write access
 bin/rails runner script/lightek/release_assurance_promotion.rb -- ACTOR_ID CANDIDATE_ID SOURCE_SHA
 ```
 
-The checker returns the approved revision and evidence digest. Connect it to an authorized production release workflow when that workflow is provisioned. Batch E does not change the existing production deployment workflow.
+The production workflow checks a combined MSP release before configuring SSH. Set the repository variable `LIGHTEK_RELEASE_PROMOTION_URL` to the isolated Gatekeeper control plane's HTTPS `/gatekeeper/release-promotion` endpoint, then set the workflow secret `LIGHTEK_RELEASE_PROMOTION_TOKEN` to the token in that control plane's dedicated Vault entry. Set its `LIGHTEK_RELEASE_PROMOTION_VAULT_SLUG` to that entry. The Vault entry grants only `ReleaseAssurance::ProductionPromotion` and purpose `production_promotion_verification`. Configure the token with at least 32 bytes of entropy.
+
+Set the repository variable `LIGHTEK_RELEASE_ASSURANCE_CANDIDATE_ID` to the approved control-plane record before pushing the first combined MSP release to `main`. The manual workflow also accepts this ID as `release_candidate_id`. Gatekeeper checks the current `main` commit, confirms its Git tree exactly matches the tested candidate, and verifies approval against current evidence. Preserve the candidate tree when integrating it, including its candidate-only CI triggers. If current `main` adds other source changes, assemble and verify a fresh candidate before promotion. A workflow failure at this gate occurs before any SSH or production host changes.
 
 ## Expiration and rollback
 

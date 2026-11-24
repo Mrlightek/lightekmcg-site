@@ -4,10 +4,14 @@ require "digest"
 
 module ReleaseAssurance
   class Readiness
+    SIMULATED_CI = %w[endpoint_fixtures commerce_fixtures remote_support_fixtures].freeze
+
     CI = {
       "application" => [".github/workflows/ci.yml", %w[test scan_ruby scan_js]],
       "assurance_contracts" => [".github/workflows/batch-e-release-assurance.yml", %w[assurance-contracts]],
       "preflight" => [".github/workflows/deployment-preflight.yml", %w[release-operations]],
+      "dashboard" => [".github/workflows/dashboard-appearance.yml", %w[appearance project-deletion]],
+      "nevaeh" => [".github/workflows/nevaeh-control-center.yml", %w[graphical-workspace page-workers persistence-and-rendering]],
       "endpoint_fixtures" => [".github/workflows/it-device-agent.yml", [
         "debian-package-deployment", "rails-endpoints", "device-agent (ubuntu-latest)", "device-agent (macos-latest)", "device-agent (windows-latest)"
       ]],
@@ -33,11 +37,11 @@ module ReleaseAssurance
     end
 
     def required
-      checks = { "application" => "automated", "preflight" => "automated", "assurance_contracts" => "automated",
-        "staging" => "automated", "browser_smoke" => "automated", "browser_staging" => "real_world" }
+      checks = (CI.keys - SIMULATED_CI).index_with("automated").merge(
+        "staging" => "automated", "browser_smoke" => "automated", "browser_staging" => "real_world")
       return checks unless @candidate.profile == "msp"
 
-      checks.merge(CI.keys.drop(3).index_with("simulated")).merge(SCENARIOS.keys.index_with("real_world"))
+      checks.merge(SIMULATED_CI.index_with("simulated")).merge(SCENARIOS.keys.index_with("real_world"))
     end
 
     def evaluation

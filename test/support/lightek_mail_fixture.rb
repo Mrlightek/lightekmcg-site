@@ -54,6 +54,7 @@ raise "Use a fresh dedicated protocol test database" if ActiveRecord::Base.conne
 
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
+  create_table :lightek_reservation_peers
   create_table :users, force: true do |t|
     t.string :first_name
     t.string :last_name
@@ -67,7 +68,12 @@ require "#{Gem::Specification.find_by_name('actionmailbox').full_gem_path}/db/mi
 require "#{source_root}/db/migrate/20261026150000_create_lightek_mail_studio"
 require "#{source_root}/db/migrate/20261026200000_add_lightek_mail_sending_controls"
 require "#{source_root}/db/migrate/20261113140000_add_lightek_mailbox_management"
-[CreateActiveStorageTables, CreateActionMailboxTables, CreateLightekMailStudio, AddLightekMailSendingControls, AddLightekMailboxManagement].each { |migration| migration.new.migrate(:up) }
+require "#{source_root}/db/migrate/20261122180000_add_nevaeh_support_sender_to_mail_policy"
+require "#{source_root}/db/migrate/20261122192000_create_installation_collaboration"
+require "#{source_root}/db/migrate/20261123102000_store_incoming_calendar_invitations"
+require "#{source_root}/db/migrate/20261123145000_add_mailbox_imports"
+[CreateActiveStorageTables, CreateActionMailboxTables, CreateLightekMailStudio, AddLightekMailSendingControls,
+ AddLightekMailboxManagement, AddNevaehSupportSenderToMailPolicy, CreateInstallationCollaboration, StoreIncomingCalendarInvitations, AddMailboxImports].each { |migration| migration.new.migrate(:up) }
 app.routes.draw do
   get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
   post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"

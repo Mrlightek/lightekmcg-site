@@ -1,5 +1,7 @@
 name: Nevaeh control center
 on:
+  push:
+    branches: ["release-candidates/**"]
   pull_request:
     branches: [develop, main]
     paths:

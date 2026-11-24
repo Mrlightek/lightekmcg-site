@@ -1,10 +1,14 @@
 # Permission-filtered defaults must retain the same destinations when grouped.
 require_relative '../../app/helpers/nevaeh_control_center_helper'
+require_relative "../support/dashboard_team_navigation_fixture"
 class String
   def in?(values) = values.include?(self)
 end
 module Marlon; class Ticket; end; end
 class NevaehWorkflow; end
+class NevaehExecutiveCase
+  def self.visible_to(*) = LightekTeam::Workspace::Scope.new(false)
+end
 module LightekPwa
   module Policy
     def self.administration_available_for?(user) = user.role == 'super_admin'

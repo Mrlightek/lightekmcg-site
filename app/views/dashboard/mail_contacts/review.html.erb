@@ -1,0 +1,29 @@
+<% content_for :page_title, "Preview contact import" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Contacts", dashboard_mail_contacts_path(account_id: @account.id, team_mailbox_id: @preview.team_mailbox_id), class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1>Preview contact import</h1>
+      <p class="muted"><%= @account.address %> · <%= @rows.count { |_, duplicate| !duplicate } %> new · <%= @rows.count { |_, duplicate| duplicate } %> duplicates · <%= @preview.invalid_rows %> unreadable</p>
+    </div>
+    <% if @rows.any? %><%= button_to "Import contacts", dashboard_mail_contacts_review_path(account_id: @account.id, id: @preview.id) %><% end %>
+  </header>
+  <p>Existing contacts keep their saved details.</p>
+  <% if @rows.size > 50 %><p class="muted">Showing the first 50 readable rows.</p><% end %>
+  <section class="conversation-stack" aria-label="Contacts in this CSV">
+    <% @rows.first(50).each do |contact, duplicate| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <div>
+            <h2><%= contact.fetch("name").presence || contact.fetch("emails").first || contact.fetch("phones").first %></h2>
+            <% if contact.fetch("emails").any? %><p><%= contact.fetch("emails").join(", ") %></p><% end %>
+            <% if contact.fetch("phones").any? %><p><%= contact.fetch("phones").join(", ") %></p><% end %>
+            <% if contact.fetch("labels").any? %><p class="muted"><%= contact.fetch("labels").join(", ") %></p><% end %>
+          </div>
+          <span class="status-badge"><%= duplicate ? "Duplicate" : "New" %></span>
+        </div>
+      </article>
+    <% end %>
+  </section>
+</main>

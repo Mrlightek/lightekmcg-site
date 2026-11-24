@@ -1,0 +1,37 @@
+<% content_for :page_title, "Workspace Migration Center" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Mail Studio", dashboard_mail_path, class: "back-link" %>
+  <header class="mail-header"><div>
+    <h1>Workspace Migration Center</h1>
+    <p class="muted">Move Gmail, contacts, calendar history, and Shared Drive files from Google Workspace.</p>
+  </div></header>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+
+  <section class="conversation-card" aria-labelledby="team-mail-mapping">
+    <div class="message-tools">
+      <div>
+        <h2 id="team-mail-mapping">Start with one mailbox and one Shared Drive</h2>
+        <p>Upload a CSV with the headers <code>source_email,destination_email</code>. Use one row for the pilot. The destination must be an existing mailbox owned by an active workspace member.</p>
+        <%= form_with url: dashboard_team_mail_migrations_path, multipart: true, data: {turbo: false} do |form| %>
+          <%= form.hidden_field :pilot, value: "1" %>
+          <p><%= form.label :name, "Migration name" %><br><%= form.text_field :name, required: true, maxlength: 100 %></p>
+          <p><%= form.label :mapping, "Mailbox mapping CSV" %><br><%= form.file_field :mapping, accept: ".csv,text/csv", required: true %></p>
+          <%= form.submit "Create pilot" %>
+        <% end %>
+      </div>
+    </div>
+  </section>
+
+  <section class="conversation-stack" aria-label="Saved migrations">
+    <% if @migrations.empty? %><p class="muted">No migrations yet.</p><% end %>
+    <% @migrations.each do |migration| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <%= link_to migration.name, dashboard_team_mail_migration_path(migration) %>
+          <span class="muted"><%= l(migration.created_at.to_date, format: :long) %></span>
+        </div>
+      </article>
+    <% end %>
+  </section>
+</main>

@@ -619,6 +619,7 @@ resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboa
     patch :update_terms
   end
 end
+post "/dashboard/hosting/packages/workspace", to: "dashboard/hosting_packages#create_workspace", as: :create_workspace_dashboard_hosting_packages
 resources :dashboard_hosting_packages, path: "/dashboard/hosting/packages", controller: "dashboard/hosting_packages", only: %i[index create update]
 post "/dashboard/hosting/purchase", to: "dashboard/hosting_purchases#create", as: :dashboard_hosting_purchase
 resources :dashboard_application_launches, path: "/dashboard/applications/install", controller: "dashboard/application_launches", only: %i[new create] do
@@ -750,6 +751,8 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   post "/accounts/:account_id/receiving-check", action: :check_receiving, as: :check_receiving_dashboard_mail
   post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token
   get "/accounts/:account_id/compose", action: :compose, as: :compose_dashboard_mail
+  get "/accounts/:account_id/calendar", action: :calendar, as: :calendar_dashboard_mail
+  post "/accounts/:account_id/messages/:id/calendar", action: :respond_to_calendar, as: :respond_to_dashboard_mail_calendar
   post "/accounts/:account_id/bulk", action: :bulk_messages, as: :bulk_dashboard_mail
   post "/accounts/:account_id/undo", action: :undo_messages, as: :undo_dashboard_mail
   post "/accounts/:account_id/messages", action: :create_message, as: :dashboard_mail_messages
@@ -765,6 +768,46 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   patch "/accounts/:account_id/templates/:id", action: :save_template, as: :dashboard_mail_template
   post "/accounts/:account_id/templates/preview", action: :preview_template, as: :preview_dashboard_mail_template
 end
+scope "/dashboard/mail/accounts/:account_id", controller: "dashboard/mailbox_imports" do
+  get "/imports", action: :index, as: :dashboard_mailbox_imports
+  post "/imports", action: :create
+  get "/imports/:id", action: :show, as: :dashboard_mailbox_import
+  post "/imports/:id/approve", action: :approve, as: :approve_dashboard_mailbox_import
+  post "/imports/:id/start", action: :start, as: :start_dashboard_mailbox_import
+  post "/imports/:id/retry", action: :retry_import, as: :retry_dashboard_mailbox_import
+  delete "/imports/:id", action: :destroy
+end
+
+get "/dashboard/workspace/migrations", to: "dashboard/team_mail_migrations#index", as: :dashboard_workspace_migrations
+
+resources :dashboard_team_mail_migrations, path: "/dashboard/mail/team-migrations",
+    controller: "dashboard/team_mail_migrations", only: %i[index create show] do
+  post :start_ready, on: :member
+  post :verify_pilot, on: :member
+  post :append_mapping, on: :member
+  get :choose_drive, on: :member
+  post "mailboxes/:mailbox_id/archive", action: :upload_archive, as: :upload_archive, on: :member
+  post "mailboxes/:mailbox_id/archive/retry", action: :retry_archive, as: :retry_archive, on: :member
+  delete "mailboxes/:mailbox_id/archive", action: :remove_archive, as: :remove_archive, on: :member
+end
+
+scope "/dashboard/mail/accounts/:account_id/contacts", controller: "dashboard/mail_contacts" do
+  get "/", action: :index, as: :dashboard_mail_contacts
+  post "/preview", action: :preview, as: :dashboard_mail_contacts_preview
+  get "/preview/:id", action: :review, as: :dashboard_mail_contacts_review
+  post "/preview/:id", action: :import
+  get "/suggestions", action: :suggestions, as: :dashboard_mail_contact_suggestions
+  get "/:id/edit", action: :edit, as: :edit_dashboard_mail_contact
+  patch "/:id", action: :update, as: :dashboard_mail_contact
+end
+
+scope "/dashboard/mail/accounts/:account_id/calendar/import", controller: "dashboard/mail_calendar_imports" do
+  get "/", action: :index, as: :dashboard_mail_calendar_import
+  post "/preview", action: :preview, as: :dashboard_mail_calendar_preview
+  get "/preview/:id", action: :review, as: :dashboard_mail_calendar_review
+  post "/preview/:id", action: :import
+end
+
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
 get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"

@@ -18,6 +18,13 @@ module LightekWorkspace
       employer_id == actor.id || members.exists?(user: actor, role: 'editor')
     end
 
+    def create_office_entry!(parent:, actor:, attributes:)
+      entry = entries.build(parent: parent, creator: actor, folder: false, name: attributes.fetch(:title))
+      entry.build_office_file(attributes.merge(creator: actor, editor: actor))
+      entry.save!
+      entry
+    end
+
     validates :name, presence: true, length: {maximum: 120}
   end
 end

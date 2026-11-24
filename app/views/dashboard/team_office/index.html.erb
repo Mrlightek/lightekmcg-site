@@ -31,8 +31,12 @@
       <% if @file.persisted? %>
         <h2><%= @file.title %></h2>
         <p><small>Edited by <%= @file.editor.full_name %> · <%= l(@file.updated_at, format: :short) %></small></p>
-        <%= link_to "Download", office_action_path(:export, @file) %>
+        <% if @file.kind == "document" %>
+          <%= link_to "Download Word (.docx)", office_action_path(:export, @file, download: "docx") %>
+        <% end %>
+        <%= link_to (@file.kind == "document" ? "Download source" : "Download"), office_action_path(:export, @file) %>
         <% if @rows %>
+          <%= link_to "Download Excel (.xlsx)", office_action_path(:export, @file, download: "xlsx") %>
           <div class="office-sheet">
             <table aria-label="Calculated spreadsheet">
               <thead><tr><th></th><% (@rows.map(&:size).max || 0).times do |column| %><th scope="col"><%= ('A'.ord + column).chr %></th><% end %></tr></thead>
@@ -42,6 +46,7 @@
             </table>
           </div>
         <% elsif @slide %>
+          <%= link_to "Download PowerPoint (.pptx)", office_action_path(:export, @file, download: "pptx") %>
           <article class="office-slide"><h3><%= @slide.first %></h3><p class="network-text"><%= @slide.last %></p></article>
           <nav aria-label="Slides">
             <% if @slide_number > 1 %><%= link_to "Previous slide", office_path(file_id: @file.id, slide: @slide_number - 1) %><% end %>

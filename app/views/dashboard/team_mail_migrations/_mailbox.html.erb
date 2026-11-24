@@ -1,0 +1,66 @@
+<% import = mailbox.mailbox_import %>
+<article class="conversation-card" aria-labelledby="team-mailbox-<%= mailbox.id %>">
+  <div class="message-tools">
+    <div>
+      <h2 id="team-mailbox-<%= mailbox.id %>"><%= mailbox.destination_address %></h2>
+      <p class="muted">From <%= mailbox.source_address %></p>
+      <% [["Contacts", mailbox.contacts_imported_at?, mailbox.contacts_import_result,
+           dashboard_mail_contacts_path(account_id: mailbox.account_id, team_mailbox_id: mailbox.id)],
+           ["Calendar", mailbox.calendar_imported_at?, mailbox.calendar_import_result,
+           dashboard_mail_calendar_import_path(account_id: mailbox.account_id, team_mailbox_id: mailbox.id)]].each do |label, imported, counts, path| %>
+        <p class="muted"><%= label %> · <%= imported ? "Imported" : "Pending" %>
+          <% if counts.present? %>
+            · <%= counts.fetch("imported", 0) %> added · <%= counts.fetch("skipped", 0) %> already present · <%= counts.fetch("unreadable", 0) %> need review
+          <% end %>
+          <% if mailbox.mailbox_user_id == current_user.id %>
+            · <%= link_to "Import #{label.downcase}", path %>
+          <% end %>
+        </p>
+      <% end %>
+    </div>
+    <span class="status-badge"><%= import ? "#{import.phase.humanize} · #{import.state.humanize}" : "Waiting for archive" %></span>
+  </div>
+  <div class="message-tools">
+    <% if import %>
+      <div>
+        <p>
+          <% if mailbox.mailbox_user_id == current_user.id %>
+            <%= link_to import.archive.filename.to_s, dashboard_mailbox_import_path(import, account_id: mailbox.account_id) %>
+          <% else %>
+            <%= import.archive.filename %>
+          <% end %>
+        </p>
+        <% if import.state == "awaiting_approval" %>
+          <p class="muted">Waiting for the mailbox owner to approve this archive.</p>
+        <% elsif import.phase == "preview" %>
+          <p class="muted"><%= import.preview.fetch("messages", 0) %> checked · <%= import.preview.fetch("invalid", 0) %> unreadable · <%= number_to_human_size(import.preview.fetch("bytes", 0)) %> estimated storage</p>
+        <% else %>
+          <p class="muted"><%= import.results.fetch("imported", 0) %> imported · <%= import.results.fetch("skipped", 0) %> already present · <%= import.results.fetch("invalid", 0) %> unreadable</p>
+        <% end %>
+        <% if import.error_message.present? %><p class="notice danger"><%= import.error_message %></p><% end %>
+        <% if LightekMail::MailboxImport::BUSY_STATES.include?(import.state) %>
+          <progress aria-label="Archive processed for <%= mailbox.destination_address %>" max="<%= import.archive_bytes %>" value="<%= import.byte_offset %>"></progress>
+        <% end %>
+      </div>
+      <div class="reader-actions">
+        <% if import.state == "complete" && mailbox.mailbox_user_id == current_user.id %>
+          <%= link_to "Open mailbox", dashboard_mail_path(account_id: mailbox.account_id, folder: "all"), class: "button secondary" %>
+          <%= link_to "Open calendar", calendar_dashboard_mail_path(account_id: mailbox.account_id), class: "button secondary" %>
+        <% end %>
+        <% if import.retryable? %>
+          <%= button_to "Retry this mailbox", retry_archive_dashboard_team_mail_migration_path(migration, mailbox_id: mailbox.id) %>
+        <% end %>
+        <% if !LightekMail::MailboxImport::BUSY_STATES.include?(import.state) || import.retryable? %>
+          <%= button_to "Remove archive", remove_archive_dashboard_team_mail_migration_path(migration, mailbox_id: mailbox.id), method: :delete,
+            class: "secondary", form: {data: {turbo_confirm: "Remove this archive and its import report? Imported messages will stay in the mailbox."}} %>
+        <% end %>
+      </div>
+    <% else %>
+      <%= form_with url: upload_archive_dashboard_team_mail_migration_path(migration, mailbox_id: mailbox.id),
+        multipart: true, data: {turbo: false}, namespace: "team_mailbox_#{mailbox.id}" do |form| %>
+        <p><%= form.label :archive, "MBOX archive" %><br><%= form.file_field :archive, accept: ".mbox,application/mbox", required: true %></p>
+        <%= form.submit "Upload archive" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

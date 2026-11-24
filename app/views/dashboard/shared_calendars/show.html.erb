@@ -70,6 +70,7 @@
             <% end %>
           <% end %>
           <% if can_manage_event?(event) %>
+            <%= render 'external_invitations', event: event %>
             <details>
               <summary><%= event.series_key? ? "Edit this occurrence" : "Edit event" %></summary>
               <%= form_with url: reschedule_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id),
@@ -91,6 +92,16 @@
             <% end %>
           <% end %>
         </article>
+      <% end %>
+      <% if @cancelled_with_invitations.any? %>
+        <h3>Cancelled events with external guests</h3>
+        <% @cancelled_with_invitations.each do |event| %>
+          <article class="office-document">
+            <h4><%= event.title %></h4>
+            <p><%= l(event.starts_at, format: :short) %></p>
+            <%= render 'external_invitations', event: event %>
+          </article>
+        <% end %>
       <% end %>
     </section>
   </div>

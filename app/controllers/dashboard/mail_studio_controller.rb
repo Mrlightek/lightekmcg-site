@@ -133,8 +133,43 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @conversation = LightekMail::Conversation.messages(@account, @message)
     @content = LightekMail::MessageContent.new(@message)
     @images_enabled = params[:images] == "1"
+    if @account.user_id == current_user.id && !@message.junk? && !@message.trashed? &&
+        @message.calendar_notice["attendee"] == @account.address
+      @calendar_notice = @message.calendar_notice
+      @calendar_invitation = LightekMail::CalendarInvitation.for_notice(@account, @calendar_notice)
+      version = [@calendar_notice.fetch("sequence"), Time.iso8601(@calendar_notice.fetch("stamp"))]
+      @calendar_notice_superseded = @calendar_invitation && @calendar_invitation.source_message_id != @message.id &&
+        (@calendar_invitation.version <=> version) >= 0
+    end
     @message.update!(read_at: Time.current) if @message.direction == "inbound" && !@message.read_at
     render layout: false if params[:workspace] == "1"
+  end
+
+  def calendar
+    raise LightekMail::Access::Denied, "Open the calendar for a mailbox you own." unless @account.user_id == current_user.id
+
+    @date = params[:date].present? ? Date.iso8601(params[:date]) : Date.current
+    start = @date.in_time_zone
+    finish = (@date + 7).in_time_zone
+    dates = @date.to_time(:utc)..(@date + 7).to_time(:utc)
+    @history = LightekMail::CalendarHistory.week(@account, @date)
+    @invitations = LightekMail::CalendarInvitation.for_mailbox(@account)
+      .where(cancelled: false, response: %w[accepted tentative])
+      .where("(all_day = ? AND starts_at < ? AND (ends_at > ? OR starts_at >= ?)) OR " \
+        "(all_day = ? AND starts_at < ? AND (ends_at > ? OR starts_at >= ?))",
+        false, finish, start, start, true, dates.end, dates.begin, dates.begin)
+      .includes(:source_message).order(:starts_at, :id).limit(150)
+  end
+
+  def respond_to_calendar
+    raise LightekMail::Access::Denied, "Respond from a mailbox you own." unless @account.user_id == current_user.id
+
+    message = @account.messages.find(params[:id])
+    choice = params.require(:choice)
+    LightekMail::IncomingCalendar.review!(@account, message, choice: choice)
+    redirect_to calendar_message_path, notice: choice == "apply" ? "Calendar updated." : "Calendar response queued.", status: :see_other
+  rescue ArgumentError, LightekMail::Submission::Unavailable, ActiveRecord::RecordInvalid => error
+    redirect_to calendar_message_path, alert: error.message, status: :see_other
   end
 
   def send_draft
@@ -253,6 +288,10 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     data = params[:document]
     raise ArgumentError, "Supply an email template document." unless data.is_a?(ActionController::Parameters)
     data.permit(*%w[heading body color button_label button_url footer html text]).to_h
+  end
+
+  def calendar_message_path
+    dashboard_mail_message_path(account_id: @account.id, id: params[:id], workspace: params[:workspace].presence)
   end
 
   def set_account

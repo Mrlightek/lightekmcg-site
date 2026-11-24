@@ -46,18 +46,52 @@
           </li>
         <% end %>
       </ul>
+      <% if @page > 1 || @next_page %>
+        <nav class="network-actions" aria-label="Drive pages">
+          <% if @page > 1 %><%= link_to "Previous page", dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id, q: @query.presence, page: @page - 1) %><% end %>
+          <% if @next_page %><%= link_to "Next page", dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id, q: @query.presence, page: @page + 1) %><% end %>
+        </nav>
+      <% end %>
       <% if @editor %>
+        <%= link_to "Import Drive ZIP", dashboard_shared_drive_imports_path(@drive, employer_id: @employer.id, folder: @folder&.id),
+          class: "dd-topbar-btn dd-btn-ghost" %>
+        <details><summary>Import a PowerPoint presentation</summary>
+          <p>Import up to 50 slides as editable titles and body text. Images, charts, tables, animations, notes, and custom layouts stay in your original file.</p>
+          <%= form_with url: import_powerpoint_dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id) do |form| %>
+            <%= form.label :presentation, "PowerPoint presentation (.pptx, up to 5 MB)" %>
+            <%= form.file_field :presentation, accept: ".pptx", required: true %>
+            <%= form.submit "Import presentation", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
         <nav aria-label="Create an Office file">
           <% LightekOffice::SharedFile::KINDS.each do |kind, label| %>
             <%= link_to "New #{label.downcase}", dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id, kind: kind),
               class: "dd-topbar-btn dd-btn-ghost" %>
           <% end %>
         </nav>
+        <details><summary>Import a Word document</summary>
+          <p>Convert the document body to editable rich text. Standard headings, lists, links, and common emphasis carry over.
+            Table text becomes paragraphs. Images, page layout, and header and footer content stay in the original file.</p>
+          <%= form_with url: import_word_dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id) do |form| %>
+            <%= form.label :document, "Word document (.docx, up to 5 MB)" %>
+            <%= form.file_field :document, accept: ".docx", required: true %>
+            <%= form.submit "Import Word document", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
         <details><summary>New folder</summary>
           <%= form_with url: add_dashboard_shared_drive_path(@drive, employer_id: @employer.id), scope: :entry do |form| %>
             <%= form.hidden_field :parent_id, value: @folder&.id %>
             <%= form.label :name, "Folder name" %><%= form.text_field :name, required: true, maxlength: 160 %>
             <%= form.submit "Create folder", class: "dd-topbar-btn dd-btn-primary" %>
+          <% end %>
+        </details>
+        <details><summary>Import an Excel spreadsheet</summary>
+          <p>Convert one worksheet to an editable Workspace spreadsheet. It can have up to 100 rows and 26 columns.
+            Cell values and supported local formulas carry over. Formatting, charts, and other workbook features stay in your original file.</p>
+          <%= form_with url: import_excel_dashboard_drive_office_path(@drive, employer_id: @employer.id, folder: @folder&.id) do |form| %>
+            <%= form.label :workbook, "Excel workbook (.xlsx, up to 5 MB)" %>
+            <%= form.file_field :workbook, accept: ".xlsx", required: true %>
+            <%= form.submit "Import Excel spreadsheet", class: "dd-topbar-btn dd-btn-primary" %>
           <% end %>
         </details>
         <details><summary>Upload a file</summary>

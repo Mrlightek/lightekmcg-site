@@ -29,6 +29,7 @@ end
 
 Rails.application.initialize!
 ActiveRecord::Schema.verbose = false
+ActiveRecord::ConnectionAdapters::TableDefinition.alias_method(:jsonb, :json)
 ActiveRecord::Schema.define do
   create_table(:users) do |t|
     t.string :role, default: "client"
@@ -74,7 +75,7 @@ end
 %w[20261026150000_create_lightek_mail_studio 20261113140000_add_lightek_mailbox_management
    20261122190000_create_executive_agenda_and_team_chat 20261122191000_add_shared_team_channels
    20261122196000_add_shared_workspace 20261123090000_add_office_files_to_shared_drives
-   20261123170000_add_mail_discovery 20261123173000_add_discovery_drive_holds
+   20261123170000_add_mail_discovery 20261123173000_add_discovery_drive_holds 20261123161000_add_shared_drive_imports
    20261124065000_add_chat_discovery_and_drive_retention].each { |migration| require File.join(ROOT, "db/migrate", migration) }
 CreateLightekMailStudio.new.migrate(:up)
 AddLightekMailboxManagement.new.migrate(:up)
@@ -84,6 +85,8 @@ AddSharedWorkspace.new.migrate(:up)
 AddOfficeFilesToSharedDrives.new.migrate(:up)
 AddMailDiscovery.new.migrate(:up)
 AddDiscoveryDriveHolds.new.migrate(:up)
+AddSharedDriveImports.new.migrate(:up)
+ActiveRecord::Schema.define { add_reference :lightek_shared_drive_imports, :team_migration }
 AddChatDiscoveryAndDriveRetention.new.migrate(:up)
 
 class ApplicationRecord < ActiveRecord::Base
@@ -128,10 +131,14 @@ end
    controllers/dashboard/shared_workspace_controller controllers/dashboard/shared_drives_controller
    models/lightek_workspace/drive models/lightek_workspace/drive_entry models/lightek_workspace/drive_member
    models/lightek_workspace/discovery_drive_hold models/lightek_office/shared_file models/lightek_office/revision
+   models/lightek_workspace/drive_import models/lightek_workspace/drive_import_receipt
+   services/lightek_office/word_import services/lightek_office/excel_import services/lightek_office/powerpoint_import
+   services/lightek_office/word_export services/lightek_workspace/drive_archive services/lightek_workspace/drive_import_runner
    services/lightek_office/content services/lightek_office/document services/lightek_office/changes
    models/lightek_team/channel models/lightek_team/message models/lightek_team/partnership
    models/lightek_team/discovery_channel_hold services/lightek_team/chat_discovery
-   services/lightek_workspace/drive_retention services/lightek_workspace/drive_discovery controllers/dashboard/team_office_controller jobs/application_job jobs/lightek_mail/expire_retained_mail_job jobs/lightek_workspace/expire_drive_revisions_job].each do |path|
+   controllers/dashboard/shared_drive_imports_controller
+   services/lightek_workspace/drive_retention services/lightek_workspace/drive_discovery controllers/dashboard/team_office_controller jobs/application_job jobs/lightek_workspace/drive_import_job jobs/lightek_mail/expire_retained_mail_job jobs/lightek_workspace/expire_drive_revisions_job].each do |path|
   require File.join(ROOT, "app", path)
 end
 Dashboard::MailDiscoveryController.prepend_view_path(File.join(ROOT, "app/views"))
@@ -286,11 +293,20 @@ class MailDiscoveryChecks < ActionDispatch::IntegrationTest
     post grant_dashboard_mail_matter_path(matter), params: {reviewer_id: @reviewer.id}, headers: as(@owner)
     assert_response :see_other
 
-    post dashboard_drive_office_path(drive, employer_id: @owner.id), params: {
-      office_file: {kind: "document", title: "Original brief", content: "First edition"}
-    }, headers: as(editor)
+    archive = Zip::OutputStream.write_buffer do |zip|
+      zip.put_next_entry("Imported folder/Original brief.docx")
+      zip.write(LightekOffice::WordExport.call("First edition", rich_text: false))
+    end
+    upload = Rack::Test::UploadedFile.new(StringIO.new(archive.string), "application/zip", true, original_filename: "drive.zip")
+    post dashboard_shared_drive_imports_path(drive, employer_id: @owner.id), params: {archive: upload}, headers: as(editor)
     assert_response :see_other
-    file = drive.entries.find_by!(name: "Original brief").office_file
+    run = LightekWorkspace::DriveImport.find_by!(drive: drive)
+    post start_dashboard_shared_drive_import_path(drive, run, employer_id: @owner.id), headers: as(editor)
+    assert_response :see_other
+    LightekWorkspace::DriveImportJob.perform_now(run.id, run.reload.run_token)
+    assert_equal "complete", run.reload.state, run.error_message
+    file = drive.entries.find_by!(name: "Original brief.docx").office_file
+    assert_includes file.content, "First edition"
     patch update_dashboard_drive_office_path(drive, file, employer_id: @owner.id), params: {
       office_file: {title: "Final brief", content: "Second edition", lock_version: file.lock_version}
     }, headers: as(editor)
@@ -324,9 +340,9 @@ class MailDiscoveryChecks < ActionDispatch::IntegrationTest
     Zip::File.open_buffer(StringIO.new(response.body.b)) do |zip|
       items = JSON.parse(zip.read("manifest.json")).fetch("files").index_by { |item| item.fetch("name") }
       assert_equal 2, items.size
-      original = items.fetch("Original brief")
+      original = items.fetch("Original brief.docx")
       payload = zip.read(original.fetch("path"))
-      assert_equal "First edition", JSON.parse(payload).fetch("content")
+      assert_includes JSON.parse(payload).fetch("content"), "First edition"
       assert_equal 0, original.fetch("version")
       assert_equal Digest::SHA256.hexdigest(payload), original.fetch("sha256")
       receipt = items.fetch("Original receipt")

@@ -2123,6 +2123,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.index ["site_id", "surface", "target"], name: "idx_lightek_running_experiment", unique: true, where: "(finished_at IS NULL)"
   end
 
+  create_table "lightek_full_packages", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "buyer_id", null: false
+    t.string "peer_ip", null: false
+    t.string "tunnel_secret_slug", null: false
+    t.string "voice_secret_slug", null: false
+    t.string "group_id", null: false
+    t.string "request_key", null: false
+    t.datetime "tunnel_ready_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["buyer_id"], name: "index_lightek_full_packages_on_buyer_id"
+    t.index ["order_id"], name: "index_lightek_full_packages_on_order_id", unique: true
+    t.index ["peer_ip"], name: "index_lightek_full_packages_on_peer_ip", unique: true
+  end
+
   create_table "lightek_growth_audit_findings", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "website_audit_id", null: false
@@ -4725,6 +4741,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.datetime "updated_at", null: false
     t.string "setup_secret_slug"
     t.string "fulfillment_status"
+    t.string "cellular_request_key", limit: 36
+    t.string "cellular_peer_ip"
+    t.string "cellular_group_id", limit: 36
+    t.index ["cellular_request_key"], name: "index_lightek_voice_add_ons_on_cellular_request_key", unique: true
     t.index ["order_id"], name: "index_lightek_voice_add_ons_on_order_id", unique: true
     t.index ["peer_id"], name: "index_lightek_voice_add_ons_on_peer_id", unique: true
   end
@@ -6985,6 +7005,44 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.index ["job_item_id"], name: "index_system_jobs_on_job_item_id"
   end
 
+  create_table "telnyx_esim_events", force: :cascade do |t|
+    t.bigint "user_esim_id", null: false
+    t.string "event_id", limit: 36, null: false
+    t.datetime "created_at", null: false
+    t.index ["event_id"], name: "index_telnyx_esim_events_on_event_id", unique: true
+    t.index ["user_esim_id"], name: "index_telnyx_esim_events_on_user_esim_id"
+  end
+
+  create_table "user_esims", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "request_key", limit: 36, null: false
+    t.string "sim_card_group_id", limit: 36, null: false
+    t.string "telnyx_sim_id"
+    t.string "iccid"
+    t.string "lpa_activation_code"
+    t.string "assigned_private_ip"
+    t.string "customer_wg_peer_ip", null: false
+    t.virtual "routing_table_id", type: :integer, as: "\nCASE\n    WHEN (id < 154) THEN (id + 99)\n    ELSE (id + 102)\nEND", stored: true
+    t.integer "plan_limit_mb", null: false
+    t.integer "initial_plan_limit_mb", null: false
+    t.string "status", default: "provisioning", null: false
+    t.string "carrier_status"
+    t.datetime "purchase_started_at"
+    t.datetime "limit_applied_at"
+    t.datetime "activation_requested_at"
+    t.datetime "route_installed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assigned_private_ip"], name: "index_user_esims_on_assigned_private_ip", unique: true
+    t.index ["iccid"], name: "index_user_esims_on_iccid", unique: true
+    t.index ["request_key"], name: "index_user_esims_on_request_key", unique: true
+    t.index ["routing_table_id"], name: "index_user_esims_on_routing_table_id", unique: true
+    t.index ["telnyx_sim_id"], name: "index_user_esims_on_telnyx_sim_id", unique: true
+    t.index ["user_id"], name: "index_user_esims_on_user_id"
+    t.check_constraint "plan_limit_mb > 0", name: "user_esim_positive_limit"
+    t.check_constraint "routing_table_id >= 100", name: "user_esim_valid_table"
+  end
+
   create_table "user_feature_entitlements", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "feature_slug", null: false
@@ -7207,6 +7265,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
   add_foreign_key "lightek_discovery_drive_holds", "lightek_shared_drives", column: "drive_id"
   add_foreign_key "lightek_experiment_assignments", "lightek_experiments", column: "experiment_id"
   add_foreign_key "lightek_experiment_outcomes", "lightek_experiment_assignments", column: "assignment_id"
+  add_foreign_key "lightek_full_packages", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_full_packages", "users", column: "buyer_id"
   add_foreign_key "lightek_growth_audit_findings", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_audit_findings", "lightek_growth_website_audits", column: "website_audit_id"
   add_foreign_key "lightek_growth_audit_findings", "users", column: "resolved_by_id"
@@ -7758,6 +7818,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
   add_foreign_key "susu_rounds", "susu_cycles"
   add_foreign_key "susu_rounds", "susu_memberships", column: "recipient_membership_id"
   add_foreign_key "system_jobs", "job_items"
+  add_foreign_key "telnyx_esim_events", "user_esims", on_delete: :cascade
+  add_foreign_key "user_esims", "users"
   add_foreign_key "user_feature_entitlements", "users"
   add_foreign_key "users", "users", column: "agency_id"
   add_foreign_key "website_template_inquiries", "dymond_site_sites", column: "site_id"

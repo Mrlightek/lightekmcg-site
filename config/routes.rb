@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     post :confirm_completion, on: :member
     post :attach_reservation, on: :member
     post :managed_device_monitoring, on: :collection
+    post :cancel_device_check, on: :collection
     post :diagnostic_consent, on: :member
     delete :revoke_diagnostic_consent, on: :member
     get :device_health, on: :member
@@ -17,6 +18,7 @@ Rails.application.routes.draw do
   namespace :dashboard do
     resources :it_managed_device_incidents, only: [:index] do
       post :approve_check, on: :collection
+      post :cancel_check, on: :collection
       post :monitoring, on: :collection
       post :review, on: :collection
     end

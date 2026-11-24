@@ -27,13 +27,24 @@ class GatekeeperController < ApplicationController
 
     device = NetworkManagedDevice.find_by(identifier: params[:identifier].to_s)
     return render json: { error: "Device not registered" }, status: :unauthorized unless device
-    return render json: { error: "Device retired" }, status: :forbidden if device.status == "retired"
 
     token = request.authorization.to_s.delete_prefix("Bearer ").strip
     unless request.authorization.to_s.start_with?("Bearer ") && device.authenticate_enrollment_token?(token)
       return render json: { error: "Invalid device credentials" }, status: :unauthorized
     end
 
+    device.with_lock do
+      if device.status == "retired"
+        render json: { error: "Device retired" }, status: :forbidden
+      elsif device.authenticate_enrollment_token?(token)
+        perform_device_action(device, action)
+      else
+        render json: { error: "Invalid device credentials" }, status: :unauthorized
+      end
+    end
+  end
+
+  def perform_device_action(device, action)
     case action
     when "device_enroll"
       return render json: { error: "Device is suspended" }, status: :forbidden if device.status == "maintenance"
@@ -59,20 +70,17 @@ class GatekeeperController < ApplicationController
       return render json: { error: "Enrollment required" }, status: :forbidden unless device.enrolled_at?
       return render json: { error: "Device is not active" }, status: :forbidden unless %w[active offline].include?(device.status)
       begin
-        device.with_lock do
-          raise ArgumentError, "Device is not available for heartbeat" unless %w[active offline].include?(device.status)
-          if params.key?(:health_telemetry)
-            raw = params[:health_telemetry]
-            raise ArgumentError, "Telemetry must be an object" unless raw.is_a?(ActionController::Parameters)
-            data = ItServices::DeviceTelemetry.normalize!(raw.to_unsafe_h)
-            raise ArgumentError, "Device owner and enrollment required for telemetry" unless device.owner_id.present? && device.enrolled_at.present?
-            if device.managed_monitoring_enabled?
-              device.health_telemetry = data
-              device.health_telemetry_at = Time.current
-            end
+        if params.key?(:health_telemetry)
+          raw = params[:health_telemetry]
+          raise ArgumentError, "Telemetry must be an object" unless raw.is_a?(ActionController::Parameters)
+          data = ItServices::DeviceTelemetry.normalize!(raw.to_unsafe_h)
+          raise ArgumentError, "Device owner and enrollment required for telemetry" unless device.owner_id.present?
+          if device.managed_monitoring_enabled? && LightekPeople::LifecycleAccess.active?(device.owner)
+            device.health_telemetry = data
+            device.health_telemetry_at = Time.current
           end
-          device.update!(last_seen_at: Time.current, last_heartbeat_ip: request.remote_ip, status: "active")
         end
+        device.update!(last_seen_at: Time.current, last_heartbeat_ip: request.remote_ip, status: "active")
       rescue ArgumentError => error
         return render json: { error: error.message }, status: :unprocessable_entity
       end
@@ -82,6 +90,7 @@ class GatekeeperController < ApplicationController
           ItServices::EndpointMaintenance.pending_for!(device: device) : [] }
     end
   end
+  private :perform_device_action
 
   # Legacy Octavia dispatcher: allowlist is evaluated as data, never as a
   # method name or dynamic controller target.

@@ -4,7 +4,7 @@
   <section aria-label="Managed device monitoring">
     <h2>My managed devices</h2>
     <p>Monitoring is optional. You can turn it off at any time; pending checks are cancelled. This does not authorize remote repairs.</p>
-    <% NetworkManagedDevice.where(owner_id: current_user.id).where.not(enrolled_at: nil).order(:id).limit(100).each do |device| %>
+    <% @managed_devices.each do |device| %>
       <div>
         <strong><%= device.name %></strong> — <%= device.managed_monitoring_enabled? ? "Monitoring enabled" : "Monitoring off" %>
         <%= form_with url: managed_device_monitoring_it_service_requests_path, method: :post do |form| %>
@@ -14,6 +14,8 @@
         <% end %>
       </div>
     <% end %>
+    <%= render "shared/it_device_maintenance_history", actions: @maintenance_actions,
+      cancel_path: cancel_device_check_it_service_requests_path, show_operator: false %>
   </section>
   <% if @requests.empty? %><p>No IT support requests yet.</p><% end %>
   <% @requests.each do |request| %>

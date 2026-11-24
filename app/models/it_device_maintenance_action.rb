@@ -10,6 +10,14 @@ class ItDeviceMaintenanceAction < ApplicationRecord
   validates :expires_at, presence: true
   validate :owner_matches_device
 
+  def display_status(now: Time.current)
+    return status unless status == "approved"
+    return "expired" if expires_at <= now
+    return "scheduled" if starts_at && starts_at > now
+
+    "awaiting_report"
+  end
+
   def owner_matches_device
     errors.add(:owner, "must match device owner") if network_managed_device &&
       owner && network_managed_device.owner_id != owner.id

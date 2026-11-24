@@ -53,8 +53,14 @@ class EndpointChecksTest(unittest.TestCase):
             calls.append(payload)
             if payload["method_type"] == "device_heartbeat":
                 return {"ok": True, "maintenance_actions": [
-                    {"id": 1, "code": "refresh_inventory", "nonce": "a" * 48},
-                    {"id": 2, "code": "execute_shell", "nonce": "b" * 48}]}
+                    {"id": 1, "code": "refresh_inventory", "nonce": "a" * 48,
+                     "expires_at": "2999-01-01T00:00:00Z"},
+                    {"id": 2, "code": "execute_shell", "nonce": "b" * 48,
+                     "expires_at": "2999-01-01T00:00:00Z"},
+                    {"id": 3, "code": "refresh_inventory", "nonce": "c" * 48,
+                     "expires_at": "2000-01-01T00:00:00Z"},
+                    {"id": 4, "code": "refresh_inventory", "nonce": "d" * 48,
+                     "expires_at": "invalid"}]}
             return {"ok": True}
         with mock.patch.dict(agent.os.environ, {"LIGHTEK_DEVICE_IDENTIFIER": "test"}), \
              mock.patch.object(agent, "collect", return_value={"disk_percent": 50}), \

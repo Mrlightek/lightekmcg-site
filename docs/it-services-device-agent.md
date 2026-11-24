@@ -51,7 +51,14 @@ After an authenticated heartbeat, an opted-in managed device can receive up
 to ten time-limited operator-approved checks. It supports inventory inspection
 and explicitly reports `unavailable` for patch, backup and endpoint-protection
 checks without a configured trustworthy platform provider. Results are posted
-back with a one-time nonce and recorded in the audit model.
+back with a one-time nonce and recorded in the audit model. An operator can
+approve a check for immediate delivery or choose a start time up to 30 days
+ahead. Gatekeeper offers it during the ten-minute window following its
+start time. Operators and the device owner can cancel pending checks and
+review the result in their respective Dashboards. Disabling monitoring
+cancels pending checks and clears retained telemetry. Cancellation prevents
+future delivery and report acceptance. A read-only probe that already started
+on the device may finish locally.
 
 **Not supported yet:** OS patch installation, malware removal, verified backup
 restoration, macOS MDM, Windows MDM, device enrollment installers, and

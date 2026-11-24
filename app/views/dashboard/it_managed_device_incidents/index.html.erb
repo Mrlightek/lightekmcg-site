@@ -17,8 +17,13 @@
     <%= form.number_field :id, min: 1, required: true %>
     <%= form.label :code, "Read-only check" %>
     <%= form.select :code, ItDeviceMaintenanceAction::ACTIONS.map { |code| [code.humanize, code] } %>
+    <%= form.label :scheduled_at, "Start time (ISO 8601 with UTC offset, blank for now)" %>
+    <%= form.text_field :scheduled_at, placeholder: "2026-11-25T14:00:00Z", maxlength: 40 %>
     <%= form.submit "Approve check" %>
   <% end %>
+
+  <%= render "shared/it_device_maintenance_history", actions: @maintenance_actions,
+    cancel_path: cancel_check_dashboard_it_managed_device_incidents_path, show_operator: true %>
 
   <h2>Recent incidents</h2>
   <table>

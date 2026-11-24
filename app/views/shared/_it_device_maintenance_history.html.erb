@@ -1,0 +1,44 @@
+<h2>Device check history</h2>
+<% if actions.empty? %>
+  <p>No checks scheduled or reported.</p>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Device</th>
+        <% if show_operator %><th scope="col">Approved by</th><% end %>
+        <th scope="col">Check</th>
+        <th scope="col">Starts (UTC)</th>
+        <th scope="col">Expires (UTC)</th>
+        <th scope="col">Status</th>
+        <th scope="col">Agent observation</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% actions.each do |action| %>
+        <% status = action.display_status %>
+        <tr>
+          <td><%= action.network_managed_device.name %> (#<%= action.network_managed_device_id %>)</td>
+          <% if show_operator %><td>User #<%= action.approved_by_id %></td><% end %>
+          <td><%= action.action_code.humanize %></td>
+          <td><%= l((action.starts_at || action.created_at).utc, format: :short) %></td>
+          <td><%= l(action.expires_at.utc, format: :short) %></td>
+          <td><%= status.humanize %></td>
+          <td>
+            <% if action.reported_at %>
+              <%= action.result["status"].to_s.humanize %> · <%= action.result["observation"] %>
+              (<%= l(action.reported_at.utc, format: :short) %> UTC)
+            <% end %>
+          </td>
+          <td>
+            <% if %w[scheduled awaiting_report].include?(status) %>
+              <%= button_to "Cancel check", cancel_path, method: :post,
+                params: { device_id: action.network_managed_device_id, action_id: action.id } %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

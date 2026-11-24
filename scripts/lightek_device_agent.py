@@ -5,6 +5,7 @@ No remote shell, software installation, backup restoration or arbitrary commands
 Only the explicit read-only maintenance action allowlist can be processed.
 """
 import ctypes
+from datetime import datetime, timezone
 import json
 import os
 import platform
@@ -155,6 +156,12 @@ def report():
         if not isinstance(action.get("id"), int) or isinstance(action.get("id"), bool):
             continue
         if not isinstance(action.get("nonce"), str) or len(action["nonce"]) != 48:
+            continue
+        try:
+            expires_at = datetime.fromisoformat(action["expires_at"].replace("Z", "+00:00"))
+            if expires_at <= datetime.now(timezone.utc):
+                continue
+        except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
             continue
         result = read_only_check(action.get("code"))
         if result is None:

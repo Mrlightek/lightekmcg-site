@@ -24,6 +24,7 @@ end
 # Only the private dashboard host's authentication/layout boundary is replaced.
 require File.join(ROOT, "app/helpers/agency_branding_helper")
 require File.join(ROOT, "app/helpers/nevaeh_control_center_helper")
+require_relative "../support/dashboard_team_navigation_fixture"
 class NevaehWorkspacePreference
   def self.table_exists? = false # Private dashboard preference engine boundary.
 end

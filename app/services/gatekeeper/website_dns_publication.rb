@@ -36,7 +36,7 @@ module Gatekeeper
       dns.verify_access!
     end
 
-    def self.call!(hostname:, ipv4:)
+    def self.call!(hostname:, ipv4:, replace: true, expected_target: nil)
       host = hostname.to_s.downcase.strip
       address = IPAddr.new(ipv4.to_s)
       raise ArgumentError, "Expected public IPv4" unless address.ipv4? && !address.private? && !address.loopback? && !address.link_local?
@@ -45,15 +45,29 @@ module Gatekeeper
       # The domain is owned by the platform; it is not a customer-purchased domain.
       # Use the same managed zones as Dashboard > Network > Controllers.
       # The provisioning secret is for the website owner, not DNS administration.
-      dns, name = service_for!(hostname: host)
-      existing = dns.records.select do |record|
-        record["name"].to_s.downcase == name && record["type"].to_s.upcase == "A"
+      if expected_target
+        zone, name = target_for!(hostname: host)
+        raise Conflict, "Staging DNS target changed" unless expected_target == [zone, name]
+
+        dns = Godaddy::DnsService.new(zone: zone)
+      else
+        dns, name = service_for!(hostname: host)
       end
+      records = dns.records.select { |record| record["name"].to_s.downcase == name }
+      raise Conflict, "Staging hostname already has DNS records" if !replace && records.any?
+
+      existing = records.select { |record| record["type"].to_s.upcase == "A" }
       if existing.empty?
-        dns.create_record!("name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
+        created = dns.create_record!("name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
+        if block_given?
+          record_id = created.is_a?(Hash) && (created["recordId"].presence || created["id"].presence)
+          raise Conflict, "DNS provider did not return a staging record ID; reconcile through Gatekeeper" unless record_id
+
+          yield({ "zone" => zone, "name" => name, "record_id" => record_id, "ipv4" => ipv4.to_s })
+        end
       elsif existing.one? && existing.first["data"].to_s == ipv4.to_s
         # The only existing A record already points to this instance.
-      elsif existing.one? && (existing.first["recordId"].presence || existing.first["id"].presence).present?
+      elsif replace && existing.one? && (existing.first["recordId"].presence || existing.first["id"].presence).present?
         dns.update_record!(existing.first["recordId"].presence || existing.first.fetch("id"), "name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
       else
         # A matching record among several conflicting A records is NOT success.

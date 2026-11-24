@@ -1,6 +1,8 @@
 module LightekPeople
   module LifecycleAccess
     def self.active?(user)
+      return user.access_active? if user.respond_to?(:access_active?)
+
       user && (!user.respond_to?(:access_suspended_at) || user.access_suspended_at.nil?)
     end
     def self.agency_ready?(user)

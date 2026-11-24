@@ -86,12 +86,16 @@ module Gatekeeper
         "request_id" => record.is_a?(ProvisioningRequest) ? record.id : nil)
     end
 
-    def self.run!(actor:, node:, domain:)
+    def self.run!(actor:, node:, domain:, staging: nil)
       authorize!(actor)
-      new(actor:, node:, domain:).run!
+      new(actor:, node:, domain:, staging:).run!
     end
 
-    def self.provision_and_run!(actor:, request:, domain:)
+    def self.provision_and_run!(actor:, request:, domain:, staging: nil)
+      if request.metadata.to_h["release_assurance_staging"]
+        raise Invalid, "Use Release Assurance for this dedicated staging request" unless staging
+        staging.authorize_deployment!(actor:, request:, domain:)
+      end
       config = preview(actor:, record: request, domain:)
       raise Invalid, "Request owner differs from deployment owner" unless request.owner == User.find(config.fetch("owner_id"))
       if request.gatekeeper_node_id.nil?
@@ -109,7 +113,9 @@ module Gatekeeper
       node = request.reload.gatekeeper_node
       if node.nil?
         raise Invalid, "Request is not approved and ready; no instance was created" unless request.executable?
-        node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
+        arguments = { request: request, requested_by: actor.email_address }
+        arguments[:staging] = staging if staging
+        node = Gatekeeper::Compute::ProvisioningExecutionService.call(**arguments)
       end
       begin
         Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
@@ -129,15 +135,23 @@ module Gatekeeper
         $stdout.flush
         sleep [10, remaining].min
       end
-      Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
-      run!(actor:, node:, domain:)
+      if staging
+        staging.publish_dns!(node.reload)
+        run!(actor:, node:, domain:, staging:)
+      else
+        Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
+        run!(actor:, node:, domain:)
+      end
     end
 
-    def initialize(actor:, node:, domain:)
-      @actor, @node, @domain = actor, node, domain
+    def initialize(actor:, node:, domain:, staging: nil)
+      @actor, @node, @domain, @staging = actor, node, domain, staging
     end
 
     def run!
+      if !@staging && ProvisioningRequest.where(gatekeeper_node: @node).where("metadata ->> 'release_assurance_staging' = 'true'").exists?
+        raise Invalid, "Use Release Assurance for this dedicated staging node"
+      end
       config = self.class.preview(actor: @actor, record: @node, domain: @domain)
       raise Invalid, "Only remote root SSH targets are supported by this installation path" if !@node.local? && @node.ssh_user != "root"
       lock_root = Rails.root.join("tmp/lightek_deploy_locks")
@@ -217,6 +231,12 @@ module Gatekeeper
               "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
             @deployment_stage = "remote_installer"
             receipt = run_packager(input)
+            if @staging
+              raise Invalid, "Incorrect staging revision" unless receipt["source_sha"] == @staging.source_sha
+
+              @deployment_stage = "staging_host_services"
+              @staging.configure_host!(ssh)
+            end
           ensure
             if installed
               cleanup = "from pathlib import Path; p=Path.home()/'.ssh/authorized_keys'; lines=p.read_text().splitlines(); p.write_text(''.join(s+'\\n' for s in lines if s.strip()!=#{public_key.inspect}))"
@@ -273,11 +293,19 @@ module Gatekeeper
       @installer_failure = nil
       receipt_path = nil
       passed = false
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, thread|
+      root = Pathname.new(@staging&.source_root || Rails.root)
+      if @staging
+        config = config.merge("staging" => true, "staging_beta_key" => @staging.beta_key,
+          "sidebar_sections" => DymondDash::NavSection.order(:position).map { |section| section.attributes.slice("slug", "label", "position") })
+      end
+      env = @staging ? Bundler.unbundled_env.merge("BUNDLE_GEMFILE" => root.join("Gemfile").to_s) : {}
+      # Unset inherited Bundler variables as well as adding the clean environment.
+      env = ENV.keys.index_with { nil }.merge(env) if @staging
+      Open3.popen2e(env.merge("RAILS_ENV" => Rails.env.to_s), "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: root.to_s) do |stdin, output, thread|
         stdin.write(JSON.generate(config)); stdin.close
         output.each_line do |line|
           # Config/passwords are sent on stdin, never interpolated into commands.
-          $stdout.print(line)
+          $stdout.print(line) unless @staging
           # Keep only protocol fields, never a command, raw stderr or secret.
           marker = line.match(/LIGHTEK_INSTALLER_FAILURE scope=(native|bootstrap|starter) line=([1-9][0-9]{0,6}) exit=([1-9][0-9]{0,2})(?:\r?\n|\z)/)
           if marker && marker[3].to_i <= 255
@@ -289,7 +317,7 @@ module Gatekeeper
         raise Invalid, "Packager did not pass acceptance#{installer_failure_summary}" unless thread.value.success? && passed && receipt_path
       end
       path = Pathname.new(receipt_path).realpath
-      expected = Rails.root.join("tmp/website_deploy").realpath
+      expected = root.join("tmp/website_deploy").realpath
       raise Invalid, "Invalid deployment receipt path" unless path.parent == expected
       receipt = JSON.parse(path.read)
       raise Invalid, "Acceptance receipt is incomplete" unless receipt["url"] == "https://#{@domain}" &&

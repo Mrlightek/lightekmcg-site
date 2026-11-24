@@ -65,7 +65,7 @@ end
 class PaidDnsRecoveryStandaloneTest < Minitest::Test
   Dns = Gatekeeper::WebsiteDnsPublication
   Deployment = Gatekeeper::WebsiteDeployment
-  Request = Struct.new(:owner, :gatekeeper_node_id, :gatekeeper_node) do
+  Request = Struct.new(:owner, :gatekeeper_node_id, :gatekeeper_node, :metadata) do
     def executable? = true
     def reload = self
   end
@@ -83,6 +83,14 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
     Deployment.stub(:preview, @config) do
       User.stub(:find, @owner) { yield }
     end
+  end
+
+  def test_dedicated_staging_requests_cannot_enter_the_production_website_deployer
+    @request.metadata = { "release_assurance_staging" => true }
+    error = assert_raises(Deployment::Invalid) do
+      Deployment.provision_and_run!(actor: @owner, request: @request, domain: "staging.example.test")
+    end
+    assert_match(/dedicated staging request/, error.message)
   end
 
   def test_shared_resolver_selects_longest_managed_zone_without_token_override

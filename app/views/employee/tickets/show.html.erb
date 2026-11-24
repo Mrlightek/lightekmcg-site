@@ -11,6 +11,13 @@
   <p style="font-size:13px;"><%= @ticket.category_meta&.dig(:icon) %> <%= Marlon::TicketCategories.label_for(@ticket.category) %> · Priority: <%= @ticket.priority.upcase %> · Urgency: <%= @ticket.urgency %>/10</p>
   <p style="font-size:13px;">Status: <%= @ticket.status.humanize %> · Assigned: <%= @ticket.assigned_team %> (<%= @ticket.assigned_rep %>)</p>
   <p style="font-size:13px; color:var(--dd-text-secondary);"><%= @ticket.description %></p>
+  <% if @ticket.related_type == "ItServiceRequest" && ItRemoteSupportSession.available? %>
+    <% work = @ticket.related %>
+    <% if work&.technician_id == current_user.id && work.status == "in_progress" && work.delivery_mode == "remote" %>
+      <%= button_to "Request screen sharing", dashboard_remote_support_sessions_path,
+        params: { request_id: work.id }, class: "dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  <% end %>
   <% if @ticket.related %>
     <p style="font-size:13px;">Related: <%= @ticket.related_type %> ##<%= @ticket.related_id %></p>
   <% end %>

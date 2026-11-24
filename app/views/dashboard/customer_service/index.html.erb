@@ -6,6 +6,9 @@
     <nav aria-label="Workspace sections">
       <%= link_to "Cases", "#cases", class: "lp-button secondary" %>
       <%= link_to "Billing", "#billing", class: "lp-button secondary" %>
+      <% if ItRemoteSupportSession.available? %>
+        <%= link_to "Remote support", dashboard_remote_support_sessions_path, class: "lp-button secondary" %>
+      <% end %>
       <% if current_user.role == "super_admin" %>
         <%= link_to "Outbound mailbox", dashboard_customer_service_sender_path, class: "lp-button secondary" %>
       <% end %>

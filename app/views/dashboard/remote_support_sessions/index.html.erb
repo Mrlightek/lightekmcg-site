@@ -1,0 +1,45 @@
+<%= stylesheet_link_tag "/lightek/people-workspace.css" %>
+<main class="lp-workspace">
+  <nav aria-label="Breadcrumb"><%= link_to "Dashboard", "/dashboard" %> / IT Services</nav>
+  <h1>Remote support</h1>
+  <% if alert.present? %><p role="alert"><%= alert %></p><% end %>
+  <% if @available %>
+    <% if @assigned_requests.any? %>
+      <section class="lp-card" aria-labelledby="active-assignments">
+        <h2 id="active-assignments">Active remote assignments</h2>
+        <ul>
+          <% @assigned_requests.each do |work| %>
+            <li class="mb-3">
+              Request #<%= work.id %> · <%= ItServiceRequest::SERVICES.fetch(work.service_code) %>
+              <%= button_to "Request screen sharing", dashboard_remote_support_sessions_path,
+                params: { request_id: work.id }, class: "lp-button" %>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+    <section class="lp-card" aria-labelledby="screen-sharing-history">
+      <h2 id="screen-sharing-history">Screen-sharing requests and history</h2>
+      <% if @rooms.any? %>
+        <table class="lp-table">
+          <thead><tr><th scope="col">Service request</th><th scope="col">Participant</th><th scope="col">Status</th><th scope="col">Requested</th></tr></thead>
+          <tbody>
+            <% @rooms.each do |room| %>
+              <% participant = room.customer_id == current_user.id ? room.technician : room.customer %>
+              <tr>
+                <td><%= link_to "##{room.it_service_request_id}", dashboard_remote_support_session_path(room) %></td>
+                <td><%= [participant.first_name, participant.last_name].compact_blank.join(" ") %></td>
+                <td><%= room.ended_at? ? room.end_reason.humanize : (room.expires_at.past? ? "Expired" : room.state.humanize) %></td>
+                <td><%= l(room.created_at, format: :short) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p>Screen-sharing requests from your technician will appear here.</p>
+      <% end %>
+    </section>
+  <% else %>
+    <p>Remote support is awaiting IT Services setup on this installation.</p>
+  <% end %>
+</main>

@@ -15,6 +15,11 @@ module Gatekeeper
     # Both pre-allocation checks and publication resolve the Network Controllers
     # service here. Website-owner credentials never configure DNS management.
     def self.service_for!(hostname:)
+      zone, name = target_for!(hostname: hostname)
+      [Godaddy::DnsService.new(zone: zone), name]
+    end
+
+    def self.target_for!(hostname:)
       host = hostname.to_s.downcase.strip
       zones = Godaddy::DnsService.zones.map(&:downcase).uniq.sort_by { |zone| -zone.length }
       zone = zones.find { |candidate| host.end_with?(".#{candidate}") }
@@ -23,7 +28,7 @@ module Gatekeeper
       name = host.delete_suffix(".#{zone}")
       raise ArgumentError, "Invalid DNS record name" unless name.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)*\z/)
 
-      [Godaddy::DnsService.new(zone: zone), name]
+      [zone, name]
     end
 
     def self.preflight!(hostname:)

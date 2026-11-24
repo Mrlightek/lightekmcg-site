@@ -118,7 +118,7 @@ end
   services/gatekeeper/hosting/access services/gatekeeper/website_owner_access
   services/gatekeeper/website_deployment services/gatekeeper/compute/linode_catalog_service
   services/gatekeeper/compute/staging_requests services/gatekeeper/compute/provisioning_execution_service
-  services/godaddy/dns_service
+  services/godaddy/dns_service services/gatekeeper/website_dns_publication
   helpers/infrastructure_dashboard_helper controllers/dashboard/provisioning_requests_controller
   controllers/dashboard/infrastructure_controller
 ].each { |file| require File.join(source, "app", file) }
@@ -180,7 +180,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       "DNS_VAULT" => "staging-dns", "OWNER_VAULT" => "staging-owner", "CERTIFICATE_EMAIL" => "ops@example.test" }
     @settings = @settings.transform_keys { |key| "LIGHTEK_RELEASE_ASSURANCE_#{key}" }
     @settings["LIGHTEK_RELEASE_ASSURANCE_ZONE"] = nil
-    @settings["GODADDY_DOMAINS"] = "lightekmcg.com, staging.lightekmcg.com"
+    @settings["GODADDY_DOMAINS"] = "lightekmcg.com"
     @previous = @settings.keys.to_h { |key| [key, ENV[key]] }
     ENV.update(@settings)
   end
@@ -218,7 +218,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       assert_nil request.gatekeeper_node_id
       assert_select "h2", "Request ##{request.id}"
       assert_match HOSTNAME, response.body
-      assert_equal "staging.lightekmcg.com", request.metadata.dig("staging_provisioning", "zone")
+      assert_equal "lightekmcg.com", request.metadata.dig("staging_provisioning", "zone")
       assert_equal ["prepared"], audit_actions(request)
 
       submit_form("Approve")
@@ -256,16 +256,16 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     assert_equal 0, ProvisioningRequest.count
   end
 
-  test "the production parent zone cannot substitute for the dedicated staging zone" do
-    ENV["GODADDY_DOMAINS"] = "lightekmcg.com"
+  test "rejects staging hostnames outside managed GoDaddy domains before quoting" do
+    ENV["GODADDY_DOMAINS"] = "other.example.test"
     authenticate(@operator)
     get "/dashboard/infrastructure/provisioning/new"
     assert_response :success
 
-    unexpected_quote = ->(**) { flunk "provider catalog was called without a dedicated managed zone" }
+    unexpected_quote = ->(**) { flunk "provider catalog was called outside a managed GoDaddy domain" }
     Gatekeeper::Compute::LinodeCatalogService.stub(:call, unexpected_quote) { submit_form("Prepare for approval") }
     assert_response :unprocessable_entity
-    assert_includes response.body, "The dedicated DNS zone staging.lightekmcg.com is missing"
+    assert_includes response.body, "This hostname has no managed GoDaddy zone"
     assert_equal 0, ProvisioningRequest.count
   end
 

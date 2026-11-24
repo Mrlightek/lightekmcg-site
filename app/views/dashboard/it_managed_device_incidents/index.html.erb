@@ -1,0 +1,40 @@
+<main class="container">
+  <h1>Managed IT incidents</h1>
+  <p>Read-only device findings for Nevaeh and authorized IT operations. A cleared agent observation does not verify a repair.</p>
+  <p><strong><%= @open_count %></strong> open findings across managed devices.</p>
+
+  <h2>Review a customer fleet</h2>
+  <%= form_with url: review_dashboard_it_managed_device_incidents_path, method: :post do |form| %>
+    <%= form.label :owner_id, "Customer account ID" %>
+    <%= form.number_field :owner_id, min: 1, required: true %>
+    <%= form.submit "Review up to 250 devices" %>
+  <% end %>
+
+  <h2>Approved read-only device checks</h2>
+  <p>Requires explicit monitoring opt-in and an enrolled active device. No commands, software installation, or backup restores are performed.</p>
+  <%= form_with url: approve_check_dashboard_it_managed_device_incidents_path, method: :post do |form| %>
+    <%= form.label :id, "Managed device ID" %>
+    <%= form.number_field :id, min: 1, required: true %>
+    <%= form.label :code, "Read-only check" %>
+    <%= form.select :code, ItDeviceMaintenanceAction::ACTIONS.map { |code| [code.humanize, code] } %>
+    <%= form.submit "Approve check" %>
+  <% end %>
+
+  <h2>Recent incidents</h2>
+  <table>
+    <thead><tr><th>Customer</th><th>Device</th><th>Finding</th><th>Status</th><th>First seen</th><th>Last seen</th><th>Observations</th></tr></thead>
+    <tbody>
+      <% @incidents.each do |incident| %>
+        <tr>
+          <td><%= incident.owner_id %></td>
+          <td><%= incident.network_managed_device&.name %></td>
+          <td><%= incident.finding_code.humanize %></td>
+          <td><%= incident.status.humanize %></td>
+          <td><%= l(incident.first_observed_at, format: :short) %></td>
+          <td><%= l(incident.last_observed_at, format: :short) %></td>
+          <td><%= incident.observation_count %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</main>

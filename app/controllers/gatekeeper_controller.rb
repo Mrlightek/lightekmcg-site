@@ -15,7 +15,7 @@ class GatekeeperController < ApplicationController
   def content = render(json: @experience.content(params[:id]))
   def live = render(json: @experience.home(live: true))
   def search = render(json: @experience.home(query: params[:q].presence || params[:query]))
-  def permitted_actions = %w[device_enroll device_heartbeat]
+  def permitted_actions = %w[device_enroll device_heartbeat device_maintenance_report]
   def request_error_message = {error: "Invalid or unauthorized method type"}
   # Explicit Gatekeeper device API dispatcher. Never dynamically dispatch arbitrary
   # controller methods supplied by the client.
@@ -40,13 +40,46 @@ class GatekeeperController < ApplicationController
       device.update!(enrolled_at: Time.current, last_seen_at: Time.current,
         last_heartbeat_ip: request.remote_ip, status: "active")
       render json: { ok: true, device_id: device.id, status: device.status }
+    when "device_maintenance_report"
+      return render json: { error: "Monitoring not enabled" }, status: :forbidden unless
+        device.owner_id.present? && device.managed_monitoring_enabled? && device.enrolled_at.present? &&
+        device.status == "active"
+      begin
+        raw = params.require(:result)
+        raise ArgumentError, "Result must be an object" unless raw.is_a?(ActionController::Parameters)
+        record = ItServices::EndpointMaintenance.report!(device: device,
+          action_id: Integer(params.require(:action_id)),
+          nonce: params.require(:nonce).to_s,
+          result: raw.to_unsafe_h)
+        render json: { ok: true, action_id: record.id, status: record.status }
+      rescue ArgumentError, ActionController::ParameterMissing => error
+        render json: { error: error.message }, status: :unprocessable_entity
+      end
     when "device_heartbeat"
       return render json: { error: "Enrollment required" }, status: :forbidden unless device.enrolled_at?
       return render json: { error: "Device is not active" }, status: :forbidden unless %w[active offline].include?(device.status)
-      device.update!(last_seen_at: Time.current, last_heartbeat_ip: request.remote_ip,
-        status: "active")
+      begin
+        device.with_lock do
+          raise ArgumentError, "Device is not available for heartbeat" unless %w[active offline].include?(device.status)
+          if params.key?(:health_telemetry)
+            raw = params[:health_telemetry]
+            raise ArgumentError, "Telemetry must be an object" unless raw.is_a?(ActionController::Parameters)
+            data = ItServices::DeviceTelemetry.normalize!(raw.to_unsafe_h)
+            raise ArgumentError, "Device owner and enrollment required for telemetry" unless device.owner_id.present? && device.enrolled_at.present?
+            if device.managed_monitoring_enabled?
+              device.health_telemetry = data
+              device.health_telemetry_at = Time.current
+            end
+          end
+          device.update!(last_seen_at: Time.current, last_heartbeat_ip: request.remote_ip, status: "active")
+        end
+      rescue ArgumentError => error
+        return render json: { error: error.message }, status: :unprocessable_entity
+      end
       render json: { ok: true, device_id: device.id, status: device.status,
-        server_time: Time.current.iso8601 }
+        server_time: Time.current.iso8601,
+        maintenance_actions: device.managed_monitoring_enabled? ?
+          ItServices::EndpointMaintenance.pending_for!(device: device) : [] }
     end
   end
 

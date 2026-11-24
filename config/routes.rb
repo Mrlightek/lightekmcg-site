@@ -1,4 +1,32 @@
 Rails.application.routes.draw do
+  resources :it_service_assignments, only: [:index] do
+    post :respond, on: :member
+    post :submit_completion, on: :member
+    post :record_work, on: :member
+    post :run_diagnostic, on: :member
+  end
+  resources :it_service_requests, only: %i[index new create] do
+    post :confirm_completion, on: :member
+    post :attach_reservation, on: :member
+    post :managed_device_monitoring, on: :collection
+    post :diagnostic_consent, on: :member
+    delete :revoke_diagnostic_consent, on: :member
+    get :device_health, on: :member
+    get :diagnostic_report, on: :member
+  end
+  namespace :dashboard do
+    resources :it_managed_device_incidents, only: [:index] do
+      post :approve_check, on: :collection
+      post :monitoring, on: :collection
+      post :review, on: :collection
+    end
+    resources :it_service_requests, only: [:index] do
+      post :transition, on: :member
+      post :assign_device, on: :member
+      post :assign_technician, on: :member
+      post :dispatch, on: :member
+    end
+  end
   post "/api/lightek/pwa/studio/workflows/:id/mcp", to: "api/lightek/pwa/studio_workflows#mcp"
   get "/dashboard/mail-transport", to: "dashboard/mail_transport#show", as: :dashboard_mail_transport
   post "/dashboard/mail-transport/test", to: "dashboard/mail_transport#test_delivery", as: :test_dashboard_mail_transport

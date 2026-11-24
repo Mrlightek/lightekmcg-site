@@ -1,0 +1,47 @@
+<main class="container" style="max-width:900px;margin:2rem auto;padding:1rem">
+  <h1>My IT Service Assignments</h1>
+  <p>Review dispatched appointments and accept or decline assigned work. This does not start a remote session.</p>
+  <% @requests.each do |request| %>
+    <article style="border:1px solid #777;padding:1rem;margin:1rem 0">
+      <h2><%= ItServiceRequest::SERVICES.fetch(request.service_code) %></h2>
+      <p><strong>Request:</strong> #<%= request.id %> | <strong>Status:</strong> <%= request.status.humanize %></p>
+      <p><strong>Delivery:</strong> <%= request.delivery_mode.humanize %></p>
+      <% if request.reservation %>
+        <p><strong>Appointment:</strong> <%= request.reservation.starts_at.strftime("%b %-d, %Y at %-I:%M %p %Z") %></p>
+      <% end %>
+      <% if request.status == "in_progress" %>
+        <% if request.delivery_mode == "remote" %>
+          <h3>Read-only diagnostic checks</h3>
+          <p>Requires customer consent and an enrolled, active device. Reviews existing device metadata only; no scans, commands, or repairs.</p>
+          <%= form_with url: run_diagnostic_it_service_assignment_path(request), method: :post do |form| %>
+            <p><%= form.label :code, "Diagnostic" %><br>
+            <%= form.select :code, ItServices::DiagnosticRunbooks::CATALOG.map { |key, item| [item.fetch("title"), key] } %></p>
+            <%= form.submit "Run read-only metadata check" %>
+          <% end %>
+        <% end %>
+        <h3>Diagnostic and repair work log</h3>
+        <p>Record work actually performed and its observed result. This form does not run remote commands.</p>
+        <%= form_with url: record_work_it_service_assignment_path(request), method: :post do |form| %>
+          <p><%= form.label :step, "Work step" %><br><%= form.select :step, ItServices::TechnicianWork::STEPS.map { |key, label| [label, key] } %></p>
+          <p><%= form.label :result, "Observed result" %><br><%= form.select :result, ItServices::TechnicianWork::RESULTS.map { |value| [value.humanize, value] } %></p>
+          <p><%= form.label :evidence, "Observed symptoms, actions and test evidence" %><br>
+          <%= form.text_area :evidence, required: true, minlength: 20, maxlength: 4000 %></p>
+          <%= form.submit "Record work evidence" %>
+        <% end %>
+
+        <%= form_with url: submit_completion_it_service_assignment_path(request), method: :post do |form| %>
+          <p><%= form.label :summary, "Work completed and verification evidence" %><br>
+          <%= form.text_area :summary, required: true, minlength: 20, maxlength: 4000 %></p>
+          <%= form.submit "Submit for customer confirmation" %>
+        <% end %>
+      <% end %>
+      <% if request.status == "scheduled" %>
+        <%= form_with url: respond_it_service_assignment_path(request), method: :post do |form| %>
+          <p><%= form.label :decision, "Response" %><br><%= form.select :decision, [["Accept", "accept"], ["Decline", "decline"]] %></p>
+          <p><%= form.label :note, "Response note" %><br><%= form.text_area :note, required: true, maxlength: 1500 %></p>
+          <%= form.submit "Record response" %>
+        <% end %>
+      <% end %>
+    </article>
+  <% end %>
+</main>

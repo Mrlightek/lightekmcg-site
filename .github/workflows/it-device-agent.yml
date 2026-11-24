@@ -1,0 +1,21 @@
+name: IT device agent checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/lightek_device_agent.py'
+      - 'scripts/test_lightek_endpoint_checks.py'
+      - '.github/workflows/it-device-agent.yml'
+  workflow_dispatch:
+jobs:
+  device-agent:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s scripts -p 'test_lightek*py' -v

@@ -176,10 +176,11 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       LightekVault::Secret.create!(name: slug, slug: slug, secret_type: "credential", environment: "staging",
         status: "active", access_policy: { "consumers" => [consumer], "purposes" => [purpose] })
     end
-    @settings = { "OWNER" => @owner.email_address, "REGION" => "us-east",
-      "DNS_VAULT" => "staging-dns", "OWNER_VAULT" => "staging-owner", "CERTIFICATE_EMAIL" => "ops@example.test" }
-    @settings = @settings.transform_keys { |key| "LIGHTEK_RELEASE_ASSURANCE_#{key}" }
-    @settings["LIGHTEK_RELEASE_ASSURANCE_ZONE"] = nil
+    @form_settings = { owner: @owner.email_address, region: "us-east", dns_vault: "staging-dns",
+      owner_vault: "staging-owner", certificate_email: @operator.email_address }
+    @settings = %w[ZONE OWNER REGION DNS_VAULT OWNER_VAULT CERTIFICATE_EMAIL].to_h do |key|
+      ["LIGHTEK_RELEASE_ASSURANCE_#{key}", nil]
+    end
     @settings["GODADDY_DOMAINS"] = "lightekmcg.com"
     @previous = @settings.keys.to_h { |key| [key, ENV[key]] }
     ENV.update(@settings)
@@ -256,6 +257,28 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     assert_equal 0, ProvisioningRequest.count
   end
 
+  test "shows missing setup before submission and rejects an attempted production owner" do
+    authenticate(@operator)
+    @owner.update!(access_suspended_at: Time.current)
+    @provider.update!(health_status: "unknown")
+    LightekVault::Secret.where(slug: "staging-dns").update_all(status: "disabled")
+    get "/dashboard/infrastructure/provisioning/new"
+    assert_response :success
+    assert_select "input[type=submit][disabled]"
+    assert_select 'a[href="/employee/users/new"]'
+    assert_select 'a[href="/dashboard/infrastructure/providers"]'
+    assert_select 'a[href="/dashboard/vault"]'
+    assert_select "select[name=owner] option[value=?]", @operator.email_address, count: 0
+    no_quote = ->(**) { flunk "provider quote called for an invalid owner" }
+    Gatekeeper::Compute::LinodeCatalogService.stub(:call, no_quote) do
+      post "/dashboard/infrastructure/provisioning/prepare_staging",
+        params: @form_settings.merge(owner: @operator.email_address, hostname: HOSTNAME, budget_cents: 2400,
+          hours: 48, authenticity_token: csrf_token)
+    end
+    assert_response :unprocessable_entity
+    assert_equal 0, ProvisioningRequest.count
+  end
+
   test "rejects staging hostnames outside managed GoDaddy domains before quoting" do
     ENV["GODADDY_DOMAINS"] = "other.example.test"
     authenticate(@operator)
@@ -275,7 +298,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     assert_response :success
     token = csrf_token
     path = "/dashboard/infrastructure/provisioning/prepare_staging"
-    params = { hostname: HOSTNAME, budget_cents: 2400, hours: 48, authenticity_token: token }
+    params = @form_settings.merge(hostname: HOSTNAME, budget_cents: 2400, hours: 48, authenticity_token: token)
     post path, params: params.except(:authenticity_token)
     assert_response :unprocessable_entity
     assert_equal 0, ProvisioningRequest.count
@@ -318,6 +341,10 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     assert submit, "missing #{label} form"
     form = submit.ancestors("form").first
     fields = form.css("input[name]").to_h { |input| [input["name"], input["value"].to_s] }
+    form.css("select[name]").each do |select|
+      selected = select.at_css("option[selected]") || select.at_css("option")
+      fields[select["name"]] = selected&.[]("value")
+    end
     fields["hostname"] = HOSTNAME if fields.key?("hostname")
     post form["action"], params: fields
   end

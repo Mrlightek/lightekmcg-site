@@ -11,13 +11,18 @@ module Gatekeeper
       IMAGE = "linode/ubuntu24.04"
       BUDGET_CENTS = 2400
       METADATA_KEY = "staging_provisioning"
+      VAULT_POLICIES = {
+        "compute" => [LINODE_CONSUMER, "compute_management"],
+        "dns" => ["Godaddy::DnsService", "dns_management"],
+        "owner" => ["Gatekeeper::WebsiteDeployment", "website_deploy"]
+      }.freeze
 
       def self.staging_provider?(provider)
         provider.slug == PROVIDER_SLUG && provider.adapter_type == "builtin" &&
           provider.adapter_class == LINODE_CONSUMER
       end
 
-      def self.prepare!(actor:, hostname:, budget_cents:, hours:)
+      def self.prepare!(actor:, hostname:, budget_cents:, hours:, settings: nil)
         WebsiteDeployment.authorize!(actor)
         raise Invalid, "Active super administrator access is required" unless LightekPeople::LifecycleAccess.active?(actor)
         raise Invalid, "Budget must be between 1 and 2400 cents" unless (1..BUDGET_CENTS).cover?(budget_cents)
@@ -28,16 +33,18 @@ module Gatekeeper
         end
         zone, = WebsiteDnsPublication.target_for!(hostname: hostname)
 
-        owner = User.find_by(email_address: setting!("OWNER"), role: "client")
-        unless owner && owner.email_address.match?(/\Astaging-[a-z0-9-]+@example\.test\z/) && LightekPeople::LifecycleAccess.active?(owner)
-          raise Invalid, "Configure an active synthetic staging owner"
-        end
-        provider = ComputeProvider.find_by(slug: PROVIDER_SLUG, status: "active", health_status: "healthy")
-        raise Invalid, "Configure an active staging-only Linode provider" unless provider && staging_provider?(provider)
+        owner_email = setting!("OWNER", settings)
+        owner = staging_owners.find { |user| user.email_address == owner_email }
+        raise Invalid, "Select an active synthetic staging owner" unless owner
 
-        vault = { "compute" => provider.credential_secret_slug, "dns" => setting!("DNS_VAULT"), "owner" => setting!("OWNER_VAULT") }
+        provider = staging_provider
+        raise Invalid, "Configure an active staging-only Linode provider" unless provider
+
+        vault = { "compute" => provider.credential_secret_slug, "dns" => setting!("DNS_VAULT", settings),
+          "owner" => setting!("OWNER_VAULT", settings) }
         validate_vault!(vault)
-        region = setting!("REGION")
+        region = setting!("REGION", settings)
+        certificate_email = setting!("CERTIFICATE_EMAIL", settings)
         label = hostname.split(".").first
         raise Invalid, "Staging node label is too long" if label.length > 63
 
@@ -45,7 +52,7 @@ module Gatekeeper
         plan = approved_plan!(catalog, region, budget_cents)
         config = WebsiteDeployment.configuration(owner: owner, domain: hostname, site_name: "Lightek MSP staging",
           headline: "Release acceptance", description: "Synthetic acceptance tenant",
-          certificate_email: setting!("CERTIFICATE_EMAIL"), credential_slug: vault.fetch("owner")).except("branding")
+          certificate_email: certificate_email, credential_slug: vault.fetch("owner")).except("branding")
 
         provider.with_lock do
           raise Invalid, "Staging provider changed during the quote" unless eligible_provider?(provider, vault["compute"])
@@ -118,27 +125,48 @@ module Gatekeeper
         plan
       end
 
+      def self.staging_owners
+        User.where(role: "client").where("email_address LIKE ?", "staging-%@example.test").order(:email_address).select do |owner|
+          owner.email_address.match?(/\Astaging-[a-z0-9-]+@example\.test\z/) && LightekPeople::LifecycleAccess.active?(owner)
+        end
+      end
+
+      def self.staging_provider
+        provider = ComputeProvider.find_by(slug: PROVIDER_SLUG, status: "active", health_status: "healthy")
+        provider if provider && staging_provider?(provider)
+      end
+
+      def self.vault_choices
+        secrets = LightekVault::Secret.active.where(environment: "staging").order(:slug)
+        VAULT_POLICIES.transform_values do |policy|
+          secrets.select { |secret| usable_vault?(secret, policy) }.map(&:slug)
+        end
+      end
+
       def self.validate_vault!(vault, include_owner: true)
-        policies = {
-          "compute" => [LINODE_CONSUMER, "compute_management"],
-          "dns" => ["Godaddy::DnsService", "dns_management"],
-          "owner" => ["Gatekeeper::WebsiteDeployment", "website_deploy"]
-        }
-        policies.delete("owner") unless include_owner
-        policies.each do |key, (consumer, purpose)|
-          slug = vault.fetch(key).to_s
-          secret = LightekVault::Secret.active.find_by(slug: slug, environment: "staging")
-          policy = secret&.access_policy.to_h
-          unless slug.start_with?("staging-") && secret&.usable? &&
-              Array(policy["consumers"]).include?(consumer) && Array(policy["purposes"]).include?(purpose)
+        keys = include_owner ? VAULT_POLICIES.keys : %w[compute dns]
+        keys.each do |key|
+          secret = LightekVault::Secret.active.find_by(slug: vault.fetch(key), environment: "staging")
+          unless usable_vault?(secret, VAULT_POLICIES.fetch(key))
             raise Invalid, "Configure the staging-only #{key} Vault reference with its explicit access policy"
           end
         end
       end
 
-      def self.setting!(key)
-        ENV["LIGHTEK_RELEASE_ASSURANCE_#{key}"].presence ||
-          raise(Invalid, "The staging control plane is missing its #{key.downcase.tr('_', ' ')} setting")
+      def self.usable_vault?(secret, (consumer, purpose))
+        return false unless secret&.usable? && secret.slug.start_with?("staging-")
+
+        policy = secret.access_policy.to_h
+        Array(policy["consumers"]).include?(consumer) && Array(policy["purposes"]).include?(purpose)
+      end
+
+      def self.setting!(key, settings)
+        if settings
+          settings[key].presence || raise(Invalid, "Enter or select the staging #{key.downcase.tr('_', ' ')}")
+        else
+          ENV["LIGHTEK_RELEASE_ASSURANCE_#{key}"].presence ||
+            raise(Invalid, "The staging control plane is missing its #{key.downcase.tr('_', ' ')} setting")
+        end
       end
       private_class_method :event, :approved_plan!, :eligible_provider?, :validate_vault!, :setting!
     end

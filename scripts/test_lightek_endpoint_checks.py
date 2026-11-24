@@ -27,7 +27,34 @@ class EndpointChecksTest(unittest.TestCase):
               mock.patch.object(agent, "_probe", return_value=(0, "Listing...\\npackage [upgradable from: 1]")) as probe):
             result = agent.read_only_check("check_patch_status")
         self.assertEqual(result["status"], "warning")
-        probe.assert_called_once_with(["apt", "list", "--upgradable"])
+        self.assertIn("1 available updates", result["observation"])
+        probe.assert_called_once_with(["apt", "list", "--upgradable"], output_limit=64 * 1024)
+
+    def test_linux_patch_inventory_counts_past_the_generic_probe_limit(self):
+        output = "Listing...\n" + "package-stable [upgradable from: 1]\n" * 20
+        with (mock.patch.object(agent.sys, "platform", "linux"),
+              mock.patch.object(agent.shutil, "which", return_value="/usr/bin/apt"),
+              mock.patch.object(agent, "_probe", return_value=(0, output))):
+            result = agent.read_only_check("check_patch_status")
+        self.assertIn("20 available updates", result["observation"])
+
+    def test_windows_patch_inventory_uses_the_cached_catalog(self):
+        with (mock.patch.object(agent.sys, "platform", "win32"),
+              mock.patch.object(agent, "_probe", return_value=(0, "2\r\n")) as probe):
+            result = agent.read_only_check("check_patch_status")
+        self.assertEqual(result["status"], "warning")
+        self.assertIn("2 available updates", result["observation"])
+        self.assertIn("$searcher.Online = $false", probe.call_args.args[0][-1])
+
+    def test_macos_patch_inventory_reports_only_recognized_results(self):
+        with mock.patch.object(agent.sys, "platform", "darwin"):
+            for output, status in (
+                ("* Label: Example update\n\tTitle: Example", "warning"),
+                ("No new software available.", "ok"),
+                ("Unable to find catalog", "unavailable"),
+            ):
+                with self.subTest(status=status), mock.patch.object(agent, "_probe", return_value=(0, output)):
+                    self.assertEqual(agent.read_only_check("check_patch_status")["status"], status)
 
     def test_probe_never_uses_shell(self):
         completed = mock.Mock(returncode=0, stdout="ok", stderr="")

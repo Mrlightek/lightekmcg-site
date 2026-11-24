@@ -25,6 +25,10 @@ module ItServices
       else
         findings << "telemetry_missing_or_stale"
       end
+      patch_inventory, backup_sample = maintenance_evidence(device)
+      findings << "patches_available" if patch_inventory.fetch("available_update_count", 0).positive?
+      backup_sample_status = backup_sample["status"]
+      findings << "backup_recovery_test_failed" if %w[mismatch unavailable].include?(backup_sample_status)
       {
         device_id: device.id,
         owner_id: owner.id,
@@ -33,10 +37,24 @@ module ItServices
         findings: findings.uniq,
         telemetry_fresh: telemetry_fresh,
         reported_telemetry: telemetry_fresh ? telemetry : {},
+        backup_sample_status: backup_sample_status,
         evaluated_at: Time.current.iso8601(6),
         limitations: "Agent-reported metrics are not independently verified; no live scan or backup restore test performed.",
         remote_execution_authorized: false
       }
     end
+
+    def self.maintenance_evidence(device)
+      return [{}, {}] unless device.persisted? && device.enrolled_at? && device.managed_monitoring_enabled?
+
+      observed_since = [24.hours.ago, device.enrolled_at].max
+      checks = ItDeviceMaintenanceAction.where(network_managed_device: device, owner_id: device.owner_id,
+        status: "reported").where(reported_at: observed_since..Time.current)
+        .order(reported_at: :desc, id: :desc)
+      %w[check_patch_status verify_backup_recovery].map do |code|
+        checks.find_by(action_code: code)&.result || {}
+      end
+    end
+    private_class_method :maintenance_evidence
   end
 end

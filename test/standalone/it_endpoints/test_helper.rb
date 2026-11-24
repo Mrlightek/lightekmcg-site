@@ -52,6 +52,7 @@ end
   20261123235000_create_it_service_requests:CreateItServiceRequests
   20261124001000_add_it_service_device_ownership:AddItServiceDeviceOwnership
   20261124093000_add_health_telemetry_to_network_managed_devices:AddHealthTelemetryToNetworkManagedDevices
+  20261124110000_create_it_managed_device_incidents:CreateItManagedDeviceIncidents
   20261124133000_add_managed_monitoring_consent_to_network_managed_devices:AddManagedMonitoringConsentToNetworkManagedDevices
   20261124160000_create_it_device_maintenance_actions:CreateItDeviceMaintenanceActions
   20261124161000_schedule_it_device_maintenance_actions:ScheduleItDeviceMaintenanceActions
@@ -106,6 +107,8 @@ module ItServices; end
 %w[
   models/network_managed_device models/it_device_maintenance_action models/it_service_request
   services/lightek_people/lifecycle_access services/it_services/device_telemetry services/it_services/endpoint_maintenance
+  models/it_managed_device_incident services/it_services/managed_device_posture services/it_services/managed_fleet_incidents
+  services/it_services/incident_escalation
   controllers/it_service_requests_controller controllers/gatekeeper_controller
 ].each { |path| require ENDPOINT_REPO.join("app", path) }
 

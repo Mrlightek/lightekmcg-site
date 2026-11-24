@@ -102,38 +102,54 @@ def post(payload):
     return result
 
 
-def _probe(argv, timeout=12):
+def _probe(argv, timeout=12, output_limit=400):
     """Execute only fixed, local, read-only OS inspection commands."""
     try:
         completed = subprocess.run(argv, capture_output=True, text=True,
                                    timeout=timeout, check=False, shell=False)
-        return completed.returncode, (completed.stdout + completed.stderr)[:400]
+        return completed.returncode, (completed.stdout + completed.stderr)[:output_limit]
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
+
+
+def patch_inventory():
+    output_limit = 64 * 1024
+    count = None
+    source = None
+    if sys.platform == "win32":
+        rc, output = _probe(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+            "$ErrorActionPreference = 'Stop'; "
+            "$searcher = (New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher(); "
+            "$searcher.Online = $false; "
+            "$result = $searcher.Search(\"IsInstalled=0 and IsHidden=0 and Type='Software'\"); "
+            "if ($result.ResultCode -ne 2) { exit 1 }; $result.Updates.Count"], timeout=60)
+        value = output.strip()
+        if rc == 0 and value.isascii() and value.isdecimal() and len(value) <= 6:
+            count, source = int(value), "Cached Windows Update catalog"
+    elif sys.platform == "darwin":
+        rc, output = _probe(["/usr/sbin/softwareupdate", "--list"], timeout=90, output_limit=output_limit)
+        if rc == 0 and len(output) < output_limit:
+            count = sum(line.strip().startswith("* Label:") for line in output.splitlines())
+            if count or any(line.strip().rstrip(".") == "No new software available" for line in output.splitlines()):
+                source = "Apple Software Update"
+    elif sys.platform == "linux" and shutil.which("apt"):
+        rc, output = _probe(["apt", "list", "--upgradable"], output_limit=output_limit)
+        if rc == 0 and len(output) < output_limit:
+            count = sum("[upgradable from:" in line for line in output.splitlines())
+            if count or any(line.strip() == "Listing..." for line in output.splitlines()):
+                source = "Cached APT catalog"
+    if source is None:
+        return {"status": "unavailable", "observation": "Trusted patch inventory unavailable"}
+    return {"status": "warning" if count else "ok",
+            "observation": f"{source} lists {count} available updates; update compliance not verified",
+            "available_update_count": count}
 
 
 def read_only_check(code):
     if code == "refresh_inventory":
         return {"status": "ok", "observation": "Platform: " + platform.system()[:80]}
     if code == "check_patch_status":
-        if sys.platform == "win32":
-            rc, output = _probe(["powershell.exe", "-NoProfile", "-NonInteractive",
-                "-Command", "(Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 1).HotFixID"])
-            if rc == 0 and output.strip():
-                return {"status": "warning", "observation": "Last installed hotfix: " + output.strip()[:100] +
-                    "; update compliance not verified"}
-        elif sys.platform == "darwin":
-            rc, output = _probe(["softwareupdate", "--list"])
-            if rc == 0:
-                return {"status": "warning",
-                        "observation": "Apple softwareupdate inventory inspected; update compliance not verified"}
-        elif sys.platform == "linux" and shutil.which("apt"):
-            rc, output = _probe(["apt", "list", "--upgradable"])
-            if rc == 0:
-                count = sum(1 for line in output.splitlines() if "[upgradable from:" in line)
-                return {"status": "warning",
-                        "observation": "APT lists " + str(count) + " upgradable packages; update compliance not verified"}
-        return {"status": "unavailable", "observation": "Trusted patch inventory unavailable"}
+        return patch_inventory()
     if code == "check_backup_status":
         if sys.platform == "darwin" and shutil.which("tmutil"):
             rc, output = _probe(["tmutil", "latestbackup"])

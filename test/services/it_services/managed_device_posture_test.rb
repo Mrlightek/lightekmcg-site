@@ -18,7 +18,7 @@ class ItServicesManagedDevicePostureTest < ActiveSupport::TestCase
     assert_equal "attention_required", report[:status]
     assert_includes report[:findings], "telemetry_missing_or_stale"
     assert_equal false, report[:remote_execution_authorized]
-    assert_match(/have not been verified/, report[:limitations])
+    assert_match(/not independently verified/, report[:limitations])
   end
 
   test "maintenance device is not healthy" do

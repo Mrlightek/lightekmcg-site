@@ -13,6 +13,7 @@ module ItServices
       "disk_pressure" => "performance",
       "endpoint_protection_alert" => "security",
       "patches_available" => "security",
+      "backup_recovery_test_failed" => "backup",
       "backup_failed" => "backup"
     }.freeze
 

@@ -60,6 +60,12 @@ cancels pending checks and clears retained telemetry. Cancellation prevents
 future delivery and report acceptance. A read-only probe that already started
 on the device may finish locally.
 
+The patch inventory check counts available software updates from the locally
+cached Windows Update catalog, Apple Software Update, or the locally cached
+APT catalog on Debian-family Linux. The count reflects the catalog available
+to the agent at check time. Use the operating system's management tools to
+confirm update requirements and catalog freshness.
+
 ## Backup sample recovery
 
 1. Put a non-sensitive, nonempty sample of at most 64 KiB in the configured

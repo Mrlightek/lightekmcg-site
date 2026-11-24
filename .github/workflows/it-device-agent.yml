@@ -6,6 +6,7 @@ on:
       - 'scripts/test_lightek*.py'
       - 'app/controllers/gatekeeper_controller.rb'
       - 'app/controllers/it_service_requests_controller.rb'
+      - 'app/jobs/it_services/managed_fleet*.rb'
       - 'app/models/network_managed_device.rb'
       - 'app/models/it_device_maintenance_action.rb'
       - 'app/services/it_services/**'
@@ -13,7 +14,7 @@ on:
       - 'app/views/shared/_it_device_maintenance_history.html.erb'
       - 'db/migrate/*_it_device_*'
       - 'test/controllers/gatekeeper_device_api_test.rb'
-      - 'test/services/it_services/endpoint_maintenance_test.rb'
+      - 'test/services/it_services/**'
       - 'test/models/network_managed_device_test.rb'
       - 'test/standalone/it_endpoints/**'
       - '.github/workflows/it-device-agent.yml'
@@ -32,7 +33,7 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest discover -s scripts -p 'test_lightek*py' -v
   rails-endpoints:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -55,3 +56,7 @@ jobs:
           test/controllers/gatekeeper_device_api_test.rb
           test/services/it_services/endpoint_maintenance_test.rb
           test/models/network_managed_device_test.rb
+          test/services/it_services/managed_device_posture_test.rb
+          test/services/it_services/managed_fleet_incidents_test.rb
+          test/services/it_services/managed_fleet_recovery_test.rb
+          test/services/it_services/incident_escalation_test.rb

@@ -92,15 +92,24 @@ module ItServices
         expected_status = action.recovery_check? ? "running" : "awaiting_report"
         raise ArgumentError, "Action not pending or expired" unless action.display_status == expected_status &&
           ActiveSupport::SecurityUtils.secure_compare(action.request_nonce, nonce.to_s)
-        evidence = action.recovery_check? ? verified_recovery_result(action, result) : check_result(result)
+        evidence = action.recovery_check? ? verified_recovery_result(action, result) : check_result(action, result)
         action.update!(status: "reported", reported_at: Time.current, result: evidence)
         action
       end
     end
 
-    def self.check_result(result)
+    def self.check_result(action, result)
       data = result.stringify_keys
-      raise ArgumentError, "Invalid result" unless result.size == 2 && data.keys.sort == %w[observation status] &&
+      keys = %w[observation status]
+      if action.action_code == "check_patch_status" && data.key?("available_update_count")
+        count = data["available_update_count"]
+        unless count.is_a?(Integer) && count.between?(0, 999_999) &&
+          data["status"] == (count.positive? ? "warning" : "ok")
+          raise ArgumentError, "Invalid patch inventory evidence"
+        end
+        keys.unshift("available_update_count")
+      end
+      raise ArgumentError, "Invalid result" unless result.size == keys.size && data.keys.sort == keys &&
         %w[ok warning unavailable].include?(data["status"]) && data["observation"].is_a?(String) &&
         data["observation"].length <= 500
 

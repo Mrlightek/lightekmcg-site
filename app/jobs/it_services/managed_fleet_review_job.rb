@@ -10,8 +10,9 @@ module ItServices
       owner = User.find_by(id: owner_id)
       return unless owner && LightekPeople::LifecycleAccess.active?(owner)
       results = ManagedFleetIncidents.review_owner!(owner: owner, limit: limit)
-      results.flat_map { |result| result.fetch(:opened) }.each do |incident_id|
-        IncidentEscalation.call!(incident: ItManagedDeviceIncident.find(incident_id))
+      open_ids = results.flat_map { |result| result.fetch(:opened) + result.fetch(:updated) }
+      ItManagedDeviceIncident.open_incidents.where(id: open_ids, owner_id: owner.id).find_each do |incident|
+        IncidentEscalation.call!(incident: incident)
       end
       results
     end

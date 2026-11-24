@@ -9,6 +9,8 @@ module ItServices
       raise ArgumentError, "Owner-scoped review required" unless owner&.persisted? &&
         device.owner_id.present? && device.owner_id == owner.id
       device.with_lock do
+        return unless device.managed_monitoring_enabled? && LightekPeople::LifecycleAccess.active?(owner)
+
         posture = ManagedDevicePosture.evaluate(device: device, owner: owner)
         now = Time.current
         observed = posture.fetch(:findings)
@@ -45,11 +47,15 @@ module ItServices
       return false unless device.status == "active" && device.enrolled_at.present? &&
         device.last_seen_at.present? && !device.heartbeat_stale?
       case code
+      when "not_enrolled", "not_active", "heartbeat_missing", "heartbeat_stale"
+        true
       when "endpoint_protection_alert"
         posture[:telemetry_fresh] && posture[:reported_telemetry]["endpoint_protection"] == "healthy"
       when "backup_failed"
         # Endpoint self-report is not evidence of a successful restore.
         false
+      when "backup_recovery_test_failed"
+        posture[:backup_sample_status] == "verified"
       when "patches_available"
         # Package inventories alone do not establish OS patch compliance.
         false
@@ -69,7 +75,7 @@ module ItServices
       raise ArgumentError, "Active owner required" unless owner&.persisted? && LightekPeople::LifecycleAccess.active?(owner)
       raise ArgumentError, "Invalid limit" unless limit.is_a?(Integer) && limit.between?(1, 250)
       NetworkManagedDevice.where(owner_id: owner.id, managed_monitoring_enabled: true)
-        .where.not(enrolled_at: nil).order(:id).limit(limit).map do |device|
+        .where.not(enrolled_at: nil).order(:id).limit(limit).filter_map do |device|
         reconcile!(device: device, owner: owner)
       end
     end

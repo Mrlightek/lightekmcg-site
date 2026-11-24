@@ -5,9 +5,12 @@ module ItServices
   # Tickets are observational only and never authorize device commands.
   class IncidentEscalation
     def self.call!(incident:)
-      incident.with_lock do
-        raise ArgumentError, "Incident is not open" unless incident.status == "open"
-        raise ArgumentError, "Device ownership changed" unless incident.network_managed_device.owner_id == incident.owner_id
+      raise ArgumentError, "Incident is not open" unless incident.status == "open"
+      device = incident.network_managed_device
+      device.with_lock do
+        incident.reload
+        return unless incident.status == "open" && device.managed_monitoring_enabled?
+        raise ArgumentError, "Device ownership changed" unless device.owner_id == incident.owner_id
         raise ArgumentError, "Inactive customer" unless LightekPeople::LifecycleAccess.active?(incident.owner)
 
         ticket = Marlon::Ticket.where(related: incident).order(:id).last
@@ -36,7 +39,7 @@ module ItServices
 
     def self.priority_for(code)
       case code
-      when "endpoint_protection_alert", "backup_failed" then "high"
+      when "endpoint_protection_alert", "backup_failed", "backup_recovery_test_failed" then "high"
       when "heartbeat_missing", "heartbeat_stale", "disk_pressure" then "medium"
       else "low"
       end

@@ -185,11 +185,20 @@ if [[ -f "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" ]]; the
   systemctl daemon-reload
   systemctl enable "${SIDEKIQ_SERVICE}"
 fi
-systemctl restart "${SIDEKIQ_SERVICE}"
-systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
-worker_pid="$(systemctl show --property=MainPID --value "${SIDEKIQ_SERVICE}")"
-[[ "$worker_pid" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: Sidekiq has no main process" >&2; exit 1; }
-run_rails "LIGHTEK_STUDIO_SIDEKIQ_PID='$worker_pid' bundle exec rails runner script/studio/verify_queue_consumer.rb"
+worker_pid=""
+# Use the worker's environment file and systemd's default Redis endpoint. Booting
+# another Rails process here competes with Sidekiq during its cold start.
+if ! systemctl restart "${SIDEKIQ_SERVICE}" ||
+   ! worker_pid="$(systemctl show --property=MainPID --value "${SIDEKIQ_SERVICE}")" ||
+   ! [[ "$worker_pid" =~ ^[1-9][0-9]*$ ]] ||
+   ! systemctl is-active --quiet "${SIDEKIQ_SERVICE}" ||
+   ! run_rails "timeout 100s env LIGHTEK_STUDIO_SIDEKIQ_PID='$worker_pid' LIGHTEK_STUDIO_QUEUE_WAIT_SECONDS=90 bundle exec ruby script/studio/verify_queue_consumer.rb" ||
+   ! systemctl is-active --quiet "${SIDEKIQ_SERVICE}" ||
+   [[ "$(systemctl show --property=MainPID --value "${SIDEKIQ_SERVICE}")" != "$worker_pid" ]]; then
+  echo "ERROR: Sidekiq readiness failed for service PID ${worker_pid:-unknown}." >&2
+  systemctl show "${SIDEKIQ_SERVICE}" -p ActiveState -p SubState -p MainPID -p Result -p NRestarts -p ExecMainCode -p ExecMainStatus >&2 || true
+  exit 1
+fi
 
 echo "[cable] Refresh installed standalone WebSocket backend"
 if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then

@@ -1,0 +1,36 @@
+<section class="conversation-stack" aria-labelledby="migration-drive-imports">
+  <h2 id="migration-drive-imports">Shared Drive imports</h2>
+  <% if @drive_imports.empty? %><p class="muted">Choose a destination drive and upload its Google Drive ZIP export.</p><% end %>
+  <% @drive_imports.each do |import| %>
+    <article class="conversation-card">
+      <div class="message-tools">
+        <div>
+          <h3><%= import.filename %></h3>
+          <p class="muted"><%= import.drive.name %> / <%= import.folder&.name || "Drive root" %></p>
+          <% counts = import.items.pluck("status").tally %>
+          <p class="muted"><%= counts.map { |status, count| "#{count} #{status.humanize.downcase}" }.join(" · ") %></p>
+          <% if import.error_message.present? %><p class="notice danger"><%= import.error_message %></p><% end %>
+        </div>
+        <span class="status-badge"><%= import.state.humanize %></span>
+      </div>
+      <div class="reader-actions">
+        <%= link_to "Review ZIP report", dashboard_shared_drive_import_path(import.drive, import, employer_id: @migration.employer_id), class: "button secondary" %>
+        <% if import.retryable? %>
+          <%= button_to "Retry ZIP", start_dashboard_shared_drive_import_path(import.drive, import, employer_id: @migration.employer_id) %>
+        <% end %>
+        <% if import.state == "complete" %>
+          <%= link_to "Open destination", dashboard_shared_drive_path(import.drive, employer_id: @migration.employer_id, folder: import.folder_id), class: "button secondary" %>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+  <% if @drives&.any? %>
+    <%= form_with url: choose_drive_dashboard_team_mail_migration_path(@migration), method: :get do |form| %>
+      <%= form.label :drive_id, "Destination drive" %>
+      <%= form.collection_select :drive_id, @drives, :id, :name, {prompt: "Choose a drive"}, required: true %>
+      <%= form.submit "Choose ZIP destination" %>
+    <% end %>
+  <% elsif @drives %>
+    <p><%= link_to "Create a Shared Drive", dashboard_shared_drives_path(employer_id: @migration.employer_id) %> to choose a destination.</p>
+  <% end %>
+</section>

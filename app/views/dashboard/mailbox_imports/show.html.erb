@@ -1,0 +1,67 @@
+<% content_for :page_title, "Mailbox import" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Mailbox imports", dashboard_mailbox_imports_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1><%= @import.archive.filename %></h1>
+      <p class="muted"><%= @import.mailbox_address %> · <%= number_to_human_size(@import.archive_bytes) %></p>
+    </div>
+    <span class="status-badge"><%= @import.phase.humanize %> · <%= @import.state.humanize %></span>
+  </header>
+  <% error = flash[:alert].presence || @import.error_message %>
+  <% if error %><p class="notice danger" role="alert"><%= error %></p><% end %>
+  <section class="conversation-card" aria-labelledby="import-status-title">
+    <div class="message-tools">
+      <div>
+        <h2 id="import-status-title"><%= @import.phase == "preview" ? "Archive preview" : "Import progress" %></h2>
+        <% if @import.state == "awaiting_approval" && @import.team_mailbox %>
+          <p><%= @import.team_mailbox.migration.name %> mapped <strong><%= @import.team_mailbox.source_address %></strong> to your mailbox.</p>
+          <p>Approve this file to let your workspace owner preview and import it.</p>
+        <% end %>
+        <% counts = @import.phase == "preview" ? @import.preview : @import.results %>
+        <ul>
+          <li><%= number_with_delimiter(counts.fetch("messages", 0)) %> checked</li>
+          <% if @import.phase == "preview" %>
+            <li><%= number_to_human_size(counts.fetch("bytes", 0)) %> estimated new mailbox storage</li>
+          <% else %>
+            <li><%= number_with_delimiter(counts.fetch("imported", 0)) %> imported</li>
+          <% end %>
+          <li><%= number_with_delimiter(counts.fetch("skipped", 0)) %> already in this mailbox</li>
+          <li><%= number_with_delimiter(counts.fetch("invalid", 0)) %> unreadable or unsupported</li>
+        </ul>
+        <% if counts["errors"].present? %>
+          <details>
+            <summary>First <%= pluralize(counts.fetch("errors").size, "problem") %></summary>
+            <ul><% counts.fetch("errors").each do |entry| %><li>Message <%= entry.fetch("message") %> · <%= entry.fetch("reason") %></li><% end %></ul>
+          </details>
+        <% end %>
+        <% if LightekMail::MailboxImport::BUSY_STATES.include?(@import.state) %>
+          <progress aria-label="Archive processed" max="<%= @import.archive_bytes %>" value="<%= @import.byte_offset %>"></progress>
+          <%= link_to "Refresh status", dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button secondary" %>
+        <% end %>
+      </div>
+    </div>
+  </section>
+  <div class="message-tools">
+    <% if @account.user_id == current_user.id %>
+      <%= link_to "Import contacts", dashboard_mail_contacts_path(account_id: @account.id, team_mailbox_id: @import.team_mailbox_id), class: "button secondary" %>
+      <%= link_to "Import calendar", dashboard_mail_calendar_import_path(account_id: @account.id, team_mailbox_id: @import.team_mailbox_id), class: "button secondary" %>
+    <% end %>
+    <% if @import.state == "awaiting_approval" && @import.team_mailbox&.mailbox_user_id == current_user.id %>
+      <%= button_to "Approve archive", approve_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
+    <% elsif @import.retryable? %>
+      <%= button_to "Retry from last checkpoint", retry_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
+    <% elsif @import.importable? || (@import.state == "complete" && @import.readable_preview?) %>
+      <%= button_to (@import.state == "complete" ? "Run again" : "Import into #{@import.mailbox_address}"),
+        start_dashboard_mailbox_import_path(@import, account_id: @account.id), class: "button" %>
+    <% end %>
+    <% if !LightekMail::MailboxImport::BUSY_STATES.include?(@import.state) || @import.retryable? %>
+      <%= button_to "Remove archive", dashboard_mailbox_import_path(@import, account_id: @account.id), method: :delete,
+        class: "secondary", form: {data: {turbo_confirm: "Remove this archive and its import report? Imported messages will stay in the mailbox."}} %>
+    <% end %>
+    <% if @import.state == "complete" %>
+      <%= link_to "Open mailbox", dashboard_mail_path(account_id: @account.id, folder: "all"), class: "button secondary" %>
+    <% end %>
+  </div>
+</main>

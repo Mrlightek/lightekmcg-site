@@ -6,6 +6,7 @@ module LightekSessions
     validates :purpose, inclusion: {in: %w[booking production]}
     validates :host_user, presence: true, if: :production?
     def production? = purpose == 'production'
+    has_one :calendar_event, class_name: 'LightekWorkspace::Event', foreign_key: :session_room_id
     has_many :members, class_name: 'LightekSessions::Member', dependent: :destroy
     validates :key, :media_name, :starts_at, :ends_at, presence: true
     validates :status, inclusion: {in: %w[scheduled open ended]}

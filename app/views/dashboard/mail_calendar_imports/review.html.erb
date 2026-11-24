@@ -1,0 +1,36 @@
+<% content_for :page_title, "Preview calendar import" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Import calendar", dashboard_mail_calendar_import_path(account_id: @account.id, team_mailbox_id: @preview.team_mailbox_id), class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1>Preview calendar import</h1>
+      <p class="muted"><%= @rows.count { |_, duplicate| !duplicate } %> new · <%= @rows.count { |_, duplicate| duplicate } %> duplicates · <%= @preview.issues.size %> need attention</p>
+    </div>
+    <% if @rows.any? %><%= button_to "Import calendar", dashboard_mail_calendar_review_path(account_id: @account.id, id: @preview.id) %><% end %>
+  </header>
+  <% if @preview.issues.any? %>
+    <p class="notice danger">Skipped unsupported or unreadable calendar entries. First affected entries: <%= @preview.issues.first(20).join(", ") %>.</p>
+  <% end %>
+  <% if @rows.size > 50 %><p class="muted">Showing the first 50 readable entries.</p><% end %>
+  <section class="conversation-stack" aria-label="Events in this file">
+    <% @rows.first(50).each do |event, duplicate| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <div>
+            <h2><%= event.fetch("title") %></h2>
+            <% if event.fetch("cancelled") %>
+              <p class="muted">Cancelled occurrence</p>
+            <% else %>
+              <p><%= render "dashboard/mail_studio/calendar_time", starts_at: Time.iso8601(event.fetch("starts_at")),
+                ends_at: Time.iso8601(event.fetch("ends_at")), all_day: event.fetch("all_day") %></p>
+              <% if event.fetch("occurrence_key").present? %><p class="muted">Series exception</p><% end %>
+              <% if event.fetch("zone") %><p class="muted">Recurring or additional dates</p><% end %>
+            <% end %>
+          </div>
+          <span class="status-badge"><%= duplicate ? "Duplicate" : "New" %></span>
+        </div>
+      </article>
+    <% end %>
+  </section>
+</main>

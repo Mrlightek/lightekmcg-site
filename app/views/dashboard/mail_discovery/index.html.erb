@@ -1,0 +1,75 @@
+<% content_for :page_title, "Workspace discovery" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Mail Studio", dashboard_mail_path, class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1>Workspace discovery</h1>
+      <p class="muted">Preserve workspace mail, Shared Drive files, and Team Chat messages for review.</p>
+    </div>
+  </header>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+
+  <% if @mailboxes %>
+    <section class="conversation-card" aria-labelledby="retention-rules">
+      <h2 id="retention-rules">Mailbox retention</h2>
+      <p>Retention applies to received and sent workspace mail. Deleted messages that are still within the rule’s window from the message date are kept for discovery. Holds keep covered mail until released. Expiry removes preserved copies after protection ends.</p>
+      <% if @mailboxes.any? %>
+        <%= form_with url: dashboard_mail_retention_path, data: {turbo: false} do |form| %>
+          <p><%= form.label :account_id, "Workspace mailbox" %><br>
+            <%= form.collection_select :account_id, @mailboxes, :id, ->(mailbox) { mailbox.original_address.presence || mailbox.address },
+              {prompt: "Choose a mailbox", selected: @retention_preview&.fetch(:mailbox)&.id}, required: true %></p>
+          <p><%= form.label :days, "Keep messages for days" %><br>
+            <%= form.number_field :days, value: @retention_preview&.fetch(:days), required: true, min: 1, max: 36_500, step: 1 %></p>
+          <div class="reader-actions">
+            <%= button_tag "Preview rule", name: :operation, value: "preview", type: :submit, class: "secondary" %>
+            <%= button_tag "Save rule", name: :operation, value: "save", type: :submit %>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="muted">Create a mailbox owned by this workspace to set retention.</p>
+      <% end %>
+      <% if @retention_preview %>
+        <% mailbox = @retention_preview.fetch(:mailbox) %>
+        <p role="status" class="notice">
+          <strong><%= mailbox.original_address.presence || mailbox.address %></strong>
+          · <%= pluralize(@retention_preview.fetch(:active), "current message") %> in the proposed window
+          · <%= pluralize(@retention_preview.fetch(:retained), "preserved copy", "preserved copies") %> in the proposed window.
+          <% if @retention_preview.fetch(:on_hold) %>
+            An active hold covers this mailbox.
+          <% else %>
+            <%= pluralize(@retention_preview.fetch(:expiring), "preserved copy", "preserved copies") %> would be eligible for expiry.
+          <% end %>
+        </p>
+      <% end %>
+      <% @rules.each do |rule| %>
+        <div class="message-tools">
+          <span><%= rule.account.original_address.presence || rule.account.address %> · <%= pluralize(rule.days, "day") %></span>
+          <%= button_to "Remove rule", dashboard_mail_retention_path,
+            params: {account_id: rule.account_id, operation: "remove"}, class: "secondary",
+            form: {data: {turbo_confirm: "Remove this rule? Unheld preserved copies will become eligible for expiry."}} %>
+        </div>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @retention_drives %><%= render "drive_retention" %><% end %>
+
+  <section class="conversation-stack" aria-labelledby="mail-matters">
+    <h2 id="mail-matters">Matters</h2>
+    <% if @mailboxes %>
+      <%= form_with url: dashboard_mail_matters_path do |form| %>
+        <%= form.label :mail_matter_name, "Matter name" %>
+        <%= form.text_field :mail_matter_name, maxlength: 100, required: true %>
+        <%= form.submit "Create matter" %>
+      <% end %>
+    <% end %>
+    <% if @matters.empty? %><p class="muted">No matters available.</p><% end %>
+    <% @matters.each do |matter| %>
+      <article class="conversation-card"><%= link_to matter.name, dashboard_mail_matter_path(matter) %></article>
+    <% end %>
+  </section>
+
+  <% if @activity %><%= render "activity", activity: @activity %><% end %>
+</main>

@@ -92,20 +92,34 @@ scope '/dashboard/shared-drives', controller: 'dashboard/shared_drives' do
   get '/:id/download/:entry_id', action: :download, as: :download_dashboard_shared_drive
 end
 
+scope '/dashboard/shared-drives/:drive_id/zip-imports', controller: 'dashboard/shared_drive_imports' do
+  get '/', action: :index, as: :dashboard_shared_drive_imports
+  post '/', action: :create
+  get '/:id', action: :show, as: :dashboard_shared_drive_import
+  post '/:id/start', action: :start, as: :start_dashboard_shared_drive_import
+  delete '/:id', action: :destroy
+end
+
 scope '/dashboard/shared-drives/:drive_id/office', controller: 'dashboard/team_office' do
+  post '/import-powerpoint', action: :import_powerpoint, as: :import_powerpoint_dashboard_drive_office
   get '/', action: :index, as: :dashboard_drive_office
   post '/', action: :create
+  post '/import-excel', action: :import_excel, as: :import_excel_dashboard_drive_office
   patch '/:file_id', action: :update, as: :update_dashboard_drive_office
   get '/:file_id/live', action: :live, as: :live_dashboard_drive_office
   post '/:file_id/restore', action: :restore, as: :restore_dashboard_drive_office
   get '/:file_id/export', action: :export, as: :export_dashboard_drive_office
+  post '/import-word', action: :import_word, as: :import_word_dashboard_drive_office
 end
 
 resources :dashboard_shared_calendars, path: '/dashboard/shared-calendars', controller: 'dashboard/shared_calendars', only: %i[index show create] do
   post :schedule, on: :member
   patch 'events/:event_id', action: :reschedule, as: :reschedule, on: :member
+  post 'events/:event_id/meeting', action: :add_meeting, as: :add_meeting, on: :member
   post 'events/:event_id/respond', action: :respond, as: :respond, on: :member
   post 'events/:event_id/cancel', action: :cancel, as: :cancel_event, on: :member
+  post 'events/:event_id/external-invitations', action: :invite_external, as: :invite_external, on: :member
+  post 'events/:event_id/external-invitations/:invitation_id/retry', action: :retry_external_invitation, as: :retry_external_invitation, on: :member
   get 'events/:event_id/ics', action: :ics, as: :event_ics, on: :member
 end
 

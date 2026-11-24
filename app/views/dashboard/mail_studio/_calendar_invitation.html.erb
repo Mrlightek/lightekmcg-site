@@ -1,0 +1,49 @@
+<section class="conversation-card" aria-labelledby="mail-invitation-title">
+  <% notice = @calendar_notice %>
+  <% invitation = @calendar_invitation %>
+  <% current = invitation&.source_message_id == @message.id %>
+  <% cancelled = notice.fetch("method") == "CANCEL" %>
+  <div class="message-tools">
+    <div>
+      <h2 id="mail-invitation-title"><%= cancelled ? "Calendar cancellation" : notice.fetch("title") %></h2>
+      <p class="muted">Organizer <%= notice.fetch("organizer") %></p>
+      <% unless cancelled %>
+        <p><%= render "calendar_time", starts_at: Time.iso8601(notice.fetch("starts_at")), ends_at: Time.iso8601(notice.fetch("ends_at")), all_day: notice.fetch("all_day") %></p>
+        <% if notice["location"].present? %><p><%= notice.fetch("location") %></p><% end %>
+      <% end %>
+      <% if !notice.fetch("trusted") && !current %><p class="muted">Check the organizer before applying this notice. The sender could not be verified.</p><% end %>
+      <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+      <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+      <% if @calendar_notice_superseded %>
+        <p>A newer or duplicate calendar notice is already on file.</p>
+        <% if invitation.source_message && !invitation.source_message.trashed? %>
+          <%= link_to "Open current notice", dashboard_mail_message_path(account_id: @account.id,
+            id: invitation.source_message_id, workspace: params[:workspace].presence) %>
+        <% end %>
+      <% elsif cancelled && current %>
+        <p>This event was removed from your calendar.</p>
+      <% else %>
+        <% if current && invitation.response != "pending" %>
+          <p>Your response: <%= invitation.response.humanize %>
+            <% if invitation.reply_message %> · Reply <%= invitation.reply_message.state.humanize.downcase %><% end %>
+          </p>
+          <% if invitation.reply_message&.error_message.present? %><p class="notice danger"><%= invitation.reply_message.error_message %></p><% end %>
+        <% end %>
+        <%= form_with url: respond_to_dashboard_mail_calendar_path(account_id: @account.id, id: @message.id), class: "reader-actions", data: {turbo: false} do %>
+          <%= hidden_field_tag :workspace, params[:workspace] if params[:workspace].present? %>
+          <% if cancelled || (invitation && !current) %>
+            <button name="choice" value="apply" type="submit" class="secondary"><%= cancelled ? "Apply cancellation" : "Apply update" %></button>
+          <% end %>
+          <% unless cancelled %>
+            <% LightekMail::IncomingCalendar::RESPONSES.each do |key, label| %>
+              <button name="choice" value="<%= key %>" type="submit" class="<%= "secondary" unless key == "accepted" %>"><%= label %></button>
+            <% end %>
+          <% end %>
+        <% end %>
+      <% end %>
+    </div>
+    <%= link_to "Open calendar", calendar_dashboard_mail_path(account_id: @account.id,
+      date: notice["starts_at"] && Time.iso8601(notice.fetch("starts_at")).then { |time| notice.fetch("all_day") ? time.utc.to_date : time.in_time_zone.to_date }),
+      class: "button secondary", target: ("_top" if params[:workspace] == "1") %>
+  </div>
+</section>

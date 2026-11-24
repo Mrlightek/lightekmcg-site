@@ -46,6 +46,19 @@
           <p><%= l(event.starts_at, format: :short) %> – <%= l(event.ends_at, format: :short) %> · <%= event.organizer.full_name %></p>
           <p class="network-text"><%= event.details %></p>
           <%= link_to "Add to calendar (.ics)", event_ics_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id) %>
+          <% if event.meeting_link_available_to?(current_user) %>
+            <%= link_to "Open video meeting", session_room_path(event.session_room.key), class: "dd-topbar-btn dd-btn-primary" %>
+          <% elsif !event.session_room_id? && event.starts_at.future? && can_manage_event?(event) && @meeting_sites.present? %>
+            <%= form_with url: add_meeting_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id) do |form| %>
+              <% if @meeting_sites.one? %>
+                <%= form.hidden_field :site_id, value: @meeting_sites.first.id %>
+              <% else %>
+                <%= form.label :site_id, "Meeting website", for: "meeting-site-#{event.id}" %>
+                <%= form.collection_select :site_id, @meeting_sites, :id, :name, {prompt: "Choose a website"}, required: true, id: "meeting-site-#{event.id}" %>
+              <% end %>
+              <%= form.submit "Add video meeting", class: "dd-topbar-btn dd-btn-ghost" %>
+            <% end %>
+          <% end %>
           <% if event.guests.any? %>
             <ul><% event.guests.each do |guest| %><li><%= guest.user.full_name %> · <%= guest.response.humanize %></li><% end %></ul>
           <% end %>
@@ -56,7 +69,8 @@
               <%= form.submit "Save RSVP", class: "dd-topbar-btn dd-btn-ghost" %>
             <% end %>
           <% end %>
-          <% if @owner || event.organizer_id == current_user.id %>
+          <% if can_manage_event?(event) %>
+            <%= render 'external_invitations', event: event %>
             <details>
               <summary><%= event.series_key? ? "Edit this occurrence" : "Edit event" %></summary>
               <%= form_with url: reschedule_dashboard_shared_calendar_path(@calendar, event, employer_id: @employer.id),
@@ -78,6 +92,16 @@
             <% end %>
           <% end %>
         </article>
+      <% end %>
+      <% if @cancelled_with_invitations.any? %>
+        <h3>Cancelled events with external guests</h3>
+        <% @cancelled_with_invitations.each do |event| %>
+          <article class="office-document">
+            <h4><%= event.title %></h4>
+            <p><%= l(event.starts_at, format: :short) %></p>
+            <%= render 'external_invitations', event: event %>
+          </article>
+        <% end %>
       <% end %>
     </section>
   </div>

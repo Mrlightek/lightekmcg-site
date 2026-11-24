@@ -1,0 +1,43 @@
+<% content_for :page_title, "Mailbox imports" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Back to Mail Studio", dashboard_mail_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1>Mailbox imports</h1>
+      <p class="muted">Bring message history from a Gmail or Google Workspace export into Lightek Mail.</p>
+    </div>
+    <% if LightekPeople::Access::BUSINESS_ROLES.include?(current_user.role) %>
+      <%= link_to "Workspace Migration Center", dashboard_workspace_migrations_path, class: "button secondary" %>
+    <% end %>
+  </header>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+  <section class="conversation-card" aria-labelledby="import-preview-title">
+    <div class="message-tools">
+      <div>
+        <h2 id="import-preview-title">Preview an archive</h2>
+        <p>Extract the Google Takeout download, then select an uncompressed .mbox file up to 512 MB.</p>
+        <%= form_with url: dashboard_mailbox_imports_path(account_id: @account.id), multipart: true, data: {turbo: false} do |form| %>
+          <p><%= form.label :destination_account_id, "Destination mailbox" %><br>
+            <%= form.collection_select :destination_account_id, @accounts, :id, :address, {selected: @account.id}, required: true %></p>
+          <p><%= form.label :archive, "MBOX file" %><br>
+            <%= form.file_field :archive, accept: ".mbox,application/mbox", required: true %></p>
+          <%= form.submit "Queue preview", class: "button" %>
+        <% end %>
+      </div>
+    </div>
+  </section>
+  <section class="conversation-stack" aria-labelledby="import-history-title">
+    <h2 id="import-history-title">Imports for <%= @account.address %></h2>
+    <% if @imports.empty? %><p class="muted">No imports for this mailbox yet.</p><% end %>
+    <% @imports.each do |import| %>
+      <article class="conversation-card">
+        <div class="message-tools">
+          <%= link_to import.archive.filename.to_s, dashboard_mailbox_import_path(import, account_id: @account.id) %>
+          <span class="status-badge"><%= import.phase.humanize %> · <%= import.state.humanize %></span>
+        </div>
+      </article>
+    <% end %>
+  </section>
+</main>

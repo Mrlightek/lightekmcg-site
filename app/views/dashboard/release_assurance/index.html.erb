@@ -8,17 +8,24 @@
 
   <section class="infra-panel p-3" aria-labelledby="release-candidates">
     <h2 id="release-candidates">Release candidates</h2>
-    <%= form_with url: dashboard_release_assurance_index_path, class: "row g-2 align-items-end mb-3" do |form| %>
-      <div class="col-md-3"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 120, class: "form-control" %></div>
-      <div class="col-md-3"><%= form.label :profile %><%= form.select :profile, [["Combined MSP (B, C, D)", "msp"], ["Standard release", "standard"]], {}, class: "form-select" %></div>
-      <div class="col-md-4"><%= form.label :sources, "Sources (additional for MSP)" %><%= form.text_field :sources, placeholder: "pr:426 branch:feature-name commit:SHA", class: "form-control" %></div>
-      <div class="col-md-2"><%= form.submit "Assemble", class: "infra-button infra-button-primary" %></div>
+    <% if @staging_request %>
+      <p>Choose a published MSP candidate for Gatekeeper request #<%= @staging_request.id %>.</p>
+      <% if @candidates.empty? %>
+        <p>No published MSP candidate is available in this Dashboard. Your Gatekeeper approval is already recorded.</p>
+      <% end %>
+    <% else %>
+      <%= form_with url: dashboard_release_assurance_index_path, class: "row g-2 align-items-end mb-3" do |form| %>
+        <div class="col-md-3"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 120, class: "form-control" %></div>
+        <div class="col-md-3"><%= form.label :profile %><%= form.select :profile, [["Combined MSP (B, C, D)", "msp"], ["Standard release", "standard"]], {}, class: "form-select" %></div>
+        <div class="col-md-4"><%= form.label :sources, "Sources (additional for MSP)" %><%= form.text_field :sources, placeholder: "pr:426 branch:feature-name commit:SHA", class: "form-control" %></div>
+        <div class="col-md-2"><%= form.submit "Assemble", class: "infra-button infra-button-primary" %></div>
+      <% end %>
     <% end %>
     <div class="infra-table-wrap"><table class="infra-table">
       <thead><tr><th scope="col">Candidate</th><th scope="col">Revision</th><th scope="col">State</th></tr></thead>
       <tbody>
         <% @candidates.each do |candidate| %>
-          <tr><td><%= link_to candidate.name, dashboard_release_assurance_path(candidate) %></td><td><code><%= candidate.source_sha&.first(12) || "Pending" %></code></td><td><%= candidate.state.humanize %></td></tr>
+          <tr><td><%= link_to candidate.name, dashboard_release_assurance_path(candidate, request_id: @staging_request&.id) %></td><td><code><%= candidate.source_sha&.first(12) || "Pending" %></code></td><td><%= candidate.state.humanize %></td></tr>
         <% end %>
       </tbody>
     </table></div>

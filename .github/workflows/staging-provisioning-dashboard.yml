@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'app/controllers/dashboard/provisioning_requests_controller.rb'
+      - 'app/controllers/dashboard/release_assurance_controller.rb'
+      - 'app/views/dashboard/release_assurance/**'
       - 'app/services/gatekeeper/compute/**'
       - 'app/services/gatekeeper/website_dns_publication.rb'
       - 'app/services/release_assurance/staging.rb'

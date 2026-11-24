@@ -20,11 +20,6 @@ CreateReleaseAssurance.new.migrate(:up)
 require_relative "../../app/jobs/release_assurance/deployment_job"
 require_relative "../../app/controllers/dashboard/release_assurance_controller"
 Dashboard::ReleaseAssuranceController.append_view_path File.expand_path("../../app/views", __dir__)
-Rails.application.routes.disable_clear_and_finalize = true
-Rails.application.routes.draw do
-  instance_eval(File.read(File.expand_path("../../config/routes/release_assurance.rb", __dir__)))
-end
-Rails.application.routes.disable_clear_and_finalize = false
 
 class StagingProvisioningDashboardChecks
   test "Release Assurance attaches the approved request and retains the approved cap and expiry" do
@@ -40,10 +35,24 @@ class StagingProvisioningDashboardChecks
     assert_equal "approved", request.reload.approval_status
     approved_expiry = Time.iso8601(request.metadata.fetch("staging_provisioning").fetch("expires_at"))
     token = csrf_token
+    link = css_select("a").find { |item| item.text == "Choose a release candidate" }
+    assert link
+    get link["href"]
+    assert_response :success
+    assert_includes response.body, "No published MSP candidate is available"
 
     candidate = ReleaseAssurance::Candidate.create!(operator: @operator, name: "Reviewed MSP", profile: "msp",
       publication_key: SecureRandom.uuid, selectors: [], source_sha: "a" * 40, state: "published")
     path = "/dashboard/release_assurance/#{candidate.id}"
+    get link["href"]
+    assert_response :success
+    candidate_link = css_select("a").find { |item| item.text == "Reviewed MSP" }
+    assert candidate_link
+    get candidate_link["href"]
+    assert_response :success
+    assert_select "input[name=request_id][value=?]", request.id.to_s
+    assert_select "input[name=hostname][value=?]", HOSTNAME
+    token = csrf_token
     fields = { authenticity_token: token, request_id: request.id, hostname: HOSTNAME, hours: 168 }
     post "#{path}/prepare", params: fields.merge(budget_cents: 2401)
     assert_response :see_other

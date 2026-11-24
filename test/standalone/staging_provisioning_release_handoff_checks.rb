@@ -59,6 +59,12 @@ class StagingProvisioningDashboardChecks
     assert_equal ["prepared", "approved", "attached to candidate #{candidate.id}"], audit_actions(request.reload)
     assert_empty ApplicationJob.queue_adapter.enqueued_jobs
 
+    staging = ReleaseAssurance::Staging.new(environment, @operator)
+    assert_equal ["lightekmcg.com", "batch-d-msp-r1.staging"], staging.send(:dns_target!)
+    ENV["GODADDY_DOMAINS"] = "lightekmcg.com,staging.lightekmcg.com"
+    assert_raises(ReleaseAssurance::Policy::Denied) { staging.send(:dns_target!) }
+    ENV["GODADDY_DOMAINS"] = "lightekmcg.com"
+
     forbid_execution do
       post "#{path}/deploy", params: { authenticity_token: token, environment_id: environment.id }
       assert_response :see_other
@@ -72,4 +78,30 @@ class StagingProvisioningDashboardChecks
     ReleaseAssurance::Environment.where(candidate: candidate).delete_all if candidate
     candidate&.destroy!
   end
+
+  test "staging publication refuses an existing record and records the created record ID" do
+    dns = Object.new
+    def dns.records = []
+    def dns.create_record!(attributes) = attributes.merge("recordId" => "dns-42")
+    target = ["lightekmcg.com", "batch-d-msp-r1.staging"]
+    args = { hostname: HOSTNAME, ipv4: "8.8.4.4", replace: false, expected_target: target }
+
+    Godaddy::DnsService.stub(:new, dns) do
+      Resolv.stub(:getaddresses, ["8.8.4.4"]) do
+        result = Gatekeeper::WebsiteDnsPublication.call!(**args) do |receipt|
+          assert_equal({"zone" => target.first, "name" => target.last, "record_id" => "dns-42", "ipv4" => "8.8.4.4"}, receipt)
+        end
+        assert result.fetch("verified")
+      end
+      dns.stub(:records, [{"name" => target.last, "type" => "CNAME"}]) do
+        assert_raises(Gatekeeper::WebsiteDnsPublication::Conflict) do
+          Gatekeeper::WebsiteDnsPublication.call!(**args) { flunk "unexpected DNS write" }
+        end
+      end
+      assert_raises(Gatekeeper::WebsiteDnsPublication::Conflict) do
+        Gatekeeper::WebsiteDnsPublication.call!(**args.merge(expected_target: ["example.com", target.last]))
+      end
+    end
+  end
+
 end

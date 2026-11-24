@@ -6,21 +6,22 @@ module Gatekeeper
       class WrongProvider < StandardError; end
       class NoMatchingPlan < StandardError; end
 
-      def self.call(provider:, requested_by:, profile: nil, region: nil)
-        new(provider:, requested_by:, profile:, region:).call
+      def self.call(provider:, requested_by:, profile: nil, region: nil, adapter: nil)
+        new(provider:, requested_by:, profile:, region:, adapter:).call
       end
 
-      def initialize(provider:, requested_by:, profile:, region:)
+      def initialize(provider:, requested_by:, profile:, region:, adapter: nil)
         @provider = provider
         @requested_by = requested_by
         @profile = profile
         @region = region.presence
+        @adapter = adapter
       end
 
       def call
         raise WrongProvider, "Cost discovery currently supports Linode only" unless provider.slug == "linode" || StagingRequests.staging_provider?(provider)
 
-        adapter = provider.adapter(requested_by: requested_by)
+        adapter = @adapter || provider.adapter(requested_by: requested_by)
         regions = adapter.regions
         plans = adapter.plans
         images = adapter.images

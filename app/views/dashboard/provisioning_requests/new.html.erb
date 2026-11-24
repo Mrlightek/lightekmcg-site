@@ -12,6 +12,25 @@
 
   <section class="infra-panel" aria-label="Dedicated MSP staging">
     <div class="infra-panel-header"><h2>Dedicated MSP staging</h2></div>
+    <% unless @staging_setup_ready %>
+      <div class="infra-form">
+        <h3>Complete staging setup</h3>
+        <ul>
+          <% if @staging_owners.empty? %>
+            <li><%= link_to "Add a staging client", "/employee/users/new" %> with an active Client account and a <code>staging-…@example.test</code> email.</li>
+          <% end %>
+          <% unless @staging_provider %>
+            <li><%= link_to "Check the existing Linode provider", "/dashboard/infrastructure/providers" %> and confirm it is active and healthy.</li>
+          <% end %>
+          <% if @staging_compute_vault.empty? %>
+            <li><%= link_to "Add the staging Linode token in Vault", "/dashboard/vault" %>.</li>
+          <% end %>
+          <% if @staging_vault.fetch("owner").empty? %>
+            <li><%= link_to "Add the staging client password in Vault", "/dashboard/vault" %>.</li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
     <%= form_with url: prepare_staging_dashboard_provisioning_requests_path, class: "infra-form" do |form| %>
       <div class="infra-fields">
         <div class="infra-field">
@@ -26,10 +45,30 @@
           <%= form.label :hours, "Lifetime (hours)" %>
           <%= form.number_field :hours, value: params.fetch(:hours, 48), min: 4, max: 168, required: true %>
         </div>
+        <div class="infra-field">
+          <%= form.label :owner, "Staging client" %>
+          <%= form.select :owner, @staging_owners, { selected: params[:owner].presence || (@staging_owners.first if @staging_owners.one?), include_blank: true }, required: true %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :region, "Linode region" %>
+          <%= form.text_field :region, value: params.fetch(:region, "us-east"), required: true %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :compute_vault, "Staging Linode Vault entry" %>
+          <%= form.select :compute_vault, @staging_compute_vault, { selected: params[:compute_vault].presence || (@staging_compute_vault.first if @staging_compute_vault.one?), include_blank: true }, required: true %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :owner_vault, "Staging client password Vault entry" %>
+          <%= form.select :owner_vault, @staging_vault.fetch("owner"), { selected: params[:owner_vault].presence || (@staging_vault.fetch("owner").first if @staging_vault.fetch("owner").one?), include_blank: true }, required: true %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :certificate_email, "Certificate contact email" %>
+          <%= form.email_field :certificate_email, value: params.fetch(:certificate_email, current_user.email_address), required: true %>
+        </div>
       </div>
       <div class="infra-form-footer">
-        <p>One Ubuntu 24.04 instance with 2 vCPUs, 4 GB RAM and 80 GB storage. Gatekeeper uses the configured staging owner, region and Vault references.</p>
-        <%= form.submit "Prepare for approval", class: "infra-button infra-button-primary" %>
+        <p>One Ubuntu 24.04 instance with 2 vCPUs, 4 GB RAM and 80 GB storage.</p>
+        <%= form.submit "Prepare for approval", class: "infra-button infra-button-primary", disabled: !@staging_setup_ready %>
       </div>
     <% end %>
   </section>

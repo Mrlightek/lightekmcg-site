@@ -68,6 +68,18 @@ module ReleaseAssurance
         @environment.approval_digest == binding
     end
 
+    def publish_dns!(node)
+      authorize_deployment!(actor: @actor, request: @request, domain: @hostname)
+      raise Policy::Denied, "Staging node binding changed" unless @request.gatekeeper_node_id == node.id
+
+      Gatekeeper::WebsiteDnsPublication.call!(hostname: @hostname, ipv4: node.ip_address, replace: false,
+        expected_target: dns_target!) do |receipt|
+        @request.with_lock do
+          @request.update!(metadata: @request.metadata.to_h.merge("staging_dns_record" => receipt))
+        end
+      end
+    end
+
     def configure_host!(ssh)
       script = Rails.root.join("script/lightek/release_assurance_host.sh").read
       arguments = [@hostname, source_sha, @candidate.profile, *@test_networks]
@@ -99,7 +111,7 @@ module ReleaseAssurance
           config.keys.map(&:to_s).difference(%w[domain owner_id site_name headline description email credential_slug owner_role owner_email target node_id request_id]).empty? &&
           certificate_contact.present? &&
           @request.subscription_id.nil? && @request.requested_node_count == 1 &&
-          @request.node_label == @hostname.split(".").first && Gatekeeper::Compute::StagingRequests.staging_provider?(@request.compute_provider) &&
+          @request.node_label == @hostname.split(".").first &&
           @request.selected_image == "linode/ubuntu24.04"
         raise Policy::Denied, "Use a dedicated Ubuntu 24.04 request with a synthetic owner and staging-only Vault configuration"
       end
@@ -204,12 +216,13 @@ module ReleaseAssurance
       Digest::SHA256.hexdigest(JSON.generate([@candidate.source_sha, @hostname, @environment.budget_cents,
         @environment.expires_at.to_i, @request.id, @request.owner_id, @request.compute_provider_id,
         @request.selected_region, @request.selected_plan, @request.selected_image, @request.approved_at&.to_i,
-        @request.metadata.fetch("staging_provisioning").fetch("vault"), config.except("node_id")]))
+        @request.metadata.fetch("staging_provisioning").slice("zone", "vault"), config.except("node_id")]))
     end
 
     def preflight!
       catalog = Gatekeeper::Compute::LinodeCatalogService.call(provider: @request.compute_provider,
-        requested_by: @actor.email_address, region: @request.selected_region)
+        requested_by: @actor.email_address, region: @request.selected_region,
+        adapter: @request.compute_adapter(requested_by: @actor.email_address))
       plan = catalog.fetch("plans").find { |entry| entry.fetch("id") == @request.selected_plan }
       unless plan && plan["monthly_cents"].to_i.positive? && plan["monthly_cents"] <= @environment.budget_cents &&
           plan["monthly_cents"] <= @request.estimated_monthly_cost_cents.to_i &&
@@ -228,23 +241,38 @@ module ReleaseAssurance
       end
     end
 
-    def staging_dns
+    def dns_target!
       details = @request.metadata.fetch("staging_provisioning")
-      dns_slug = details.fetch("vault").fetch("dns")
-      unless ENV["GODADDY_VAULT_SLUG"] == dns_slug && Godaddy::DnsService.zones.include?(details.fetch("zone"))
-        raise Policy::Denied, "Use the prepared staging DNS zone and Vault reference in the execution worker"
+      zone, name = Gatekeeper::WebsiteDnsPublication.target_for!(hostname: @hostname)
+      raise Policy::Denied, "The approved staging DNS zone changed" unless zone == details.fetch("zone")
+
+      legacy_slug = details.fetch("vault")["dns"]
+      if legacy_slug && ENV["GODADDY_VAULT_SLUG"] != legacy_slug
+        raise Policy::Denied, "Use the approved DNS Vault reference for this staging request"
       end
-      dns, name = Gatekeeper::WebsiteDnsPublication.service_for!(hostname: @hostname)
-      raise Policy::Denied, "Use a dedicated authoritative staging DNS zone" unless name == @hostname.split(".").first
-      [dns, name]
+      [zone, name]
+    end
+
+    def staging_dns
+      zone, name = dns_target!
+      [Godaddy::DnsService.new(zone: zone), name]
     end
 
     def delete_dns!(ipv4)
       dns, name = staging_dns
       matching = dns.records.select { |record| record["name"].to_s.downcase == name && record["type"] == "A" }
       return if matching.empty?
-      raise Policy::Denied, "Staging DNS binding changed" unless matching.one? && matching.first["data"] == ipv4.to_s
-      dns.delete_record!(matching.first["recordId"].presence || matching.first.fetch("id"))
+
+      receipt = @request.metadata["staging_dns_record"]
+      record = matching.first
+      record_id = record["recordId"].presence || record["id"]
+      unless matching.one? && receipt && record_id.present? && receipt["record_id"].to_s == record_id.to_s &&
+          receipt["zone"] == dns_target!.first && receipt["name"] == name &&
+          receipt["ipv4"] == ipv4.to_s && record["data"] == ipv4.to_s
+        raise Policy::Denied, "Staging DNS record ownership could not be verified"
+      end
+
+      dns.delete_record!(record_id)
     end
   end
 end

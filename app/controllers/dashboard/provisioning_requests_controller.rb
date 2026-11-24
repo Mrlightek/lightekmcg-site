@@ -2,6 +2,7 @@ class Dashboard::ProvisioningRequestsController < DymondDash::ApplicationControl
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action :require_super_admin!
+  before_action :load_staging_options, only: %i[new prepare_staging]
   before_action :set_request, only: %i[show configure approve reject execute verify approve_destroy destroy]
   before_action :protect_staging_request!, only: %i[configure execute]
 
@@ -24,7 +25,9 @@ class Dashboard::ProvisioningRequestsController < DymondDash::ApplicationControl
   def prepare_staging
     request = Gatekeeper::Compute::StagingRequests.prepare!(actor: current_user,
       hostname: params.require(:hostname).to_s.strip.downcase,
-      budget_cents: Integer(params.require(:budget_cents)), hours: Integer(params.require(:hours)))
+      budget_cents: Integer(params.require(:budget_cents)), hours: Integer(params.require(:hours)),
+      settings: params.permit(:owner, :region, :compute_vault, :owner_vault, :certificate_email)
+        .to_h.transform_keys(&:upcase).transform_values { |value| value.to_s.strip })
     redirect_to dashboard_provisioning_request_path(request), status: :see_other,
       notice: "Staging request prepared for approval."
   rescue Gatekeeper::Compute::StagingRequests::Invalid, Gatekeeper::WebsiteDeployment::Invalid, ArgumentError => error
@@ -119,6 +122,16 @@ class Dashboard::ProvisioningRequestsController < DymondDash::ApplicationControl
   end
 
   private
+
+  def load_staging_options
+    staging = Gatekeeper::Compute::StagingRequests
+    @staging_owners = staging.staging_owners.map(&:email_address)
+    @staging_vault = staging.vault_choices
+    @staging_provider = staging.staging_provider
+    @staging_compute_vault = @staging_vault.fetch("compute") - [@staging_provider&.credential_secret_slug]
+    @staging_setup_ready = @staging_owners.any? && @staging_vault.fetch("owner").any? &&
+      @staging_provider && @staging_compute_vault.any?
+  end
 
   def decide!(disposition)
     @request.with_lock do

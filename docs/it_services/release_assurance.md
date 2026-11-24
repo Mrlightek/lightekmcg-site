@@ -9,17 +9,15 @@ Configure the web process and a Sidekiq worker that consumes the `release_assura
 | Setting | Value |
 | --- | --- |
 | `LIGHTEK_RELEASE_ASSURANCE_RUNNER` | `1` on the isolated control plane |
-| `LIGHTEK_RELEASE_ASSURANCE_ZONE` | A separately managed, delegated `staging.example.org` zone in the existing GoDaddy configuration |
 | `LIGHTEK_RELEASE_ASSURANCE_TEST_NETWORKS` | Comma-separated approved IPv4 CIDRs for TURN clients and probe runners |
 | `LIGHTEK_RELEASE_ASSURANCE_OWNER` | Synthetic owner, for example `staging-msp@example.test` |
-| Staging provider | Active and healthy `linode-staging` record with the built-in Linode adapter |
+| Staging provider | Existing active and healthy `linode` provider. The approved request binds its own staging compute Vault entry |
 | `LIGHTEK_RELEASE_ASSURANCE_REGION` | Region for the staging quote. MSP uses `g6-standard-2` |
-| `LIGHTEK_RELEASE_ASSURANCE_DNS_VAULT` | Staging DNS reference. The execution worker must use this same slug as `GODADDY_VAULT_SLUG` |
 | `LIGHTEK_RELEASE_ASSURANCE_CERTIFICATE_EMAIL` | Approved certificate contact |
 | `LIGHTEK_RELEASE_ASSURANCE_OWNER_VAULT` | A staging-prefixed Vault entry authorized for Gatekeeper WebsiteDeployment and its `website_deploy` purpose |
 | `LIGHTEK_RELEASE_ASSURANCE_ACTIONS_TOKEN` | Optional read-only Actions access for CI evidence lookup |
 
-Use separate staging-scoped provider and DNS credentials. Grant Git write access for the runner's `release-candidates/**` publication refs and apply repository rules restricting those refs to that identity. Keep it out of branch-protection bypass lists and production deployment permissions. Review all source and Actions changes before publishing any revision. The existing CI workflow uses the repository's established private dependency access.
+Use a staging-scoped compute credential. The authorized Gatekeeper worker uses its existing GoDaddy Vault connection for the exact approved staging record and records its provider record ID for cleanup. Grant Git write access for the runner's `release-candidates/**` publication refs and apply repository rules restricting those refs to that identity. Keep it out of branch-protection bypass lists and production deployment permissions. Review all source and Actions changes before publishing any revision. The existing CI workflow uses the repository's established private dependency access.
 
 ## Combined MSP acceptance
 

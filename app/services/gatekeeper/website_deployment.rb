@@ -136,7 +136,7 @@ module Gatekeeper
         sleep [10, remaining].min
       end
       if staging
-        Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address, replace: false)
+        staging.publish_dns!(node.reload)
         run!(actor:, node:, domain:, staging:)
       else
         Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)

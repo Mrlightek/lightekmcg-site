@@ -7,7 +7,7 @@ module Gatekeeper
         node = request.gatekeeper_node ||
           raise(VerificationFailed, "Provisioning request has no GatekeeperNode")
 
-        adapter = request.compute_provider.adapter(requested_by: requested_by)
+        adapter = request.compute_adapter(requested_by: requested_by)
         provider_node = adapter.node(node.provider_resource_id)
 
         provider_status = provider_node["status"].to_s

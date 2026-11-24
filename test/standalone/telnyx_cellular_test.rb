@@ -28,6 +28,9 @@ class ApplicationRecord < ActiveRecord::Base
   self.abstract_class = true
 end
 class User < ApplicationRecord; end
+class ApplicationController < ActionController::Base; end
+
+require_relative "../../app/models/dashboard"
 
 require_relative "../../app/models/user_esim"
 require_relative "../../app/models/telnyx_esim_event"
@@ -35,6 +38,7 @@ require_relative "../../app/controllers/webhooks/telnyx_controller"
 %w[wireless_client cellular_hub webhook_signature provision_esim_service manage_sim_service].each do |service|
   require_relative "../../app/services/telnyx/#{service}"
 end
+require_relative "../../app/controllers/dashboard/user_esims_controller"
 require_relative "../../app/jobs/application_job"
 %w[provision_esim_job provision_vps_route_job sync_esim_status_job].each do |job|
   require_relative "../../app/jobs/#{job}"
@@ -63,6 +67,11 @@ class TelnyxCellularTest < Minitest::Test
   def order
     Telnyx::ProvisionEsimService.call(user: @user, sim_card_group_id: @group,
       plan_limit_mb: 1_024, customer_wg_peer_ip: "172.25.10.2", request_key: @request)
+  end
+
+  def test_esim_controller_loads_under_the_dashboard_model
+    assert_operator Dashboard, :<, ApplicationRecord
+    assert_operator Dashboard::UserEsimsController, :<, ApplicationController
   end
 
   def test_allocation_is_unique_and_skips_linux_reserved_table_ids

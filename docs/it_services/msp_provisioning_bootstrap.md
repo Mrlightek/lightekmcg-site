@@ -4,7 +4,7 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 
 ## Set up dedicated staging references
 
-1. In [Employee → Users → New user](https://lightekmcg.com/employee/users/new), create or confirm an active synthetic Dashboard user with role **Client** and email `staging-msp@example.test`. Save its sign-in credential through the approved password manager. Use a scoped staging-only Linode token and a DNS credential limited by the provider to the dedicated delegated `staging.lightekmcg.com` zone.
+1. In [Employee → Users → New user](https://lightekmcg.com/employee/users/new), create or confirm an active synthetic Dashboard user with role **Client** and email `staging-msp@example.test`. Save its sign-in credential through the approved password manager. Use a scoped staging-only Linode token and a staging-only DNS credential for the approved GoDaddy DNS workflow.
 2. In **Dashboard → Vault**, create or confirm the following entries with environment `staging` and explicit consumer and purpose fields. The names in the left column are examples. Enter sensitive values through the authenticated Vault UI.
 
 | Vault slug | Payload key | Allowed consumer | Purpose |
@@ -14,7 +14,7 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 | `staging-msp-owner` | `owner_password` | `Gatekeeper::WebsiteDeployment` | `website_deploy` |
 
 3. Open [Add Compute Provider](https://lightekmcg.com/dashboard/infrastructure/providers/new). Create **MSP staging Linode**, slug `linode-staging`, adapter type **Builtin**, adapter class `Gatekeeper::Compute::Providers::LinodeAdapter`, credential slug `staging-compute`. Leave API base URL blank to use the adapter's fixed Linode API. On that provider's page, confirm its Linode read capabilities are selected, run the health check and read-only capability validation, then activate it.
-4. In Dashboard → Network → Controllers, verify that the delegated `staging.lightekmcg.com` zone appears in the managed DNS zones. Provisioning resolves the hostname against this same list and requires the exact staging zone. The production parent zone is ineligible.
+4. In **Dashboard → Network & Domains → Domains & DNS**, verify that the existing `lightekmcg.com` GoDaddy zone is listed. The preparation form uses the same managed DNS lookup as website provisioning. It binds `batch-d-msp-r1.staging.lightekmcg.com` to `batch-d-msp-r1.staging` in that zone without changing DNS.
 5. Set the following control-plane application configuration values using the existing operator procedure.
 
 ```text
@@ -35,6 +35,6 @@ Preparation reserves the hostname and checks the catalog. Approval records the f
 
 ## Hand off to Release Assurance
 
-Use a scoped Release Assurance worker connected to the approved Gatekeeper records. It can share the existing control plane’s database and Vault while using its own execution configuration. Set the worker’s `GODADDY_DOMAINS` to the delegated staging zone, its `GODADDY_VAULT_SLUG` to the request's DNS entry, and its staging network allowlist and runtime dependencies as specified in the Release Assurance runbook.
+Use a scoped Release Assurance worker connected to the approved Gatekeeper records. It can share the existing control plane’s database and Vault while using its own execution configuration. The worker must support the request's managed zone and exact staging record, use the approved staging Vault reference, and have the staging network allowlist and runtime dependencies specified in the Release Assurance runbook.
 
 Import the reviewed combined candidate in Release Assurance. Attach the approved request ID, exact hostname, a budget no higher than the approval and a lifetime within the existing expiry. **Approve staging deployment** binds the candidate revision and staging request, then queues the isolated installation. The existing control plane can prepare and approve before this worker is available.

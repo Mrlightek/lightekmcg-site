@@ -23,13 +23,10 @@ module Gatekeeper
         raise Invalid, "Budget must be between 1 and 2400 cents" unless (1..BUDGET_CENTS).cover?(budget_cents)
         raise Invalid, "Lifetime must be between 4 and 168 hours" unless (4..168).cover?(hours)
 
-        match = hostname.match(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.(staging\.(?:[a-z0-9-]+\.)+[a-z]{2,})\z/)
-        raise Invalid, "Enter a batch-d hostname in a dedicated staging zone" unless match
-
-        zone = match[1]
-        unless Godaddy::DnsService.zones.include?(zone)
-          raise Invalid, "The dedicated DNS zone #{zone} is missing from Dashboard → Network → Controllers"
+        unless hostname.match?(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.staging\.(?:[a-z0-9-]+\.)+[a-z]{2,}\z/)
+          raise Invalid, "Enter a batch-d hostname under staging on a managed domain"
         end
+        zone, = WebsiteDnsPublication.target_for!(hostname: hostname)
 
         owner = User.find_by(email_address: setting!("OWNER"), role: "client")
         unless owner && owner.email_address.match?(/\Astaging-[a-z0-9-]+@example\.test\z/) && LightekPeople::LifecycleAccess.active?(owner)
@@ -68,6 +65,8 @@ module Gatekeeper
           WebsiteDeployment.register!(actor: actor, record: request, config: config)
           request
         end
+      rescue WebsiteDnsPublication::NotConfigured
+        raise Invalid, "This hostname has no managed GoDaddy zone in Dashboard → Network & Domains"
       rescue LinodeCatalogService::WrongProvider, LinodeCatalogService::NoMatchingPlan
         raise Invalid, "The staging Linode catalog is unavailable"
       end

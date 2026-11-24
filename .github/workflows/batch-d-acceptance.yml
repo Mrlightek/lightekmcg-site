@@ -24,7 +24,7 @@ jobs:
       - name: Install isolated Linux desktop and relay dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y coturn clamav-daemon xvfb xauth
+          sudo apt-get install -y coturn clamav-daemon xvfb xauth libnss3-tools
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
       - name: Exercise the live ClamAV INSTREAM adapter
@@ -48,17 +48,32 @@ jobs:
           umask 077
           work=$(mktemp -d)
           secret=$(openssl rand -hex 32)
-          printf '%s\n' "realm=batch-d-ci" "listening-ip=127.0.0.1" "relay-ip=127.0.0.1"             "listening-port=13479" "min-port=50110" "max-port=50159" "no-tls" "no-dtls" "no-cli"             "allow-loopback-peers" "cli-password=$secret" "no-multicast-peers" "use-auth-secret" "static-auth-secret=$secret"             "log-file=stdout" "fingerprint" > "$work/turn.conf"
+          # Install a one-day test CA only in this disposable runner's Chromium trust store.
+          openssl req -x509 -newkey rsa:2048 -noenc -days 1 -subj '/CN=Batch D CI test CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+            -keyout "$work/ca.key" -out "$work/ca.crt" 2>/dev/null
+          openssl req -new -newkey rsa:2048 -noenc -subj '/CN=localhost' \
+            -keyout "$work/turn.key" -out "$work/turn.csr" 2>/dev/null
+          printf '%s\n' 'subjectAltName=DNS:localhost,IP:127.0.0.1' 'extendedKeyUsage=serverAuth' > "$work/turn.ext"
+          openssl x509 -req -in "$work/turn.csr" -CA "$work/ca.crt" -CAkey "$work/ca.key" \
+            -CAcreateserial -days 1 -extfile "$work/turn.ext" -out "$work/turn.crt"
+          nss="sql:$HOME/.pki/nssdb"
+          mkdir -p "$HOME/.pki/nssdb"
+          if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -N --empty-password -d "$nss"; fi
+          certutil -A -d "$nss" -n 'Batch D CI test CA' -t 'C,,' -i "$work/ca.crt"
+          printf '%s\n' "realm=batch-d-ci" "listening-ip=127.0.0.1" "relay-ip=127.0.0.1"             "listening-port=13479" "tls-listening-port=15350" "min-port=50110" "max-port=50159" "no-dtls" "no-cli" \
+            "cert=$work/turn.crt" "pkey=$work/turn.key"             "allow-loopback-peers" "cli-password=$secret" "no-multicast-peers" "use-auth-secret" "static-auth-secret=$secret"             "log-file=stdout" "fingerprint" > "$work/turn.conf"
           # Match the Rails adapter's time-bound TURN REST credential format.
           printf '%s' "$secret" | ruby -rjson -ropenssl -rbase64 -e '
             key = STDIN.read
             user = "#{Time.now.to_i + 300}:batch-d-ci"
             credential = Base64.strict_encode64(OpenSSL::HMAC.digest("SHA1", key, user))
-            puts JSON.generate([{ urls: "turn:127.0.0.1:13479?transport=udp", username: user, credential: credential }])
+            urls = ["turn:127.0.0.1:13479?transport=udp", "turns:127.0.0.1:15350?transport=tcp"]
+            puts JSON.generate(urls.map { |url| { urls: url, username: user, credential: credential } })
           ' > "$work/ice.json"
           turnserver -c "$work/turn.conf" > "$work/turn.log" 2>&1 &
           pid=$!
-          trap 'kill "$pid" 2>/dev/null || true; rm -f "$work/ice.json" "$work/turn.conf"' EXIT
+          trap 'kill "$pid" 2>/dev/null || true; certutil -D -d "$nss" -n "Batch D CI test CA"; rm -rf "$work"' EXIT
           for attempt in {1..30}; do
             if ruby -rsocket -e 'TCPSocket.new("127.0.0.1", 13479).close' 2>/dev/null; then break; fi
             sleep 0.2

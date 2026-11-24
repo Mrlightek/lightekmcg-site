@@ -72,8 +72,9 @@ require "#{source_root}/db/migrate/20261122180000_add_nevaeh_support_sender_to_m
 require "#{source_root}/db/migrate/20261122192000_create_installation_collaboration"
 require "#{source_root}/db/migrate/20261123102000_store_incoming_calendar_invitations"
 require "#{source_root}/db/migrate/20261123145000_add_mailbox_imports"
+require "#{source_root}/db/migrate/20261123170000_add_mail_discovery"
 [CreateActiveStorageTables, CreateActionMailboxTables, CreateLightekMailStudio, AddLightekMailSendingControls,
- AddLightekMailboxManagement, AddNevaehSupportSenderToMailPolicy, CreateInstallationCollaboration, StoreIncomingCalendarInvitations, AddMailboxImports].each { |migration| migration.new.migrate(:up) }
+ AddLightekMailboxManagement, AddNevaehSupportSenderToMailPolicy, CreateInstallationCollaboration, StoreIncomingCalendarInvitations, AddMailboxImports, AddMailDiscovery].each { |migration| migration.new.migrate(:up) }
 app.routes.draw do
   get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
   post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"

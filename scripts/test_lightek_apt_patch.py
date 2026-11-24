@@ -17,6 +17,13 @@ class AptPatchBrokerTest(unittest.TestCase):
         self.policy.stat.return_value = Mock(st_uid=0, st_mode=0o100644, st_size=32)
         self.policy.read_text.return_value = self.target + "\n"
 
+    def test_reads_dpkg_status_with_its_native_fixed_width_padding(self):
+        with patch.object(broker, "run", return_value=Mock(stdout="ii  1:2.0-2")):
+            self.assertEqual(broker.installed_version("test-package"), "1:2.0-2")
+        with patch.object(broker, "run", return_value=Mock(stdout="iU  1:2.0-2")):
+            with self.assertRaises(ValueError):
+                broker.installed_version("test-package")
+
     def test_refuses_targets_outside_local_policy(self):
         with (patch.object(broker, "POLICY", self.policy), patch.object(os, "geteuid", return_value=0),
               patch.object(broker, "run") as run):

@@ -22,10 +22,10 @@ def run(*args, cwd=None, timeout=420):
 
 def installed_version(package):
     line = run("/usr/bin/dpkg-query", "-W", "-f=${db:Status-Abbrev} ${Version}", package).stdout
-    status, _, version = line.strip().partition(" ")
-    if not status.startswith("ii") or not version:
+    fields = line.split()
+    if len(fields) != 2 or fields[0] != "ii":
         raise ValueError("Package is not installed")
-    return version
+    return fields[1]
 
 
 def deployment(target):
@@ -65,6 +65,9 @@ def deployment(target):
         if after != requested:
             return {"status": "failed"}
         return {"status": "installed", "target": package + "=" + after}
+    except subprocess.CalledProcessError as error:
+        print(f"{Path(error.cmd[0]).name} exited with status {error.returncode}", file=sys.stderr)
+        return {"status": "failed"}
     except (OSError, subprocess.SubprocessError, ValueError):
         return {"status": "failed"}
 

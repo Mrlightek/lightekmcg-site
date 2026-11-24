@@ -1,8 +1,8 @@
 require "test_helper"
 
 class ItServicesEndpointMaintenanceTest < ActiveSupport::TestCase
-  test "only read-only maintenance codes are permitted" do
-    assert_equal %w[refresh_inventory check_patch_status check_backup_status check_endpoint_protection],
+  test "only explicitly supported maintenance codes are permitted" do
+    assert_equal %w[refresh_inventory check_patch_status check_backup_status check_endpoint_protection verify_backup_recovery],
       ItDeviceMaintenanceAction::ACTIONS
     assert_not_includes ItDeviceMaintenanceAction::ACTIONS, "install_patch"
     assert_not_includes ItDeviceMaintenanceAction::ACTIONS, "restore_backup"

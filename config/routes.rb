@@ -10,6 +10,7 @@ Rails.application.routes.draw do
     post :attach_reservation, on: :member
     post :managed_device_monitoring, on: :collection
     post :cancel_device_check, on: :collection
+    post :consent_to_device_recovery, on: :collection
     post :diagnostic_consent, on: :member
     delete :revoke_diagnostic_consent, on: :member
     get :device_health, on: :member

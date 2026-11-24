@@ -10,20 +10,22 @@
     <%= form.submit "Review up to 250 devices" %>
   <% end %>
 
-  <h2>Approved read-only device checks</h2>
-  <p>Requires explicit monitoring opt-in and an enrolled active device. No commands, software installation, or backup restores are performed.</p>
+  <h2>Device maintenance approval</h2>
+  <p>Backup recovery verification requires the device owner's approval. It restores a configured sample into memory for verification.</p>
   <%= form_with url: approve_check_dashboard_it_managed_device_incidents_path, method: :post do |form| %>
     <%= form.label :id, "Managed device ID" %>
     <%= form.number_field :id, min: 1, required: true %>
-    <%= form.label :code, "Read-only check" %>
+    <%= form.label :code, "Maintenance action" %>
     <%= form.select :code, ItDeviceMaintenanceAction::ACTIONS.map { |code| [code.humanize, code] } %>
     <%= form.label :scheduled_at, "Start time (ISO 8601 with UTC offset, blank for now)" %>
     <%= form.text_field :scheduled_at, placeholder: "2026-11-25T14:00:00Z", maxlength: 40 %>
+    <%= form.label :expected_recovery_digest, "Expected SHA-256 (backup recovery only)" %>
+    <%= form.text_field :expected_recovery_digest, maxlength: 64, autocomplete: "off", spellcheck: false %>
     <%= form.submit "Approve check" %>
   <% end %>
 
   <%= render "shared/it_device_maintenance_history", actions: @maintenance_actions,
-    cancel_path: cancel_check_dashboard_it_managed_device_incidents_path, show_operator: true %>
+    cancel_path: cancel_check_dashboard_it_managed_device_incidents_path, recovery_consent_path: nil, show_operator: true %>
 
   <h2>Recent incidents</h2>
   <table>

@@ -158,6 +158,78 @@ class GatekeeperDeviceApiTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "backup recovery requires customer consent and a single Gatekeeper claim" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    send_action("device_enroll")
+    @device.update!(owner: owner, managed_monitoring_enabled: true)
+    start = 1.hour.from_now.change(usec: 0)
+    digest = Digest::SHA256.hexdigest("known backup sample")
+    recovery = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+      code: "verify_backup_recovery", scheduled_at: start.iso8601, expected_recovery_digest: digest)
+    attributes = { action_id: recovery.id, nonce: recovery.request_nonce }
+
+    travel_to start do
+      send_action("device_heartbeat")
+      assert_empty response.parsed_body.fetch("maintenance_actions")
+      send_action("device_maintenance_claim", **attributes)
+      assert_response :unprocessable_entity
+
+      other = create_user
+      post session_path, params: { email_address: other.email_address, password: PASSWORD }
+      post consent_to_device_recovery_it_service_requests_path, params: { device_id: @device.id, action_id: recovery.id }
+      assert_response :not_found
+      assert_nil recovery.reload.owner_consented_at
+
+      post session_path, params: { email_address: owner.email_address, password: PASSWORD }
+      post consent_to_device_recovery_it_service_requests_path, params: { device_id: @device.id, action_id: recovery.id }
+      assert_redirected_to it_service_requests_path
+      assert_not_nil recovery.reload.owner_consented_at
+
+      send_action("device_heartbeat")
+      offered = response.parsed_body.fetch("maintenance_actions").sole
+      assert_equal recovery.id, offered.fetch("id")
+      assert_not_includes offered.values, digest
+      send_action("device_maintenance_report", **attributes, result: { status: "restored", sha256: digest })
+      assert_response :unprocessable_entity
+
+      send_action("device_maintenance_claim", **attributes.merge(nonce: "x" * 48))
+      assert_response :unprocessable_entity
+      send_action("device_maintenance_claim", **attributes)
+      assert_response :success
+      send_action("device_maintenance_claim", **attributes)
+      assert_response :unprocessable_entity
+
+      send_action("device_maintenance_report", **attributes, result: { status: "verified", sha256: digest })
+      assert_response :unprocessable_entity
+      send_action("device_maintenance_report", **attributes, result: { status: "restored", sha256: digest })
+      assert_response :success
+      assert_equal "verified", recovery.reload.result.fetch("status")
+      send_action("device_maintenance_report", **attributes, result: { status: "restored", sha256: digest })
+      assert_response :unprocessable_entity
+    end
+  end
+
+  test "unexpected restored bytes remain a mismatch" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    send_action("device_enroll")
+    @device.update!(owner: owner, managed_monitoring_enabled: true)
+    start = 1.hour.from_now.change(usec: 0)
+    recovery = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+      code: "verify_backup_recovery", scheduled_at: start.iso8601, expected_recovery_digest: "a" * 64)
+    ItServices::EndpointMaintenance.consent_to_recovery!(device: @device, action_id: recovery.id, actor: owner)
+    attributes = { action_id: recovery.id, nonce: recovery.request_nonce }
+
+    travel_to start do
+      send_action("device_maintenance_claim", **attributes)
+      assert_response :success
+      send_action("device_maintenance_report", **attributes, result: { status: "restored", sha256: "b" * 64 })
+      assert_response :success
+      assert_equal "mismatch", recovery.reload.result.fetch("status")
+    end
+  end
+
   private
 
   def create_user(role: "client")

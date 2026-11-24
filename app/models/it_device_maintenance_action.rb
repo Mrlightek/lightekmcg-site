@@ -1,5 +1,7 @@
 class ItDeviceMaintenanceAction < ApplicationRecord
-  ACTIONS = %w[refresh_inventory check_patch_status check_backup_status check_endpoint_protection].freeze
+  RECOVERY_CHECK = "verify_backup_recovery".freeze
+  RECOVERY_DIGEST = /\A[0-9a-f]{64}\z/
+  ACTIONS = %w[refresh_inventory check_patch_status check_backup_status check_endpoint_protection verify_backup_recovery].freeze
   STATUSES = %w[approved reported expired cancelled].freeze
   belongs_to :network_managed_device
   belongs_to :owner, class_name: "User"
@@ -8,14 +10,25 @@ class ItDeviceMaintenanceAction < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :request_nonce, presence: true, uniqueness: true
   validates :expires_at, presence: true
+  validates :expected_recovery_digest, format: { with: RECOVERY_DIGEST }, if: :recovery_check?
   validate :owner_matches_device
 
   def display_status(now: Time.current)
     return status unless status == "approved"
     return "expired" if expires_at <= now
+    return "awaiting_customer_consent" if recovery_check? && !owner_consented_at?
     return "scheduled" if starts_at && starts_at > now
+    return "running" if claimed_at?
 
     "awaiting_report"
+  end
+
+  def recovery_check?
+    action_code == RECOVERY_CHECK
+  end
+
+  def cancellable?
+    %w[awaiting_customer_consent scheduled awaiting_report running].include?(display_status)
   end
 
   def owner_matches_device

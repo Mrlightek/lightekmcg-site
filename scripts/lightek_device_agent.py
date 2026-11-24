@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Lightek opt-in cross-platform device reporting agent (Python 3 stdlib).
-
-No remote shell, software installation, backup restoration or arbitrary commands.
-Only the explicit read-only maintenance action allowlist can be processed.
-"""
+"""Lightek opt-in device reporting and bounded backup sample recovery."""
 import ctypes
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
+from pathlib import Path
 import platform
 import shutil
 import subprocess
@@ -17,6 +15,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
+import zlib
+
+
+RECOVERY_SAMPLE = "lightek-recovery-canary.bin"
+MAX_SAMPLE_BYTES = 64 * 1024
+MAX_BACKUP_ARCHIVE_BYTES = 16 * 1024 * 1024
 
 
 def cpu_sample(interval=0.2):
@@ -146,9 +151,38 @@ def read_only_check(code):
     return None
 
 
+def verify_backup_recovery():
+    """Recover one configured ZIP member into memory and measure its digest."""
+    unavailable = {"status": "unavailable"}
+    configured = os.environ.get("LIGHTEK_RECOVERY_ARCHIVE")
+    if not configured:
+        return unavailable
+    try:
+        archive = Path(configured)
+        if (not archive.is_absolute() or not archive.is_file()
+                or archive.stat().st_size > MAX_BACKUP_ARCHIVE_BYTES):
+            return unavailable
+        with zipfile.ZipFile(archive) as backup:
+            entries = [item for item in backup.infolist() if item.filename == RECOVERY_SAMPLE]
+            if len(entries) != 1:
+                return unavailable
+            item = entries[0]
+            if (not 0 < item.file_size <= MAX_SAMPLE_BYTES
+                    or item.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)):
+                return unavailable
+            with backup.open(item) as sample:
+                restored = sample.read(MAX_SAMPLE_BYTES + 1)
+            if len(restored) != item.file_size:
+                return unavailable
+            return {"status": "restored", "sha256": hashlib.sha256(restored).hexdigest()}
+    except (EOFError, OSError, RuntimeError, ValueError, zipfile.BadZipFile, zlib.error):
+        return unavailable
+
+
 def report():
+    identifier = os.environ["LIGHTEK_DEVICE_IDENTIFIER"]
     heartbeat = post({"method_type": "device_heartbeat",
-        "identifier": os.environ["LIGHTEK_DEVICE_IDENTIFIER"],
+        "identifier": identifier,
         "health_telemetry": collect()})
     for action in heartbeat.get("maintenance_actions", [])[:10]:
         if not isinstance(action, dict):
@@ -163,12 +197,22 @@ def report():
                 continue
         except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
             continue
-        result = read_only_check(action.get("code"))
+        credentials = {"identifier": identifier, "action_id": action["id"], "nonce": action["nonce"]}
+        if action.get("code") == "verify_backup_recovery":
+            try:
+                claim = post({"method_type": "device_maintenance_claim", **credentials})
+            except urllib.error.HTTPError as error:
+                if error.code in (403, 404, 422):
+                    continue
+                raise
+            if claim.get("action_id") != action["id"] or expires_at <= datetime.now(timezone.utc):
+                continue
+            result = verify_backup_recovery()
+        else:
+            result = read_only_check(action.get("code"))
         if result is None:
             continue
-        post({"method_type": "device_maintenance_report",
-            "identifier": os.environ["LIGHTEK_DEVICE_IDENTIFIER"],
-            "action_id": action["id"], "nonce": action["nonce"], "result": result})
+        post({"method_type": "device_maintenance_report", **credentials, "result": result})
     return heartbeat
 
 

@@ -1,4 +1,4 @@
-<h2>Device check history</h2>
+<h2>Device maintenance history</h2>
 <% if actions.empty? %>
   <p>No checks scheduled or reported.</p>
 <% else %>
@@ -32,7 +32,11 @@
             <% end %>
           </td>
           <td>
-            <% if %w[scheduled awaiting_report].include?(status) %>
+            <% if status == "awaiting_customer_consent" && recovery_consent_path %>
+              <%= button_to "Authorize backup sample recovery", recovery_consent_path, method: :post,
+                params: { device_id: action.network_managed_device_id, action_id: action.id } %>
+            <% end %>
+            <% if action.cancellable? %>
               <%= button_to "Cancel check", cancel_path, method: :post,
                 params: { device_id: action.network_managed_device_id, action_id: action.id } %>
             <% end %>

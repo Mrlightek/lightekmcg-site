@@ -1,9 +1,8 @@
-# Lightek managed-device agent (Linux pilot)
+# Lightek managed-device agent
 
-This is an **opt-in, read-only reporting pilot**, not a remote control agent.
-It samples Linux CPU (/proc/stat), memory (/proc/meminfo) and root filesystem
-capacity. It does **not** scan for malware, verify backups, inspect patch state,
-run remote commands, or prove compliance.
+The agent provides opt-in device monitoring, approved maintenance checks, and
+backup sample recovery verification. Keep it under a dedicated local account
+with read access to the data necessary for its configured checks.
 
 ## Prerequisites
 
@@ -22,7 +21,8 @@ not in a shared shell history or a public file:
 - `LIGHTEK_DEVICE_IDENTIFIER` — the registered device identifier
 - `LIGHTEK_DEVICE_TOKEN` — the private device enrollment token
 
-Run `python3 scripts/lightek_device_agent.py` on the enrolled Linux device.
+Run `python3 scripts/lightek_device_agent.py` on the enrolled device. On
+Windows, use `py -3 scripts/lightek_device_agent.py`.
 Schedule it with the device's local service manager only after confirming
 customer authorization and a secure secrets store. The server heartbeat
 timeout is five minutes; a reporting interval shorter than that is necessary
@@ -60,8 +60,22 @@ cancels pending checks and clears retained telemetry. Cancellation prevents
 future delivery and report acceptance. A read-only probe that already started
 on the device may finish locally.
 
-**Not supported yet:** OS patch installation, malware removal, verified backup
-restoration, macOS MDM, Windows MDM, device enrollment installers, and
-production cross-platform validation. Those require OS-specific privilege
-brokers and real customer consent/entitlement checks. No generic remote shell
-is provided.
+## Backup sample recovery
+
+1. Put a non-sensitive, nonempty sample of at most 64 KiB in the configured
+   backup with the root-level member name `lightek-recovery-canary.bin`.
+   Record its SHA-256 from the original trusted bytes before making the backup.
+2. Make that ZIP backup available to the agent at a locally configured absolute
+   path in `LIGHTEK_RECOVERY_ARCHIVE`. Use a dedicated archive up to 16 MiB
+   with a stored or deflated member. Grant the agent only read access.
+3. In the operator Dashboard, schedule **Verify backup recovery** and enter the
+   expected SHA-256. The device owner authorizes the scheduled test in their IT
+   support history. Each test requires separate consent.
+4. Gatekeeper issues the approved action during its window and accepts one
+   claim. The endpoint restores the configured member into memory and reports
+   its measured digest. Gatekeeper compares the digest with the operator's
+   reference and records **Verified**, **Mismatch**, or **Unavailable**.
+
+A verified result covers the configured sample from that archive. Full-system
+recovery, live data restoration, OS patch deployment, malware removal, MDM,
+and device installers require additional providers and validation.

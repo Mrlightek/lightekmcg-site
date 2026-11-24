@@ -16,7 +16,8 @@ class Dashboard::ItManagedDeviceIncidentsController < ApplicationController
   def approve_check
     device = NetworkManagedDevice.find(params.require(:id))
     action = ItServices::EndpointMaintenance.approve!(
-      device: device, actor: current_user, code: params.require(:code), scheduled_at: params[:scheduled_at])
+      device: device, actor: current_user, code: params.require(:code), scheduled_at: params[:scheduled_at],
+      expected_recovery_digest: params[:expected_recovery_digest])
     redirect_to dashboard_it_managed_device_incidents_path,
       notice: "Approved #{action.action_code.humanize} for device ##{device.id} starting #{action.starts_at.utc.iso8601}."
   rescue ArgumentError, ActionController::ParameterMissing, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound => error

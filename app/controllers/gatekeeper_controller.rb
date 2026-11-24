@@ -15,7 +15,7 @@ class GatekeeperController < ApplicationController
   def content = render(json: @experience.content(params[:id]))
   def live = render(json: @experience.home(live: true))
   def search = render(json: @experience.home(query: params[:q].presence || params[:query]))
-  def permitted_actions = %w[device_enroll device_heartbeat device_maintenance_report]
+  def permitted_actions = %w[device_enroll device_heartbeat device_maintenance_claim device_maintenance_report]
   def request_error_message = {error: "Invalid or unauthorized method type"}
   # Explicit Gatekeeper device API dispatcher. Never dynamically dispatch arbitrary
   # controller methods supplied by the client.
@@ -66,6 +66,11 @@ class GatekeeperController < ApplicationController
       rescue ArgumentError, ActionController::ParameterMissing => error
         render json: { error: error.message }, status: :unprocessable_entity
       end
+    when "device_maintenance_claim"
+      action_id = Integer(params.require(:action_id))
+      record = ItServices::EndpointMaintenance.claim_recovery!(device: device,
+        action_id: action_id, nonce: params.require(:nonce).to_s)
+      render json: { ok: true, action_id: record.id }
     when "device_heartbeat"
       return render json: { error: "Enrollment required" }, status: :forbidden unless device.enrolled_at?
       return render json: { error: "Device is not active" }, status: :forbidden unless %w[active offline].include?(device.status)

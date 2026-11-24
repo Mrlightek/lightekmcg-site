@@ -1,7 +1,7 @@
 class ItServiceRequestsController < ApplicationController
-  protect_from_forgery with: :exception, only: %i[managed_device_monitoring cancel_device_check]
+  protect_from_forgery with: :exception, only: %i[managed_device_monitoring cancel_device_check consent_to_device_recovery]
   before_action :require_customer!
-  before_action :require_direct_customer_session!, only: %i[managed_device_monitoring cancel_device_check]
+  before_action :require_direct_customer_session!, only: %i[managed_device_monitoring cancel_device_check consent_to_device_recovery]
 
   def index
     @requests = ItServiceRequest.where(user: current_user).order(created_at: :desc).limit(100)
@@ -61,6 +61,15 @@ class ItServiceRequestsController < ApplicationController
     ItServices::EndpointMaintenance.cancel!(device: device, action_id: params.require(:action_id),
       actor: current_user, owner_only: true)
     redirect_to it_service_requests_path, notice: "Device check cancelled."
+  rescue ArgumentError, ActionController::ParameterMissing => error
+    redirect_to it_service_requests_path, alert: error.message
+  end
+
+  def consent_to_device_recovery
+    device = NetworkManagedDevice.where(owner_id: current_user.id).find(params.require(:device_id))
+    ItServices::EndpointMaintenance.consent_to_recovery!(device: device, action_id: params.require(:action_id),
+      actor: current_user)
+    redirect_to it_service_requests_path, notice: "Backup recovery verification authorized."
   rescue ArgumentError, ActionController::ParameterMissing => error
     redirect_to it_service_requests_path, alert: error.message
   end

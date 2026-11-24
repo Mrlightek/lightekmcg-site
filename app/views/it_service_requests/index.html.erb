@@ -15,7 +15,8 @@
       </div>
     <% end %>
     <%= render "shared/it_device_maintenance_history", actions: @maintenance_actions,
-      cancel_path: cancel_device_check_it_service_requests_path, show_operator: false %>
+      cancel_path: cancel_device_check_it_service_requests_path,
+      recovery_consent_path: consent_to_device_recovery_it_service_requests_path, show_operator: false %>
   </section>
   <% if @requests.empty? %><p>No IT support requests yet.</p><% end %>
   <% @requests.each do |request| %>

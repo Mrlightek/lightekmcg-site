@@ -7,9 +7,13 @@ module ItServices
     WINDOW_LENGTH = 10.minutes
     MAX_SCHEDULE_AHEAD = 30.days
 
-    def self.approve!(device:, actor:, code:, scheduled_at: nil)
+    def self.approve!(device:, actor:, code:, scheduled_at: nil, expected_recovery_digest: nil)
       raise ArgumentError, "Unsupported action" unless ItDeviceMaintenanceAction::ACTIONS.include?(code)
       require_operator!(actor)
+      recovery_check = code == ItDeviceMaintenanceAction::RECOVERY_CHECK
+      if recovery_check && (scheduled_at.blank? || !expected_recovery_digest.is_a?(String))
+        raise ArgumentError, "Recovery verification requires a scheduled time and an expected SHA-256 digest"
+      end
       device.with_lock do
         raise ArgumentError, "Customer monitoring consent required" unless available?(device)
         now = Time.current
@@ -19,7 +23,8 @@ module ItServices
         ItDeviceMaintenanceAction.create!(
           network_managed_device: device, owner_id: device.owner_id, approved_by: actor,
           action_code: code, status: "approved", request_nonce: SecureRandom.hex(24),
-          starts_at: starts_at, expires_at: starts_at + WINDOW_LENGTH
+          starts_at: starts_at, expires_at: starts_at + WINDOW_LENGTH,
+          expected_recovery_digest: (expected_recovery_digest.strip.downcase if recovery_check)
         )
       end
     end
@@ -34,9 +39,21 @@ module ItServices
           require_operator!(actor)
         end
         action = owned_actions(device).find(action_id)
-        raise ArgumentError, "Action is no longer awaiting a report" unless
-          %w[scheduled awaiting_report].include?(action.display_status)
+        raise ArgumentError, "Action can no longer be cancelled" unless action.cancellable?
         action.update!(status: "cancelled")
+        action
+      end
+    end
+
+    def self.consent_to_recovery!(device:, action_id:, actor:)
+      device.with_lock do
+        raise ActiveRecord::RecordNotFound unless actor&.persisted? && actor.id == device.owner_id
+        raise ArgumentError, "Customer monitoring consent required" unless available?(device)
+        action = owned_actions(device).find(action_id)
+        unless action.display_status == "awaiting_customer_consent"
+          raise ArgumentError, "Recovery verification is no longer awaiting consent"
+        end
+        action.update!(owner_consented_at: Time.current)
         action
       end
     end
@@ -46,28 +63,64 @@ module ItServices
 
       owned_actions(device).where(status: "approved").where("expires_at > ?", now)
         .where("starts_at IS NULL OR starts_at <= ?", now)
+        .where(claimed_at: nil)
+        .where("action_code != ? OR owner_consented_at IS NOT NULL", ItDeviceMaintenanceAction::RECOVERY_CHECK)
         .order(:expires_at, :id).limit(10).map do |action|
         { id: action.id, code: action.action_code, nonce: action.request_nonce,
           expires_at: action.expires_at.iso8601 }
       end
     end
 
-    def self.report!(device:, action_id:, nonce:, result:)
-      raise ArgumentError, "Invalid result" unless result.is_a?(Hash) &&
-        result.keys.map(&:to_s).sort == ["observation", "status"] &&
-        %w[ok warning unavailable].include?(result["status"] || result[:status]) &&
-        (result["observation"] || result[:observation]).is_a?(String) &&
-        (result["observation"] || result[:observation]).length <= 500
+    def self.claim_recovery!(device:, action_id:, nonce:)
       device.with_lock do
         raise ArgumentError, "Consent revoked or device unavailable" unless available?(device)
         action = owned_actions(device).find(action_id)
-        action.with_lock do
-          raise ArgumentError, "Action not pending or expired" unless action.display_status == "awaiting_report" &&
-            ActiveSupport::SecurityUtils.secure_compare(action.request_nonce, nonce.to_s)
-          action.update!(status: "reported", reported_at: Time.current, result: result)
+        unless action.recovery_check? && action.display_status == "awaiting_report" &&
+          ActiveSupport::SecurityUtils.secure_compare(action.request_nonce, nonce.to_s)
+          raise ArgumentError, "Recovery verification cannot be claimed"
         end
+        action.update!(claimed_at: Time.current)
         action
       end
+    end
+
+    def self.report!(device:, action_id:, nonce:, result:)
+      raise ArgumentError, "Invalid result" unless result.is_a?(Hash)
+      device.with_lock do
+        raise ArgumentError, "Consent revoked or device unavailable" unless available?(device)
+        action = owned_actions(device).find(action_id)
+        expected_status = action.recovery_check? ? "running" : "awaiting_report"
+        raise ArgumentError, "Action not pending or expired" unless action.display_status == expected_status &&
+          ActiveSupport::SecurityUtils.secure_compare(action.request_nonce, nonce.to_s)
+        evidence = action.recovery_check? ? verified_recovery_result(action, result) : check_result(result)
+        action.update!(status: "reported", reported_at: Time.current, result: evidence)
+        action
+      end
+    end
+
+    def self.check_result(result)
+      data = result.stringify_keys
+      raise ArgumentError, "Invalid result" unless result.size == 2 && data.keys.sort == %w[observation status] &&
+        %w[ok warning unavailable].include?(data["status"]) && data["observation"].is_a?(String) &&
+        data["observation"].length <= 500
+
+      data
+    end
+
+    def self.verified_recovery_result(action, result)
+      data = result.stringify_keys
+      if result.size == 1 && data == { "status" => "unavailable" }
+        return { "status" => "unavailable", "observation" => "The endpoint could not read the configured backup sample." }
+      end
+      digest = data["sha256"]
+      unless result.size == 2 && data.keys.sort == %w[sha256 status] && data["status"] == "restored" &&
+        digest.is_a?(String) && ItDeviceMaintenanceAction::RECOVERY_DIGEST.match?(digest)
+        raise ArgumentError, "Invalid recovery evidence"
+      end
+
+      matched = ActiveSupport::SecurityUtils.secure_compare(action.expected_recovery_digest, digest)
+      { "status" => matched ? "verified" : "mismatch", "sha256" => digest,
+        "observation" => matched ? "Restored backup sample matched the expected digest." : "Restored backup sample did not match the expected digest." }
     end
 
     def self.available?(device)
@@ -91,6 +144,7 @@ module ItServices
 
       Time.iso8601(value)
     end
-    private_class_method :available?, :owned_actions, :require_operator!, :parse_schedule
+    private_class_method :available?, :owned_actions, :require_operator!, :parse_schedule, :check_result,
+      :verified_recovery_result
   end
 end

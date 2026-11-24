@@ -8,6 +8,8 @@ module LightekMail
 
     has_many :drive_holds, class_name: "LightekWorkspace::DiscoveryDriveHold", inverse_of: :matter
 
+    has_many :channel_holds, class_name: "LightekTeam::DiscoveryChannelHold", inverse_of: :matter
+
     validates :name, presence: true, length: {maximum: 100}
   end
 end

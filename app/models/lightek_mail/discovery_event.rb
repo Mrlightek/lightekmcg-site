@@ -4,6 +4,7 @@ module LightekMail
 
     belongs_to :employer, class_name: "User"
     belongs_to :drive, class_name: "LightekWorkspace::Drive", optional: true
+    belongs_to :channel, class_name: "LightekTeam::Channel", optional: true
     belongs_to :actor, class_name: "User", optional: true
     belongs_to :matter, class_name: "LightekMail::Matter", optional: true
     belongs_to :account, class_name: "LightekMail::Account", optional: true

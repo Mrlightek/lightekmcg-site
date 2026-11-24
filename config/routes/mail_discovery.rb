@@ -13,4 +13,9 @@ scope "/dashboard/workspace/mail-discovery", controller: "dashboard/mail_discove
   delete "/matters/:id/drives", action: :release_drive, as: :release_dashboard_discovery_drive
   post "/matters/:id/drives/search", action: :search_drive, as: :search_dashboard_discovery_drive
   post "/matters/:id/drives/export", action: :export_drive, as: :export_dashboard_discovery_drive
+  post "/drive-retention", action: :update_drive_retention, as: :dashboard_discovery_drive_retention
+  post "/matters/:id/channels", action: :hold_channel, as: :hold_dashboard_discovery_channel
+  delete "/matters/:id/channels", action: :release_channel, as: :release_dashboard_discovery_channel
+  post "/matters/:id/channels/search", action: :search_channel, as: :search_dashboard_discovery_channel
+  post "/matters/:id/channels/export", action: :export_channel, as: :export_dashboard_discovery_channel
 end

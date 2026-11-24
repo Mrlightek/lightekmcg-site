@@ -5,7 +5,7 @@
   <header class="mail-header">
     <div>
       <h1>Workspace discovery</h1>
-      <p class="muted">Preserve workspace mail and Shared Drive files for review.</p>
+      <p class="muted">Preserve workspace mail, Shared Drive files, and Team Chat messages for review.</p>
     </div>
   </header>
   <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
@@ -53,6 +53,8 @@
       <% end %>
     </section>
   <% end %>
+
+  <% if @retention_drives %><%= render "drive_retention" %><% end %>
 
   <section class="conversation-stack" aria-labelledby="mail-matters">
     <h2 id="mail-matters">Matters</h2>

@@ -40,7 +40,6 @@ ActiveRecord::Schema.define do
     t.references :worker
     t.boolean :active, default: true
   end
-  create_table(:lightek_team_channels) { |table| table.references :employer, null: false }
   create_table(:lightek_office_files) do |table|
     table.references :channel, null: false, foreign_key: {to_table: :lightek_team_channels}
     table.references :creator, null: false, foreign_key: {to_table: :users}
@@ -73,14 +72,19 @@ ActiveRecord::Schema.define do
 end
 
 %w[20261026150000_create_lightek_mail_studio 20261113140000_add_lightek_mailbox_management
+   20261122190000_create_executive_agenda_and_team_chat 20261122191000_add_shared_team_channels
    20261122196000_add_shared_workspace 20261123090000_add_office_files_to_shared_drives
-   20261123170000_add_mail_discovery 20261123173000_add_discovery_drive_holds].each { |migration| require File.join(ROOT, "db/migrate", migration) }
+   20261123170000_add_mail_discovery 20261123173000_add_discovery_drive_holds
+   20261124065000_add_chat_discovery_and_drive_retention].each { |migration| require File.join(ROOT, "db/migrate", migration) }
 CreateLightekMailStudio.new.migrate(:up)
 AddLightekMailboxManagement.new.migrate(:up)
+CreateExecutiveAgendaAndTeamChat.new.migrate(:up)
+AddSharedTeamChannels.new.migrate(:up)
 AddSharedWorkspace.new.migrate(:up)
 AddOfficeFilesToSharedDrives.new.migrate(:up)
 AddMailDiscovery.new.migrate(:up)
 AddDiscoveryDriveHolds.new.migrate(:up)
+AddChatDiscoveryAndDriveRetention.new.migrate(:up)
 
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
@@ -125,7 +129,9 @@ end
    models/lightek_workspace/drive models/lightek_workspace/drive_entry models/lightek_workspace/drive_member
    models/lightek_workspace/discovery_drive_hold models/lightek_office/shared_file models/lightek_office/revision
    services/lightek_office/content services/lightek_office/document services/lightek_office/changes
-   services/lightek_workspace/drive_discovery controllers/dashboard/team_office_controller jobs/application_job jobs/lightek_mail/expire_retained_mail_job].each do |path|
+   models/lightek_team/channel models/lightek_team/message models/lightek_team/partnership
+   models/lightek_team/discovery_channel_hold services/lightek_team/chat_discovery
+   services/lightek_workspace/drive_retention services/lightek_workspace/drive_discovery controllers/dashboard/team_office_controller jobs/application_job jobs/lightek_mail/expire_retained_mail_job jobs/lightek_workspace/expire_drive_revisions_job].each do |path|
   require File.join(ROOT, "app", path)
 end
 Dashboard::MailDiscoveryController.prepend_view_path(File.join(ROOT, "app/views"))
@@ -347,6 +353,100 @@ class MailDiscoveryChecks < ActionDispatch::IntegrationTest
     delete release_dashboard_discovery_drive_path(second_matter), params: {drive_id: drive.id}, headers: as(@owner)
     assert_response :see_other
     assert revision.destroy!
+  end
+
+  def test_internal_chat_hold_search_export_and_release
+    channel = LightekTeam::Channel.create!(employer: @owner, creator: @owner, name: "internal-records")
+    empty = LightekTeam::Channel.create!(employer: @owner, creator: @owner, name: "empty-room")
+    shared = LightekTeam::Channel.create!(employer: @owner, creator: @owner, name: "partner-records")
+    shared.create_partnership!(partner: @outsider, closed_at: Time.current)
+    message = channel.messages.create!(author: @owner, body: "Purchase receipt", request_key: SecureRandom.uuid)
+    channel.messages.create!(author: @owner, body: "Other note", request_key: SecureRandom.uuid)
+    channel.messages.create!(author: @owner, body: "Older receipt", request_key: SecureRandom.uuid, created_at: 2.days.ago)
+    matter = create_matter
+    query = {channel_id: channel.id, chat_discovery_query: "receipt",
+      chat_from: Date.current.iso8601, chat_through: Date.current.iso8601}
+
+    post hold_dashboard_discovery_channel_path(matter), params: {channel_id: shared.id}, headers: as(@owner)
+    assert_response :not_found
+    post hold_dashboard_discovery_channel_path(matter), params: {channel_id: channel.id}, headers: as(@owner)
+    assert_response :see_other
+    post hold_dashboard_discovery_channel_path(matter), params: {channel_id: empty.id}, headers: as(@owner)
+    assert_response :see_other
+    assert_raises(ActiveRecord::RecordNotDestroyed) { empty.destroy! }
+    refute message.update(body: "Replacement")
+    assert_raises(ActiveRecord::RecordNotDestroyed) { message.destroy! }
+
+    post grant_dashboard_mail_matter_path(matter), params: {reviewer_id: @reviewer.id}, headers: as(@owner)
+    assert_response :see_other
+    post search_dashboard_discovery_channel_path(matter), params: query, headers: as(@reviewer)
+    assert_response :success
+    assert_includes response.body, "Purchase receipt"
+    refute_includes response.body, "Older receipt"
+    refute_includes response.body, "Other note"
+    refute_includes response.body, "partner-records"
+
+    post export_dashboard_discovery_channel_path(matter), params: query, headers: as(@reviewer)
+    assert_response :success
+    checksum = Digest::SHA256.hexdigest(response.body.b)
+    Zip::File.open_buffer(StringIO.new(response.body.b)) do |zip|
+      metadata = JSON.parse(zip.read("manifest.json")).fetch("messages")
+      payload = zip.read(metadata.fetch("path"))
+      assert_equal checksum, LightekMail::DiscoveryEvent.find_by!(matter: matter, channel: channel, action: "chat_exported").details.fetch("sha256")
+      assert_equal Digest::SHA256.hexdigest(payload), metadata.fetch("sha256")
+      assert_equal "Purchase receipt", JSON.parse(payload).sole.fetch("body")
+    end
+    post export_dashboard_discovery_channel_path(matter), params: query, headers: as(@outsider)
+    assert_response :not_found
+    post export_dashboard_discovery_channel_path(matter), params: query.merge(channel_id: shared.id), headers: as(@reviewer)
+    assert_response :not_found
+    delete release_dashboard_discovery_channel_path(matter), params: {channel_id: channel.id}, headers: as(@reviewer)
+    assert_response :forbidden
+    delete release_dashboard_discovery_channel_path(matter), params: {channel_id: channel.id}, headers: as(@owner)
+    assert_response :see_other
+    post export_dashboard_discovery_channel_path(matter), params: query, headers: as(@reviewer)
+    assert_response :not_found
+    assert message.destroy!
+  end
+
+  def test_drive_revision_retention_previews_and_expires_only_unheld_history
+    drive = LightekWorkspace::Drive.create!(employer: @owner, name: "Retention Drive")
+    entry = drive.entries.build(creator: @owner, folder: false, name: "Current brief")
+    file = entry.build_office_file(creator: @owner, editor: @owner, title: entry.name, content: "Current", kind: "document")
+    entry.save!
+    history = LightekOffice::Changes.revisions(file)
+    older = history.create!(title: "Older", version: 1, content: "Old text", rich_text: false, editor_name: "Owner", created_at: 15.days.ago)
+    recent = history.create!(title: "Recent", version: 2, content: "Recent text", rich_text: false, editor_name: "Owner")
+    matter = create_matter
+    rule = {drive_id: drive.id, days: "7"}
+
+    post dashboard_discovery_drive_retention_path, params: rule.merge(operation: "preview"), headers: as(@owner)
+    assert_response :success
+    assert_includes response.body, "1 earlier version"
+    assert_nil drive.reload.revision_retention_days
+    post dashboard_discovery_drive_retention_path, params: rule.merge(operation: "save", days: "7.5"), headers: as(@owner)
+    assert_response :see_other
+    assert_nil drive.reload.revision_retention_days
+    post dashboard_discovery_drive_retention_path, params: rule.merge(operation: "save"), headers: as(@outsider)
+    assert_response :not_found
+    post dashboard_discovery_drive_retention_path, params: rule.merge(operation: "save"), headers: as(@owner)
+    assert_response :see_other
+    assert_equal 7, drive.reload.revision_retention_days
+
+    post hold_dashboard_discovery_drive_path(matter), params: {drive_id: drive.id}, headers: as(@owner)
+    assert_response :see_other
+    LightekWorkspace::ExpireDriveRevisionsJob.perform_now
+    assert history.exists?(older.id)
+    delete release_dashboard_discovery_drive_path(matter), params: {drive_id: drive.id}, headers: as(@owner)
+    assert_response :see_other
+    LightekWorkspace::ExpireDriveRevisionsJob.perform_now
+    refute history.exists?(older.id)
+    assert history.exists?(recent.id)
+    assert_equal "Current", file.reload.content
+    assert_equal 1, LightekMail::DiscoveryEvent.find_by!(drive: drive, action: "drive_revisions_expired").result_count
+    post dashboard_discovery_drive_retention_path, params: rule.merge(operation: "remove"), headers: as(@owner)
+    assert_response :see_other
+    assert_nil drive.reload.revision_retention_days
   end
 
   private

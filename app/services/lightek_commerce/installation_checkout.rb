@@ -15,6 +15,10 @@ module LightekCommerce
           raise Invalid, "Checkout product mismatch" unless order.items.one? && order.items.first.product_id == product.id && order.items.first.quantity == 1
           return order
         end
+        if defined?(LightekCommunications::FullPackage) &&
+            LightekCommunications::FullPackage.where(buyer_id: actor.id, order_id: Order.where(status: "pending_payment").select(:id)).exists?
+          raise Invalid, "Resume or close your pending CMS package checkout first."
+        end
         order = OrderPlacement.call(site: product.site, customer_email: actor.email_address, quantities: {product.id.to_s => 1}, buyer: actor)
         order.update!(client_checkout_key: checkout_key)
         order

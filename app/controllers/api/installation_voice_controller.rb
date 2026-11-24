@@ -15,6 +15,11 @@ class Api::InstallationVoiceController < Api::ReservationFederationController
     render json: LightekCommunications::InstallationVoice.new(@peer).device!
   end
 
+  def cellular_activation
+    response.headers["Cache-Control"] = "private, no-store"
+    render json: LightekCommunications::InstallationVoice.new(@peer).cellular_activation!
+  end
+
   def checkout
     return head :payload_too_large if request.content_length.to_i > 3.megabytes
 

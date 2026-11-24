@@ -8,6 +8,14 @@ module LightekCommerce
 
     VOICE_PLAN_SLUG = /\Alightek-voice(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\z/
 
+    def full_communications_package?
+      product_type == "lightek_instance" && slug.to_s.start_with?("lightek-cms-bundle-")
+    end
+
+    def cellular_voice_bundle?
+      slug.to_s.start_with?("lightek-voice-bundle-") && communications_kind == "voice"
+    end
+
     def communications_kind
       kind = VOICE_PLAN_SLUG.match?(slug.to_s) ? "voice" : COMMUNICATIONS_SLUGS[slug]
       return unless kind && product_type == "service" && billing_interval.in?(%w[month year])

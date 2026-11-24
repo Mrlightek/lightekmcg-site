@@ -54,6 +54,13 @@ module LightekCommerce
       if event.type == "invoice.paid" && defined?(LightekCommunications::VoiceProvisioningJob)
         LightekCommunications::VoiceProvisioningJob.enqueue_paid!(subscription.order)
       end
+      if event.type == "invoice.paid" && defined?(LightekCommunications::CellularBundleJob)
+        LightekCommunications::CellularBundleJob.enqueue_paid!(subscription.order)
+      end
+      if event.type == "invoice.paid" && defined?(LightekCommunications::FullPackageJob)
+        order = subscription.order
+        LightekCommunications::FullPackageJob.enqueue!(order) if order.provisioned_at?
+      end
       subscription
     end
 

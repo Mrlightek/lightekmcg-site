@@ -1,0 +1,14 @@
+<%= fields_for :number_request do |number| %>
+  <fieldset>
+    <legend>Choose your phone number</legend>
+    <%= number.radio_button :option, "new", required: true %>
+    <%= number.label :option, "Get a new number", value: "new" %>
+    <%= number.label :area_code, "Preferred US area code" %>
+    <%= number.text_field :area_code, inputmode: "numeric", maxlength: 3, pattern: "[2-9][0-9]{2}" %>
+    <%= number.radio_button :option, "port", required: true %>
+    <%= number.label :option, "Keep my existing number", value: "port" %>
+    <%= number.label :phone_number, "US business landline to transfer" %>
+    <%= number.telephone_field :phone_number, maxlength: 30 %>
+    <p>Keep your current service active until the transfer completes.</p>
+  </fieldset>
+<% end %>

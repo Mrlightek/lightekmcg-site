@@ -87,6 +87,8 @@ module LightekCommerce
       LightekReservations::Settlement.for_order!(order)
       LightekCommunications::VoiceProvisioningJob.enqueue_paid!(order) if session.mode == "subscription" &&
         defined?(LightekCommunications::VoiceProvisioningJob)
+      LightekCommunications::CellularBundleJob.enqueue_paid!(order) if session.mode == "subscription" &&
+        defined?(LightekCommunications::CellularBundleJob)
       order
     end
   end

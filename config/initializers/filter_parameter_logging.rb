@@ -42,5 +42,6 @@ Rails.application.config.filter_parameters += %w[brief.recipient brief.email bri
 Rails.application.config.filter_parameters += [:carrier_order]
 
 Rails.application.config.filter_parameters += [:voice_setup]
+Rails.application.config.filter_parameters += [:lpa_activation_code, :qr_png_base64]
 
 Rails.application.config.filter_parameters += [:mail_discovery_query, :mail_matter_name, :drive_discovery_query, :chat_discovery_query]

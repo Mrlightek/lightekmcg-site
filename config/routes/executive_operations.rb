@@ -32,9 +32,11 @@ post '/dashboard/team-network/:operation', to: 'dashboard/network_team#change',
   as: :change_dashboard_network_team, constraints: {operation: /create|accept|disconnect|member|post/}
 
 post '/api/reservations/federation/installation/voice/status', to: 'api/installation_voice#status'
+post '/api/reservations/federation/installation/voice/cellular_activation', to: 'api/installation_voice#cellular_activation'
 post '/api/reservations/federation/installation/voice/device', to: 'api/installation_voice#device'
 post '/api/reservations/federation/installation/voice/checkout', to: 'api/installation_voice#checkout'
 get '/dashboard/voice', to: 'dashboard/installation_voice#show', as: :dashboard_installation_voice
+post '/dashboard/voice/cellular_activation', to: 'dashboard/installation_voice#cellular_activation', as: :dashboard_installation_voice_cellular_activation
 post '/dashboard/voice/device', to: 'dashboard/installation_voice#device', as: :dashboard_installation_voice_device
 post '/dashboard/voice', to: 'dashboard/installation_voice#checkout'
 

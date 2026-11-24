@@ -152,7 +152,10 @@ module LightekCommunications
       return unless item.quantity == 1
 
       snapshot = item.purchase_snapshot.to_h
-      return unless snapshot["product_type"] == "service" && snapshot["billing_interval"].in?(%w[month year])
+      return unless snapshot["billing_interval"].in?(%w[month year])
+      return "voice" if snapshot["product_type"] == "lightek_instance" &&
+        snapshot["cellular_bundle"].present? && defined?(FullPackage) && FullPackage.exists?(order_id: order.id)
+      return unless snapshot["product_type"] == "service"
 
       snapshot["communications_kind"].presence_in(LightekCommerce::Product::COMMUNICATIONS_SLUGS.values)
     rescue ActiveRecord::RecordNotFound, ActiveRecord::SoleRecordExceeded

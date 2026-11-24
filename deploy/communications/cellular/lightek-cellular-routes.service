@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore Lightek cellular routing and forwarding policy
+Wants=network-online.target
+After=network-online.target
+Before=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/add_user_route.sh --restore
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

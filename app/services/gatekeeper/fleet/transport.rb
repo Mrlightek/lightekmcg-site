@@ -36,7 +36,7 @@ module Gatekeeper
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py verify_fleet_backup.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py install_studio_ai.py wordpress_sandbox.py directory_membership.py pwa_backend_transfer.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py verify_fleet_backup.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py install_studio_ai.py wordpress_sandbox.py directory_membership.py pwa_backend_transfer.py install_cellular_tunnel.py].include?(script_name)
         duration = script_name == "install_studio_ai.py" ? 7200 : 1800
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         raise ArgumentError, "Member transfers cannot use the central host" if script_name == "pwa_backend_transfer.py" && node.local?

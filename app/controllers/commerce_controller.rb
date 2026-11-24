@@ -33,6 +33,10 @@ class CommerceController < ApplicationController
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
+    if product.full_communications_package?
+      return redirect_to full_package_installations_path(product_id: product.id), status: :see_other
+    end
+
     quantity = Integer(params.fetch(:quantity, 1).to_s, 10)
     seat_range = Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
     return select_workspace(product, quantity, seat_range) if seat_range

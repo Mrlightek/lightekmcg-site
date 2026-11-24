@@ -42,7 +42,6 @@ timeout 50s runuser -u lightek -- /bin/bash -c '
   source /etc/lightek/lightekmcg-site.env
   set +a
   export PATH=/home/lightek/.rbenv/shims:/usr/local/bin:/usr/bin:/bin
-  export REDIS_URL=redis://127.0.0.1:6379/0
   export LIGHTEK_STUDIO_SIDEKIQ_PID="$1"
   cd "$2"
   exec bundle exec ruby script/studio/verify_queue_consumer.rb

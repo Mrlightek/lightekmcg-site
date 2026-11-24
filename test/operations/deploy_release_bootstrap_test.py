@@ -66,4 +66,47 @@ class ExactCheckoutTest(unittest.TestCase):
             stale=subprocess.run(['bash','-c',prefix],env=dict(env,APP_TARGET_SHA=old),capture_output=True,text=True)
             self.assertNotEqual(stale.returncode,0);self.assertIn('older than the server checkout',stale.stderr)
             self.assertEqual(git(customer,'rev-parse','HEAD'),requested)
+class SidekiqReadinessTest(unittest.TestCase):
+    def check_worker(self, status, checked_pid):
+        source = DEPLOY.read_text()
+        block = source.split('worker_pid=""', 1)[1].split('echo "[cable]', 1)[0]
+        fixture = r"""
+set -euo pipefail
+SIDEKIQ_SERVICE=fixture-sidekiq
+systemctl() {
+    case "$1" in
+        restart|is-active) return 0 ;;
+        show)
+            if [[ "$2" == --property=MainPID ]]; then
+                if [[ -f "$TEST_ROOT/probed" ]]; then echo "$CHECKED_PID"; else echo 123; fi
+            else
+                echo 'Result=oom-kill'
+            fi
+            ;;
+    esac
+}
+run_rails() {
+    [[ "$*" == "timeout 100s env LIGHTEK_STUDIO_SIDEKIQ_PID='123' LIGHTEK_STUDIO_QUEUE_WAIT_SECONDS=90 bundle exec ruby script/studio/verify_queue_consumer.rb" ]]
+    touch "$TEST_ROOT/probed"
+    return "$PROBE_STATUS"
+}
+worker_pid=""
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            env = dict(os.environ, TEST_ROOT=directory, PROBE_STATUS=status, CHECKED_PID=checked_pid)
+            return subprocess.run(["bash", "-c", fixture + block], env=env, capture_output=True, text=True)
+
+    def test_uses_a_lightweight_bounded_probe_for_the_service_pid(self):
+        result = self.check_worker("0", "123")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_fails_closed_with_service_diagnostics(self):
+        for status, checked_pid in (("1", "123"), ("0", "456")):
+            with self.subTest(status=status, checked_pid=checked_pid):
+                result = self.check_worker(status, checked_pid)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("readiness failed for service PID 123", result.stderr)
+                self.assertIn("Result=oom-kill", result.stderr)
+
+
 if __name__=='__main__':unittest.main()

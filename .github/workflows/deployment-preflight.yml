@@ -7,6 +7,8 @@ on:
       - 'app/services/gatekeeper/website_deployment.rb'
       - 'config/schedule.yml'
       - 'config/initializers/sidekiq.rb'
+      - 'script/studio/verify_queue_consumer.rb'
+      - 'test/standalone/studio_queue_readiness_test.rb'
       - 'config/initializers/dymond_site_patch.rb'
       - 'test/standalone/dymond_site_initialization_test.rb'
       - 'test/standalone/database_readiness_test.rb'
@@ -40,6 +42,13 @@ jobs:
           bundle install
           bundle exec ruby test/standalone/sidekiq_cron_dispatch_checks.rb
           bundle exec ruby test/standalone/website_deployment_dispatch_test.rb
+      - name: Verify Sidekiq Studio queue readiness against Redis
+        env:
+          BUNDLE_GEMFILE: test/standalone/scheduler.Gemfile
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y redis-server
+          bundle exec ruby test/standalone/studio_queue_readiness_test.rb
       - name: Verify deployment operation regressions before merge
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile

@@ -22,9 +22,11 @@
           <% unless @staging_provider %>
             <li><%= link_to "Check the existing Linode provider", "/dashboard/infrastructure/providers" %> and confirm it is active and healthy.</li>
           <% end %>
-          <% if @staging_vault.fetch("owner").empty? || @staging_vault.fetch("dns").empty? ||
-              @staging_compute_vault.empty? %>
-            <li><%= link_to "Review the staging Vault entries", "/dashboard/vault" %> for the Linode token, DNS token and staging client password.</li>
+          <% if @staging_compute_vault.empty? %>
+            <li><%= link_to "Add the staging Linode token in Vault", "/dashboard/vault" %>.</li>
+          <% end %>
+          <% if @staging_vault.fetch("owner").empty? %>
+            <li><%= link_to "Add the staging client password in Vault", "/dashboard/vault" %>.</li>
           <% end %>
         </ul>
       </div>
@@ -54,10 +56,6 @@
         <div class="infra-field">
           <%= form.label :compute_vault, "Staging Linode Vault entry" %>
           <%= form.select :compute_vault, @staging_compute_vault, { selected: params[:compute_vault].presence || (@staging_compute_vault.first if @staging_compute_vault.one?), include_blank: true }, required: true %>
-        </div>
-        <div class="infra-field">
-          <%= form.label :dns_vault, "DNS Vault entry" %>
-          <%= form.select :dns_vault, @staging_vault.fetch("dns"), { selected: params[:dns_vault].presence || (@staging_vault.fetch("dns").first if @staging_vault.fetch("dns").one?), include_blank: true }, required: true %>
         </div>
         <div class="infra-field">
           <%= form.label :owner_vault, "Staging client password Vault entry" %>

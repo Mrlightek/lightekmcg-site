@@ -12,9 +12,9 @@ module Gatekeeper
       IMAGE = "linode/ubuntu24.04"
       BUDGET_CENTS = 2400
       METADATA_KEY = "staging_provisioning"
+      LEGACY_DNS_POLICY = ["Godaddy::DnsService", "dns_management"].freeze
       VAULT_POLICIES = {
         "compute" => [LINODE_CONSUMER, "compute_management"],
-        "dns" => ["Godaddy::DnsService", "dns_management"],
         "owner" => ["Gatekeeper::WebsiteDeployment", "website_deploy"]
       }.freeze
 
@@ -44,8 +44,10 @@ module Gatekeeper
         compute_slug = compute_credential(settings)
         raise Invalid, "Select a separate staging Linode Vault entry" unless eligible_provider?(provider, compute_slug)
 
-        vault = { "compute" => compute_slug, "dns" => setting!("DNS_VAULT", settings),
-          "owner" => setting!("OWNER_VAULT", settings) }
+        vault = { "compute" => compute_slug, "owner" => setting!("OWNER_VAULT", settings) }
+        if settings.nil? && (legacy_dns = ENV["LIGHTEK_RELEASE_ASSURANCE_DNS_VAULT"].presence)
+          vault["dns"] = legacy_dns
+        end
         validate_vault!(vault)
         region = setting!("REGION", settings)
         certificate_email = setting!("CERTIFICATE_EMAIL", settings)
@@ -186,10 +188,13 @@ module Gatekeeper
       end
 
       def self.validate_vault!(vault, include_owner: true)
-        keys = include_owner ? VAULT_POLICIES.keys : %w[compute dns]
-        keys.each do |key|
+        keys = include_owner ? VAULT_POLICIES.keys : %w[compute]
+        # Preserve policy checks on requests that already carry a worker DNS binding.
+        policies = VAULT_POLICIES.slice(*keys)
+        policies["dns"] = LEGACY_DNS_POLICY if vault.key?("dns")
+        policies.each do |key, policy|
           secret = LightekVault::Secret.active.find_by(slug: vault.fetch(key), environment: "staging")
-          unless usable_vault?(secret, VAULT_POLICIES.fetch(key))
+          unless usable_vault?(secret, policy)
             raise Invalid, "Configure the staging-only #{key} Vault reference with its explicit access policy"
           end
         end

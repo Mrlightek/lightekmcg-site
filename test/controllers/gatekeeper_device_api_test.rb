@@ -158,6 +158,27 @@ class GatekeeperDeviceApiTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "customer sees their own maintenance history without device credentials" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    @device.update!(owner: owner)
+    send_action("device_enroll")
+    @device.update!(managed_monitoring_enabled: true)
+    check = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator, code: "refresh_inventory")
+    other_device = NetworkManagedDevice.create!(name: "Private customer workstation",
+      identifier: "other-#{SecureRandom.hex(8)}", device_type: "computer", owner: create_user,
+      enrolled_at: Time.current, status: "active", managed_monitoring_enabled: true)
+    ItServices::EndpointMaintenance.approve!(device: other_device, actor: operator, code: "check_endpoint_protection")
+    post session_path, params: { email_address: owner.email_address, password: PASSWORD }
+    assert_response :redirect
+
+    get it_service_requests_path
+    assert_response :success
+    assert_select "td", "Refresh inventory"
+    refute_includes response.body, other_device.name
+    refute_includes response.body, check.request_nonce
+  end
+
   test "backup recovery requires customer consent and a single Gatekeeper claim" do
     owner = create_user
     operator = create_user(role: "super_admin")

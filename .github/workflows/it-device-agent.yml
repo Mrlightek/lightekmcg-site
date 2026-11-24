@@ -4,6 +4,18 @@ on:
     paths:
       - 'scripts/lightek_device_agent.py'
       - 'scripts/test_lightek*.py'
+      - 'app/controllers/gatekeeper_controller.rb'
+      - 'app/controllers/it_service_requests_controller.rb'
+      - 'app/models/network_managed_device.rb'
+      - 'app/models/it_device_maintenance_action.rb'
+      - 'app/services/it_services/**'
+      - 'app/views/it_service_requests/**'
+      - 'app/views/shared/_it_device_maintenance_history.html.erb'
+      - 'db/migrate/*_it_device_*'
+      - 'test/controllers/gatekeeper_device_api_test.rb'
+      - 'test/services/it_services/endpoint_maintenance_test.rb'
+      - 'test/models/network_managed_device_test.rb'
+      - 'test/standalone/it_endpoints/**'
       - '.github/workflows/it-device-agent.yml'
   workflow_dispatch:
 jobs:
@@ -19,3 +31,27 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s scripts -p 'test_lightek*py' -v
+  rails-endpoints:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: endpoint_fixture
+          POSTGRES_DB: it_endpoint_fixture
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      LIGHTEK_ENDPOINT_TEST_DATABASE_URL: postgresql://postgres:endpoint_fixture@127.0.0.1:5432/it_endpoint_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: false
+      - run: gem install 'rails:8.0.5.1' 'pg:1.6.3' 'minitest:6.0.6' 'bcrypt:3.1.22' --no-document
+      - run: >-
+          ruby -I test/standalone/it_endpoints -e 'ARGV.each { require File.expand_path(_1) }'
+          test/controllers/gatekeeper_device_api_test.rb
+          test/services/it_services/endpoint_maintenance_test.rb
+          test/models/network_managed_device_test.rb

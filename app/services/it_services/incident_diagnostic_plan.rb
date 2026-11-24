@@ -19,6 +19,13 @@ module ItServices
       "backup_failed" => "backup"
     }.freeze
 
+    MAINTENANCE = {
+      "patches_available" => ItDeviceMaintenanceAction::PATCH_DEPLOYMENT,
+      "patch_deployment_failed" => ItDeviceMaintenanceAction::PATCH_DEPLOYMENT,
+      "backup_recovery_test_failed" => ItDeviceMaintenanceAction::RECOVERY_CHECK,
+      "staged_restore_failed" => ItDeviceMaintenanceAction::STAGED_RESTORE
+    }.freeze
+
     def self.for(incident)
       code = RUNBOOKS[incident.finding_code]
       catalog = DiagnosticRunbooks::CATALOG[code]
@@ -26,6 +33,7 @@ module ItServices
         "runbook" => code,
         "checks" => catalog ? catalog.fetch("checks") : ["Review device enrollment and incident history"],
         "execution" => "manual_only",
+        "recommended_maintenance" => MAINTENANCE[incident.finding_code],
         "consent_required_for_remote_actions" => true,
         "commands_executed" => false,
         "repair_verified" => false

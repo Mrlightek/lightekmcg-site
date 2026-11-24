@@ -135,3 +135,10 @@ live-file overwrite or unattended cutover. It supports ZIP archives up to
 256 MiB, with up to 1,024 entries and 512 MiB of uncompressed files. It accepts
 portable relative paths, excludes links, and does not reapply archive ownership
 or permissions.
+
+Fleet review escalates failed or unconfirmed deployments and staged restores
+to Nevaeh's technical queue. Verification of the exact package version or
+archive can clear that operation's finding once the endpoint reports a fresh
+heartbeat. A single package result does not clear a fleet patch inventory
+finding. Nevaeh's runbook can recommend a follow-up, which still requires
+operator approval and a new customer authorization.

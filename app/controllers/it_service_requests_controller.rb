@@ -67,7 +67,7 @@ class ItServiceRequestsController < ApplicationController
 
   def consent_to_device_patch
     device = NetworkManagedDevice.where(owner_id: current_user.id).find(params.require(:device_id))
-    ItServices::EndpointMaintenance.consent_to_recovery!(device: device, action_id: params.require(:action_id),
+    ItServices::EndpointMaintenance.consent!(device: device, action_id: params.require(:action_id),
       actor: current_user, code: ItDeviceMaintenanceAction::PATCH_DEPLOYMENT)
     redirect_to it_service_requests_path, notice: "The listed package version is authorized for installation."
   rescue ArgumentError, ActionController::ParameterMissing => error
@@ -76,7 +76,7 @@ class ItServiceRequestsController < ApplicationController
 
   def consent_to_device_recovery
     device = NetworkManagedDevice.where(owner_id: current_user.id).find(params.require(:device_id))
-    ItServices::EndpointMaintenance.consent_to_recovery!(device: device, action_id: params.require(:action_id),
+    ItServices::EndpointMaintenance.consent!(device: device, action_id: params.require(:action_id),
       actor: current_user, code: (params[:staged] == "1" ? ItDeviceMaintenanceAction::STAGED_RESTORE : ItDeviceMaintenanceAction::RECOVERY_CHECK))
     redirect_to it_service_requests_path, notice: "Backup recovery verification authorized."
   rescue ArgumentError, ActionController::ParameterMissing => error

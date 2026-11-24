@@ -68,3 +68,4 @@ jobs:
           test/services/it_services/managed_fleet_incidents_test.rb
           test/services/it_services/managed_fleet_recovery_test.rb
           test/services/it_services/incident_escalation_test.rb
+          test/services/it_services/incident_diagnostic_plan_test.rb

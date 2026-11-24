@@ -239,7 +239,7 @@ class GatekeeperDeviceApiTest < ActionDispatch::IntegrationTest
     start = 1.hour.from_now.change(usec: 0)
     recovery = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
       code: "verify_backup_recovery", scheduled_at: start.iso8601, expected_recovery_digest: "a" * 64)
-    ItServices::EndpointMaintenance.consent_to_recovery!(device: @device, action_id: recovery.id, actor: owner)
+    ItServices::EndpointMaintenance.consent!(device: @device, action_id: recovery.id, actor: owner)
     attributes = { action_id: recovery.id, nonce: recovery.request_nonce }
 
     travel_to start do

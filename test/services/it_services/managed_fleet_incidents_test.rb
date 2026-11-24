@@ -70,7 +70,58 @@ class ItServicesManagedFleetIncidentsTest < ActiveSupport::TestCase
       id: review.fetch(:opened), owner_id: owner.id, finding_code: "patches_available")
   end
 
+  test "only verification of the same package clears an unconfirmed deployment" do
+    owner = create_customer
+    operator = create_customer(role: "super_admin")
+    device = create_connected_device(owner, managed_monitoring_enabled: true)
+    first_window = 1.minute.from_now.change(usec: 0)
+    original = ItServices::EndpointMaintenance.approve!(device: device, actor: operator,
+      code: "deploy_apt_patch", scheduled_at: first_window.iso8601, patch_target: "example-lib=2.0")
+    ItServices::EndpointMaintenance.consent!(device: device, action_id: original.id, actor: owner,
+      code: "deploy_apt_patch")
+    travel_to(first_window) do
+      ItServices::EndpointMaintenance.claim!(device: device, action_id: original.id, nonce: original.request_nonce)
+    end
+
+    travel_to(first_window + 11.minutes) do
+      freshen(device)
+      ItServices::ManagedFleetIncidents.reconcile!(device: device, owner: owner)
+    end
+    incident = ItManagedDeviceIncident.open_incidents.find_by!(network_managed_device: device,
+      finding_code: "patch_deployment_failed")
+
+    report_patch(device, owner, operator, "different-lib=2.0", first_window + 12.minutes)
+    travel_to(first_window + 13.minutes) do
+      freshen(device)
+      ItServices::ManagedFleetIncidents.reconcile!(device: device, owner: owner)
+      assert_equal "open", incident.reload.status
+    end
+
+    report_patch(device, owner, operator, "example-lib=2.0", first_window + 14.minutes)
+    travel_to(first_window + 15.minutes) do
+      freshen(device)
+      ItServices::ManagedFleetIncidents.reconcile!(device: device, owner: owner)
+      assert_equal "resolved", incident.reload.status
+    end
+  end
+
   private
+
+  def report_patch(device, owner, operator, target, time)
+    action = ItServices::EndpointMaintenance.approve!(device: device, actor: operator,
+      code: "deploy_apt_patch", scheduled_at: time.iso8601, patch_target: target)
+    ItServices::EndpointMaintenance.consent!(device: device, action_id: action.id, actor: owner,
+      code: "deploy_apt_patch")
+    travel_to(time) do
+      ItServices::EndpointMaintenance.claim!(device: device, action_id: action.id, nonce: action.request_nonce)
+      ItServices::EndpointMaintenance.report!(device: device, action_id: action.id, nonce: action.request_nonce,
+        result: { status: "installed", target: target })
+    end
+  end
+
+  def freshen(device)
+    device.update!(last_seen_at: Time.current, health_telemetry_at: Time.current)
+  end
 
   def create_customer(role: "client")
     User.create!(email_address: "it-fleet-#{SecureRandom.hex(8)}@example.test", first_name: "Fleet",

@@ -9,6 +9,14 @@ class ItServicesIncidentDiagnosticPlanTest < ActiveSupport::TestCase
     assert_equal false, plan["commands_executed"]
   end
 
+  test "failed restores suggest an approved operation without authorizing one" do
+    incident = ItManagedDeviceIncident.new(finding_code: "staged_restore_failed")
+    plan = ItServices::IncidentDiagnosticPlan.for(incident)
+    assert_equal "stage_backup_restore", plan["recommended_maintenance"]
+    assert_equal true, plan["consent_required_for_remote_actions"]
+    assert_equal false, plan["commands_executed"]
+  end
+
   test "unrecognized findings fail closed" do
     incident = ItManagedDeviceIncident.new(finding_code: "unrecognized")
     plan = ItServices::IncidentDiagnosticPlan.for(incident)

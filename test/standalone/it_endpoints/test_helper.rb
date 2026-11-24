@@ -109,6 +109,7 @@ module ItServices; end
   models/network_managed_device models/it_device_maintenance_action models/it_service_request
   services/lightek_people/lifecycle_access services/it_services/device_telemetry services/it_services/endpoint_maintenance
   models/it_managed_device_incident services/it_services/managed_device_posture services/it_services/managed_fleet_incidents
+  services/it_services/diagnostic_runbooks services/it_services/incident_diagnostic_plan
   services/it_services/incident_escalation
   controllers/it_service_requests_controller controllers/gatekeeper_controller
 ].each { |path| require ENDPOINT_REPO.join("app", path) }

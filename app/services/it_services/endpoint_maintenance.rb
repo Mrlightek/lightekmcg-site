@@ -51,7 +51,7 @@ module ItServices
       end
     end
 
-    def self.consent_to_recovery!(device:, action_id:, actor:, code: ItDeviceMaintenanceAction::RECOVERY_CHECK)
+    def self.consent!(device:, action_id:, actor:, code: ItDeviceMaintenanceAction::RECOVERY_CHECK)
       device.with_lock do
         raise ActiveRecord::RecordNotFound unless actor&.persisted? && actor.id == device.owner_id
         raise ArgumentError, "Customer monitoring consent required" unless available?(device)

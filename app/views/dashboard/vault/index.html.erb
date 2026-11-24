@@ -18,7 +18,7 @@
           <div class="dd-field"><%= label_tag "vault_secret_slug", "Lookup slug" %><%= text_field_tag "vault_secret[slug]", nil, placeholder: "production-mail", required: true %></div>
           <div class="dd-field"><%= label_tag "vault_secret_secret_type", "Secret type" %><%= select_tag "vault_secret[secret_type]", options_for_select(LightekVault::Secret::TYPES.map { |type| [type.humanize, type] }) %></div>
           <div class="dd-field"><%= label_tag "vault_secret_provider", "Provider" %><%= text_field_tag "vault_secret[provider]", nil, placeholder: "e.g. GoDaddy" %></div>
-          <div class="dd-field"><%= label_tag "vault_secret_environment", "Environment" %><%= select_tag "vault_secret[environment]", options_for_select([["Production", "production"], ["Development", "development"], ["Test", "test"]], "production") %></div>
+          <div class="dd-field"><%= label_tag "vault_secret_environment", "Environment" %><%= select_tag "vault_secret[environment]", options_for_select([["Production", "production"], ["Staging", "staging"], ["Development", "development"], ["Test", "test"]], "production") %></div>
           <div class="dd-field"><%= label_tag "vault_secret_purpose", "Purpose" %><%= text_field_tag "vault_secret[purpose]", nil, placeholder: "e.g. dns_management" %></div>
           <div class="dd-field dd-field-wide"><%= label_tag "vault_secret_payload", "Single secret value" %><%= password_field_tag "vault_secret[payload]", nil, autocomplete: "new-password" %><small>Stored as the field <code>value</code>. For named credentials, leave this empty and use structured fields below.</small></div>
         </div>

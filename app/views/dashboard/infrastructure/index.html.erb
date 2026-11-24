@@ -30,6 +30,11 @@
     </section>
   </div>
   <section class="infra-shortcuts" aria-label="Infrastructure actions">
+    <% if Gatekeeper::Hosting::Access.super_admin?(current_user) %>
+      <%= link_to main_app.dashboard_provisioning_requests_path, class: "infra-shortcut" do %>
+        <i class="ti ti-server-bolt" aria-hidden="true"></i><strong>Provisioning requests</strong><small>Prepare a staging request or review pending approvals.</small>
+      <% end %>
+    <% end %>
     <%= link_to main_app.dashboard_servers_path, class: "infra-shortcut" do %><i class="ti ti-server-2" aria-hidden="true"></i><strong>Servers & applications ↗</strong><small>Open an instance, add a website or review server deletion.</small><% end %>
     <%= link_to main_app.dashboard_fleet_updates_path, class: "infra-shortcut" do %><i class="ti ti-refresh" aria-hidden="true"></i><strong>Customer updates ↗</strong><small>Ship a release to one account or roll it out across your fleet.</small><% end %>
   </section>

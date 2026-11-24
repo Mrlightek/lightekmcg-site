@@ -179,7 +179,12 @@ module ItServices
     def self.verified_patch_result(action, result)
       data = result.stringify_keys
       if result.size == 1 && %w[failed unavailable pending_restart].include?(data["status"])
-        return { "status" => data["status"], "observation" => "The package version could not be confirmed." }
+        observation = if data["status"] == "pending_restart"
+          "Complete the authorized restart and verify the exact target again."
+        else
+          "The installed patch could not be confirmed."
+        end
+        return { "status" => data["status"], "observation" => observation }
       end
       unless result.size == 2 && data.keys.sort == %w[status target] && data["status"] == "installed" &&
           data["target"] == action.patch_target

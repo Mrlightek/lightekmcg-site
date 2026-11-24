@@ -63,6 +63,8 @@ $work = Join-Path $Root 'work\request.json'
 $resultFile = Join-Path $Root 'outbox\result.json'
 if (!(Test-Path -LiteralPath $inbox -PathType Leaf)) { exit 0 }
 try {
+    # A terminated prior task did not produce a receipt. Never re-execute that request.
+    if (Test-Path -LiteralPath $work -PathType Leaf) { Remove-Item -LiteralPath $work -Force }
     Move-Item -LiteralPath $inbox -Destination $work
     $item = Get-Item -LiteralPath $work
     if ($item.Length -gt 1024 -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { exit 1 }

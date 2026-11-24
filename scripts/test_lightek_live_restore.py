@@ -57,6 +57,11 @@ class LiveRestoreTest(unittest.TestCase):
         self.assertEqual((self.live / "previous.txt").read_text(), "previous data")
         self.assertEqual(list(self.staging.iterdir()), [])
 
+    def test_manifest_fails_closed_when_tree_cannot_be_enumerated(self):
+        with patch.object(restore.os, "walk", return_value=[]):
+            with self.assertRaises(ValueError):
+                restore.tree_manifest(self.live)
+
     def test_failed_live_readback_rolls_back(self):
         self.arm("cutover")
         real_manifest = restore.tree_manifest

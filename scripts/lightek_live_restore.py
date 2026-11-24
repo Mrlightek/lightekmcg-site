@@ -84,7 +84,10 @@ def sync_directory(path):
 def tree_manifest(root, durable=False):
     manifest = {}
     remaining = MAX_EXPANDED
-    for directory, dirs, filenames in os.walk(root, followlinks=False):
+    def fail_read(error):
+        raise error
+
+    for directory, dirs, filenames in os.walk(root, followlinks=False, onerror=fail_read):
         parent = Path(directory)
         for name in dirs:
             if not stat.S_ISDIR((parent / name).lstat().st_mode):
@@ -108,6 +111,8 @@ def tree_manifest(root, durable=False):
             sync_directory(parent)
         if len(manifest) > MAX_FILES:
             raise ValueError("Restored path count exceeded")
+    if not manifest:
+        raise ValueError("Restored tree is empty")
     return hashlib.sha256(json.dumps(manifest, sort_keys=True).encode("utf-8")).hexdigest()
 
 

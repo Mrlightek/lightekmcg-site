@@ -1,4 +1,9 @@
 namespace :dashboard do
+  get "it-support/beta", to: "msp_beta#show", as: :msp_beta
+  get "it-support/beta/agent", to: "msp_beta#download", as: :msp_beta_agent
+  post "it-support/beta/enroll", to: "msp_beta#enroll", as: :msp_beta_enroll
+  post "it-support/beta/feedback", to: "msp_beta#feedback", as: :msp_beta_feedback
+  delete "it-support/beta/device", to: "msp_beta#revoke", as: :msp_beta_revoke
   resources :remote_support_sessions, path: "it-support/screen-sharing", only: %i[index show create] do
     member do
       post :approve

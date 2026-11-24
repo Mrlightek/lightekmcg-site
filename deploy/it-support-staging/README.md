@@ -57,3 +57,18 @@ The bundle expires after five minutes. Run the external probe from the intended 
 | macOS | Chromium WebM codecs and Batch B's Python and OS build checks | An authorized disposable macOS desktop with a usable GUI login and explicit Screen Recording / Accessibility permissions as required by the eventual endpoint implementation. Verify real capture, input, revocation and unattended lifecycle |
 
 An Actions browser codec result does not establish native support for the platform. The current Batch D stage can exercise attended viewing, recording, file transfer and consent revocation. Native input and unattended access still require their Batch D implementation and interactive acceptance. Use synthetic test cases for the complete Dashboard flow, and retain only redacted release, relay and scan evidence.
+
+## Gatekeeper approval and external beta
+
+The Batch E provisioning bootstrap owns preparation, capacity quote validation and authorization. After it is installed, the following wrapper reports a matching request or prepares a pending one through the same Gatekeeper service as the Dashboard:
+
+```sh
+bin/rails runner deploy/it-support-staging/request.rb -- inspect ACTOR_ID batch-d-msp-r1.staging.lightekmcg.com
+bin/rails runner deploy/it-support-staging/request.rb -- prepare ACTOR_ID batch-d-msp-r1.staging.lightekmcg.com
+```
+
+Review one Ubuntu 24.04 `g6-standard-2` node in the configured staging region with the synthetic staging owner, a 2,400-cent monthly cap, and a 48-hour lifetime. The provider quote is recorded on the request. Authorization must bind the approved request to the reviewed release candidate. Keep access to HTTPS 443 for testers, HTTP 80 for the existing certificate challenge, SSH 22 for the deployment worker only, and TURN UDP 3479 and 50110–50159 and TCP 5350 for acceptance. ClamAV TCP 3310 and data services stay local/private. Use the configured staging Vault bindings for compute, DNS, and website ownership. Keep the release's dedicated worker and separate state.
+
+If acceptance fails, stop the staging test sessions and revoke tester access and device tokens. Retire the environment through Release Assurance, verify the dedicated node and delegated DNS entry were removed, and retain redacted operation and test receipts. Release Assurance's expiry workflow covers the same isolated resources. Leave unrelated instances and DNS entries intact.
+
+The beta starts with a Release Assurance invitation and its temporary staging account. From the client Dashboard, open **MSP beta test checklist** for the downloadable one-shot check-in and guided tests. Batch B and D use the same Gatekeeper device record for that staging account. The technician uses the staging Remote support workspace and the existing IT Service Request assignment to match each test device. The Dashboard shows check-in and session receipts without exposing raw diagnostics. Feedback goes to Nevaeh as a technical support case. The check-in package sends only the consented system percentages and executes no maintenance. Native maintenance uses the existing Batch B procedures with per-operation approval on a disposable endpoint.

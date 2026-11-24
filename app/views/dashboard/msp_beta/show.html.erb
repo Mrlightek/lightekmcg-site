@@ -1,0 +1,101 @@
+<% content_for :page_title, "MSP beta" %>
+<%= stylesheet_link_tag "/lightek/people-workspace.css" %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div>
+      <h1>MSP beta</h1>
+      <p>Use a disposable test computer or VM and synthetic data.</p>
+    </div>
+    <%= link_to "Remote support", dashboard_remote_support_sessions_path, class: "lp-button secondary" %>
+  </header>
+
+  <% if @tester %>
+    <section class="lp-card">
+      <h2>1. Check in your test computer</h2>
+      <p>Your staging access ends <%= l(current_user.staging_access_expires_at, format: :short) %>.</p>
+      <p>Download the ZIP on the test computer, extract it, and open a terminal in the extracted folder. Use Python 3.11 or later.</p>
+      <p>Windows PowerShell <code>py -3 beta_check_in.py</code></p>
+      <p>macOS Terminal <code>python3 beta_check_in.py</code></p>
+      <p>Staging hostname <code><%= request.host %></code></p>
+      <%= link_to "Download test check-in", dashboard_msp_beta_agent_path, class: "lp-button", data: { turbo: false } %>
+      <% if @device %>
+        <p>Device ID <code><%= @device.identifier %></code></p>
+        <p>Agent status <%= @device.status.humanize %>
+          <% if @device.health_telemetry_at %>
+            · Health check received <%= l(@device.health_telemetry_at, format: :short) %>
+          <% end %>
+        </p>
+      <% end %>
+      <% if @enrollment_token %>
+        <p>Paste this token at the hidden token prompt. It appears once and expires with your account or when you revoke the device.</p>
+        <p><code><%= @enrollment_token %></code></p>
+      <% end %>
+      <%= form_with url: dashboard_msp_beta_enroll_path, class: "lp-form", data: { turbo: false } do |form| %>
+        <label><%= form.check_box :monitoring_consent, required: true %>
+          I consent to sending CPU, memory and disk usage percentages from this disposable test device.</label>
+        <%= form.submit(@device&.status == "active" ? "Replace device credential" : "Create device credential", class: "lp-button secondary") %>
+      <% end %>
+    </section>
+
+    <section class="lp-card">
+      <h2>2. Test support with your technician</h2>
+      <ol>
+        <li>Confirm the Dashboard shows an active device and a health receipt. Share the device ID with your assigned technician so they can use the same enrollment for endpoint and remote support tests.</li>
+        <li>Open Remote support. Review the technician’s request, approve viewing, and share a browser tab with synthetic content. On macOS, allow your browser to record the screen if prompted. On Windows, select the test tab in the browser’s sharing picker.</li>
+        <li>Send a synthetic text file. Have the recipient verify that it can only be downloaded after a clean scan and explicit acceptance.</li>
+        <li>With separate approval from both participants, record a short clip, verify playback, then withdraw recording consent.</li>
+        <li>Stop sharing and verify the technician loses the view. Check the session receipt.</li>
+      </ol>
+      <p>Native input and unattended access are pending. For maintenance tests, your technician must identify the exact operation and ask for separate approval. Run patch or recovery tests only on an assigned disposable environment.</p>
+      <% if @sessions.any? %>
+        <ul>
+          <% @sessions.each do |room| %>
+            <li><%= link_to "Session ##{room.id}", dashboard_remote_support_session_path(room) %>
+              · <%= room.state.humanize %><%= " · Video reported" if room.display_reported_at? %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </section>
+
+    <section class="lp-card">
+      <h2>3. Report a result</h2>
+      <%= form_with url: dashboard_msp_beta_feedback_path, class: "lp-form" do |form| %>
+        <%= form.label :scenario, "Test" %>
+        <%= form.select :scenario, %w[enrollment monitoring screen_sharing recording file_transfer input unattended maintenance].map { |key| [key.humanize, key] } %>
+        <%= form.label :result %>
+        <%= form.select :result, %w[passed failed blocked].map { |key| [key.humanize, key] } %>
+        <%= form.label :beta_feedback, "What happened?" %>
+        <%= form.text_area :beta_feedback, required: true, maxlength: 1000, rows: 3 %>
+        <label><%= form.check_box :synthetic_only, required: true %> My report uses synthetic data and contains no credentials or personal information.</label>
+        <%= form.submit "Send to Nevaeh", class: "lp-button" %>
+      <% end %>
+    </section>
+    <section class="lp-card">
+      <h2>4. End the test</h2>
+      <p>End any active support session. Revoke the device here, then delete the extracted files and downloaded ZIP from the disposable computer. The check-in tool exits after sending its receipt.</p>
+      <% if @device && @device.status != "retired" %>
+        <%= button_to "Revoke this test device", dashboard_msp_beta_revoke_path, method: :delete, class: "lp-button secondary" %>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="lp-card">
+      <h2>Technician checklist</h2>
+      <ol>
+        <li>Confirm each tester is on a disposable endpoint and has used the Release Assurance invitation.</li>
+        <li>Match the device ID to the synthetic tester and associate it with their IT Service Request using the staging assignment workflow.</li>
+        <li>Verify the agent check-in. Ask for separate approval for each supported maintenance operation and use the Batch B procedures on disposable systems.</li>
+        <li>From Remote support, request viewing. Ask the tester to stop sharing and check that the stream closes. Verify the consent and file transfer receipts before collecting results.</li>
+      </ol>
+      <% if @devices.any? %>
+        <ul>
+          <% @devices.each do |device| %>
+            <li><code><%= device.identifier %></code> · <%= device.status.humanize %>
+              <% if device.health_telemetry_at %> · Health check <%= l(device.health_telemetry_at, format: :short) %><% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </section>
+  <% end %>
+</main>

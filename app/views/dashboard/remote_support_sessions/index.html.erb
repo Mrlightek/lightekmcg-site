@@ -1,5 +1,8 @@
 <%= stylesheet_link_tag "/lightek/people-workspace.css" %>
 <main class="lp-workspace">
+  <% if ItServices::BetaDevice.staging_host?(request.host) %>
+    <p><%= link_to "MSP beta test checklist", dashboard_msp_beta_path, class: "lp-button secondary" %></p>
+  <% end %>
   <nav aria-label="Breadcrumb"><%= link_to "Dashboard", "/dashboard" %> / IT Services</nav>
   <h1>Remote support</h1>
   <% if alert.present? %><p role="alert"><%= alert %></p><% end %>

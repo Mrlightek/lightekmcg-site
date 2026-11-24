@@ -1,6 +1,9 @@
 <% content_for :page_title, "Your workspace" %>
 <%= stylesheet_link_tag '/lightek/people-workspace.css' %>
 <main class="lp-workspace" data-client-home>
+  <% if ItServices::BetaDevice.staging_host?(request.host) && ItServices::BetaDevice.tester?(current_user) %>
+    <p><%= link_to "Open the MSP beta test checklist", dashboard_msp_beta_path, class: "lp-button" %></p>
+  <% end %>
   <header class="lp-heading" data-tour-step="dashboard" data-tour-title="Your workspace" data-tour-body="Find the demos, websites, and services linked to this account.">
     <div><span class="lp-eyebrow"><%= @agency_profile&.brand_name.presence || 'Lightek' %></span>
       <h1>Your workspace</h1><p>Your websites, services and account, together in one place.</p></div>

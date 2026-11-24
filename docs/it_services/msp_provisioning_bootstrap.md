@@ -14,10 +14,10 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 | `staging-msp-owner` | `owner_password` | `Gatekeeper::WebsiteDeployment` | `website_deploy` |
 
 3. Open [Add Compute Provider](https://lightekmcg.com/dashboard/infrastructure/providers/new). Create **MSP staging Linode**, slug `linode-staging`, adapter type **Builtin**, adapter class `Gatekeeper::Compute::Providers::LinodeAdapter`, credential slug `staging-compute`. Leave API base URL blank to use the adapter's fixed Linode API. On that provider's page, confirm its Linode read capabilities are selected, run the health check and read-only capability validation, then activate it.
-4. Set the following control-plane application configuration values. The web process uses these values to prepare the request. Use the existing operator procedure for applying configuration.
+4. In Dashboard → Network → Controllers, verify that the delegated `staging.lightekmcg.com` zone appears in the managed DNS zones. Provisioning resolves the hostname against this same list and requires the exact staging zone. The production parent zone is ineligible.
+5. Set the following control-plane application configuration values using the existing operator procedure.
 
 ```text
-LIGHTEK_RELEASE_ASSURANCE_ZONE=staging.lightekmcg.com
 LIGHTEK_RELEASE_ASSURANCE_OWNER=staging-msp@example.test
 LIGHTEK_RELEASE_ASSURANCE_REGION=us-east
 LIGHTEK_RELEASE_ASSURANCE_DNS_VAULT=staging-dns

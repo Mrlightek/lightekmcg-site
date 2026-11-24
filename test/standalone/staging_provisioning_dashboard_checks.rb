@@ -173,7 +173,6 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
   }.freeze
   CREDENTIALS = {
     "staging-compute" => ["Gatekeeper::Compute::Providers::LinodeAdapter", "compute_management"],
-    "staging-dns" => ["Godaddy::DnsService", "dns_management"],
     "staging-owner" => ["Gatekeeper::WebsiteDeployment", "website_deploy"]
   }.freeze
 
@@ -186,7 +185,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       LightekVault::Secret.create!(name: slug, slug: slug, secret_type: "credential", environment: "staging",
         status: "active", access_policy: { "consumers" => [consumer], "purposes" => [purpose] })
     end
-    @form_settings = { owner: @owner.email_address, region: "us-east", compute_vault: "staging-compute", dns_vault: "staging-dns",
+    @form_settings = { owner: @owner.email_address, region: "us-east", compute_vault: "staging-compute",
       owner_vault: "staging-owner", certificate_email: @operator.email_address }
     @settings = %w[ZONE OWNER REGION COMPUTE_VAULT DNS_VAULT OWNER_VAULT CERTIFICATE_EMAIL].to_h do |key|
       ["LIGHTEK_RELEASE_ASSURANCE_#{key}", nil]
@@ -216,6 +215,8 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     get link["href"]
     assert_response :success
 
+    assert_select "select[name=dns_vault]", count: 0
+    assert_select "input[type=submit][disabled]", count: 0
     forbid_execution do
       Gatekeeper::Compute::LinodeCatalogService.stub(:call, CATALOG) { submit_form("Prepare for approval") }
       assert_response :see_other
@@ -226,6 +227,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       assert_equal @provider, request.compute_provider
       assert_equal "production-linode", @provider.reload.credential_secret_slug
       assert_equal "staging-compute", request.metadata.dig("staging_provisioning", "vault", "compute")
+      assert_nil request.metadata.dig("staging_provisioning", "vault", "dns")
       assert_equal "pending", request.approval_status
       assert_equal "awaiting_approval", request.execution_status
       assert_nil request.gatekeeper_node_id
@@ -299,7 +301,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     authenticate(@operator)
     @owner.update!(access_suspended_at: Time.current)
     @provider.update!(health_status: "unknown")
-    LightekVault::Secret.where(slug: "staging-dns").update_all(status: "disabled")
+    LightekVault::Secret.where(slug: "staging-owner").update_all(status: "disabled")
     get "/dashboard/infrastructure/provisioning/new"
     assert_response :success
     assert_select "input[type=submit][disabled]"

@@ -4,13 +4,12 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 
 ## Set up dedicated staging references
 
-1. In [Employee → Users → New user](https://lightekmcg.com/employee/users/new), create or confirm an active synthetic Dashboard user with role **Client** and email `staging-msp@example.test`. Save its sign-in credential through the approved password manager. Use a scoped staging-only Linode token and a staging-only DNS credential for the approved GoDaddy DNS workflow.
+1. In [Employee → Users → New user](https://lightekmcg.com/employee/users/new), create or confirm an active synthetic Dashboard user with role **Client** and email `staging-msp@example.test`. Save its sign-in credential through the approved password manager. Use a scoped staging-only Linode token.
 2. In **Dashboard → Vault**, create or confirm the following entries with environment `staging` and explicit consumer and purpose fields. The names in the left column are examples. Enter sensitive values through the authenticated Vault UI.
 
 | Vault slug | Payload key | Allowed consumer | Purpose |
 | --- | --- | --- | --- |
 | `staging-compute` | `token` | `Gatekeeper::Compute::Providers::LinodeAdapter` | `compute_management` |
-| `staging-dns` | `token` | `Godaddy::DnsService` | `dns_management` |
 | `staging-msp-owner` | `owner_password` | `Gatekeeper::WebsiteDeployment` | `website_deploy` |
 
 3. In [Compute Providers](https://lightekmcg.com/dashboard/infrastructure/providers), confirm the existing `linode` provider is active and healthy. The request uses its Linode adapter with the staging Vault entry selected on the form.
@@ -21,7 +20,7 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 2. Enter `batch-d-msp-r1.staging.lightekmcg.com`, monthly cap `2400` cents and lifetime `48` hours. Select the staging client and its staging Vault references, review the region and certificate contact, and click **Prepare for approval**. If staging setup is incomplete, the form links to the relevant screens. The form uses one `g6-standard-2` instance with Ubuntu 24.04 and reads the live regional quote. Published North America compute pricing is about $1.73 for 48 hours at $0.036/hour.
 3. Review the request’s hostname, owner, price and expiry. Click **Approve** and confirm. The page shows **approved / ready** and the approval audit entry. Share **Request #…** from that screen.
 
-Preparation reserves the hostname and checks the catalog. Approval records the funding decision. A separate Release Assurance deployment authorization is required to allocate compute. Reject an expired unallocated request before reserving its label again.
+Preparation reserves the hostname and checks the catalog without a DNS credential. DNS access belongs to the separately authorized deployment. Approval records the funding decision. A separate Release Assurance deployment authorization is required to allocate compute. Reject an expired unallocated request before reserving its label again.
 
 ## Hand off to Release Assurance
 

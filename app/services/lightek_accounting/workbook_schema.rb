@@ -11,6 +11,7 @@ module LightekAccounting
     def self.xml(source)
       raise ArgumentError, 'Document types and entities are unsupported' if source.match?(/<!DOCTYPE|<!ENTITY/i)
       doc = Nokogiri::XML(source) { |config| config.strict.nonet }
+      raise ArgumentError, 'Document types and entities are unsupported' if doc.internal_subset
       doc.remove_namespaces!
       doc
     rescue Nokogiri::XML::SyntaxError
@@ -52,7 +53,7 @@ module LightekAccounting
           total += entry.size
           raise ArgumentError, 'Expanded workbook exceeds 30 MB' if total > MAX_UNPACKED || entry.size > MAX_UNPACKED
           stream = entry.get_input_stream
-          content = stream.read([entry.size + 1,MAX_UNPACKED + 1].min)
+          content = stream.read([entry.size + 1,MAX_UNPACKED + 1].min).to_s
           raise ArgumentError, 'Workbook entry size mismatch' unless content.bytesize == entry.size
           entries[entry.name] = content
         end
@@ -88,15 +89,22 @@ module LightekAccounting
           raise ArgumentError, 'Invalid cell address' unless address.match?(/\A[A-Z]{1,3}[1-9][0-9]{0,6}\z/)
           type, raw = cell['t'], cell.at_xpath('./v')&.text.to_s
           value = case type
-          when 's' then strings.fetch(Integer(raw,10))
+          when 's'
+            index = Integer(raw, 10)
+            raise ArgumentError, 'Invalid shared string index' unless index.between?(0, strings.length - 1)
+
+            strings.fetch(index)
           when 'inlineStr' then cell.xpath('./is//t').map(&:text).join
           when 'b' then raw == '1'
           when 'str','e' then raw
-          else raw.empty? ? '' : BigDecimal(raw).to_s('F')
+          else raw.empty? ? '' : bounded_number(raw).to_s('F')
           end
           native_type = %w[s inlineStr str e].include?(type) ? 'text' : type == 'b' ? 'boolean' : 'number'
           if date_styles.include?(cell['s'].to_i) && raw.present? && !%w[s inlineStr str e].include?(type)
-            serial = BigDecimal(raw).floor
+            number = bounded_number(raw)
+            raise ArgumentError, 'Date is outside the supported Excel range' unless number.abs <= 2_958_465
+
+            serial = number.floor
             raise ArgumentError, 'Excel fictional leap day cannot be converted' if !epoch1904 && serial == 60
             base = epoch1904 ? Date.new(1904,1,1) : Date.new(1899,12,31)
             value = (base + serial - (!epoch1904 && serial > 60 ? 1 : 0)).iso8601
@@ -116,6 +124,16 @@ module LightekAccounting
     rescue KeyError, Zip::Error, ArgumentError => error
       raise ArgumentError, "Workbook conversion failed: #{error.is_a?(KeyError) ? 'Required workbook structure missing' : error.message}"
     end
+    def self.bounded_number(raw)
+      raise ArgumentError, 'Invalid workbook number' if raw.bytesize > 512
+
+      number = BigDecimal(raw)
+      raise ArgumentError, 'Number is outside the supported Excel range' unless number.finite? && number.exponent.abs <= 400
+
+      number
+    end
+    private_class_method :bounded_number
+
     def self.column(index)
       value = +''
       while index > 0

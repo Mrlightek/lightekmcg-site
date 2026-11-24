@@ -10,7 +10,18 @@ module LightekWorkspace
     validates :name, presence: true, length: {maximum: 160}
     validate :check_entry
 
+    before_update :protect_upload, if: -> { attachment_changes.key?("upload") }
+    before_destroy(prepend: true) { DiscoveryDriveHold.protect!(self, drive) }
+
     private
+
+    def protect_upload
+      DiscoveryDriveHold.protect!(self, drive) if upload_attachment_in_database?
+    end
+
+    def upload_attachment_in_database?
+      ActiveStorage::Attachment.exists?(record: self, name: "upload")
+    end
 
     def check_entry
       errors.add(:parent, 'must be a folder in this drive') if parent && (!parent.folder? || parent.drive_id != drive_id)

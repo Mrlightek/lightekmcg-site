@@ -2,6 +2,7 @@
 <% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
 <main class="network-collaboration" data-turbo="false">
   <h1>Shared drives</h1>
+  <% if @owner %><p><%= link_to "Workspace Migration Center", dashboard_workspace_migrations_path %></p><% end %>
   <%= render "dashboard/shared_workspace/organization", destination: dashboard_shared_drives_path %>
   <div class="network-columns">
     <section class="network-pane">

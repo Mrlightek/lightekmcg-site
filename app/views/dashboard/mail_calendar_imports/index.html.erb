@@ -1,0 +1,20 @@
+<% content_for :page_title, "Import calendar history" %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Mail calendar", calendar_dashboard_mail_path(account_id: @account.id), class: "back-link" %>
+  <header class="mail-header"><div><h1>Import calendar history</h1><p class="muted"><%= @account.address %></p></div></header>
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <section class="conversation-card">
+    <div class="message-tools">
+      <div>
+        <% if @team_mailbox %><p class="muted">Migration · <%= @team_mailbox.migration.name %></p><% end %>
+        <p>Select one uncompressed .ics calendar up to 2 MB.</p>
+        <%= form_with url: dashboard_mail_calendar_preview_path(account_id: @account.id), multipart: true, data: {turbo: false} do |form| %>
+          <%= hidden_field_tag :team_mailbox_id, @team_mailbox.id if @team_mailbox %>
+          <p><%= form.label :calendar_file, "iCalendar file" %><br><%= form.file_field :calendar_file, accept: ".ics,text/calendar", required: true %></p>
+          <%= form.submit "Preview calendar" %>
+        <% end %>
+      </div>
+    </div>
+  </section>
+</main>

@@ -1,11 +1,24 @@
+<% workspace_seats = Gatekeeper::Hosting::WorkspacePlans.seats_for(product) %>
 <article class="lt-commerce-product">
 <% if product.photos.attached? %><%= image_tag product.photos.first.variant(resize_to_limit: [640, 480]), alt: product.name, loading: "lazy" %><% elsif product.image_url.present? %><%= image_tag LightekDesign::Catalog.safe_url(product.image_url, image: true), alt: product.name, loading: "lazy" %><% else %><div class="lt-commerce-product-art" aria-hidden="true"><%= product.name.first(1) %></div><% end %>
-<div class="lt-commerce-product-copy"><% if product.featured? %><span class="lt-commerce-badge">Featured</span><% end %><h3><%= product.name %></h3><p><%= product.short_description.presence || product.description %></p><strong><%= number_to_currency(product.price_cents / 100.0) %><% if product.billing_interval != "one_time" %>/<%= product.billing_interval %><% end %></strong>
+<div class="lt-commerce-product-copy"><% if product.featured? %><span class="lt-commerce-badge">Featured</span><% end %><h3><%= product.name %></h3><p><%= product.short_description.presence || product.description %></p><strong><%= "From " if workspace_seats %><%= number_to_currency(product.price_cents / 100.0) %><% if product.billing_interval != "one_time" %>/<%= product.billing_interval %><% end %></strong>
 <% variants = product.variants.select { |variant| variant.active? && variant.inventory_quantity.positive? } %>
 <% if product.variants.any?(&:active?) ? variants.any? : (!product.track_inventory? || product.inventory_quantity.positive?) %>
 <%= form_with url: main_app.commerce_cart_add_path(site_id: @site.id), method: :post, local: true do %>
 <%= hidden_field_tag :product_id, product.id %>
 <% if product.variants.any?(&:active?) %><label>Choose an option <%= select_tag :variant_id, options_from_collection_for_select(variants, :id, :name), prompt: "Select an option", required: true %></label><% end %>
-<%= hidden_field_tag :quantity, 1 %><%= submit_tag(product.billing_interval == "one_time" ? "Add to cart" : "Subscribe", class: "lt-commerce-add") %>
+<% if workspace_seats && workspace_seats.end.nil? %>
+  <% limit = Gatekeeper::Hosting::WorkspacePlans.checkout_seat_limit(starting_price: product.price_cents, seat_range: workspace_seats) %>
+  <label>Workspace seats <%= number_field_tag :quantity, workspace_seats.begin, min: workspace_seats.begin, max: limit, step: 1, required: true, id: nil %></label>
+  <small><%= number_to_currency(Gatekeeper::Hosting::WorkspacePlans::ADDITIONAL_SEAT_CENTS / 100.0, precision: 0) %>/month per seat above <%= workspace_seats.begin %>. Your total is shown in the cart.</small>
+<% elsif workspace_seats %>
+  <% seat_options = workspace_seats.map do |seats|
+    price = Gatekeeper::Hosting::WorkspacePlans.monthly_price(starting_price: product.price_cents, seats: seats, seat_range: workspace_seats)
+    ["#{pluralize(seats, 'seat')} · #{number_to_currency(price / 100.0)}/month", seats]
+  end %>
+  <label>Workspace seats <%= select_tag :quantity, options_for_select(seat_options), id: nil %></label>
+<% else %>
+  <%= hidden_field_tag :quantity, 1 %>
+<% end %><%= submit_tag(workspace_seats ? "Choose plan" : (product.billing_interval == "one_time" ? "Add to cart" : "Subscribe"), class: "lt-commerce-add") %>
 <% end %><% else %><p>Out of stock</p><% end %></div>
 </article>

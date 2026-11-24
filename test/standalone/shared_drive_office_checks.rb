@@ -80,7 +80,7 @@ end
 
 %w[models/lightek_workspace/drive models/lightek_workspace/drive_member models/lightek_workspace/drive_entry
    models/lightek_office/revision models/lightek_office/shared_file services/lightek_office/content
-   services/lightek_office/document services/lightek_office/changes controllers/dashboard/team_office_controller].each do |path|
+   services/lightek_office/document services/lightek_office/word_export services/lightek_office/changes controllers/dashboard/team_office_controller].each do |path|
   require File.join(ROOT, 'app', path)
 end
 
@@ -135,6 +135,22 @@ class SharedDriveOfficeChecks < ActionController::TestCase
 
     use_actor(@other)
     get :live, params: location.merge(file_id: file.id), as: :json
+    assert_response :not_found
+  end
+
+  def test_drive_viewer_can_download_an_editable_word_document
+    file = create_document
+    use_actor(@viewer)
+    get :export, params: location.merge(file_id: file.id, download: 'docx')
+    assert_response :success
+    assert_equal LightekOffice::WordExport::CONTENT_TYPE, response.media_type
+    assert_includes response.headers.fetch('Content-Disposition'), 'opening.docx'
+    Zip::File.open_buffer(response.body) do |archive|
+      assert_includes archive.read('word/document.xml'), 'First draft'
+    end
+
+    use_actor(@other)
+    get :export, params: location.merge(file_id: file.id, download: 'docx')
     assert_response :not_found
   end
 

@@ -11,6 +11,23 @@ on:
       - 'app/views/dashboard/mail_transport/**'
       - 'test/standalone/lightek_transactional_mail_test.rb'
       - 'test/standalone/lightek_mailbox_management_test.rb'
+      - 'test/standalone/*mail*_checks.rb'
+      - 'test/standalone/*office*_checks.rb'
+      - 'test/standalone/*calendar*_checks.rb'
+      - 'test/standalone/shared_drive_zip_import_checks.rb'
+      - 'test/standalone/commerce_hosting_test.rb'
+      - 'test/standalone/hosting_retail_pricing_checks.rb'
+      - 'app/services/lightek_office/**'
+      - 'app/services/lightek_workspace/**'
+      - 'app/services/lightek_team/chat_discovery.rb'
+      - 'app/services/gatekeeper/hosting/workspace_plans.rb'
+      - 'app/controllers/dashboard/team_office_controller.rb'
+      - 'config/routes/executive_operations.rb'
+      - 'config/schedule.yml'
+      - 'config/routes/mail_discovery.rb'
+      - 'app/controllers/dashboard/mail_discovery_controller.rb'
+      - 'app/views/dashboard/mail_discovery/**'
+      - 'db/migrate/*mail_discovery*'
       - 'app/models/lightek_mail/**'
       - 'db/migrate/*lightek_mailbox*'
       - 'lib/scripts/*lightek_mail*'
@@ -28,10 +45,20 @@ jobs:
         with:
           ruby-version: '3.3'
       - name: Install public mail test dependencies
-        run: gem install --no-document actionmailer:8.0.5.1 actionpack:8.0.5.1 activerecord:8.0.5.1 sqlite3:2.7.4 minitest:5.25.4
+        run: gem install --no-document actionmailer:8.0.5.1 actionpack:8.0.5.1 activerecord:8.0.5.1 activestorage:8.0.5.1 railties:8.0.5.1 sqlite3:2.7.4 minitest:5.25.4 rubyzip:3.4.1 icalendar:2.12.1 ice_cube:0.17.0 bcrypt:3.1.22 uri:1.1.2
       - name: Verify actual SMTP submission and guarded Gmail retirement
         run: ruby test/standalone/lightek_transactional_mail_test.rb
       - name: Verify mailbox lifecycle groups and spam rules
         run: ruby test/standalone/lightek_mailbox_management_test.rb
+      - name: Verify Workspace import, editing, retention, and discovery
+        run: |
+          for suite in test/standalone/office_{word,excel,powerpoint}_{import,export}_checks.rb \
+            test/standalone/{shared_drive_office,shared_drive_zip_import,mailbox_import,incoming_calendar,shared_calendar_series,mail_discovery,migration_version}_checks.rb; do
+            ruby "$suite"
+          done
+      - name: Verify Workspace plan pricing and seat entitlements
+        run: |
+          ruby test/standalone/hosting_retail_pricing_checks.rb
+          ruby test/standalone/commerce_hosting_test.rb --name '/workspace/'
       - name: Verify authoritative mailbox route updates
         run: python3 -m unittest test.operations.lightek_mail_routes_test test.operations.lightek_mail_remote_routes_test

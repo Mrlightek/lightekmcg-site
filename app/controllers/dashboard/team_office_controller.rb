@@ -28,17 +28,24 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   def create
-    edit_scope do
-      attrs = fields.except(:lock_version).merge(creator: current_user, editor: current_user)
-      if @drive
-        entry = @drive.entries.build(parent: @folder, creator: current_user, folder: false, name: attrs[:title])
-        @file = entry.build_office_file(attrs)
-        entry.save!
-      else
-        @file = files.create!(attrs)
-      end
-    end
+    create_file!(fields.except(:lock_version))
     saved
+  end
+
+  def import_excel
+    writable!
+    upload = params[:workbook]
+    unless upload.is_a?(ActionDispatch::Http::UploadedFile) && upload.size.between?(1, LightekAccounting::WorkbookSchema::MAX_BYTES)
+      raise ArgumentError, 'Choose an Excel workbook up to 5 MB.'
+    end
+
+    content = LightekOffice::ExcelImport.call(upload.read(LightekAccounting::WorkbookSchema::MAX_BYTES + 1),
+      filename: upload.original_filename)
+    title = File.basename(upload.original_filename, '.*').strip.first(160).presence || 'Imported spreadsheet'
+    create_file!(kind: 'spreadsheet', title: title, content: content)
+    saved
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id), alert: error.message, status: :see_other
   end
 
   def update
@@ -62,11 +69,43 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
     render :index, status: :unprocessable_entity
   end
 
+  def import_word
+    writable!
+    upload = params[:document]
+    unless upload.is_a?(ActionDispatch::Http::UploadedFile) && upload.size.between?(1, LightekOffice::WordImport::MAX_UPLOAD)
+      raise ArgumentError, 'Choose a Word document up to 5 MB.'
+    end
+
+    content = LightekOffice::WordImport.call(upload.read(LightekOffice::WordImport::MAX_UPLOAD + 1),
+      filename: upload.original_filename)
+    title = File.basename(upload.original_filename, '.*').strip.first(160).presence || 'Imported document'
+    create_file!(kind: 'document', title: title, content: content, rich_text: true)
+    saved
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id), alert: error.message, status: :see_other
+  end
+
   def live
     file = files.find(params[:file_id])
     return head :no_content if params[:since].to_s == file.lock_version.to_s
 
     render json: LightekOffice::Changes.snapshot(file)
+  end
+
+  def import_powerpoint
+    writable!
+    upload = params[:presentation]
+    unless upload.is_a?(ActionDispatch::Http::UploadedFile) && upload.size.between?(1, LightekOffice::PowerpointImport::MAX_UPLOAD)
+      raise ArgumentError, 'Choose a PowerPoint presentation up to 5 MB.'
+    end
+
+    content = LightekOffice::PowerpointImport.call(upload.read(LightekOffice::PowerpointImport::MAX_UPLOAD + 1),
+      filename: upload.original_filename)
+    title = File.basename(upload.original_filename, '.*').strip.first(160).presence || 'Imported presentation'
+    create_file!(kind: 'presentation', title: title, content: content)
+    saved
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: @folder&.id), alert: error.message, status: :see_other
   end
 
   def restore
@@ -83,9 +122,24 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   def export
+    return export_powerpoint if params[:download] == 'pptx'
+
     file = files.find(params[:file_id])
+    if params[:download] == 'docx'
+      return head :not_found unless file.kind == 'document'
+
+      return send_data LightekOffice::WordExport.call(file.content, rich_text: file.rich_text?),
+        filename: LightekOffice::WordExport.filename(file.title), type: LightekOffice::WordExport::CONTENT_TYPE
+    end
+
     body, extension, mime = case file.kind
-    when 'spreadsheet' then [LightekOffice::Content.csv(file.content), 'csv', 'text/csv']
+    when 'spreadsheet'
+      if params[:download] == 'xlsx'
+        return send_data LightekOffice::ExcelExport.call(file.content),
+          filename: LightekOffice::ExcelExport.filename(file.title), type: LightekOffice::ExcelExport::CONTENT_TYPE
+      end
+
+      [LightekOffice::Content.csv(file.content), 'csv', 'text/csv']
     when 'presentation' then [file.content, 'md', 'text/markdown']
     else
       file.rich_text? ? [LightekOffice::Document.export(file.content), 'html', 'text/html; charset=utf-8'] : [file.content, 'txt', 'text/plain']
@@ -94,6 +148,12 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
   end
 
   private
+
+  def export_powerpoint
+    file = files.where(kind: 'presentation').find(params[:file_id])
+    send_data LightekOffice::PowerpointExport.call(file.content),
+      filename: LightekOffice::PowerpointExport.filename(file.title), type: LightekOffice::PowerpointExport::CONTENT_TYPE
+  end
 
   def load_office_scope
     response.headers['Cache-Control'] = 'private, no-store'
@@ -115,6 +175,17 @@ class Dashboard::TeamOfficeController < DymondDash::ApplicationController
     return LightekOffice::SharedFile.where(channel: @channel) unless @drive
 
     LightekOffice::SharedFile.where(drive_entry_id: @drive.entries.select(:id))
+  end
+
+  def create_file!(attributes)
+    edit_scope do
+      attrs = attributes.merge(creator: current_user, editor: current_user)
+      if @drive
+        @file = @drive.create_office_entry!(parent: @folder, actor: current_user, attributes: attributes).office_file
+      else
+        @file = files.create!(attrs)
+      end
+    end
   end
 
   def writable!

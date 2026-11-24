@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, workspace_seats: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -25,6 +25,10 @@ module LightekCommerce
         product_ids = requested.keys.map { |key| key.split(":").first.to_i }.uniq
         products = Product.where(site: site, id: product_ids).order(:id).lock.to_a
         raise Invalid, "One or more products are unavailable" unless products.size == product_ids.size && products.all?(&:published?)
+        if workspace_seats && (requested.size != 1 || requested.keys.first.include?(":") ||
+          !defined?(Gatekeeper::Hosting::WorkspacePlans))
+          raise Invalid, "Choose one Workspace plan"
+        end
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
         order.growth_visit = growth_visit if growth_visit
         order.save!
@@ -56,6 +60,20 @@ module LightekCommerce
               price = direct_package.agency_wholesale_cents
             end
           end
+          workspace = Gatekeeper::Hosting::WorkspacePlans if defined?(Gatekeeper::Hosting::WorkspacePlans)
+          seat_range = workspace.seats_for(product) if workspace && product.product_type == "lightek_instance"
+          if seat_range
+            seats = workspace_seats.nil? ? seat_range.begin : workspace_seats
+            limit = workspace.checkout_seat_limit(starting_price: price, seat_range: seat_range)
+            unless seats.is_a?(Integer) && seats.between?(seat_range.begin, limit)
+              raise Invalid, "Choose a seat count offered by this Workspace plan"
+            end
+
+            name = "#{name} (#{seats} #{seats == 1 ? 'seat' : 'seats'})"
+            price = workspace.monthly_price(starting_price: price, seats: seats, seat_range: seat_range)
+          elsif workspace_seats
+            raise Invalid, "Choose a Workspace plan"
+          end
           line_total = price * qty
           subtotal += line_total
           snapshot = {"product_type" => product.product_type, "billing_interval" => product.billing_interval,
@@ -63,6 +81,7 @@ module LightekCommerce
           kind = product.communications_kind
           snapshot["communications_kind"] = kind if kind
           snapshot["voice_plan"] = product.slug if kind == "voice"
+          snapshot["workspace_seats"] = seats if seat_range
           package = product.respond_to?(:effective_hosting_package) ? product.effective_hosting_package : product.hosting_package
           snapshot["pricing_tier"] = "agency_wholesale" if direct_package
           if package
@@ -79,7 +98,9 @@ module LightekCommerce
             end
           end
           if product.product_type == "lightek_instance" && defined?(LightekAgency::PackagePolicy) && product.has_attribute?(:package_policy)
-            snapshot["managed_package"] = {"source_key" => "#{order.payment_namespace}:#{order.id}", "policy" => LightekAgency::PackagePolicy.for_product(product)}
+            policy = LightekAgency::PackagePolicy.for_product(product)
+            policy.fetch("limits")["max_users"] = seats if seat_range
+            snapshot["managed_package"] = {"source_key" => "#{order.payment_namespace}:#{order.id}", "policy" => policy}
             snapshot["managed_package"]["policy_digest"] = LightekAgency::PackagePolicy.digest(snapshot["managed_package"]["policy"])
           end
           order.items.create!(purchase_snapshot: snapshot, product: product, variant: variant_id ? variant : nil,

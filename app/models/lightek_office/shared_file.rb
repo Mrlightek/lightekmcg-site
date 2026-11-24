@@ -18,6 +18,8 @@ module LightekOffice
 
     def kind_label = KINDS.fetch(kind)
 
+    before_destroy { LightekWorkspace::DiscoveryDriveHold.protect!(self, drive_entry&.drive) }
+
     private
 
     def one_location

@@ -18,6 +18,7 @@ class DeployCheckoutTest(unittest.TestCase):
         (self.repo / 'db').mkdir()
         (self.repo / 'db/schema.rb').write_text('original schema\n')
         (self.repo / 'application.rb').write_text('original source\n')
+        (self.repo / 'Gemfile.lock').write_text('committed lockfile\n')
         (self.repo / '.gitignore').write_text('/tmp/\n')
         self.git('add', '.')
         self.git('commit', '-qm', 'Initial')
@@ -43,6 +44,39 @@ class DeployCheckoutTest(unittest.TestCase):
         self.assertEqual('local source change\n', (self.repo / 'application.rb').read_text())
         self.assertEqual(' M application.rb\n', self.git('status', '--porcelain'))
         self.assertEqual(0o700, backups[0].parent.stat().st_mode & 0o777)
+
+    def test_generated_lockfile_is_backed_up_before_switching_to_release(self):
+        lockfile = self.repo / 'Gemfile.lock'
+        previous = self.git('rev-parse', 'HEAD').strip()
+        self.git('switch', '-qc', 'release')
+        lockfile.write_text('new dependencies\n')
+        self.git('commit', '-qam', 'Update release dependencies')
+        self.git('switch', '-q', '--detach', previous)
+        lockfile.write_text('generated production lockfile\n')
+        (self.repo / 'db/schema.rb').write_text('generated production schema\n')
+        (self.repo / 'application.rb').write_text('local source change\n')
+
+        result = self.prepare()
+        self.assertEqual(0, result.returncode, result.stderr)
+        backup = next((self.repo / 'tmp/deploy-backups').iterdir())
+        self.assertEqual('generated production lockfile\n', (backup / 'Gemfile.lock').read_text())
+        self.assertEqual('generated production schema\n', (backup / 'schema.rb').read_text())
+        self.assertEqual(0o700, backup.stat().st_mode & 0o777)
+        self.git('switch', '-q', 'release')
+        self.assertEqual('new dependencies\n', lockfile.read_text())
+        self.assertEqual('local source change\n', (self.repo / 'application.rb').read_text())
+
+    def test_staged_lockfile_blocks_all_checkout_preparation(self):
+        lockfile = self.repo / 'Gemfile.lock'
+        schema = self.repo / 'db/schema.rb'
+        lockfile.write_text('reviewed local dependency change\n')
+        schema.write_text('generated production schema\n')
+        self.git('add', 'Gemfile.lock')
+
+        self.assertNotEqual(0, self.prepare().returncode)
+        self.assertEqual('reviewed local dependency change\n', lockfile.read_text())
+        self.assertEqual('generated production schema\n', schema.read_text())
+        self.assertFalse((self.repo / 'tmp').exists())
 
     def test_staged_schema_changes_are_never_discarded(self):
         (self.repo / 'db/schema.rb').write_text('intentional staged schema\n')

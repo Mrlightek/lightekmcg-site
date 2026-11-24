@@ -30,12 +30,6 @@ class User
   def access_active? = !email_address.start_with?("inactive")
 end
 
-class LightekCommerce::Product
-  def communications_kind = nil
-  def full_communications_package? = false
-  def cellular_voice_bundle? = false
-end
-
 module DymondBank
   class Subscription < ApplicationRecord; end
 

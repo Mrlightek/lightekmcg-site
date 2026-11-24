@@ -1,0 +1,36 @@
+<% content_for :page_title, "Prepare provisioning request" %>
+<%= render "dashboard/infrastructure/styles" %>
+
+<div class="infra">
+  <header class="infra-hero">
+    <div>
+      <h1>Prepare provisioning request</h1>
+      <p>Reserve a staging hostname and record the Linode quote for approval. Approval and deployment follow separately.</p>
+    </div>
+    <%= link_to "Provisioning requests", dashboard_provisioning_requests_path, class: "infra-button" %>
+  </header>
+
+  <section class="infra-panel" aria-label="Dedicated MSP staging">
+    <div class="infra-panel-header"><h2>Dedicated MSP staging</h2></div>
+    <%= form_with url: prepare_staging_dashboard_provisioning_requests_path, class: "infra-form" do |form| %>
+      <div class="infra-fields">
+        <div class="infra-field">
+          <%= form.label :hostname, "Staging hostname" %>
+          <%= form.text_field :hostname, value: params[:hostname], required: true, maxlength: 253, placeholder: "batch-d-msp-r1.staging.example.org" %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :budget_cents, "Monthly compute cap (cents)" %>
+          <%= form.number_field :budget_cents, value: params.fetch(:budget_cents, 2400), min: 1, max: 2400, required: true %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :hours, "Lifetime (hours)" %>
+          <%= form.number_field :hours, value: params.fetch(:hours, 48), min: 4, max: 168, required: true %>
+        </div>
+      </div>
+      <div class="infra-form-footer">
+        <p>One Ubuntu 24.04 instance with 2 vCPUs, 4 GB RAM and 80 GB storage. Gatekeeper uses the configured staging owner, region and Vault references.</p>
+        <%= form.submit "Prepare for approval", class: "infra-button infra-button-primary" %>
+      </div>
+    <% end %>
+  </section>
+</div>

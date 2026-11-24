@@ -36,9 +36,8 @@ module ItServices
       end
     end
 
-    def self.exchange!(room, login, sdp)
-      with_authorization(room, login) do |work, role|
-        Policy.live!(room, login, role)
+    def self.exchange!(room, login, sdp, display_reported: false)
+      with_live_room(room, login) do |work, role|
         if sdp
           media = sdp.is_a?(String) && sdp.bytesize <= SDP_LIMIT && sdp.lines.grep(/\Am=/)
           direction = role == :customer ? "a=sendonly" : "a=recvonly"
@@ -51,10 +50,21 @@ module ItServices
           room.update!(column => encryptor.encrypt_and_sign(sdp, purpose: "#{room.id}:#{column}", expires_at: room.expires_at))
           audit!(room, work, login.user, role == :customer ? "customer sent screen offer" : "technician answered screen offer")
         end
+        if display_reported && role == :technician && room.answer_sdp.present? && room.display_reported_at.nil?
+          room.update!(display_reported_at: Time.current)
+          audit!(room, work, login.user, "technician browser reported video displayed")
+        end
         peer_column = role == :customer ? :answer_sdp : :offer_sdp
         encrypted = room[peer_column]
         { sdp: encrypted && encryptor.decrypt_and_verify(encrypted, purpose: "#{room.id}:#{peer_column}"),
-          valid_for_ms: [(room.expires_at - Time.current) * 1000, 0].max.floor }
+          display_reported: room.display_reported_at.present?, valid_for_ms: [(room.expires_at - Time.current) * 1000, 0].max.floor }
+      end
+    end
+
+    def self.with_live_room(room, login)
+      with_authorization(room, login) do |work, role|
+        Policy.live!(room, login, role)
+        yield work, role
       end
     end
 
@@ -108,7 +118,15 @@ module ItServices
       return if room.state == "ended"
 
       room.update!(state: "ended", ended_at: Time.current, end_reason: reason, offer_sdp: nil, answer_sdp: nil)
+      RemoteSupportFiles.cancel_pending!(room, work, actor)
       audit!(room, work, actor, reason)
+      ActiveRecord.after_all_transactions_commit do
+        begin
+          ItRemoteSupportCaseReceiptJob.perform_later(room.id, actor.id)
+        rescue StandardError => error
+          Rails.logger.warn("Remote support case receipt enqueue failed session_id=#{room.id}: #{error.class}")
+        end
+      end
     end
     private_class_method :close!
 

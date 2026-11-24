@@ -5,7 +5,9 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
   before_action :require_direct_session!
   rate_limit to: 60, within: 1.minute, only: :exchange, by: -> { current_user.id }
   rate_limit to: 10, within: 1.minute, only: :create, by: -> { current_user.id }, name: "request"
-  before_action :load_room, only: %i[show approve exchange end_session]
+  rate_limit to: 12, within: 1.minute, only: %i[offer_file accept_file cancel_file download_file],
+    by: -> { current_user.id }, name: "files"
+  before_action :load_room, only: %i[show approve exchange end_session offer_file accept_file cancel_file download_file]
   rescue_from Gatekeeper::ItRemoteSupportPolicy::Denied, with: -> { head :forbidden }
   rescue_from ItServices::RemoteScreenShare::Conflict, with: :conflict
 
@@ -22,6 +24,7 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
     @role = Gatekeeper::ItRemoteSupportPolicy.participant!(login: Current.session,
       customer_id: @room.customer_id, technician_id: @room.technician_id)
     @bound = (@role == :customer ? @room.customer_session_id : @room.technician_session_id) == Current.session.id
+    @transfers = @room.transfers.order(:id)
   end
 
   def create
@@ -44,11 +47,35 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
   end
 
   def exchange
-    result = ItServices::RemoteScreenShare.exchange!(@room, Current.session, params[:screen_sdp])
+    result = ItServices::RemoteScreenShare.exchange!(@room, Current.session, params[:screen_sdp],
+      display_reported: params[:display_reported] == true)
     if params[:ice] == true
       result[:ice_servers] = ItServices::RemoteScreenIce.for(@room, current_user.id)
     end
     render json: result
+  end
+
+  def offer_file
+    transfer = files.offer!(@room, Current.session, params[:support_file])
+    ItRemoteSupportFileScanJob.perform_later(transfer.id)
+    redirect_to dashboard_remote_support_session_path(@room), status: :see_other
+  end
+
+  def accept_file
+    files.accept!(@room, Current.session, params.require(:transfer_id))
+    redirect_to dashboard_remote_support_session_path(@room), status: :see_other
+  end
+
+  def cancel_file
+    files.cancel!(@room, Current.session, params.require(:transfer_id))
+    redirect_to dashboard_remote_support_session_path(@room), status: :see_other
+  end
+
+  def download_file
+    file = files.download!(@room, Current.session, params.require(:transfer_id))
+    response.headers["X-File-SHA256"] = file.fetch(:sha256)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    send_data file.fetch(:bytes), filename: file.fetch(:filename), type: "application/octet-stream", disposition: "attachment"
   end
 
   def end_session
@@ -60,6 +87,8 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
   end
 
   private
+
+  def files = ItServices::RemoteSupportFiles
 
   def schedule_expiry(room)
     ItRemoteSupportExpirationJob.set(wait_until: room.expires_at).perform_later(room.id)
@@ -83,7 +112,10 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
 
   def conflict(error)
     respond_to do |format|
-      format.html { redirect_to dashboard_remote_support_sessions_path, alert: error.message, status: :see_other }
+      format.html do
+        destination = @room ? dashboard_remote_support_session_path(@room) : dashboard_remote_support_sessions_path
+        redirect_to destination, alert: error.message, status: :see_other
+      end
       format.json { render json: { error: error.message }, status: :conflict }
     end
   end

@@ -40,6 +40,34 @@ class ItServicesRemoteScreenShareTest < ActiveSupport::TestCase
     assert_equal 5, ItServiceEvent.where(it_service_request: @work).count
   end
 
+  test "only the technician can report displaying video, once after negotiation" do
+    room = ScreenShare.request!(@work, @technician_login)
+    ScreenShare.approve!(room, @customer_login)
+    ScreenShare.exchange!(room, @customer_login, OFFER, display_reported: true)
+    refute ScreenShare.exchange!(room, @technician_login, nil, display_reported: true).fetch(:display_reported)
+    assert ScreenShare.exchange!(room, @technician_login, ANSWER, display_reported: true).fetch(:display_reported)
+    timestamp = room.reload.display_reported_at
+    ScreenShare.exchange!(room, @technician_login, nil, display_reported: true)
+    assert_equal timestamp, room.reload.display_reported_at
+    assert_equal 1, ItServiceEvent.where(it_service_request: @work).where("note LIKE ?", "%reported video%").count
+  end
+
+  test "writes the remote support receipt to the customer's Nevaeh case without marking the work complete" do
+    ticket = Marlon::Ticket.create!(related: @work, submitted_by: @customer, category: "technical",
+      title: "Support appointment", extra_fields: { "source" => NevaehCustomerService::Cases::SOURCE })
+    room = ScreenShare.request!(@work, @technician_login)
+    ScreenShare.approve!(room, @customer_login)
+    ScreenShare.end!(room, @customer_login)
+
+    job = ItRemoteSupportCaseReceiptJob.new
+    2.times { job.perform(room.id, @customer.id) }
+    receipt = ticket.reload.extra_fields.fetch("it_services_remote_support")
+    assert_equal room.id, receipt.fetch("session_id")
+    assert_equal "customer revoked access", receipt.fetch("end_reason")
+    assert_equal "in_progress", @work.reload.status
+    assert_equal 1, ticket.events.where(action: "it_services_screen_sharing_ended").count
+  end
+
   test "denies unrelated users, delegated logins, and technicians with stale MFA" do
     outsider = Session.create!(user: create_user("client"))
     assert_raises(Denied) { ScreenShare.request!(@work, outsider) }

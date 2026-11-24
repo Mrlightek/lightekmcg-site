@@ -3,6 +3,9 @@
   <nav aria-label="Breadcrumb"><%= link_to "Remote support", dashboard_remote_support_sessions_path %> / Request #<%= @room.it_service_request_id %></nav>
   <h1>Screen sharing</h1>
   <p>Technician <%= [@room.technician.first_name, @room.technician.last_name].compact_blank.join(" ") %> · View only</p>
+  <% if @room.display_reported_at? %>
+    <p>The technician’s browser reported video displayed at <%= l(@room.display_reported_at, format: :short) %>.</p>
+  <% end %>
   <% if @room.ended_at? %>
     <p><%= @room.end_reason.humanize %> at <%= l(@room.ended_at, format: :short) %>.</p>
   <% elsif @room.expires_at.past? %>
@@ -37,4 +40,5 @@
     <p>Open this page in the browser session used to request or approve screen sharing.</p>
     <%= button_to "End session", end_session_dashboard_remote_support_session_path(@room), method: :delete, class: "lp-button secondary" %>
   <% end %>
+  <%= render "files" if @bound || @room.ended_at? %>
 </main>

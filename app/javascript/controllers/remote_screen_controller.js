@@ -55,7 +55,17 @@ export default class extends Controller {
         const sdp = await this.description(connection, offer, attempt.signal)
         await this.exchange({ screen_sdp: sdp }, attempt)
       } else {
-        connection.ontrack = event => this.display(new MediaStream([event.track]))
+        connection.ontrack = event => {
+          this.display(new MediaStream([event.track]))
+          const reportDisplay = () => {
+            if (this.attempt === attempt && !attempt.signal.aborted) this.displayReported = true
+          }
+          if (this.videoTarget.requestVideoFrameCallback) {
+            this.videoTarget.requestVideoFrameCallback(reportDisplay)
+          } else {
+            this.videoTarget.addEventListener("playing", reportDisplay, { once: true, signal: attempt.signal })
+          }
+        }
         this.statusTarget.textContent = "Waiting for the customer to choose a screen."
       }
       await this.poll(attempt)
@@ -71,7 +81,8 @@ export default class extends Controller {
   }
 
   async poll(attempt) {
-    const state = await this.exchange({}, attempt)
+    const state = await this.exchange({ display_reported: this.displayReported === true }, attempt)
+    if (state.display_reported) this.displayReported = false
     const connection = this.peer
     if (state.sdp && !connection.remoteDescription) {
       if (this.roleValue === "customer") {
@@ -91,18 +102,17 @@ export default class extends Controller {
   }
 
   async exchange(payload, attempt) {
-    const result = await fetch(this.exchangeValue, {
+    const result = await this.request(this.exchangeValue, {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify(payload),
       cache: "no-store",
-      redirect: "error",
-      signal: AbortSignal.any([attempt.signal, AbortSignal.timeout(NETWORK_TIMEOUT_MS)])
-    })
+      redirect: "error"
+    }, attempt.signal)
     if (!result.ok) throw new Error("Screen-sharing authorization is unavailable")
 
     const data = await result.json()
-    attempt.signal.throwIfAborted()
+    if (attempt.signal.aborted) throw attempt.signal.reason
     this.refreshLease(data.valid_for_ms)
     return data
   }
@@ -124,7 +134,7 @@ export default class extends Controller {
           connection.removeEventListener("icegatheringstatechange", gather)
           signal.removeEventListener("abort", abort)
         }
-        signal.throwIfAborted()
+        if (signal.aborted) return reject(signal.reason)
         connection.addEventListener("icegatheringstatechange", gather)
         signal.addEventListener("abort", abort, { once: true })
         gather()
@@ -164,11 +174,10 @@ export default class extends Controller {
     this.close(message)
     this.startTarget.disabled = true
     try {
-      const response = await fetch(this.endValue, {
+      const response = await this.request(this.endValue, {
         method: "DELETE",
         headers: this.headers(),
-        redirect: "error",
-        signal: AbortSignal.timeout(NETWORK_TIMEOUT_MS)
+        redirect: "error"
       })
       if (!response.ok) throw new Error("Could not confirm session end")
     } catch {
@@ -179,6 +188,7 @@ export default class extends Controller {
   close(message) {
     this.attempt?.abort()
     this.attempt = null
+    this.displayReported = false
     window.clearTimeout(this.pollTimer)
     window.clearTimeout(this.leaseTimer)
     this.peer?.close()
@@ -191,6 +201,20 @@ export default class extends Controller {
     }
     if (this.hasFullscreenTarget) this.fullscreenTarget.hidden = true
     if (message && this.hasStatusTarget) this.statusTarget.textContent = message
+  }
+
+  async request(url, options, signal) {
+    const controller = new AbortController()
+    const abort = () => controller.abort()
+    if (signal?.aborted) abort()
+    signal?.addEventListener("abort", abort, { once: true })
+    const timer = window.setTimeout(abort, NETWORK_TIMEOUT_MS)
+    try {
+      return await fetch(url, { ...options, signal: controller.signal })
+    } finally {
+      window.clearTimeout(timer)
+      signal?.removeEventListener("abort", abort)
+    }
   }
 
   headers() {

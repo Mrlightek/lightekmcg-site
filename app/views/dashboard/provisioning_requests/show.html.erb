@@ -24,6 +24,23 @@
   </div>
 </div>
 
+<% staging = @request.metadata.to_h["staging_provisioning"] %>
+<% if staging %>
+  <div class="dd-card" style="padding:18px;margin-top:14px">
+    <h3>Dedicated staging</h3>
+    <p>Hostname <strong><%= staging.fetch("hostname") %></strong></p>
+    <p>Owner <strong><%= @request.owner.email_address %></strong></p>
+    <p>Budget <strong><%= number_to_currency(staging.fetch("budget_cents") / 100.0) %></strong> monthly cap</p>
+    <p>Expires <strong><%= l(Time.iso8601(staging.fetch("expires_at")), format: :long) %></strong></p>
+    <ul>
+      <% staging.fetch("audit").each do |entry| %>
+        <li><%= entry.fetch("action").humanize %> · Operator #<%= entry.fetch("actor_id") %> · <%= l(Time.iso8601(entry.fetch("at")), format: :short) %></li>
+      <% end %>
+    </ul>
+    <p>After approval, attach request #<%= @request.id %> to the reviewed candidate in Release Assurance for separate deployment authorization.</p>
+  </div>
+<% end %>
+
 <% if @request.approval_status == "pending" %>
   <div class="dd-card" style="padding:18px;margin-top:14px;display:flex;gap:10px">
     <%= button_to "Approve",
@@ -46,7 +63,7 @@
   <p>Image: <strong><%= @request.selected_image.presence || "not selected" %></strong></p>
   <p>Label: <strong><%= @request.node_label.presence || "not selected" %></strong></p>
 
-  <% if @request.executable? && @request.gatekeeper_node.blank? %>
+  <% if !@request.metadata.to_h["release_assurance_staging"] && @request.executable? && @request.gatekeeper_node.blank? %>
     <%= button_to "EXECUTE BILLABLE PROVISION",
           execute_dashboard_provisioning_request_path(@request),
           method: :post,

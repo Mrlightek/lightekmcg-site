@@ -18,10 +18,8 @@ module ReleaseAssurance
     end
 
     def self.hostname!(hostname)
-      zone = ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_ZONE", "")
-      unless zone.match?(/\Astaging\.(?:[a-z0-9-]+\.)+[a-z]{2,}\z/) &&
-          hostname.match?(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.#{Regexp.escape(zone)}\z/)
-        raise Denied, "Use a unique batch-d hostname in the configured staging zone"
+      unless hostname.match?(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.staging\.(?:[a-z0-9-]+\.)+[a-z]{2,}\z/)
+        raise Denied, "Use a batch-d hostname under staging on a managed domain"
       end
       hostname
     end

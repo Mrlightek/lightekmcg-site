@@ -5,48 +5,61 @@ module Gatekeeper
     class StagingRequests
       class Invalid < StandardError; end
 
-      PROVIDER_SLUG = "linode-staging"
+      PROVIDER_SLUG = "linode"
+      LEGACY_PROVIDER_SLUG = "linode-staging"
       LINODE_CONSUMER = "Gatekeeper::Compute::Providers::LinodeAdapter"
       PLAN = "g6-standard-2"
       IMAGE = "linode/ubuntu24.04"
       BUDGET_CENTS = 2400
       METADATA_KEY = "staging_provisioning"
+      LEGACY_DNS_POLICY = ["Godaddy::DnsService", "dns_management"].freeze
+      VAULT_POLICIES = {
+        "compute" => [LINODE_CONSUMER, "compute_management"],
+        "owner" => ["Gatekeeper::WebsiteDeployment", "website_deploy"]
+      }.freeze
 
       def self.staging_provider?(provider)
-        provider.slug == PROVIDER_SLUG && provider.adapter_type == "builtin" &&
+        provider.slug == LEGACY_PROVIDER_SLUG && provider.adapter_type == "builtin" &&
           provider.adapter_class == LINODE_CONSUMER
       end
 
-      def self.prepare!(actor:, hostname:, budget_cents:, hours:)
+      def self.prepare!(actor:, hostname:, budget_cents:, hours:, settings: nil)
         WebsiteDeployment.authorize!(actor)
         raise Invalid, "Active super administrator access is required" unless LightekPeople::LifecycleAccess.active?(actor)
         raise Invalid, "Budget must be between 1 and 2400 cents" unless (1..BUDGET_CENTS).cover?(budget_cents)
         raise Invalid, "Lifetime must be between 4 and 168 hours" unless (4..168).cover?(hours)
 
-        zone = setting!("ZONE")
-        unless zone.match?(/\Astaging\.(?:[a-z0-9-]+\.)+[a-z]{2,}\z/) &&
-            hostname.match?(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.#{Regexp.escape(zone)}\z/)
-          raise Invalid, "Enter a batch-d hostname in the configured staging zone"
+        unless hostname.match?(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.staging\.(?:[a-z0-9-]+\.)+[a-z]{2,}\z/)
+          raise Invalid, "Enter a batch-d hostname under staging on a managed domain"
         end
+        zone, = WebsiteDnsPublication.target_for!(hostname: hostname)
 
-        owner = User.find_by(email_address: setting!("OWNER"), role: "client")
-        unless owner && owner.email_address.match?(/\Astaging-[a-z0-9-]+@example\.test\z/) && LightekPeople::LifecycleAccess.active?(owner)
-          raise Invalid, "Configure an active synthetic staging owner"
+        owner_email = setting!("OWNER", settings)
+        owner = staging_owners.find { |user| user.email_address == owner_email }
+        raise Invalid, "Select an active synthetic staging owner" unless owner
+
+        provider = staging_provider
+        raise Invalid, "The existing Linode provider must be active and healthy" unless provider
+
+        compute_slug = compute_credential(settings)
+        raise Invalid, "Select a separate staging Linode Vault entry" unless eligible_provider?(provider, compute_slug)
+
+        vault = { "compute" => compute_slug, "owner" => setting!("OWNER_VAULT", settings) }
+        if settings.nil? && (legacy_dns = ENV["LIGHTEK_RELEASE_ASSURANCE_DNS_VAULT"].presence)
+          vault["dns"] = legacy_dns
         end
-        provider = ComputeProvider.find_by(slug: PROVIDER_SLUG, status: "active", health_status: "healthy")
-        raise Invalid, "Configure an active staging-only Linode provider" unless provider && staging_provider?(provider)
-
-        vault = { "compute" => provider.credential_secret_slug, "dns" => setting!("DNS_VAULT"), "owner" => setting!("OWNER_VAULT") }
         validate_vault!(vault)
-        region = setting!("REGION")
+        region = setting!("REGION", settings)
+        certificate_email = setting!("CERTIFICATE_EMAIL", settings)
         label = hostname.split(".").first
         raise Invalid, "Staging node label is too long" if label.length > 63
 
-        catalog = LinodeCatalogService.call(provider: provider, requested_by: actor.email_address, region: region)
+        adapter = linode_adapter(provider, vault.fetch("compute"), requested_by: actor.email_address)
+        catalog = LinodeCatalogService.call(provider: provider, requested_by: actor.email_address, region: region, adapter: adapter)
         plan = approved_plan!(catalog, region, budget_cents)
         config = WebsiteDeployment.configuration(owner: owner, domain: hostname, site_name: "Lightek MSP staging",
           headline: "Release acceptance", description: "Synthetic acceptance tenant",
-          certificate_email: setting!("CERTIFICATE_EMAIL"), credential_slug: vault.fetch("owner")).except("branding")
+          certificate_email: certificate_email, credential_slug: vault.fetch("owner")).except("branding")
 
         provider.with_lock do
           raise Invalid, "Staging provider changed during the quote" unless eligible_provider?(provider, vault["compute"])
@@ -66,6 +79,8 @@ module Gatekeeper
           WebsiteDeployment.register!(actor: actor, record: request, config: config)
           request
         end
+      rescue WebsiteDnsPublication::NotConfigured
+        raise Invalid, "This hostname has no managed GoDaddy zone in Dashboard → Network & Domains"
       rescue LinodeCatalogService::WrongProvider, LinodeCatalogService::NoMatchingPlan
         raise Invalid, "The staging Linode catalog is unavailable"
       end
@@ -102,8 +117,10 @@ module Gatekeeper
       end
 
       def self.eligible_provider?(provider, slug)
-        provider && staging_provider?(provider) && provider.status == "active" &&
-          provider.health_status == "healthy" && provider.credential_secret_slug == slug
+        return false unless provider&.status == "active" && provider.health_status == "healthy"
+        return provider.credential_secret_slug == slug if staging_provider?(provider)
+
+        shared_provider?(provider) && provider.credential_secret_slug != slug
       end
 
       def self.approved_plan!(catalog, region, budget_cents)
@@ -117,27 +134,86 @@ module Gatekeeper
         plan
       end
 
+      def self.staging_owners
+        User.where(role: "client").where("email_address LIKE ?", "staging-%@example.test").order(:email_address).select do |owner|
+          owner.email_address.match?(/\Astaging-[a-z0-9-]+@example\.test\z/) && LightekPeople::LifecycleAccess.active?(owner)
+        end
+      end
+
+      def self.staging_provider
+        provider = ComputeProvider.find_by(slug: PROVIDER_SLUG, status: "active", health_status: "healthy")
+        provider if shared_provider?(provider)
+      end
+
+      def self.shared_provider?(provider)
+        provider&.slug == PROVIDER_SLUG && provider.adapter_type == "builtin" &&
+          [nil, LINODE_CONSUMER].include?(provider.adapter_class.presence)
+      end
+
+      def self.compute_credential(settings)
+        return setting!("COMPUTE_VAULT", settings) if settings
+
+        ENV["LIGHTEK_RELEASE_ASSURANCE_COMPUTE_VAULT"].presence ||
+          vault_choices.fetch("compute").sole
+      rescue ActiveSupport::EnumerableCoreExt::SoleItemExpectedError
+        raise Invalid, "Select the staging Linode Vault entry"
+      end
+
+      def self.adapter_for!(request, requested_by:, operation_id: nil)
+        data = request.metadata.fetch(METADATA_KEY)
+        slug = data.fetch("vault").fetch("compute")
+        provider = request.compute_provider
+        unless request.compute_provider_id == data.fetch("provider_id") && eligible_provider?(provider, slug)
+          raise Invalid, "Staging Linode provider or Vault binding changed"
+        end
+
+        secret = LightekVault::Secret.active.find_by(slug: slug, environment: "staging")
+        raise Invalid, "Staging Linode Vault entry is unavailable" unless usable_vault?(secret, VAULT_POLICIES.fetch("compute"))
+
+        linode_adapter(provider, slug, requested_by: requested_by, operation_id: operation_id)
+      rescue KeyError
+        raise Invalid, "Missing staging Linode binding"
+      end
+
+      def self.linode_adapter(provider, slug, requested_by:, operation_id: nil)
+        Providers::LinodeAdapter.new(provider: provider, credential_slug: slug,
+          requested_by: requested_by, operation_id: operation_id)
+      end
+
+      def self.vault_choices
+        secrets = LightekVault::Secret.active.where(environment: "staging").order(:slug)
+        VAULT_POLICIES.transform_values do |policy|
+          secrets.select { |secret| usable_vault?(secret, policy) }.map(&:slug)
+        end
+      end
+
       def self.validate_vault!(vault, include_owner: true)
-        policies = {
-          "compute" => [LINODE_CONSUMER, "compute_management"],
-          "dns" => ["Godaddy::DnsService", "dns_management"],
-          "owner" => ["Gatekeeper::WebsiteDeployment", "website_deploy"]
-        }
-        policies.delete("owner") unless include_owner
-        policies.each do |key, (consumer, purpose)|
-          slug = vault.fetch(key).to_s
-          secret = LightekVault::Secret.active.find_by(slug: slug, environment: "staging")
-          policy = secret&.access_policy.to_h
-          unless slug.start_with?("staging-") && secret&.usable? &&
-              Array(policy["consumers"]).include?(consumer) && Array(policy["purposes"]).include?(purpose)
+        keys = include_owner ? VAULT_POLICIES.keys : %w[compute]
+        # Preserve policy checks on requests that already carry a worker DNS binding.
+        policies = VAULT_POLICIES.slice(*keys)
+        policies["dns"] = LEGACY_DNS_POLICY if vault.key?("dns")
+        policies.each do |key, policy|
+          secret = LightekVault::Secret.active.find_by(slug: vault.fetch(key), environment: "staging")
+          unless usable_vault?(secret, policy)
             raise Invalid, "Configure the staging-only #{key} Vault reference with its explicit access policy"
           end
         end
       end
 
-      def self.setting!(key)
-        ENV["LIGHTEK_RELEASE_ASSURANCE_#{key}"].presence ||
-          raise(Invalid, "The staging control plane is missing its #{key.downcase.tr('_', ' ')} setting")
+      def self.usable_vault?(secret, (consumer, purpose))
+        return false unless secret&.usable? && secret.slug.start_with?("staging-")
+
+        policy = secret.access_policy.to_h
+        Array(policy["consumers"]).include?(consumer) && Array(policy["purposes"]).include?(purpose)
+      end
+
+      def self.setting!(key, settings)
+        if settings
+          settings[key].presence || raise(Invalid, "Enter or select the staging #{key.downcase.tr('_', ' ')}")
+        else
+          ENV["LIGHTEK_RELEASE_ASSURANCE_#{key}"].presence ||
+            raise(Invalid, "The staging control plane is missing its #{key.downcase.tr('_', ' ')} setting")
+        end
       end
       private_class_method :event, :approved_plan!, :eligible_provider?, :validate_vault!, :setting!
     end

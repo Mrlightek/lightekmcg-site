@@ -18,6 +18,8 @@ class FixtureSessionsController < ActionController::Base
 end
 routes = File.read("#{source}/config/routes.rb").split('scope "/dashboard/mail", controller: "dashboard/mail_studio" do', 2).last.split('get "/dashboard/live"', 2).first
 Rails.application.routes.draw do
+  discovery_routes = "#{source}/config/routes/mail_discovery.rb"
+  instance_eval(File.read(discovery_routes), discovery_routes)
   get '/dashboard/mail-transport', to: 'dashboard/mail_transport#show', as: :dashboard_mail_transport
   post '/session', to: 'fixture_sessions#create'
   instance_eval('scope "/dashboard/mail", controller: "dashboard/mail_studio" do' + routes)

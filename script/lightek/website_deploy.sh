@@ -186,6 +186,7 @@ def dns_setup(root,stage,c):
     if published=={ip}:
         print('DNS: matched',flush=True)
         return
+    if c.get('staging'):raise DeployError('Staging DNS differs from the approved Gatekeeper binding')
     result=rails_code(root,stage,DNS_CODE,dict(domain=c['domain'],ip=ip))
     line=next((x for x in result.splitlines() if x.startswith('LIGHTEK_DNS_RESULT=')),None)
     if not line:raise DeployError('DNS integration returned no result')
@@ -250,7 +251,7 @@ def main():
         c=json.load(sys.stdin)
         c['_headless']=True
         c['ssh'],c['port']=normalize_ssh(c['ssh'],c.get('port'))
-        c['extra_env']={}
+        c['extra_env']={'LIGHTEK_RELEASE_ASSURANCE_TARGET': '1', 'MAIL_DELIVERY_METHOD': 'test', 'LIGHTEK_RELEASE_ASSURANCE_BETA_KEY': c.pop('staging_beta_key')} if c.get('staging') else {}
         if not c.get('public_ip') or not c.get('ssh_key_path'):raise DeployError('Application deployment requires public_ip and ssh_key_path')
     else:
         destination,port=normalize_ssh(prompt(args.ssh,'SSH destination (user@host, SSH alias, or ssh user@host)'),args.ssh_port)
@@ -296,7 +297,7 @@ def main():
             application=app/'config/application.rb';application.write_text(add_boot_sync_hook(application.read_text()))
             make_gemfile(meta,app)
             shutil.copy2(app/'Gemfile',app/'Gemfile.native')
-            if not c.get('sidebar_sections'):
+            if not c.get('sidebar_sections') and not c.get('staging'):
                 nav=rails_code(root,stage,'require "json"; puts "LIGHTEK_SIDEBAR="+JSON.generate(DymondDash::NavSection.order(:position).map { |s| s.attributes.slice("slug","label","position") })',{})
                 line=next((x for x in nav.splitlines() if x.startswith('LIGHTEK_SIDEBAR=')),None)
                 if not line:raise DeployError('Sidebar configuration was not returned')
@@ -329,7 +330,7 @@ def main():
                 # SMTP delivery is not enabled by this step.
                 mail_setup_status='not_requested'
                 mail_registration_status='not_requested'
-                if c.get('_headless') or os.environ.get('LIGHTEK_INSTALL_PRIVATE_MAIL_NODE')=='true':
+                if not c.get('staging') and (c.get('_headless') or os.environ.get('LIGHTEK_INSTALL_PRIVATE_MAIL_NODE')=='true'):
                     mail_script='/opt/lightek-sites/'+c['domain']+'/releases/'+c['release']+'/lib/scripts/setup_lightek_mail_node.sh'
                     check='systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
                     command='if '+check+'; then sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' bash '+shlex.quote(mail_script)+' --mailbox-only; else sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' LIGHTEK_MAIL_HOST='+shlex.quote('mail.'+c['domain'])+' LIGHTEK_MAIL_DKIM_DOMAIN='+shlex.quote(c['domain'])+' bash '+shlex.quote(mail_script)+' --install; fi'

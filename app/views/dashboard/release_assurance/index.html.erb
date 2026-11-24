@@ -1,0 +1,50 @@
+<% content_for :page_title, "Release Assurance" %>
+<%= render "dashboard/infrastructure/styles" %>
+<div class="infra">
+  <header class="infra-hero">
+    <div><h1>Release Assurance</h1><p>Prepare staging, coordinate acceptance and review Nevaeh’s evidence for promotion.</p></div>
+    <%= link_to "Servers & Applications", dashboard_servers_path, class: "infra-button" %>
+  </header>
+
+  <section class="infra-panel p-3" aria-labelledby="release-candidates">
+    <h2 id="release-candidates">Release candidates</h2>
+    <%= form_with url: dashboard_release_assurance_index_path, class: "row g-2 align-items-end mb-3" do |form| %>
+      <div class="col-md-3"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 120, class: "form-control" %></div>
+      <div class="col-md-3"><%= form.label :profile %><%= form.select :profile, [["Combined MSP (B, C, D)", "msp"], ["Standard release", "standard"]], {}, class: "form-select" %></div>
+      <div class="col-md-4"><%= form.label :sources, "Sources (additional for MSP)" %><%= form.text_field :sources, placeholder: "pr:426 branch:feature-name commit:SHA", class: "form-control" %></div>
+      <div class="col-md-2"><%= form.submit "Assemble", class: "infra-button infra-button-primary" %></div>
+    <% end %>
+    <div class="infra-table-wrap"><table class="infra-table">
+      <thead><tr><th scope="col">Candidate</th><th scope="col">Revision</th><th scope="col">State</th></tr></thead>
+      <tbody>
+        <% @candidates.each do |candidate| %>
+          <tr><td><%= link_to candidate.name, dashboard_release_assurance_path(candidate) %></td><td><code><%= candidate.source_sha&.first(12) || "Pending" %></code></td><td><%= candidate.state.humanize %></td></tr>
+        <% end %>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="infra-panel p-3" aria-labelledby="beta-testers">
+    <h2 id="beta-testers">Beta testers</h2>
+    <%= form_with url: register_tester_dashboard_release_assurance_index_path, class: "row g-2 mb-3" do |form| %>
+      <div class="col-md-3"><%= form.label :name, "Tester name" %><%= form.text_field :name, required: true, class: "form-control" %></div>
+      <div class="col-md-3"><%= form.label :email %><%= form.email_field :email, required: true, class: "form-control" %></div>
+      <div class="col-md-2"><%= form.label :platform %><%= form.select :platform, [["Windows", "windows"], ["macOS", "macos"], ["Linux", "linux"]], {}, class: "form-select" %></div>
+      <div class="col-md-4"><%= form.label :device_profile, "Disposable device or VM profile" %><%= form.text_field :device_profile, required: true, maxlength: 120, class: "form-control" %></div>
+      <div class="col-md-8"><%= form.check_box :consent, required: true %> <%= form.label :consent, "The tester consented to participate using a disposable environment." %></div>
+      <div class="col-md-4"><%= form.submit "Register tester", class: "infra-button" %></div>
+    <% end %>
+    <div class="infra-table-wrap"><table class="infra-table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Platform</th><th scope="col">Device profile</th><th scope="col">Access</th></tr></thead>
+      <tbody>
+        <% @testers.each do |tester| %>
+          <tr><td><%= tester.name %><small><%= tester.email %></small></td><td><%= tester.platform %></td><td><%= tester.device_profile %></td><td>
+            <% if tester.offboarded_at %>Offboarded<% else %>
+              <%= button_to "Offboard", offboard_tester_dashboard_release_assurance_index_path, params: { tester_id: tester.id }, class: "infra-button" %>
+            <% end %>
+          </td></tr>
+        <% end %>
+      </tbody>
+    </table></div>
+  </section>
+</div>

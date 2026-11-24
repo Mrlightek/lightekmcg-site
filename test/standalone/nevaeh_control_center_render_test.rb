@@ -4,6 +4,7 @@ require_relative "nevaeh_control_center_test"
 require "action_view"
 require "ostruct"
 require File.join(ROOT, "app/helpers/nevaeh_control_center_helper")
+require_relative "../support/dashboard_team_navigation_fixture"
 require File.join(ROOT, "app/helpers/nevaeh_help_helper")
 module LightekPwa
   class Policy

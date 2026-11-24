@@ -55,6 +55,7 @@ Rails.application.routes.draw do
       get "images/:attachment_id", to: "blog#image", on: :member, as: :image
     end
   end
+  draw :release_assurance
   draw :reservations
   draw :broadcast_ad_exchange
   draw :broadcast_network

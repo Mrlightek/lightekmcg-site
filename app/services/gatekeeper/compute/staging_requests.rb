@@ -23,10 +23,12 @@ module Gatekeeper
         raise Invalid, "Budget must be between 1 and 2400 cents" unless (1..BUDGET_CENTS).cover?(budget_cents)
         raise Invalid, "Lifetime must be between 4 and 168 hours" unless (4..168).cover?(hours)
 
-        zone = setting!("ZONE")
-        unless zone.match?(/\Astaging\.(?:[a-z0-9-]+\.)+[a-z]{2,}\z/) &&
-            hostname.match?(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.#{Regexp.escape(zone)}\z/)
-          raise Invalid, "Enter a batch-d hostname in the configured staging zone"
+        match = hostname.match(/\Abatch-d-[a-z0-9]+(?:-[a-z0-9]+)*\.(staging\.(?:[a-z0-9-]+\.)+[a-z]{2,})\z/)
+        raise Invalid, "Enter a batch-d hostname in a dedicated staging zone" unless match
+
+        zone = match[1]
+        unless Godaddy::DnsService.zones.include?(zone)
+          raise Invalid, "The dedicated DNS zone #{zone} is missing from Dashboard → Network → Controllers"
         end
 
         owner = User.find_by(email_address: setting!("OWNER"), role: "client")

@@ -31,7 +31,7 @@ module Gatekeeper
       dns.verify_access!
     end
 
-    def self.call!(hostname:, ipv4:)
+    def self.call!(hostname:, ipv4:, replace: true)
       host = hostname.to_s.downcase.strip
       address = IPAddr.new(ipv4.to_s)
       raise ArgumentError, "Expected public IPv4" unless address.ipv4? && !address.private? && !address.loopback? && !address.link_local?
@@ -48,7 +48,7 @@ module Gatekeeper
         dns.create_record!("name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
       elsif existing.one? && existing.first["data"].to_s == ipv4.to_s
         # The only existing A record already points to this instance.
-      elsif existing.one? && (existing.first["recordId"].presence || existing.first["id"].presence).present?
+      elsif replace && existing.one? && (existing.first["recordId"].presence || existing.first["id"].presence).present?
         dns.update_record!(existing.first["recordId"].presence || existing.first.fetch("id"), "name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
       else
         # A matching record among several conflicting A records is NOT success.

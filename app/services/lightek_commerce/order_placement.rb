@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, it_service_plan: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -25,6 +25,12 @@ module LightekCommerce
         product_ids = requested.keys.map { |key| key.split(":").first.to_i }.uniq
         products = Product.where(site: site, id: product_ids).order(:id).lock.to_a
         raise Invalid, "One or more products are unavailable" unless products.size == product_ids.size && products.all?(&:published?)
+        if defined?(ItServices::Plan)
+          plans = ItServices::Plan.where(product_id: product_ids).to_a
+          if plans.any? && (!buyer || plans != [it_service_plan] || !plans.first.available?)
+            raise Invalid, "Choose this plan from IT Services billing."
+          end
+        end
         if workspace_seats && (requested.size != 1 || requested.keys.first.include?(":") ||
           !defined?(Gatekeeper::Hosting::WorkspacePlans))
           raise Invalid, "Choose one Workspace plan"

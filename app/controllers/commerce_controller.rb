@@ -33,6 +33,9 @@ class CommerceController < ApplicationController
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
+    if defined?(ItServices::Plan) && (plan = ItServices::Plan.find_by(product: product))
+      return redirect_to it_service_billing_path(plan_id: plan.id), status: :see_other
+    end
     if product.full_communications_package?
       return redirect_to full_package_installations_path(product_id: product.id), status: :see_other
     end

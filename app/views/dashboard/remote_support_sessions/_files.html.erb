@@ -1,0 +1,46 @@
+<%= turbo_frame_tag "remote-support-files" do %>
+  <section class="lp-card" aria-labelledby="remote-support-files-heading">
+    <h2 id="remote-support-files-heading">File transfers</h2>
+    <% if alert.present? %><p role="alert"><%= alert %></p><% end %>
+    <% can_transfer = @bound && @room.state == "approved" && @room.expires_at.future? %>
+    <% if can_transfer %>
+      <% if ItServices::RemoteSupportFileScanner.port %>
+        <p>Send a text, log, PNG, or JPEG file up to 1 MB. The recipient must accept it after a clean scan.</p>
+        <%= form_with url: offer_file_dashboard_remote_support_session_path(@room), multipart: true, class: "lp-form" do |form| %>
+          <%= form.label :support_file, "File to send" %>
+          <%= form.file_field :support_file, accept: ".txt,.log,.png,.jpg,.jpeg", required: true %>
+          <%= form.submit "Send for scanning", class: "lp-button" %>
+        <% end %>
+      <% else %>
+        <p>File scanning is unavailable.</p>
+      <% end %>
+      <%= link_to "Refresh transfers", dashboard_remote_support_session_path(@room), class: "lp-button secondary" %>
+    <% end %>
+    <% if @transfers.any? %>
+      <ul>
+        <% @transfers.each do |transfer| %>
+          <li>
+            <strong><%= transfer.filename %></strong>
+            · <%= number_to_human_size(transfer.byte_size) %>
+            · <%= transfer.sender_id == current_user.id ? "Sent" : "Received" %>
+            · <%= transfer.state.humanize %>
+            <% if can_transfer && transfer.recipient?(current_user) %>
+              <% if transfer.state == "awaiting_acceptance" %>
+                <%= button_to "Accept file", accept_file_dashboard_remote_support_session_path(@room, transfer_id: transfer.id),
+                  class: "lp-button" %>
+              <% elsif transfer.state == "accepted" %>
+                <p>SHA-256 <code><%= transfer.sha256 %></code></p>
+                <%= button_to "Download file", download_file_dashboard_remote_support_session_path(@room, transfer_id: transfer.id),
+                  class: "lp-button", form: { data: { turbo: false } } %>
+              <% end %>
+            <% end %>
+            <% if can_transfer && transfer.state.in?(%w[scanning awaiting_acceptance accepted]) %>
+              <%= button_to "Cancel transfer", cancel_file_dashboard_remote_support_session_path(@room, transfer_id: transfer.id),
+                class: "lp-button secondary" %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+<% end %>

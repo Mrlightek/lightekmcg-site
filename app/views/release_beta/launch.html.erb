@@ -1,0 +1,8 @@
+<main class="container py-4">
+  <h1>Sign in to staging</h1>
+  <p>Open a temporary test account on <%= @hostname %>.</p>
+  <%= form_with url: "https://#{@hostname}/release-beta/account", authenticity_token: false, data: { turbo: false } do |form| %>
+    <%= form.hidden_field :assertion, value: @assertion %>
+    <%= form.submit "Continue to staging", class: "btn btn-primary" %>
+  <% end %>
+</main>

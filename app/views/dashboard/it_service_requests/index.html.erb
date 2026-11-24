@@ -1,0 +1,54 @@
+<main class="container" style="max-width:950px;margin:2rem auto;padding:1rem">
+  <h1>IT Services Operations</h1>
+  <p>Review customer requests and record accountable service progress. Device commands and payment capture are not enabled here.</p>
+  <% @requests.each do |request| %>
+    <article style="border:1px solid #777;padding:1rem;margin:1rem 0">
+      <h2><%= ItServiceRequest::SERVICES.fetch(request.service_code) %></h2>
+      <p><strong>Customer:</strong> <%= request.user.email_address %> | <strong>Status:</strong> <%= request.status.humanize %> | <strong>Mode:</strong> <%= request.delivery_mode.humanize %></p>
+      <p><%= request.description %></p>
+      <p><strong>Assigned technician:</strong> <%= request.technician&.full_name || "Not yet assigned" %></p>
+      <% unless request.status.in?(%w[resolved cancelled]) %>
+        <% technicians = User.where(role: ItServices::TechnicianAssignment::ELIGIBLE_ROLES, access_suspended_at: nil).order(:last_name, :first_name) %>
+        <% if technicians.exists? %>
+          <%= form_with url: assign_technician_dashboard_it_service_request_path(request), method: :post do |form| %>
+            <p><%= form.label :technician_id, "Assign technician" %><br><%= form.select :technician_id, technicians.map { |person| [person.full_name, person.id] } %></p>
+            <p><%= form.label :note, "Assignment reason" %><br><%= form.text_area :note, required: true, maxlength: 1800 %></p>
+            <%= form.submit "Assign technician" %>
+          <% end %>
+        <% end %>
+      <% end %>
+      <% if request.reservation %>
+        <p><strong>Appointment:</strong> <%= request.reservation.starts_at&.strftime("%b %-d, %Y at %-I:%M %p %Z") %>
+          (<%= request.reservation.status.humanize %>)</p>
+      <% else %>
+        <p>No appointment linked. Customer can book via <%= link_to "Reservations", reservations_catalog_path %>.</p>
+      <% end %>
+      <% if request.status.in?(%w[triaged awaiting_customer]) %>
+        <%= form_with url: dispatch_dashboard_it_service_request_path(request), method: :post do |form| %>
+          <p><%= form.label :note, "Dispatch instructions" %><br><%= form.text_area :note, required: true, maxlength: 1500 %></p>
+          <%= form.submit "Confirm technician dispatch" %>
+        <% end %>
+      <% end %>
+      <% if request.network_managed_device %>
+        <p><strong>Managed device:</strong> <%= request.network_managed_device.name %></p>
+      <% else %>
+        <% owned_devices = NetworkManagedDevice.where(owner_id: request.user_id).where.not(status: "retired").order(:name) %>
+        <% if owned_devices.exists? %>
+          <%= form_with url: assign_device_dashboard_it_service_request_path(request), method: :post do |form| %>
+            <p><%= form.label :device_id, "Verified customer device" %><br><%= form.select :device_id, owned_devices.map { |device| [device.name, device.id] } %></p>
+            <%= form.submit "Associate device" %>
+          <% end %>
+        <% else %>
+          <p>No customer-owned managed device is available. Existing unowned devices must be verified and assigned before use.</p>
+        <% end %>
+      <% end %>
+      <% if ItServices::Transition::ALLOWED.fetch(request.status, []).any? %>
+        <%= form_with url: transition_dashboard_it_service_request_path(request), method: :post do |form| %>
+          <p><%= form.label :status, "Next status" %><br><%= form.select :status, ItServices::Transition::ALLOWED.fetch(request.status).map { |s| [s.humanize, s] } %></p>
+          <p><%= form.label :note, "Required service note" %><br><%= form.text_area :note, required: true, maxlength: 2000 %></p>
+          <%= form.submit "Record service progress" %>
+        <% end %>
+      <% end %>
+    </article>
+  <% end %>
+</main>

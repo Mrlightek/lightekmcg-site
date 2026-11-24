@@ -8,7 +8,7 @@ module LightekCommerce
       Stripe.api_key = DymondBank::StripeCredentials.secret_key
       remote = Stripe::Subscription.update(subscription.processor_reference, {cancel_at_period_end: true},
         {idempotency_key: "commerce-cancel-#{subscription.processor_reference}"})
-      subscription.with_lock { SubscriptionEvents.apply!(subscription: subscription, data: remote.to_h.deep_stringify_keys) }
+      subscription.with_lock { SubscriptionEvents.apply!(subscription: subscription, data: remote.to_hash.deep_stringify_keys) }
       subscription
     end
   end

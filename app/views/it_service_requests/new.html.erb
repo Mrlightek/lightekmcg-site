@@ -1,0 +1,16 @@
+<main class="container" style="max-width:720px;margin:3rem auto;padding:1rem">
+  <h1>Request Lightek IT Services</h1>
+  <p>Remote diagnostics and on-site technician assistance. A support request is not a confirmed booking or payment.</p>
+  <% if @service_request.errors.any? %>
+    <div role="alert"><h2>Check your request</h2><ul><% @service_request.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div>
+  <% end %>
+  <%= form_with model: @service_request, url: it_service_requests_path do |form| %>
+    <p><%= form.label :service_code, "Service" %><br><%= form.select :service_code, ItServiceRequest::SERVICES.map { |code, name| [name, code] }, {}, required: true %></p>
+    <p><%= form.label :delivery_mode, "How would you like help?" %><br><%= form.select :delivery_mode, [["Remote support", "remote"], ["On-site visit", "onsite"]], {}, required: true %></p>
+    <p><%= form.label :device_platform, "Device / operating system" %><br><%= form.text_field :device_platform, maxlength: 100 %></p>
+    <p><%= form.label :description, "Describe the problem" %><br><%= form.text_area :description, required: true, maxlength: 4000, rows: 5 %></p>
+    <p><%= form.label :service_location, "Service location (required for on-site)" %><br><%= form.text_area :service_location, maxlength: 1000, rows: 2 %></p>
+    <%= form.submit "Submit support request" %>
+  <% end %>
+  <p><%= link_to "My IT support requests", it_service_requests_path %></p>
+</main>

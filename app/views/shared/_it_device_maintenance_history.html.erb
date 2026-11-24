@@ -1,0 +1,52 @@
+<h2>Device maintenance history</h2>
+<% if actions.empty? %>
+  <p>No checks scheduled or reported.</p>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Device</th>
+        <% if show_operator %><th scope="col">Approved by</th><% end %>
+        <th scope="col">Check</th>
+        <th scope="col">Starts (UTC)</th>
+        <th scope="col">Expires (UTC)</th>
+        <th scope="col">Status</th>
+        <th scope="col">Agent observation</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% actions.each do |action| %>
+        <% status = action.display_status %>
+        <tr>
+          <td><%= action.network_managed_device.name %> (#<%= action.network_managed_device_id %>)</td>
+          <% if show_operator %><td>User #<%= action.approved_by_id %></td><% end %>
+          <td><%= action.action_code.humanize %><% if action.patch_deployment? %> · <code><%= action.patch_target %></code><% elsif action.staged_restore? || action.live_restore? %> · ZIP SHA-256 <code><%= action.expected_recovery_digest %></code><% end %></td>
+          <td><%= l((action.starts_at || action.created_at).utc, format: :short) %></td>
+          <td><%= l(action.report_deadline.utc, format: :short) %></td>
+          <td><%= status.humanize %></td>
+          <td>
+            <% if action.reported_at %>
+              <%= action.result["status"].to_s.humanize %> · <%= action.result["observation"] %>
+              (<%= l(action.reported_at.utc, format: :short) %> UTC)
+            <% end %>
+          </td>
+          <td>
+            <% if status == "awaiting_customer_consent" && action.patch_deployment? && patch_consent_path %>
+              <%= button_to "Authorize listed package version", patch_consent_path, method: :post,
+                params: { device_id: action.network_managed_device_id, action_id: action.id, code: action.action_code } %>
+            <% elsif status == "awaiting_customer_consent" && !action.patch_deployment? && recovery_consent_path %>
+              <%= button_to(action.live_restore? ? "Authorize replacing live files" : "Authorize backup recovery",
+                recovery_consent_path, method: :post, params: { device_id: action.network_managed_device_id,
+                  action_id: action.id, code: action.action_code }) %>
+            <% end %>
+            <% if action.cancellable? %>
+              <%= button_to "Cancel check", cancel_path, method: :post,
+                params: { device_id: action.network_managed_device_id, action_id: action.id } %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

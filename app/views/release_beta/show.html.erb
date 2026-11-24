@@ -1,0 +1,27 @@
+<main class="container py-4">
+  <h1>Staging beta test</h1>
+  <% if @assignment %>
+    <p><%= ReleaseAssurance::Readiness::SCENARIOS.fetch(@assignment.scenario).last %></p>
+    <p>Use synthetic data and a disposable device or virtual machine. Keep credentials and personal information out of screenshots and feedback.</p>
+    <p>Access expires <%= l(@assignment.expires_at, format: :short) %>.</p>
+    <%= button_to "Open staging sign-in", launch_release_beta_path, class: "btn btn-primary" %>
+    <% unless ReleaseAssurance::Run.exists?(assignment: @assignment) %>
+      <%= form_with url: feedback_release_beta_path, multipart: true do |form| %>
+        <%= form.label :result %>
+        <%= form.select :result, ReleaseAssurance::Feedback::STATUSES.map { |status| [status.humanize, status] } %>
+        <%= form.label :note, "What did you verify?" %>
+        <%= form.text_area :note, required: true, maxlength: 1000, class: "form-control" %>
+        <%= form.label :screenshot, "Redacted PNG screenshot (optional)" %>
+        <%= form.file_field :screenshot, accept: "image/png" %>
+        <p><%= form.check_box :redacted %> <%= form.label :redacted, "I used synthetic data and removed sensitive information." %></p>
+        <%= form.submit "Submit feedback", class: "btn btn-primary" %>
+      <% end %>
+    <% end %>
+  <% else %>
+    <%= form_with url: redeem_release_beta_path do |form| %>
+      <%= form.label :invite, "One-time invitation code" %>
+      <%= form.password_field :invite, required: true, autocomplete: "off", class: "form-control" %>
+      <%= form.submit "Accept invitation", class: "btn btn-primary" %>
+    <% end %>
+  <% end %>
+</main>

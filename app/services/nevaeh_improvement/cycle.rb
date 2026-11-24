@@ -9,7 +9,7 @@ module NevaehImprovement
     MIN_PER_GROUP = 6
     WINDOW = 7.days
 
-    def self.adapters = {'agency_onboarding' => Agency, 'purchased_service' => PurchasedService}
+    def self.adapters = {'agency_onboarding' => Agency, 'purchased_service' => PurchasedService, 'release_assurance' => ReleaseAssurance}
 
     def initialize(operator, workflow)
       @operator = operator

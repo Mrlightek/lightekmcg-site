@@ -204,3 +204,9 @@ drive_revision_retention:
   class: "LightekWorkspace::ExpireDriveRevisionsJob"
   queue: default
   active_job: true
+
+release_assurance:
+  cron: "*/5 * * * *"
+  class: "ReleaseAssurance::SweepJob"
+  queue: release_assurance
+  active_job: true

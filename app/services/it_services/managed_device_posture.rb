@@ -25,11 +25,12 @@ module ItServices
       else
         findings << "telemetry_missing_or_stale"
       end
-      patch_inventory, backup_sample, staged_restore_status, patch_deployment_status = maintenance_evidence(device)
+      patch_inventory, backup_sample, staged_restore_status, patch_deployment_status, live_restore_status = maintenance_evidence(device)
       findings << "patches_available" if patch_inventory.fetch("available_update_count", 0).positive?
       backup_sample_status = backup_sample["status"]
       findings << "backup_recovery_test_failed" if %w[mismatch unavailable].include?(backup_sample_status)
       findings << "staged_restore_failed" if staged_restore_status == "attention_required"
+      findings << "live_restore_failed" if live_restore_status == "attention_required"
       findings << "patch_deployment_failed" if patch_deployment_status == "attention_required"
       {
         device_id: device.id,
@@ -41,6 +42,7 @@ module ItServices
         reported_telemetry: telemetry_fresh ? telemetry : {},
         backup_sample_status: backup_sample_status,
         staged_restore_status: staged_restore_status,
+        live_restore_status: live_restore_status,
         patch_deployment_status: patch_deployment_status,
         evaluated_at: Time.current.iso8601(6),
         limitations: "Agent-reported metrics are not independently verified. Maintenance results cover their approved package or backup only.",
@@ -49,7 +51,7 @@ module ItServices
     end
 
     def self.maintenance_evidence(device)
-      return [{}, {}, nil, nil] unless device.persisted? && device.enrolled_at? && device.managed_monitoring_enabled?
+      return [{}, {}, nil, nil, nil] unless device.persisted? && device.enrolled_at? && device.managed_monitoring_enabled?
 
       now = Time.current
       actions = ItDeviceMaintenanceAction.where(network_managed_device: device, owner_id: device.owner_id)
@@ -59,12 +61,16 @@ module ItServices
       [reports.find_by(action_code: "check_patch_status")&.result || {},
         reports.find_by(action_code: "verify_backup_recovery")&.result || {},
         operation_status(actions, code: "stage_backup_restore", artifact: :expected_recovery_digest, now: now),
-        operation_status(actions, code: "deploy_apt_patch", artifact: :patch_target, now: now)]
+        operation_status(actions, code: ItDeviceMaintenanceAction::PATCH_TARGETS.keys, artifact: :patch_target, now: now),
+        operation_status(actions, code: "cutover_backup_restore", artifact: :expected_recovery_digest, now: now)]
     end
 
     def self.operation_status(actions, code:, artifact:, now:)
       scoped = actions.where(action_code: code)
-      timed_out = scoped.where(status: "approved").where.not(claimed_at: nil).where(expires_at: ..now)
+      claimed = scoped.where(status: "approved").where.not(claimed_at: nil)
+      native = ItDeviceMaintenanceAction::NATIVE_PATCHES
+      timed_out = claimed.where.not(action_code: native).where(expires_at: ..now)
+        .or(claimed.where(action_code: native).where(claimed_at: ..(now - ItDeviceMaintenanceAction::NATIVE_REPORT_WINDOW)))
       column = ItDeviceMaintenanceAction.connection.quote_column_name(artifact)
       last_by_artifact = scoped.where(status: "reported").or(timed_out)
         .select(Arel.sql("DISTINCT ON (#{column}) CASE WHEN status = 'approved' THEN 'unconfirmed' ELSE result ->> 'status' END AS outcome"))

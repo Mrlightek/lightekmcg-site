@@ -318,6 +318,69 @@ class GatekeeperDeviceApiTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "native patch reports stay bound to the consented platform and exact target" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    send_action("device_enroll")
+    @device.update!(owner: owner, managed_monitoring_enabled: true)
+    start = 1.hour.from_now.change(usec: 0)
+    targets = { "deploy_windows_patch" => "a1234567-1234-1234-1234-123456789abc=1",
+      "deploy_macos_patch" => "Security Update|macos-build|25F81" }
+    targets.each do |code, target|
+      assert_raises(ArgumentError) do
+        ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+          code: code, scheduled_at: start.iso8601, patch_target: "other-package=2.0")
+      end
+      action = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+        code: code, scheduled_at: start.iso8601, patch_target: target)
+      ItServices::EndpointMaintenance.consent!(device: @device, action_id: action.id, actor: owner, code: code)
+      travel_to start do
+        send_action("device_maintenance_claim", action_id: action.id, nonce: action.request_nonce)
+        assert_response :success
+        assert_equal target, response.parsed_body.fetch("patch_target")
+      end
+      travel_to(start + 30.minutes) do
+        credentials = { action_id: action.id, nonce: action.request_nonce }
+        send_action("device_maintenance_report", **credentials, result: { status: "installed", target: "other-package=2.0" })
+        assert_response :unprocessable_entity
+        send_action("device_maintenance_report", **credentials, result: { status: "installed", target: target })
+        assert_response :success
+        assert_equal "verified", action.reload.result.fetch("status")
+      end
+    end
+  end
+
+  test "live restore requires distinct consent and an exact rollback receipt" do
+    owner = create_user
+    operator = create_user(role: "super_admin")
+    send_action("device_enroll")
+    @device.update!(owner: owner, managed_monitoring_enabled: true)
+    start = 1.hour.from_now.change(usec: 0)
+    digest = "3" * 64
+    action = ItServices::EndpointMaintenance.approve!(device: @device, actor: operator,
+      code: "cutover_backup_restore", scheduled_at: start.iso8601, expected_recovery_digest: digest)
+    credentials = { action_id: action.id, nonce: action.request_nonce }
+
+    travel_to start do
+      post session_path, params: { email_address: owner.email_address, password: PASSWORD }
+      post consent_to_device_recovery_it_service_requests_path,
+        params: { device_id: @device.id, action_id: action.id, staged: "1" }
+      assert_nil action.reload.owner_consented_at
+      post consent_to_device_recovery_it_service_requests_path,
+        params: { device_id: @device.id, action_id: action.id, code: "cutover_backup_restore" }
+      assert_redirected_to it_service_requests_path
+      send_action("device_maintenance_claim", **credentials)
+      assert_response :success
+      assert_equal digest, response.parsed_body.fetch("restore_digest")
+      evidence = { status: "activated", sha256: digest, rollback_reference: "lightek-restore-#{"a" * 32}" }
+      send_action("device_maintenance_report", **credentials, result: evidence.merge(sha256: "4" * 64))
+      assert_response :unprocessable_entity
+      send_action("device_maintenance_report", **credentials, result: evidence)
+      assert_response :success
+      assert_equal "verified", action.reload.result.fetch("status")
+    end
+  end
+
   private
 
   def create_user(role: "client")

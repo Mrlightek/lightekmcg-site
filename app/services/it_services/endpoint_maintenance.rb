@@ -10,14 +10,14 @@ module ItServices
     def self.approve!(device:, actor:, code:, scheduled_at: nil, expected_recovery_digest: nil, patch_target: nil)
       raise ArgumentError, "Unsupported action" unless ItDeviceMaintenanceAction::ACTIONS.include?(code)
       require_operator!(actor)
-      recovery_check = [ItDeviceMaintenanceAction::RECOVERY_CHECK, ItDeviceMaintenanceAction::STAGED_RESTORE].include?(code)
+      recovery_check = [ItDeviceMaintenanceAction::RECOVERY_CHECK, ItDeviceMaintenanceAction::STAGED_RESTORE, ItDeviceMaintenanceAction::LIVE_RESTORE].include?(code)
       if recovery_check && (scheduled_at.blank? || !expected_recovery_digest.is_a?(String))
         raise ArgumentError, "Recovery verification requires a scheduled time and an expected SHA-256 digest"
       end
-      patch_deployment = code == ItDeviceMaintenanceAction::PATCH_DEPLOYMENT
-      if patch_deployment && (scheduled_at.blank? || !patch_target.is_a?(String) ||
-          !ItDeviceMaintenanceAction::PATCH_TARGET.match?(patch_target))
-        raise ArgumentError, "Patch deployment requires a scheduled time and exact package=version"
+      patch_format = ItDeviceMaintenanceAction::PATCH_TARGETS[code]
+      if patch_format && (scheduled_at.blank? || !patch_target.is_a?(String) ||
+          !patch_format.match?(patch_target))
+        raise ArgumentError, "Patch deployment requires a scheduled time and a valid exact target for the platform"
       end
       device.with_lock do
         raise ArgumentError, "Customer monitoring consent required" unless available?(device)
@@ -29,7 +29,7 @@ module ItServices
           network_managed_device: device, owner_id: device.owner_id, approved_by: actor,
           action_code: code, status: "approved", request_nonce: SecureRandom.hex(24),
           starts_at: starts_at, expires_at: starts_at + WINDOW_LENGTH,
-          patch_target: (patch_target if patch_deployment),
+          patch_target: (patch_target if patch_format),
           expected_recovery_digest: (expected_recovery_digest.strip.downcase if recovery_check)
         )
       end
@@ -101,7 +101,8 @@ module ItServices
         evidence = case action.action_code
         when ItDeviceMaintenanceAction::RECOVERY_CHECK then verified_recovery_result(action, result)
         when ItDeviceMaintenanceAction::STAGED_RESTORE then staged_restore_result(action, result)
-        when ItDeviceMaintenanceAction::PATCH_DEPLOYMENT then verified_patch_result(action, result)
+        when ItDeviceMaintenanceAction::LIVE_RESTORE then live_restore_result(action, result)
+        when *ItDeviceMaintenanceAction::PATCH_TARGETS.keys then verified_patch_result(action, result)
         else check_result(action, result)
         end
         action.update!(status: "reported", reported_at: Time.current, result: evidence)
@@ -160,9 +161,24 @@ module ItServices
         "observation" => "The endpoint restored and read back #{data['file_count']} files in #{data['staging_reference']}.")
     end
 
+    def self.live_restore_result(action, result)
+      data = result.stringify_keys
+      if result.size == 1 && %w[failed unavailable mismatch rolled_back].include?(data["status"])
+        return { "status" => data["status"], "observation" => "The verified backup could not be placed into service." }
+      end
+      reference = data["rollback_reference"]
+      unless result.size == 3 && data.keys.sort == %w[rollback_reference sha256 status] &&
+          data["status"] == "activated" && data["sha256"] == action.expected_recovery_digest &&
+          reference.is_a?(String) && reference.match?(/\Alightek-restore-[0-9a-f]{32}\z/)
+        raise ArgumentError, "Invalid live recovery evidence"
+      end
+
+      data.merge("status" => "verified", "observation" => "Restored files are active. Previous files retained as #{reference}.")
+    end
+
     def self.verified_patch_result(action, result)
       data = result.stringify_keys
-      if result.size == 1 && %w[failed unavailable].include?(data["status"])
+      if result.size == 1 && %w[failed unavailable pending_restart].include?(data["status"])
         return { "status" => data["status"], "observation" => "The package version could not be confirmed." }
       end
       unless result.size == 2 && data.keys.sort == %w[status target] && data["status"] == "installed" &&
@@ -196,6 +212,6 @@ module ItServices
       Time.iso8601(value)
     end
     private_class_method :available?, :owned_actions, :require_operator!, :parse_schedule, :check_result,
-      :verified_recovery_result, :verified_patch_result, :staged_restore_result
+      :verified_recovery_result, :verified_patch_result, :staged_restore_result, :live_restore_result
   end
 end

@@ -21,7 +21,8 @@ not in a shared shell history or a public file:
 - `LIGHTEK_DEVICE_IDENTIFIER` — the registered device identifier
 - `LIGHTEK_DEVICE_TOKEN` — the private device enrollment token
 
-Keep `lightek_backup_restore.py` in the same directory as the device agent.
+Keep `lightek_backup_restore.py`, `lightek_live_restore.py`, and
+`lightek_native_patch.py` in the same directory as the device agent.
 Run `python3 scripts/lightek_device_agent.py` on the enrolled device. On
 Windows, use `py -3 scripts/lightek_device_agent.py`.
 Schedule it with the device's local service manager only after confirming
@@ -84,15 +85,13 @@ confirm update requirements and catalog freshness.
    reference and records **Verified**, **Mismatch**, or **Unavailable**.
 
 A verified result covers the configured sample from that archive. Full-system
-recovery, live data restoration, macOS or Windows patch deployment, malware removal, MDM,
-and device installers require additional providers and validation.
+recovery, malware removal, MDM, and device installers require separate providers.
 
 ## Deploy one Debian-family package update
 
 The APT deployment action upgrades one already-installed package to an exact
 version selected by an operator, accepted by the device owner, and pinned by
-the endpoint administrator. It is available on Debian-family Linux. Windows
-and macOS currently provide patch inventory.
+the endpoint administrator. It is available on Debian-family Linux. Windows and macOS use their native update brokers below.
 
 1. Install `scripts/lightek_apt_patch.py` as the executable
    `/usr/local/libexec/lightek-apt-patch`, owned by root with mode `0755` in a
@@ -142,3 +141,95 @@ archive can clear that operation's finding once the endpoint reports a fresh
 heartbeat. A single package result does not clear a fleet patch inventory
 finding. Nevaeh's runbook can recommend a follow-up, which still requires
 operator approval and a new customer authorization.
+
+## Deploy a Windows Update
+
+Use an exact Windows Update ID and revision in the lower-case form
+`update-guid=revision`. The local administrator records the same value in
+`%ProgramData%\Lightek\EndpointPatch\policy.txt`. Approval for this update
+covers acceptance of its vendor license. In that directory install
+`lightek_windows_patch.ps1` and configure the fixed `\LightekEndpointPatch`
+on-demand scheduled task to run it as SYSTEM with Windows PowerShell
+`-NoProfile -NonInteractive -File`. Use the site's normal script signing
+policy and the Task Scheduler setting that disallows concurrent instances.
+
+Grant the agent account read and execute rights on that task, modification
+rights on `inbox`, and read-only access to `outbox`. Keep the script, policy,
+task definition, `work` directory, and output writes under administrator
+and SYSTEM control. Use dedicated directory ACLs with inheritance disabled
+where required. The agent account stays unprivileged.
+
+The broker starts one locally pinned software update through Windows Update
+Agent and verifies the exact installed ID and revision. It declines updates
+that require interactive input. When Windows reports a pending restart, the
+operator completes the reboot under local maintenance policy and requests a
+fresh exact-target check. The broker checks installed state before attempting
+installation, so the follow-up can verify the target without installing it twice.
+
+## Deploy an Apple software update
+
+Install `lightek_macos_patch.py` as the administrator-owned executable
+`/usr/local/libexec/lightek-macos-patch` with protected parent directories and
+an Apple-provided Python 3 runtime. Authorize only that exact executable
+without arguments in sudoers for the dedicated agent. The administrator sets
+the root-owned, mode-0644 `/etc/lightek/endpoint-macos-patch-target` under a
+root-owned, non-writable-by-others `/etc/lightek`.
+
+The operator, device owner, and locally pinned policy use the same target
+`catalog label|package receipt ID or macos-build|expected version or build`.
+The broker selects one exact label from Apple Software Update, installs it,
+and reads back the native receipt or OS build. A version mismatch leaves the
+action unverified. Use a separately scheduled follow-up after an authorized
+restart for a build that cannot be verified before restart. Apple silicon
+devices need Apple's existing volume-owner or managed bootstrap-token update
+authorization. The broker does not collect a volume-owner password or
+initiate a reboot.
+
+Windows and macOS actions must be claimed in the scheduled ten-minute window.
+A claim extends reporting for up to two hours to accommodate installation.
+Native operations started by the local OS can outlive their reporting window.
+
+## Authorize a live ZIP restore and retain rollback
+
+Live cutover uses a same-filesystem atomic directory exchange on supported
+Linux and macOS filesystems. Use one dedicated data directory owned by the
+agent account. Pause all application writers and close their open handles
+before arming the endpoint. Resume writers after checking the restored files
+and permissions. The new tree contains regular files readable by the service
+owner. Restored symlinks, mount points, and Windows live cutover are outside
+this mechanism.
+
+Point `LIGHTEK_RECOVERY_CUTOVER_AUTHORIZATION` to a local owner-only JSON
+file (mode 0600). An endpoint operator creates it after quiescing the
+application, with these fields.
+
+```json
+{
+  "operation": "cutover",
+  "live_directory": "/srv/lightek/client-data",
+  "sha256": "<approved ZIP SHA-256>",
+  "expires_at": 0,
+  "reference": null
+}
+```
+
+Replace `expires_at` with a Unix timestamp up to 30 minutes in the future.
+Set the existing `LIGHTEK_RECOVERY_ARCHIVE` and a private mode-0700 staging
+directory on the same filesystem. The Lightek operator schedules **Cutover
+backup restore** for that archive and the customer separately authorizes
+replacing live files.
+
+The agent consumes local authorization before activating staging, writes a
+durable journal, validates the new live tree, and attempts an immediate
+exchange back if readback fails. It retains the previous directory on success.
+If execution is interrupted, examine the two directories and the retained
+journal before resuming writers. The cutover reference identifies the journal
+and retained prior tree.
+
+For a later rollback, pause writers again. Re-arm the local JSON with
+`"operation": "rollback"`, the issued staging reference in `reference`, the
+same archive digest and exact live path, and a fresh deadline. As the dedicated
+agent account, run `python3 scripts/lightek_live_restore.py SHA256 REFERENCE`.
+It checks both directory identities from the durable journal before exchanging
+them. The prior live directory returns to service, and the replaced recovery
+tree is retained for inspection.

@@ -15,6 +15,7 @@ module ItServices
       "patches_available" => "security",
       "backup_recovery_test_failed" => "backup",
       "staged_restore_failed" => "backup",
+      "live_restore_failed" => "backup",
       "patch_deployment_failed" => "security",
       "backup_failed" => "backup"
     }.freeze
@@ -23,6 +24,7 @@ module ItServices
       "patches_available" => ItDeviceMaintenanceAction::PATCH_DEPLOYMENT,
       "patch_deployment_failed" => ItDeviceMaintenanceAction::PATCH_DEPLOYMENT,
       "backup_recovery_test_failed" => ItDeviceMaintenanceAction::RECOVERY_CHECK,
+      "live_restore_failed" => ItDeviceMaintenanceAction::STAGED_RESTORE,
       "staged_restore_failed" => ItDeviceMaintenanceAction::STAGED_RESTORE
     }.freeze
 

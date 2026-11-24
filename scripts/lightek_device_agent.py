@@ -20,6 +20,8 @@ import zipfile
 import zlib
 
 from lightek_backup_restore import stage_backup_restore
+from lightek_live_restore import cutover_backup_restore
+from lightek_native_patch import deploy_macos_patch, deploy_windows_patch
 
 
 RECOVERY_SAMPLE = "lightek-recovery-canary.bin"
@@ -238,9 +240,11 @@ def report():
             continue
         credentials = {"identifier": identifier, "action_id": action["id"], "nonce": action["nonce"]}
         code = action.get("code")
-        if code == "deploy_apt_patch" and sys.platform != "linux":
+        platforms = {"deploy_apt_patch": ("linux",), "deploy_windows_patch": ("win32",),
+                     "deploy_macos_patch": ("darwin",), "cutover_backup_restore": ("linux", "darwin")}
+        if code in platforms and sys.platform not in platforms[code]:
             continue
-        if code in ("verify_backup_recovery", "deploy_apt_patch", "stage_backup_restore"):
+        if code in platforms or code in ("verify_backup_recovery", "stage_backup_restore"):
             try:
                 claim = post({"method_type": "device_maintenance_claim", **credentials})
             except urllib.error.HTTPError as error:
@@ -251,6 +255,12 @@ def report():
                 continue
             if code == "deploy_apt_patch":
                 result = deploy_apt_patch(claim.get("patch_target"))
+            elif code == "deploy_windows_patch":
+                result = deploy_windows_patch(claim.get("patch_target"), expires_at)
+            elif code == "deploy_macos_patch":
+                result = deploy_macos_patch(claim.get("patch_target"))
+            elif code == "cutover_backup_restore":
+                result = cutover_backup_restore(claim.get("restore_digest"))
             elif code == "stage_backup_restore":
                 result = stage_backup_restore(claim.get("restore_digest"))
             else:

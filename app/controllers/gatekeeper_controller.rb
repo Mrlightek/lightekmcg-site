@@ -71,7 +71,7 @@ class GatekeeperController < ApplicationController
       record = ItServices::EndpointMaintenance.claim!(device: device,
         action_id: action_id, nonce: params.require(:nonce).to_s)
       render json: { ok: true, action_id: record.id, patch_target: record.patch_target,
-        restore_digest: (record.expected_recovery_digest if record.staged_restore?) }.compact
+        restore_digest: (record.expected_recovery_digest if record.staged_restore? || record.live_restore?) }.compact
     when "device_heartbeat"
       return render json: { error: "Enrollment required" }, status: :forbidden unless device.enrolled_at?
       return render json: { error: "Device is not active" }, status: :forbidden unless %w[active offline].include?(device.status)

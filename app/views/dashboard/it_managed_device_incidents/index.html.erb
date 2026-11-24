@@ -21,7 +21,7 @@
     <%= form.text_field :scheduled_at, placeholder: "2026-11-25T14:00:00Z", maxlength: 40 %>
     <%= form.label :expected_recovery_digest, "Expected SHA-256 (backup sample bytes or complete ZIP for staging)" %>
     <%= form.text_field :expected_recovery_digest, maxlength: 64, autocomplete: "off", spellcheck: false %>
-    <%= form.label :patch_target, "Exact package=version (Debian APT deployment only)" %>
+    <%= form.label :patch_target, "Exact patch target (APT package=version, Windows update-ID=revision, macOS label|receipt-or-macos-build|version)" %>
     <%= form.text_field :patch_target, maxlength: 256, autocomplete: "off", spellcheck: false %>
     <%= form.submit "Approve maintenance" %>
   <% end %>

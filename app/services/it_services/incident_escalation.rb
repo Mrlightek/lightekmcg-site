@@ -39,7 +39,7 @@ module ItServices
 
     def self.priority_for(code)
       case code
-      when "endpoint_protection_alert", "backup_failed", "backup_recovery_test_failed", "staged_restore_failed", "patch_deployment_failed" then "high"
+      when "endpoint_protection_alert", "backup_failed", "backup_recovery_test_failed", "staged_restore_failed", "live_restore_failed", "patch_deployment_failed" then "high"
       when "heartbeat_missing", "heartbeat_stale", "disk_pressure" then "medium"
       else "low"
       end

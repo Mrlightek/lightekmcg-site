@@ -1,0 +1,27 @@
+name: Gatekeeper staging provisioning dashboard
+on:
+  pull_request:
+    paths:
+      - 'app/controllers/dashboard/provisioning_requests_controller.rb'
+      - 'app/services/gatekeeper/compute/**'
+      - 'app/views/dashboard/infrastructure/index.html.erb'
+      - 'app/views/dashboard/provisioning_requests/**'
+      - 'config/routes.rb'
+      - 'test/standalone/staging_provisioning_dashboard_checks.rb'
+      - '.github/workflows/staging-provisioning-dashboard.yml'
+  push:
+    branches: ["release-candidates/**"]
+permissions:
+  contents: read
+jobs:
+  authenticated-dashboard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: false
+      - run: gem install 'rails:8.0.5.1' 'minitest:5.25.5' 'sqlite3:2.7.4' --no-document
+      - run: ruby test/standalone/staging_provisioning_release_handoff_checks.rb

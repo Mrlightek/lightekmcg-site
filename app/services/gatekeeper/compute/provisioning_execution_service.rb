@@ -178,7 +178,9 @@ module Gatekeeper
 
       def validate!
         raise NotExecutable, "Provisioning request is not approved and ready" unless request.executable?
-        raise UnsupportedProvider, "First billable execution pass supports Linode only" unless request.compute_provider.slug == "linode"
+        staging_provider = request.metadata.to_h["release_assurance_staging"] &&
+          StagingRequests.staging_provider?(request.compute_provider)
+        raise UnsupportedProvider, "First billable execution pass supports Linode only" unless request.compute_provider.slug == "linode" || staging_provider
         raise NotExecutable, "Provider must be active" unless request.compute_provider.status == "active"
         raise NotExecutable, "Provider must be healthy" unless request.compute_provider.health_status == "healthy"
       end

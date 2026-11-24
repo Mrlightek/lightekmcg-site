@@ -32,11 +32,11 @@
   <section class="infra-panel p-3">
     <h2>Staging environments</h2>
     <% if @candidate.state == "published" %>
-      <p>Leave request ID blank to prepare a new Gatekeeper request using the staging runner’s configured compute plan.</p>
+      <p>Attach an approved Gatekeeper request by ID. An empty ID prepares a new request with the configured staging plan.</p>
       <%= form_with url: prepare_dashboard_release_assurance_path(@candidate), class: "row g-2 align-items-end" do |form| %>
         <div class="col-md-2"><%= form.label :request_id, "Existing request ID" %><%= form.number_field :request_id, min: 1, class: "form-control" %></div>
         <div class="col-md-4"><%= form.label :hostname, "Staging hostname" %><%= form.text_field :hostname, required: true, class: "form-control" %></div>
-        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, max: 2400, value: 2400, class: "form-control" %></div>
         <div class="col-md-2"><%= form.label :hours, "Lifetime (hours)" %><%= form.number_field :hours, required: true, min: 4, max: 168, value: 48, class: "form-control" %></div>
         <div class="col-md-2"><%= form.submit "Prepare", class: "infra-button" %></div>
       <% end %>
@@ -78,7 +78,7 @@
       <%= form_with url: rollback_dashboard_release_assurance_path(@candidate), class: "row g-2 align-items-end" do |form| %>
         <div class="col-md-3"><%= form.label :rollback_candidate_id, "Approved candidate" %><%= form.collection_select :rollback_candidate_id, @rollback_candidates, :id, :name, {}, class: "form-select" %></div>
         <div class="col-md-3"><%= form.label :hostname, "New staging hostname" %><%= form.text_field :hostname, required: true, class: "form-control" %></div>
-        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, max: 2400, value: 2400, class: "form-control" %></div>
         <div class="col-md-2"><%= form.label :hours, "Lifetime (hours)" %><%= form.number_field :hours, required: true, min: 4, max: 168, value: 48, class: "form-control" %></div>
         <div class="col-md-2"><%= form.submit "Prepare rollback", class: "infra-button" %></div>
       <% end %>

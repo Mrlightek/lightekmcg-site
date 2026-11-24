@@ -3,7 +3,9 @@
 <div style="margin-bottom:20px">
   <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Nevaeh · Approval Boundary · Gatekeeper</div>
   <h2>Provisioning Requests</h2>
-  <p style="color:var(--dd-text-secondary)">Durable requests between a subscription entitlement and a billable provider action.</p>
+  <p style="color:var(--dd-text-secondary)">Review subscription and staging provisioning requests.</p>
+  <%= link_to "Prepare provisioning request", new_dashboard_provisioning_request_path, class: "dd-topbar-btn dd-btn-primary" %>
+  <%= link_to "Infrastructure", dashboard_infrastructure_path, class: "dd-topbar-btn" %>
 </div>
 
 <% @requests.each do |request| %>

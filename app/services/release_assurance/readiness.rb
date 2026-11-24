@@ -8,6 +8,7 @@ module ReleaseAssurance
 
     CI = {
       "application" => [".github/workflows/ci.yml", %w[test scan_ruby scan_js]],
+      "staging_provisioning_dashboard" => [".github/workflows/staging-provisioning-dashboard.yml", %w[authenticated-dashboard]],
       "assurance_contracts" => [".github/workflows/batch-e-release-assurance.yml", %w[assurance-contracts]],
       "preflight" => [".github/workflows/deployment-preflight.yml", %w[release-operations]],
       "dashboard" => [".github/workflows/dashboard-appearance.yml", %w[appearance project-deletion]],

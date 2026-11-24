@@ -4,7 +4,7 @@ Deploy the bootstrap PR on the existing control plane using the normal Gatekeepe
 
 ## Set up dedicated staging references
 
-1. Use an active synthetic Dashboard user with role `client` and email `staging-msp@example.test`. Use a scoped staging-only Linode token and a DNS credential limited by the provider to the dedicated delegated `staging.lightekmcg.com` zone.
+1. In [Employee → Users → New user](https://lightekmcg.com/employee/users/new), create or confirm an active synthetic Dashboard user with role **Client** and email `staging-msp@example.test`. Save its sign-in credential through the approved password manager. Use a scoped staging-only Linode token and a DNS credential limited by the provider to the dedicated delegated `staging.lightekmcg.com` zone.
 2. In **Dashboard → Vault**, create or confirm the following entries with environment `staging` and explicit consumer and purpose fields. The names in the left column are examples. Enter sensitive values through the authenticated Vault UI.
 
 | Vault slug | Payload key | Allowed consumer | Purpose |

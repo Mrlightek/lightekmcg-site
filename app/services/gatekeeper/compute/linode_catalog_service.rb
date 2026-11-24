@@ -18,7 +18,7 @@ module Gatekeeper
       end
 
       def call
-        raise WrongProvider, "Cost discovery currently supports Linode only" unless provider.slug == "linode"
+        raise WrongProvider, "Cost discovery currently supports Linode only" unless provider.slug == "linode" || StagingRequests.staging_provider?(provider)
 
         adapter = provider.adapter(requested_by: requested_by)
         regions = adapter.regions

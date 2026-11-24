@@ -7,7 +7,7 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   before_action :set_candidate, only: %i[show publish accept prepare deploy retire recommend promote learn rollback
     assign verify_feedback evidence retest]
   rescue_from ReleaseAssurance::Policy::Denied, ReleaseAssurance::Source::Invalid, ActiveRecord::RecordInvalid,
-    Gatekeeper::WebsiteDeployment::Invalid, ArgumentError, with: :invalid_action
+    Gatekeeper::WebsiteDeployment::Invalid, Gatekeeper::Compute::StagingRequests::Invalid, ArgumentError, with: :invalid_action
 
   def index
     @candidates = candidates.order(id: :desc).limit(100)
@@ -142,14 +142,14 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   private
 
   def prepare_target!(candidate)
-    hostname = params.require(:hostname).to_s
+    hostname = params.require(:hostname).to_s.strip.downcase
     budget = Integer(params.require(:budget_cents))
     hours = Integer(params.require(:hours))
     ApplicationRecord.transaction do
       request = if params[:request_id].present?
         ProvisioningRequest.find(params[:request_id])
       else
-        ReleaseAssurance::Staging.create_request!(actor: current_user, hostname: hostname)
+        ReleaseAssurance::Staging.create_request!(actor: current_user, hostname: hostname, budget_cents: budget, hours: hours)
       end
       ReleaseAssurance::Staging.prepare!(candidate: candidate, actor: current_user, request: request,
         hostname: hostname, budget_cents: budget, hours: hours)

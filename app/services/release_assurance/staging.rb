@@ -15,42 +15,23 @@ module ReleaseAssurance
       raise Policy::Denied, "Choose a positive budget and expiration of 4 to 168 hours" unless budget_cents.positive? && (4..168).cover?(hours)
       request.with_lock do
         raise Policy::Denied, "Use an unallocated request" if request.gatekeeper_node_id || request.gatekeeper_operation_id
+        details = Gatekeeper::Compute::StagingRequests.validate!(request)
+        unless details["hostname"] == hostname && (request.estimated_monthly_cost_cents..details.fetch("budget_cents")).cover?(budget_cents)
+          raise Policy::Denied, "Keep the attached hostname and budget within the prepared staging request"
+        end
+        expires_at = [hours.hours.from_now, Time.iso8601(details.fetch("expires_at"))].min
         environment = candidate.environments.build(provisioning_request: request, hostname: hostname,
-          budget_cents: budget_cents, expires_at: hours.hours.from_now)
+          budget_cents: budget_cents, expires_at: expires_at)
         new(environment, actor).validate_request!
         environment.save!
-        request.update!(metadata: request.metadata.to_h.merge("release_assurance_staging" => true))
+        request.update!(metadata: Gatekeeper::Compute::StagingRequests.audit_metadata(request, actor, "attached to candidate #{candidate.id}"))
         environment
       end
     end
 
-    def self.create_request!(actor:, hostname:)
-      Policy.authorize!(actor)
+    def self.create_request!(actor:, hostname:, budget_cents:, hours:)
       Policy.runner!
-      Policy.hostname!(hostname)
-      owner = User.find_by!(email_address: ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_OWNER"))
-      provider = ComputeProvider.find_by!(id: ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_PROVIDER_ID"), slug: "linode")
-      region = ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_REGION")
-      plan = ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_PLAN")
-      catalog = Gatekeeper::Compute::LinodeCatalogService.call(provider: provider,
-        requested_by: actor.email_address, region: region)
-      entry = catalog.fetch("plans").find { |item| item["id"] == plan }
-      raise Policy::Denied, "Configured staging plan has no price" unless entry && entry["monthly_cents"].to_i.positive?
-
-      request = ProvisioningRequest.create!(owner: owner, compute_provider: provider, selected_region: region,
-        selected_plan: plan, selected_image: "linode/ubuntu24.04", requested_node_count: 1,
-        node_label: hostname.split(".").first, estimated_monthly_cost_cents: entry.fetch("monthly_cents"),
-        execution_status: "awaiting_approval", approval_status: "pending",
-        metadata: { "requested_by" => actor.email_address, "release_assurance_staging" => true })
-      deployment = Gatekeeper::WebsiteDeployment
-      config = deployment.configuration(owner: owner, domain: hostname, site_name: "Lightek staging",
-        headline: "Release acceptance", description: "Synthetic acceptance tenant",
-        certificate_email: ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_CERTIFICATE_EMAIL"),
-        credential_slug: ENV.fetch("LIGHTEK_RELEASE_ASSURANCE_OWNER_VAULT"))
-      deployment.register!(actor: actor, record: request, config: config)
-      request
-    rescue KeyError
-      raise Policy::Denied, "Configure the staging owner, provider, region, plan, Vault reference and certificate contact"
+      Gatekeeper::Compute::StagingRequests.prepare!(actor: actor, hostname: hostname, budget_cents: budget_cents, hours: hours)
     end
 
     def initialize(environment, actor)
@@ -103,16 +84,22 @@ module ReleaseAssurance
       raise Policy::Denied, "Staging firewall or host services failed" unless @host_exit == 0
     end
 
-    def validate_request!
+    def validate_request!(retiring: false)
+      details = Gatekeeper::Compute::StagingRequests.validate!(@request, retiring: retiring)
+      unless details["hostname"] == @hostname && @environment.budget_cents <= details.fetch("budget_cents") &&
+          @environment.expires_at <= Time.iso8601(details.fetch("expires_at"))
+        raise Policy::Denied, "The attached environment exceeds the prepared request"
+      end
+
       config = Gatekeeper::WebsiteDeployment.preview(actor: @actor, record: @request, domain: @hostname)
       certificate_contact = config.fetch("email").to_s
       unless @request.owner_type == "User" && @request.owner_id == config.fetch("owner_id") &&
           config.fetch("owner_email").match?(/\Astaging-[a-z0-9-]+@example\.test\z/) &&
-          config.fetch("owner_role") == "admin" && config.fetch("credential_slug").start_with?("staging-") &&
+          config.fetch("owner_role") == "admin" && config.fetch("credential_slug") == details.fetch("vault").fetch("owner") &&
           config.keys.map(&:to_s).difference(%w[domain owner_id site_name headline description email credential_slug owner_role owner_email target node_id request_id]).empty? &&
           certificate_contact.present? &&
           @request.subscription_id.nil? && @request.requested_node_count == 1 &&
-          @request.node_label == @hostname.split(".").first && @request.compute_provider&.slug == "linode" &&
+          @request.node_label == @hostname.split(".").first && Gatekeeper::Compute::StagingRequests.staging_provider?(@request.compute_provider) &&
           @request.selected_image == "linode/ubuntu24.04"
         raise Policy::Denied, "Use a dedicated Ubuntu 24.04 request with a synthetic owner and staging-only Vault configuration"
       end
@@ -148,7 +135,7 @@ module ReleaseAssurance
       end
       BrowserJob.perform_later(@environment.id)
     rescue StandardError => error
-      reason = error.is_a?(Policy::Denied) ? error.message : "Deployment halted (#{error.class.name})."
+      reason = error.is_a?(Policy::Denied) || error.is_a?(Gatekeeper::Compute::StagingRequests::Invalid) ? error.message : "Deployment halted (#{error.class.name})."
       @environment.update!(state: "failed", failure: reason)
       Rails.logger.warn("[Release Assurance] staging=#{@environment.id} error=#{error.class.name}")
     end
@@ -177,7 +164,7 @@ module ReleaseAssurance
           raise Policy::Denied, "Reconcile the uncertain provider allocation through Gatekeeper"
         end
         if @request.gatekeeper_node
-          validate_request!
+          validate_request!(retiring: true)
           node = @request.gatekeeper_node
           raise Policy::Denied, "Staging server binding has changed" unless
             node.owner == @request.owner && node.compute_provider_id == @request.compute_provider_id &&
@@ -193,6 +180,10 @@ module ReleaseAssurance
             @environment.update!(state: "retiring")
           end
         else
+          @request.with_lock do
+            @request.update!(execution_status: "cancelled",
+              metadata: Gatekeeper::Compute::StagingRequests.audit_metadata(@request, @actor, "retired"))
+          end
           @environment.update!(state: "retired")
         end
       end
@@ -213,7 +204,7 @@ module ReleaseAssurance
       Digest::SHA256.hexdigest(JSON.generate([@candidate.source_sha, @hostname, @environment.budget_cents,
         @environment.expires_at.to_i, @request.id, @request.owner_id, @request.compute_provider_id,
         @request.selected_region, @request.selected_plan, @request.selected_image, @request.approved_at&.to_i,
-        config.except("node_id")]))
+        @request.metadata.fetch("staging_provisioning").fetch("vault"), config.except("node_id")]))
     end
 
     def preflight!
@@ -238,6 +229,11 @@ module ReleaseAssurance
     end
 
     def staging_dns
+      details = @request.metadata.fetch("staging_provisioning")
+      dns_slug = details.fetch("vault").fetch("dns")
+      unless ENV["GODADDY_VAULT_SLUG"] == dns_slug && Godaddy::DnsService.zones.include?(details.fetch("zone"))
+        raise Policy::Denied, "Use the prepared staging DNS zone and Vault reference in the execution worker"
+      end
       dns, name = Gatekeeper::WebsiteDnsPublication.service_for!(hostname: @hostname)
       raise Policy::Denied, "Use a dedicated authoritative staging DNS zone" unless name == @hostname.split(".").first
       [dns, name]

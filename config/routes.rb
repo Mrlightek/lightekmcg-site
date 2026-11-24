@@ -711,7 +711,9 @@ patch "/dashboard/infrastructure/providers/:compute_provider_id/capabilities",
 resources :dashboard_provisioning_requests,
           path: "/dashboard/infrastructure/provisioning",
           controller: "dashboard/provisioning_requests",
-          only: %i[index show create] do
+          only: %i[index show new create] do
+  post :prepare_staging, on: :collection
+
   member do
     post :configure
     post :approve

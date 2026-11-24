@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/lightek_device_agent.py'
-      - 'scripts/test_lightek_endpoint_checks.py'
+      - 'scripts/test_lightek*.py'
       - '.github/workflows/it-device-agent.yml'
   workflow_dispatch:
 jobs:

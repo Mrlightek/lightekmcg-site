@@ -77,11 +77,19 @@ def endpoint():
     return url
 
 
+class NoRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Keep the device bearer token scoped to the configured Gatekeeper URL.
+        return None
+
+
 def post(payload):
     request = urllib.request.Request(endpoint(), data=json.dumps(payload).encode("utf-8"),
         method="POST", headers={"Content-Type": "application/json",
         "Authorization": "Bearer " + os.environ["LIGHTEK_DEVICE_TOKEN"]})
-    with urllib.request.urlopen(request, timeout=15, context=ssl.create_default_context()) as response:
+    opener = urllib.request.build_opener(
+        NoRedirects(), urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+    with opener.open(request, timeout=15) as response:
         result = json.load(response)
     if not result.get("ok"):
         raise RuntimeError("Gatekeeper rejected the request")

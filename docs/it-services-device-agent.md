@@ -10,7 +10,8 @@ run remote commands, or prove compliance.
 An administrator must register the device in the Lightek network management UI,
 assign its correct customer owner, issue a device enrollment token, and enroll it
 through the existing Gatekeeper `device_enroll` action. The token must be kept
-private. The agent requires Python 3 and access to the HTTPS Gatekeeper endpoint.
+private. The agent requires Python 3 and direct access to the HTTPS Gatekeeper endpoint.
+Configure the final endpoint URL because the agent rejects HTTP redirects.
 
 ## One-time report
 

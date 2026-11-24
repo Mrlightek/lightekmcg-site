@@ -1,0 +1,62 @@
+<section class="conversation-card" aria-labelledby="matter-drive-holds">
+  <h2 id="matter-drive-holds">Shared Drives on hold</h2>
+  <% if @drive_holds.empty? %><p class="muted">There are no Shared Drive holds in this matter.</p><% end %>
+  <% @drive_holds.each do |hold| %>
+    <div class="message-tools">
+      <span><%= hold.drive.name %></span>
+      <% if @can_manage %>
+        <%= button_to "Release drive hold", release_dashboard_discovery_drive_path(@matter), method: :delete,
+          params: {drive_id: hold.drive_id}, class: "secondary",
+          form: {data: {turbo_confirm: "Release this Shared Drive hold?"}} %>
+      <% end %>
+    </div>
+  <% end %>
+  <% if @available_drives&.any? %>
+    <%= form_with url: hold_dashboard_discovery_drive_path(@matter), namespace: "hold_drive" do |form| %>
+      <%= form.label :drive_id, "Shared Drive to preserve" %>
+      <%= form.collection_select :drive_id, @available_drives, :id, :name, {prompt: "Choose a drive"}, required: true %>
+      <%= form.submit "Place drive hold" %>
+    <% end %>
+  <% end %>
+</section>
+
+<% if @drive_holds.any? %>
+  <section class="conversation-card" aria-labelledby="matter-drive-search">
+    <h2 id="matter-drive-search">Search held drives</h2>
+    <p>Earlier Office versions are dated by when they were added to version history.</p>
+    <% selected_drive = @selected_drive || (@drive_holds.first.drive if @drive_holds.one?) %>
+    <%= form_with url: search_dashboard_discovery_drive_path(@matter), namespace: "drive_search", data: {turbo: false} do |form| %>
+      <p><%= form.label :drive_id, "Shared Drive to search" %><br>
+        <%= form.collection_select :drive_id, @drive_holds.map(&:drive), :id, :name,
+          {prompt: "Choose a drive", selected: selected_drive&.id}, required: true %></p>
+      <p><%= form.label :drive_discovery_query, "Filename or Office title contains" %><br>
+        <%= form.search_field :drive_discovery_query, maxlength: 160, value: params[:drive_discovery_query] %></p>
+      <p><%= form.label :drive_from, "From file date" %> <%= form.date_field :drive_from, value: params[:drive_from] %>
+        <%= form.label :drive_through, "Through file date" %> <%= form.date_field :drive_through, value: params[:drive_through] %></p>
+      <%= form.submit "Search drive" %>
+    <% end %>
+  </section>
+<% end %>
+
+<% if @drive_matches %>
+  <section class="conversation-stack" aria-labelledby="matter-drive-results">
+    <h2 id="matter-drive-results">Drive search results</h2>
+    <% limit = LightekWorkspace::DriveDiscovery::LIMIT %>
+    <% if @drive_matches.size > limit %>
+      <p role="status">Showing the latest <%= limit %> files and versions. Narrow the search to export.</p>
+    <% elsif @drive_matches.empty? %>
+      <p role="status">No files matched.</p>
+    <% else %>
+      <%= button_to "Download drive ZIP", export_dashboard_discovery_drive_path(@matter),
+        params: {drive_id: @selected_drive.id, drive_discovery_query: params[:drive_discovery_query],
+          drive_from: params[:drive_from], drive_through: params[:drive_through]}, form: {data: {turbo: false}} %>
+    <% end %>
+    <% @drive_matches.first(limit).each do |item| %>
+      <article class="conversation-card">
+        <strong><%= item.name %></strong>
+        <p class="muted"><%= l(item.date, format: :short) %> ·
+          <%= item.version ? "Version #{item.version} · #{item.revision_id ? 'Earlier version' : 'Current version'}" : "Uploaded file" %></p>
+      </article>
+    <% end %>
+  </section>
+<% end %>

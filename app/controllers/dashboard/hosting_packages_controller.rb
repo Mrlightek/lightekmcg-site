@@ -4,6 +4,7 @@ class Dashboard::HostingPackagesController < ApplicationController
   before_action { head :forbidden unless current_user&.role == "super_admin" }
   def index
     @packages = HostingPackage.includes(:product, :compute_provider, :gatekeeper_application_template).order(:id)
+    @workspace_sources = @packages.select { |package| LightekPwa::Policy.platform_operator(package.product.site)&.id == current_user.id }
     @sites = LightekSettings::WebsiteIdentity.sites_for(current_user)
     @plans = DymondBank::SubscriptionPlan.order(:name)
     @providers = ComputeProvider.active.where(slug: "linode")
@@ -28,6 +29,17 @@ class Dashboard::HostingPackagesController < ApplicationController
   rescue ActiveRecord::RecordInvalid, LightekAgency::PackagePolicy::Denied, Gatekeeper::Hosting::Access::Denied => error
     redirect_to dashboard_hosting_packages_path, alert: error.message
   end
+
+  def create_workspace
+    values = params.require(:workspace).permit(:tier, :source_package_id)
+    sites = LightekSettings::WebsiteIdentity.sites_for(current_user)
+    source = HostingPackage.joins(:product).where(lightek_commerce_products: { site_id: sites.select(:id) }).find(values[:source_package_id])
+    package = Gatekeeper::Hosting::WorkspacePlans.create!(source: source, tier: values[:tier], actor: current_user)
+    redirect_to dashboard_hosting_packages_path, notice: "#{package.product.name} is available for review under Hosting packages."
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, LightekAgency::PackagePolicy::Denied, Gatekeeper::Hosting::Access::Denied => error
+    redirect_to dashboard_hosting_packages_path, alert: error.message
+  end
+
   def update
     package = HostingPackage.find(params[:id])
     if params[:package].present?
@@ -37,6 +49,9 @@ class Dashboard::HostingPackagesController < ApplicationController
         wholesale_price_cents: values.key?(:wholesale_price_cents) ? values[:wholesale_price_cents] : :unchanged,
         reseller_minimum_margin_cents: values[:reseller_minimum_margin_cents])
       redirect_to dashboard_hosting_packages_path, notice: "Hosting prices and margins updated for new checkouts. Existing subscriptions keep their agreed price."
+    elsif Gatekeeper::Hosting::WorkspacePlans.workspace?(package.product)
+      Gatekeeper::Hosting::WorkspacePlans.toggle!(package: package, actor: current_user)
+      redirect_to dashboard_hosting_packages_path, notice: "Workspace availability updated."
     else
       package.update!(active: !package.active?)
       redirect_to dashboard_hosting_packages_path, notice: "Hosting availability updated."

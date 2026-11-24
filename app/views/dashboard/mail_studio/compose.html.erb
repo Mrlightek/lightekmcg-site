@@ -15,7 +15,9 @@
         <%= hidden_field_tag :reply_id, @reply&.id %>
         <%= hidden_field_tag :mode, @compose_mode %>
         <%= hidden_field_tag :in_reply_to, @draft&.in_reply_to %>
-        <label>To<%= text_field_tag :to, @draft ? @draft.to_addresses.join(', ') : @reply_recipients&.fetch(:to)&.join(', '), placeholder: 'name@company.com, another@company.com', autocomplete: 'off' %></label>
+        <label>To<%= text_field_tag :to, @draft ? @draft.to_addresses.join(', ') : @reply_recipients&.fetch(:to)&.join(', '), placeholder: 'name@company.com, another@company.com', autocomplete: 'off',
+          data: {contact_suggestions_url: (@account.user_id == current_user.id ? dashboard_mail_contact_suggestions_path(account_id: @account.id) : nil)} %></label>
+        <div data-contact-suggestions hidden aria-label="Contact suggestions" aria-live="polite"></div>
         <details class="recipient-options" <%= 'open' if (@draft && (@draft.cc_addresses.any? || @draft.bcc_addresses.any?)) || @reply_recipients&.fetch(:cc)&.any? %>>
           <summary>Add Cc / Bcc</summary>
           <div class="form-grid"><label>Cc<%= text_field_tag :cc, @draft ? @draft.cc_addresses.join(', ') : @reply_recipients&.fetch(:cc)&.join(', '), placeholder: 'Copy recipients' %></label><label>Bcc<%= text_field_tag :bcc, @draft&.bcc_addresses&.join(', '), placeholder: 'Hidden recipients' %></label></div>
@@ -49,3 +51,4 @@
     <% end %>
   </div>
 </main>
+<%= javascript_include_tag "/lightek/mail/contacts.js", defer: true if @account.user_id == current_user.id %>

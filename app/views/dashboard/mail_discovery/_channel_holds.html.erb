@@ -1,0 +1,61 @@
+<section class="conversation-card" aria-labelledby="matter-channel-holds">
+  <h2 id="matter-channel-holds">Team Chat channels on hold</h2>
+  <% if @channel_holds.empty? %><p class="muted">There are no Team Chat holds in this matter.</p><% end %>
+  <% @channel_holds.each do |hold| %>
+    <div class="message-tools">
+      <span>#<%= hold.channel.name %></span>
+      <% if @can_manage %>
+        <%= button_to "Release chat hold", release_dashboard_discovery_channel_path(@matter), method: :delete,
+          params: {channel_id: hold.channel_id}, class: "secondary",
+          form: {data: {turbo_confirm: "Release this Team Chat hold?"}} %>
+      <% end %>
+    </div>
+  <% end %>
+  <% if @available_channels&.any? %>
+    <%= form_with url: hold_dashboard_discovery_channel_path(@matter), namespace: "hold_channel" do |form| %>
+      <%= form.label :channel_id, "Internal channel to preserve" %>
+      <%= form.collection_select :channel_id, @available_channels, :id, :name, {prompt: "Choose a channel"}, required: true %>
+      <%= form.submit "Place chat hold" %>
+    <% end %>
+  <% end %>
+</section>
+
+<% if @channel_holds.any? %>
+  <section class="conversation-card" aria-labelledby="matter-chat-search">
+    <h2 id="matter-chat-search">Search held channels</h2>
+    <% selected_channel = @selected_channel || (@channel_holds.first.channel if @channel_holds.one?) %>
+    <%= form_with url: search_dashboard_discovery_channel_path(@matter), namespace: "chat_search", data: {turbo: false} do |form| %>
+      <p><%= form.label :channel_id, "Team Chat channel to search" %><br>
+        <%= form.collection_select :channel_id, @channel_holds.map(&:channel), :id, :name,
+          {prompt: "Choose a channel", selected: selected_channel&.id}, required: true %></p>
+      <p><%= form.label :chat_discovery_query, "Message contains" %><br>
+        <%= form.search_field :chat_discovery_query, maxlength: 160, value: params[:chat_discovery_query] %></p>
+      <p><%= form.label :chat_from, "From message date" %> <%= form.date_field :chat_from, value: params[:chat_from] %>
+        <%= form.label :chat_through, "Through message date" %> <%= form.date_field :chat_through, value: params[:chat_through] %></p>
+      <%= form.submit "Search chat" %>
+    <% end %>
+  </section>
+<% end %>
+
+<% if @chat_matches %>
+  <section class="conversation-stack" aria-labelledby="matter-chat-results">
+    <h2 id="matter-chat-results">Chat search results</h2>
+    <% limit = LightekTeam::ChatDiscovery::LIMIT %>
+    <% if @chat_matches.size > limit %>
+      <p role="status">Showing the latest <%= limit %> messages. Narrow the search to export.</p>
+    <% elsif @chat_matches.empty? %>
+      <p role="status">No messages matched.</p>
+    <% else %>
+      <%= button_to "Download chat ZIP", export_dashboard_discovery_channel_path(@matter),
+        params: {channel_id: @selected_channel.id, chat_discovery_query: params[:chat_discovery_query],
+          chat_from: params[:chat_from], chat_through: params[:chat_through]}, form: {data: {turbo: false}} %>
+    <% end %>
+    <% @chat_matches.first(limit).each do |message| %>
+      <article class="conversation-card">
+        <strong><%= message.author.full_name %></strong>
+        <time class="muted" datetime="<%= message.created_at.iso8601 %>"><%= l(message.created_at, format: :short) %></time>
+        <p><%= truncate(message.body, length: 400) %></p>
+      </article>
+    <% end %>
+  </section>
+<% end %>

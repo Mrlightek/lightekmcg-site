@@ -1,0 +1,50 @@
+<% content_for :page_title, @migration.name %>
+<%= render "dashboard/mail_studio/style" %>
+<main class="lm lm-reader">
+  <%= link_to "← Workspace Migration Center", dashboard_workspace_migrations_path, class: "back-link" %>
+  <header class="mail-header">
+    <div>
+      <h1><%= @migration.name %></h1>
+      <p class="muted"><%= pluralize(@mailboxes.size, "mailbox") %> · <%= @mailboxes.count { |mailbox| mailbox.mailbox_import&.state == "complete" } %> complete</p>
+    </div>
+    <div class="reader-actions">
+      <%= link_to "Refresh status", dashboard_team_mail_migration_path(@migration), class: "button secondary" %>
+      <% if @mailboxes.any? { |mailbox| mailbox.mailbox_import&.importable? } %>
+        <%= button_to "Start ready imports", start_ready_dashboard_team_mail_migration_path(@migration) %>
+      <% end %>
+    </div>
+  </header>
+
+  <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
+  <% if @migration.pilot_in_progress? %>
+    <section class="conversation-card" aria-labelledby="migration-pilot">
+      <h2 id="migration-pilot">Verify the pilot</h2>
+      <p>Open the imported mailbox, contacts, calendar, and Shared Drive with the people who should have access. Review any skipped items before adding your team.</p>
+      <% if @migration.pilot_ready? %>
+        <%= button_to "Confirm pilot and unlock team rollout", verify_pilot_dashboard_team_mail_migration_path(@migration) %>
+      <% else %>
+        <p class="muted">Complete the pilot imports to unlock verification.</p>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="conversation-card" aria-labelledby="migration-rollout">
+      <h2 id="migration-rollout">Add team mailboxes</h2>
+      <% if @migration.pilot_verified_at? %><p class="muted">Pilot verified <%= l(@migration.pilot_verified_at.to_date, format: :long) %>.</p><% end %>
+      <p>Upload a CSV with <code>source_email,destination_email</code> for the additional users.</p>
+      <%= form_with url: append_mapping_dashboard_team_mail_migration_path(@migration), multipart: true, data: {turbo: false} do |form| %>
+        <p><%= form.label :mapping, "Additional mailbox mappings" %><br>
+          <%= form.file_field :mapping, accept: ".csv,text/csv", required: true %></p>
+        <%= form.submit "Add team mailboxes" %>
+      <% end %>
+    </section>
+  <% end %>
+  <h2>Mailbox, contacts, and calendar imports</h2>
+  <p>Upload each person's uncompressed Gmail .mbox archive. Other team members approve their archive in <strong>Mail Studio → Import mail</strong> before preview starts.</p>
+  <section class="conversation-stack" aria-label="Mailbox progress">
+    <% @mailboxes.each do |mailbox| %>
+      <%= render "mailbox", mailbox: mailbox, migration: @migration %>
+    <% end %>
+  </section>
+  <%= render "drive_imports" %>
+</main>

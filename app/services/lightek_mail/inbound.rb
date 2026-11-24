@@ -39,17 +39,17 @@ module LightekMail
     def self.process!(inbound)
       # Intake may already be inside a transaction. Take the shared sending lock
       # before any mailbox row lock, including when auto replies reserve a send.
+      raw = inbound.raw_email.download
       scan = begin
-        SpamScanner.scan!(inbound.mail)
+        SpamScanner.scan!(inbound.mail, raw: raw)
       rescue SpamScanner::Unavailable
         nil
       end
-      SendingPolicy.synchronize { process_locked!(inbound, scan: scan) }
+      SendingPolicy.synchronize { process_locked!(inbound, scan: scan, raw: raw) }
     end
-    def self.process_locked!(inbound, scan:)
+    def self.process_locked!(inbound, scan:, raw:)
       envelope = Envelope.find_by!(inbound_email_id: inbound.id)
       mail = inbound.mail
-      raw = inbound.raw_email.download
       text_part = mail.text_part || (!mail.multipart? && mail.mime_type != "text/html" ? mail : nil)
       html_part = mail.html_part || (!mail.multipart? && mail.mime_type == "text/html" ? mail : nil)
       html = TemplateRenderer.clean_html(decoded(html_part))
@@ -79,9 +79,13 @@ module LightekMail
           mail.attachments.first(10).each do |file|
             message.attachments.attach(io: StringIO.new(file.decoded), filename: File.basename(file.filename.to_s.presence || "attachment"), content_type: file.mime_type)
           end
+          IncomingCalendar.receive!(message, mail: mail, envelope: envelope, scan: scan)
           message
         end
-        AutoResponder.call(account, saved, mail) if saved && !saved.junk?
+        next unless saved && !saved.junk?
+        next if LightekWorkspace::CalendarInvitationMail.record_reply(account: account, envelope: envelope, mail: mail)
+
+        AutoResponder.call(account, saved, mail)
       end
     end
   end

@@ -33,8 +33,16 @@ class CommerceController < ApplicationController
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
-    quantity = Integer(params.fetch(:quantity, 1))
+    quantity = Integer(params.fetch(:quantity, 1).to_s, 10)
+    seat_range = Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
+    return select_workspace(product, quantity, seat_range) if seat_range
+
     raise ArgumentError unless quantity.between?(1, 100)
+
+    if workspace_in_cart
+      return redirect_to commerce_shop_path(site_id: @site.id), alert: "Check out your Workspace plan separately."
+    end
+
     variant_id = params[:variant_id].presence
     if variant_id
       variant = product.variants.where(active: true).find(variant_id)
@@ -63,7 +71,10 @@ class CommerceController < ApplicationController
     if physical && LightekShipping::Profile.exists?(site: @site) && !quote
       raise LightekCommerce::OrderPlacement::Invalid, "Choose a shipping quote before payment"
     end
-    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: cart, shipping_quote: quote, growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
+    quantities, workspace_seats = checkout_selection
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
+      workspace_seats: workspace_seats, shipping_quote: quote,
+      growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id),
       cancel_url: commerce_shop_url(site_id: @site.id))
@@ -76,6 +87,33 @@ class CommerceController < ApplicationController
     redirect_to commerce_shop_path(site_id: @site.id), alert: e.message
   end
   private
+  def checkout_selection
+    return [cart, nil] unless workspace_in_cart
+
+    product_id, seats = cart.first
+    [{product_id => 1}, seats]
+  end
+
+  def select_workspace(product, quantity, seat_range)
+    limit = Gatekeeper::Hosting::WorkspacePlans.checkout_seat_limit(starting_price: product.price_cents, seat_range: seat_range)
+    if params[:variant_id].present? || !quantity.between?(seat_range.begin, limit)
+      return redirect_to commerce_shop_path(site_id: @site.id), alert: "Choose a seat count offered by this Workspace plan."
+    end
+    if cart.any? && workspace_in_cart.nil?
+      return redirect_to commerce_shop_path(site_id: @site.id), alert: "Check out your current cart before selecting a Workspace plan."
+    end
+
+    session[cart_key] = {product.id.to_s => quantity}
+    redirect_to commerce_shop_path(site_id: @site.id), notice: "Workspace plan selected."
+  end
+
+  def workspace_in_cart
+    return unless cart.size == 1 && cart.keys.first.match?(/\A[1-9]\d*\z/)
+
+    product = LightekCommerce::Product.where(site: @site).find_by(id: cart.keys.first)
+    product if product && Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
+  end
+
   def set_site
     @site = DymondSite::Site.find(params.require(:site_id))
   end

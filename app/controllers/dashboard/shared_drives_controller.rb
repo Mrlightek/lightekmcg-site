@@ -24,7 +24,11 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
     @folder = @drive.entries.where(folder: true).find(params[:folder]) if params[:folder].present?
     @query = params[:q].to_s.strip.first(100)
     scope = @query.present? ? search(@drive.entries, @query) : @drive.entries.where(parent: @folder)
-    @entries = scope.includes(:parent, :office_file).order(folder: :desc, name: :asc, id: :asc).limit(100)
+    @page = params[:page].to_i.clamp(1, 10_000)
+    @entries = scope.includes(:parent, :office_file).order(folder: :desc, name: :asc, id: :asc)
+      .offset((@page - 1) * 100).limit(101).to_a
+    @next_page = @entries.size > 100
+    @entries.pop if @next_page
     @folders = @drive.entries.where(folder: true).order(:name, :id).limit(100) if @editor
     @coworkers = @workspace.roster.where.not(id: @employer.id).order(:first_name, :last_name) if @owner
   end
@@ -37,8 +41,12 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
     upload = attrs[:upload]
     raise ArgumentError, 'Choose a file up to 25 MB.' if upload && (!upload.respond_to?(:original_filename) || upload.size > 25.megabytes)
 
-    @drive.entries.create!(parent: folder, creator: current_user, folder: upload.nil?, upload: upload,
-      name: attrs[:name].presence || upload&.original_filename)
+    @drive.with_lock do
+      raise LightekPeople::Access::Denied unless @drive.editable_by?(current_user)
+
+      @drive.entries.create!(parent: folder, creator: current_user, folder: upload.nil?, upload: upload,
+        name: attrs[:name].presence || upload&.original_filename)
+    end
     redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: folder&.id), status: :see_other
   end
 

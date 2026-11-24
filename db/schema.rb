@@ -1944,6 +1944,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.index ["processor_reference"], name: "index_lightek_commerce_subscriptions_on_processor_reference", unique: true
   end
 
+  create_table "lightek_communications_service_events", force: :cascade do |t|
+    t.bigint "service_id", null: false
+    t.bigint "operator_id"
+    t.bigint "billing_invoice_id"
+    t.string "action", null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["billing_invoice_id"], name: "idx_communications_event_invoice"
+    t.index ["operator_id"], name: "index_lightek_communications_service_events_on_operator_id"
+    t.index ["service_id"], name: "idx_communications_service_events"
+  end
+
+  create_table "lightek_communications_services", force: :cascade do |t|
+    t.bigint "subscription_id", null: false
+    t.string "kind", null: false
+    t.string "status", default: "provisioning", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["subscription_id"], name: "idx_communications_service_subscription", unique: true
+  end
+
   create_table "lightek_community_engagements", force: :cascade do |t|
     t.bigint "post_id", null: false
     t.bigint "profile_id", null: false
@@ -4696,6 +4718,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
     t.index ["status"], name: "index_lightek_vault_secrets_on_status"
   end
 
+  create_table "lightek_voice_add_ons", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "order_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "setup_secret_slug"
+    t.string "fulfillment_status"
+    t.index ["order_id"], name: "index_lightek_voice_add_ons_on_order_id", unique: true
+    t.index ["peer_id"], name: "index_lightek_voice_add_ons_on_peer_id", unique: true
+  end
+
+  create_table "lightek_voice_carrier_operations", force: :cascade do |t|
+    t.bigint "service_id", null: false
+    t.bigint "operator_id"
+    t.string "operation", null: false
+    t.string "did", null: false
+    t.string "state", default: "submitting", null: false
+    t.string "carrier_reference"
+    t.string "carrier_status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["did"], name: "idx_voice_carrier_assigned_did", unique: true, where: "((operation)::text = ANY ((ARRAY['order_number'::character varying, 'port_number'::character varying])::text[]))"
+    t.index ["operator_id"], name: "index_lightek_voice_carrier_operations_on_operator_id"
+    t.index ["service_id", "operation"], name: "idx_voice_carrier_service_operation", unique: true
+  end
+
   create_table "marlon_blueprint_concerns", force: :cascade do |t|
     t.bigint "feature_id", null: false
     t.string "key", null: false
@@ -7136,6 +7184,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
   add_foreign_key "lightek_commerce_revenue_allocations", "users", column: "beneficiary_id"
   add_foreign_key "lightek_commerce_subscriptions", "dymond_bank_subscriptions", column: "bank_subscription_id"
   add_foreign_key "lightek_commerce_subscriptions", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_communications_service_events", "lightek_commerce_billing_invoices", column: "billing_invoice_id"
+  add_foreign_key "lightek_communications_service_events", "lightek_communications_services", column: "service_id"
+  add_foreign_key "lightek_communications_service_events", "users", column: "operator_id"
+  add_foreign_key "lightek_communications_services", "lightek_commerce_subscriptions", column: "subscription_id"
   add_foreign_key "lightek_community_engagements", "posts"
   add_foreign_key "lightek_community_engagements", "profiles"
   add_foreign_key "lightek_community_memberships", "communities"
@@ -7484,6 +7536,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_065000) do
   add_foreign_key "lightek_team_partnerships", "lightek_team_channels", column: "channel_id"
   add_foreign_key "lightek_team_partnerships", "users", column: "partner_id"
   add_foreign_key "lightek_vault_audit_events", "lightek_vault_secrets", column: "secret_id"
+  add_foreign_key "lightek_voice_add_ons", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_voice_add_ons", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "lightek_voice_carrier_operations", "lightek_communications_services", column: "service_id"
+  add_foreign_key "lightek_voice_carrier_operations", "users", column: "operator_id"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "dependency_id"

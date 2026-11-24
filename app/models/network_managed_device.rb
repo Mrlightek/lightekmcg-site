@@ -2,6 +2,8 @@ require "digest"
 require "securerandom"
 require "ipaddr"
 class NetworkManagedDevice < ApplicationRecord
+  belongs_to :owner, class_name: "User", optional: true
+  has_many :it_service_requests, dependent: :nullify
   DEVICE_TYPES = %w[phone tablet router switch access_point computer server camera sensor smart_home iot other].freeze
   STATUSES = %w[registered active offline maintenance retired].freeze
   PROTOCOLS = %w[mdm agent ssh snmp mqtt http other].freeze
@@ -30,8 +32,13 @@ class NetworkManagedDevice < ApplicationRecord
 
   def rotate_enrollment_token!
     token = SecureRandom.hex(32)
-    update!(enrollment_token_digest: Digest::SHA256.hexdigest(token), enrolled_at: nil,
-      last_seen_at: nil, last_heartbeat_ip: nil, status: "registered")
+    with_lock do
+      update!(enrollment_token_digest: Digest::SHA256.hexdigest(token), enrolled_at: nil,
+        last_seen_at: nil, last_heartbeat_ip: nil, status: "registered",
+        managed_monitoring_enabled: false, health_telemetry: {}, health_telemetry_at: nil)
+      ItDeviceMaintenanceAction.where(network_managed_device_id: id, status: "approved")
+        .update_all(status: "cancelled", updated_at: Time.current)
+    end
     token
   end
 

@@ -1,0 +1,92 @@
+name: IT device agent checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/lightek_device_agent.py'
+      - 'scripts/lightek_apt_patch.py'
+      - 'scripts/lightek_backup_restore.py'
+      - 'scripts/lightek_live_restore.py'
+      - 'scripts/lightek_native_patch.py'
+      - 'scripts/lightek_macos_patch.py'
+      - 'scripts/lightek_windows_patch.ps1'
+      - 'scripts/test_lightek*.py'
+      - 'scripts/test_lightek_apt_integration.sh'
+      - 'app/controllers/gatekeeper_controller.rb'
+      - 'app/controllers/it_service_requests_controller.rb'
+      - 'app/jobs/it_services/managed_fleet*.rb'
+      - 'app/models/network_managed_device.rb'
+      - 'app/models/it_device_maintenance_action.rb'
+      - 'app/services/it_services/**'
+      - 'app/views/it_service_requests/**'
+      - 'app/views/shared/_it_device_maintenance_history.html.erb'
+      - 'db/migrate/*_it_device_*'
+      - 'test/controllers/gatekeeper_device_api_test.rb'
+      - 'test/services/it_services/**'
+      - 'test/models/network_managed_device_test.rb'
+      - 'test/standalone/it_endpoints/**'
+      - '.github/workflows/it-device-agent.yml'
+  workflow_dispatch:
+jobs:
+  device-agent:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s scripts -p 'test_lightek*py' -v
+      - name: Validate Windows broker syntax and native update interface
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/lightek_windows_patch.ps1'), [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw ($errors | Out-String) }
+          $session = New-Object -ComObject Microsoft.Update.Session
+          if ($null -eq $session.CreateUpdateSearcher()) { throw 'Windows Update Agent searcher unavailable' }
+      - name: Check installed macOS build using the broker
+        if: runner.os == 'macOS'
+        run: >-
+          PYTHONPATH=scripts python -c
+          'from lightek_macos_patch import installed_version; assert installed_version("macos-build")'
+  debian-package-deployment:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/test_lightek_apt_integration.sh
+  rails-endpoints:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: endpoint_fixture
+          POSTGRES_DB: it_endpoint_fixture
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      LIGHTEK_ENDPOINT_TEST_DATABASE_URL: postgresql://postgres:endpoint_fixture@127.0.0.1:5432/it_endpoint_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: false
+      - run: gem install 'rails:8.0.5.1' 'pg:1.6.3' 'minitest:6.0.6' 'bcrypt:3.1.22' --no-document
+      - run: >-
+          ruby -I test/standalone/it_endpoints -e 'ARGV.each { require File.expand_path(_1) }'
+          test/controllers/gatekeeper_device_api_test.rb
+          test/services/it_services/endpoint_maintenance_test.rb
+          test/models/network_managed_device_test.rb
+          test/services/it_services/managed_device_posture_test.rb
+          test/services/it_services/managed_fleet_incidents_test.rb
+          test/services/it_services/managed_fleet_recovery_test.rb
+          test/services/it_services/incident_escalation_test.rb
+          test/services/it_services/incident_diagnostic_plan_test.rb

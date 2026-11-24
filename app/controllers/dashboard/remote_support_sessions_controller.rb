@@ -7,7 +7,9 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
   rate_limit to: 10, within: 1.minute, only: :create, by: -> { current_user.id }, name: "request"
   rate_limit to: 12, within: 1.minute, only: %i[offer_file accept_file cancel_file download_file],
     by: -> { current_user.id }, name: "files"
-  before_action :load_room, only: %i[show approve exchange end_session offer_file accept_file cancel_file download_file]
+  rate_limit to: 10, within: 1.minute, only: %i[recording_consent recording_start recording_upload recording_revoke recording_playback],
+    by: -> { current_user.id }, name: "recording"
+  before_action :load_room, except: %i[index create]
   rescue_from Gatekeeper::ItRemoteSupportPolicy::Denied, with: -> { head :forbidden }
   rescue_from ItServices::RemoteScreenShare::Conflict, with: :conflict
 
@@ -25,6 +27,7 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
       customer_id: @room.customer_id, technician_id: @room.technician_id)
     @bound = (@role == :customer ? @room.customer_session_id : @room.technician_session_id) == Current.session.id
     @transfers = @room.transfers.order(:id)
+    @recording_available = recordings.status(@room).fetch(:saved)
   end
 
   def create
@@ -78,6 +81,36 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
     send_data file.fetch(:bytes), filename: file.fetch(:filename), type: "application/octet-stream", disposition: "attachment"
   end
 
+  def recording_consent
+    recordings.consent!(@room, Current.session)
+    render json: recordings.status(@room)
+  end
+
+  def recording_start
+    recordings.start!(@room, Current.session)
+    head :no_content
+  end
+
+  def recording_upload
+    recording = recordings.store!(@room, Current.session, params[:support_recording])
+    ItRemoteSupportRecordingExpirationJob.set(wait_until: recording.expires_at).perform_later(recording.id)
+    head :no_content
+  end
+
+  def recording_revoke
+    recordings.revoke!(@room, Current.session)
+    respond_to do |format|
+      format.json { head :no_content }
+      format.html { redirect_to dashboard_remote_support_session_path(@room), status: :see_other }
+    end
+  end
+
+  def recording_playback
+    data = recordings.playback!(@room, Current.session)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    send_data data, filename: "support-session-#{@room.id}.webm", type: "video/webm", disposition: "inline"
+  end
+
   def end_session
     ItServices::RemoteScreenShare.end!(@room, Current.session)
     respond_to do |format|
@@ -87,6 +120,8 @@ class Dashboard::RemoteSupportSessionsController < ApplicationController
   end
 
   private
+
+  def recordings = ItServices::RemoteSupportRecordings
 
   def files = ItServices::RemoteSupportFiles
 

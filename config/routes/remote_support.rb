@@ -3,6 +3,11 @@ namespace :dashboard do
     member do
       post :approve
       post :exchange
+      post :recording_consent
+      post :recording_start
+      post :recording_upload
+      delete :recording_revoke
+      get :recording_playback
       post :offer_file
       post "files/:transfer_id/accept", action: :accept_file, as: :accept_file
       post "files/:transfer_id/cancel", action: :cancel_file, as: :cancel_file

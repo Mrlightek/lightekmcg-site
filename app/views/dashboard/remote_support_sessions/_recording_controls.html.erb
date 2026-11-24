@@ -1,0 +1,17 @@
+<section class="lp-card" aria-labelledby="recording-heading">
+  <h2 id="recording-heading">Session recording</h2>
+  <p>The customer can record up to one minute of a shared browser tab after both participants agree. Keep credentials and personal information out of the tab.</p>
+  <p data-remote-recording-target="notice" role="status">Recording requires separate approval from both participants.</p>
+  <div class="lp-actions">
+    <button class="lp-button secondary" type="button" data-remote-recording-target="consent"
+      data-action="remote-recording#consent">Allow recording</button>
+    <button class="lp-button" type="button" data-remote-recording-target="start" hidden disabled
+      data-action="remote-recording#start">Start recording</button>
+    <button class="lp-button" type="button" data-remote-recording-target="save" hidden
+      data-action="remote-recording#save">Stop and save</button>
+    <button class="lp-button secondary" type="button" data-remote-recording-target="revoke" disabled
+      data-action="remote-recording#revoke">Withdraw recording permission</button>
+    <%= link_to "Play recording", recording_playback_dashboard_remote_support_session_path(@room), target: "_blank", rel: "noopener",
+      hidden: !@recording_available, data: { remote_recording_target: "playback" } %>
+  </div>
+</section>

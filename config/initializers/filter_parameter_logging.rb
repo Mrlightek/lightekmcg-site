@@ -46,4 +46,4 @@ Rails.application.config.filter_parameters += [:lpa_activation_code, :qr_png_bas
 
 Rails.application.config.filter_parameters += [:mail_discovery_query, :mail_matter_name, :drive_discovery_query, :chat_discovery_query]
 
-Rails.application.config.filter_parameters += [:screen_sdp, :offer_sdp, :answer_sdp, :support_file]
+Rails.application.config.filter_parameters += [:screen_sdp, :offer_sdp, :answer_sdp, :support_file, :support_recording]

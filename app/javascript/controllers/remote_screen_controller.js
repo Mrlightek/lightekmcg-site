@@ -38,6 +38,7 @@ export default class extends Controller {
           return
         }
         this.stream = stream
+        this.dispatch("recording-state", { detail: { stream } })
         stream.getVideoTracks()[0].addEventListener("ended", () => this.finish("Screen sharing stopped."), { once: true })
       }
 
@@ -114,6 +115,7 @@ export default class extends Controller {
     const data = await result.json()
     if (attempt.signal.aborted) throw attempt.signal.reason
     this.refreshLease(data.valid_for_ms)
+    this.dispatch("recording-state", { detail: { recording: data.recording } })
     return data
   }
 
@@ -195,6 +197,7 @@ export default class extends Controller {
     this.peer = null
     this.stream?.getTracks().forEach(track => track.stop())
     this.stream = null
+    this.dispatch("recording-state", { detail: { stream: null } })
     if (this.hasVideoTarget) {
       this.videoTarget.srcObject = null
       this.videoTarget.hidden = true

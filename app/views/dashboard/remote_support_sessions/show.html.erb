@@ -21,7 +21,14 @@
     <p><%= link_to "Check approval", dashboard_remote_support_session_path(@room) %></p>
     <%= button_to "Cancel request", end_session_dashboard_remote_support_session_path(@room), method: :delete, class: "lp-button secondary" %>
   <% elsif @bound %>
-    <section data-controller="remote-screen" data-remote-screen-role-value="<%= @role %>"
+    <section data-controller="remote-screen remote-recording"
+      data-action="remote-screen:recording-state->remote-recording#update"
+      data-remote-screen-role-value="<%= @role %>"
+      data-remote-recording-role-value="<%= @role %>"
+      data-remote-recording-consent-value="<%= recording_consent_dashboard_remote_support_session_path(@room) %>"
+      data-remote-recording-start-value="<%= recording_start_dashboard_remote_support_session_path(@room) %>"
+      data-remote-recording-upload-value="<%= recording_upload_dashboard_remote_support_session_path(@room) %>"
+      data-remote-recording-revoke-value="<%= recording_revoke_dashboard_remote_support_session_path(@room) %>"
       data-remote-screen-exchange-value="<%= exchange_dashboard_remote_support_session_path(@room) %>"
       data-remote-screen-end-value="<%= end_session_dashboard_remote_support_session_path(@room) %>">
       <p role="status" data-remote-screen-target="status">Authorized until <%= l(@room.expires_at, format: :short) %>.</p>
@@ -35,10 +42,18 @@
           data-action="remote-screen#fullscreen">Fullscreen</button>
       </div>
       <video autoplay playsinline muted hidden data-remote-screen-target="video" style="width: 100%; max-height: 75vh; background: #151515"></video>
+      <%= render "recording_controls" %>
     </section>
   <% else %>
     <p>Open this page in the browser session used to request or approve screen sharing.</p>
     <%= button_to "End session", end_session_dashboard_remote_support_session_path(@room), method: :delete, class: "lp-button secondary" %>
+  <% end %>
+  <% if @recording_available && (@room.ended_at? || !@bound || @room.expires_at.past?) %>
+    <section class="lp-card" aria-label="Session recording">
+      <p><%= link_to "Play session recording", recording_playback_dashboard_remote_support_session_path(@room), target: "_blank", rel: "noopener" %></p>
+      <%= button_to "Withdraw recording permission", recording_revoke_dashboard_remote_support_session_path(@room),
+        method: :delete, class: "lp-button secondary" %>
+    </section>
   <% end %>
   <%= render "files" if @bound || @room.ended_at? %>
 </main>

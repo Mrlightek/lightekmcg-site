@@ -57,7 +57,7 @@ module ItServices
         peer_column = role == :customer ? :answer_sdp : :offer_sdp
         encrypted = room[peer_column]
         { sdp: encrypted && encryptor.decrypt_and_verify(encrypted, purpose: "#{room.id}:#{peer_column}"),
-          display_reported: room.display_reported_at.present?, valid_for_ms: [(room.expires_at - Time.current) * 1000, 0].max.floor }
+          recording: RemoteSupportRecordings.status(room), display_reported: room.display_reported_at.present?, valid_for_ms: [(room.expires_at - Time.current) * 1000, 0].max.floor }
       end
     end
 

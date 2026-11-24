@@ -5,6 +5,7 @@ class ItRemoteSupportSession < ApplicationRecord
   belongs_to :customer, class_name: "User"
   belongs_to :technician, class_name: "User"
 
+  has_one :recording, class_name: "ItRemoteSupportRecording", dependent: :restrict_with_error
   has_many :transfers, class_name: "ItRemoteSupportTransfer", dependent: :restrict_with_error
 
   scope :open, -> { where(state: %w[requested approved]) }

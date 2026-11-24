@@ -24,7 +24,7 @@ module Gatekeeper
           else
             begin
               operation.update!(status: "running", started_at: Time.current)
-              adapter = request.compute_provider.adapter(requested_by: requested_by.to_s, operation_id: operation.id)
+              adapter = request.compute_adapter(requested_by: requested_by.to_s, operation_id: operation.id)
               result = adapter.destroy_node(node.provider_resource_id)
               raise UnsupportedProvider, "Provider did not accept deletion" if result == false
               now = Time.current

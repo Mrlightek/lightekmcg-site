@@ -89,7 +89,7 @@ module Gatekeeper
         end
 
         begin
-          adapter = request.compute_provider.adapter(
+          adapter = request.compute_adapter(
             requested_by: requested_by,
             operation_id: operation.id
           )

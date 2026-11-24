@@ -119,9 +119,19 @@ end
   services/gatekeeper/website_deployment services/gatekeeper/compute/linode_catalog_service
   services/gatekeeper/compute/staging_requests services/gatekeeper/compute/provisioning_execution_service
   services/godaddy/dns_service services/gatekeeper/website_dns_publication
+  services/gatekeeper/compute/provider services/gatekeeper/compute/providers/http_support
+  services/gatekeeper/compute/providers/linode_adapter
   helpers/infrastructure_dashboard_helper controllers/dashboard/provisioning_requests_controller
   controllers/dashboard/infrastructure_controller
 ].each { |file| require File.join(source, "app", file) }
+
+module LightekVault
+  class Service
+    def self.checkout!(**)
+      raise "Unexpected Vault checkout in Dashboard fixture"
+    end
+  end
+end
 
 module Gatekeeper
   module Metrics
@@ -170,15 +180,15 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
   setup do
     @operator = User.create!(role: "super_admin", email_address: "operator@example.test")
     @owner = User.create!(role: "client", email_address: "staging-msp@example.test")
-    @provider = ComputeProvider.create!(name: "Staging Linode", slug: "linode-staging", status: "active", health_status: "healthy",
-      adapter_type: "builtin", adapter_class: CREDENTIALS.fetch("staging-compute").first, credential_secret_slug: "staging-compute")
+    @provider = ComputeProvider.create!(name: "Linode", slug: "linode", status: "active", health_status: "healthy",
+      adapter_type: "builtin", credential_secret_slug: "production-linode")
     CREDENTIALS.each do |slug, (consumer, purpose)|
       LightekVault::Secret.create!(name: slug, slug: slug, secret_type: "credential", environment: "staging",
         status: "active", access_policy: { "consumers" => [consumer], "purposes" => [purpose] })
     end
-    @form_settings = { owner: @owner.email_address, region: "us-east", dns_vault: "staging-dns",
+    @form_settings = { owner: @owner.email_address, region: "us-east", compute_vault: "staging-compute", dns_vault: "staging-dns",
       owner_vault: "staging-owner", certificate_email: @operator.email_address }
-    @settings = %w[ZONE OWNER REGION DNS_VAULT OWNER_VAULT CERTIFICATE_EMAIL].to_h do |key|
+    @settings = %w[ZONE OWNER REGION COMPUTE_VAULT DNS_VAULT OWNER_VAULT CERTIFICATE_EMAIL].to_h do |key|
       ["LIGHTEK_RELEASE_ASSURANCE_#{key}", nil]
     end
     @settings["GODADDY_DOMAINS"] = "lightekmcg.com"
@@ -214,6 +224,8 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       request = ProvisioningRequest.find(response.request.path.split("/").last)
       assert_equal @owner, request.owner
       assert_equal @provider, request.compute_provider
+      assert_equal "production-linode", @provider.reload.credential_secret_slug
+      assert_equal "staging-compute", request.metadata.dig("staging_provisioning", "vault", "compute")
       assert_equal "pending", request.approval_status
       assert_equal "awaiting_approval", request.execution_status
       assert_nil request.gatekeeper_node_id
@@ -255,6 +267,32 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       params: { hostname: HOSTNAME, budget_cents: 2400, hours: 48, authenticity_token: csrf_token }
     assert_response :redirect
     assert_equal 0, ProvisioningRequest.count
+  end
+
+  test "staging quote and request adapter use the staging checkout binding" do
+    authenticate(@operator)
+    get "/dashboard/infrastructure/provisioning/new"
+    assert_response :success
+    checkout = ->(**args) do
+      assert_equal "staging-compute", args.fetch(:slug)
+      assert_equal "compute_management", args.fetch(:purpose)
+      { "token" => "fixture-token" }
+    end
+    quote = ->(provider:, adapter:, **) do
+      assert_equal @provider, provider
+      assert_equal "fixture-token", adapter.send(:token)
+      CATALOG
+    end
+    LightekVault::Service.stub(:checkout!, checkout) do
+      Gatekeeper::Compute::LinodeCatalogService.stub(:call, quote) { submit_form("Prepare for approval") }
+      assert_response :see_other
+      request = ProvisioningRequest.last
+      assert_equal "fixture-token", request.compute_adapter(requested_by: @operator.email_address).send(:token)
+      LightekVault::Secret.find_by!(slug: "staging-compute").update!(status: "disabled")
+      assert_raises(Gatekeeper::Compute::StagingRequests::Invalid) do
+        request.compute_adapter(requested_by: @operator.email_address)
+      end
+    end
   end
 
   test "shows missing setup before submission and rejects an attempted production owner" do
@@ -304,6 +342,9 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
     assert_equal 0, ProvisioningRequest.count
     Gatekeeper::Compute::LinodeCatalogService.stub(:call, CATALOG) do
       post path, params: params.merge(hostname: "lightekmcg.com")
+      assert_response :unprocessable_entity
+      assert_equal 0, ProvisioningRequest.count
+      post path, params: params.merge(compute_vault: "production-linode")
       assert_response :unprocessable_entity
       assert_equal 0, ProvisioningRequest.count
       post path, params: params.merge(budget_cents: 2300)

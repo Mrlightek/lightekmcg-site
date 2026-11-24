@@ -20,10 +20,10 @@
             <li><%= link_to "Add a staging client", "/employee/users/new" %> with an active Client account and a <code>staging-…@example.test</code> email.</li>
           <% end %>
           <% unless @staging_provider %>
-            <li><%= link_to "Configure the staging Linode provider", "/dashboard/infrastructure/providers" %> with slug <code>linode-staging</code> and validate its health.</li>
+            <li><%= link_to "Check the existing Linode provider", "/dashboard/infrastructure/providers" %> and confirm it is active and healthy.</li>
           <% end %>
           <% if @staging_vault.fetch("owner").empty? || @staging_vault.fetch("dns").empty? ||
-              (@staging_provider && !@staging_vault.fetch("compute").include?(@staging_provider.credential_secret_slug)) %>
+              @staging_compute_vault.empty? %>
             <li><%= link_to "Review the staging Vault entries", "/dashboard/vault" %> for the Linode token, DNS token and staging client password.</li>
           <% end %>
         </ul>
@@ -50,6 +50,10 @@
         <div class="infra-field">
           <%= form.label :region, "Linode region" %>
           <%= form.text_field :region, value: params.fetch(:region, "us-east"), required: true %>
+        </div>
+        <div class="infra-field">
+          <%= form.label :compute_vault, "Staging Linode Vault entry" %>
+          <%= form.select :compute_vault, @staging_compute_vault, { selected: params[:compute_vault].presence || (@staging_compute_vault.first if @staging_compute_vault.one?), include_blank: true }, required: true %>
         </div>
         <div class="infra-field">
           <%= form.label :dns_vault, "DNS Vault entry" %>

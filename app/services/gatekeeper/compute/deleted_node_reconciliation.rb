@@ -9,7 +9,7 @@ module Gatekeeper
         node = request.reload.gatekeeper_node
         return false unless node
 
-        adapter = request.compute_provider.adapter(requested_by: requested_by)
+        adapter = request.compute_adapter(requested_by: requested_by)
         begin
           adapter.node(node.provider_resource_id)
           return false

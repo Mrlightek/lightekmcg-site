@@ -5,7 +5,8 @@ module Gatekeeper
     class StagingRequests
       class Invalid < StandardError; end
 
-      PROVIDER_SLUG = "linode-staging"
+      PROVIDER_SLUG = "linode"
+      LEGACY_PROVIDER_SLUG = "linode-staging"
       LINODE_CONSUMER = "Gatekeeper::Compute::Providers::LinodeAdapter"
       PLAN = "g6-standard-2"
       IMAGE = "linode/ubuntu24.04"
@@ -18,7 +19,7 @@ module Gatekeeper
       }.freeze
 
       def self.staging_provider?(provider)
-        provider.slug == PROVIDER_SLUG && provider.adapter_type == "builtin" &&
+        provider.slug == LEGACY_PROVIDER_SLUG && provider.adapter_type == "builtin" &&
           provider.adapter_class == LINODE_CONSUMER
       end
 
@@ -38,9 +39,12 @@ module Gatekeeper
         raise Invalid, "Select an active synthetic staging owner" unless owner
 
         provider = staging_provider
-        raise Invalid, "Configure an active staging-only Linode provider" unless provider
+        raise Invalid, "The existing Linode provider must be active and healthy" unless provider
 
-        vault = { "compute" => provider.credential_secret_slug, "dns" => setting!("DNS_VAULT", settings),
+        compute_slug = compute_credential(settings)
+        raise Invalid, "Select a separate staging Linode Vault entry" unless eligible_provider?(provider, compute_slug)
+
+        vault = { "compute" => compute_slug, "dns" => setting!("DNS_VAULT", settings),
           "owner" => setting!("OWNER_VAULT", settings) }
         validate_vault!(vault)
         region = setting!("REGION", settings)
@@ -48,7 +52,8 @@ module Gatekeeper
         label = hostname.split(".").first
         raise Invalid, "Staging node label is too long" if label.length > 63
 
-        catalog = LinodeCatalogService.call(provider: provider, requested_by: actor.email_address, region: region)
+        adapter = linode_adapter(provider, vault.fetch("compute"), requested_by: actor.email_address)
+        catalog = LinodeCatalogService.call(provider: provider, requested_by: actor.email_address, region: region, adapter: adapter)
         plan = approved_plan!(catalog, region, budget_cents)
         config = WebsiteDeployment.configuration(owner: owner, domain: hostname, site_name: "Lightek MSP staging",
           headline: "Release acceptance", description: "Synthetic acceptance tenant",
@@ -110,8 +115,10 @@ module Gatekeeper
       end
 
       def self.eligible_provider?(provider, slug)
-        provider && staging_provider?(provider) && provider.status == "active" &&
-          provider.health_status == "healthy" && provider.credential_secret_slug == slug
+        return false unless provider&.status == "active" && provider.health_status == "healthy"
+        return provider.credential_secret_slug == slug if staging_provider?(provider)
+
+        shared_provider?(provider) && provider.credential_secret_slug != slug
       end
 
       def self.approved_plan!(catalog, region, budget_cents)
@@ -133,7 +140,42 @@ module Gatekeeper
 
       def self.staging_provider
         provider = ComputeProvider.find_by(slug: PROVIDER_SLUG, status: "active", health_status: "healthy")
-        provider if provider && staging_provider?(provider)
+        provider if shared_provider?(provider)
+      end
+
+      def self.shared_provider?(provider)
+        provider&.slug == PROVIDER_SLUG && provider.adapter_type == "builtin" &&
+          [nil, LINODE_CONSUMER].include?(provider.adapter_class.presence)
+      end
+
+      def self.compute_credential(settings)
+        return setting!("COMPUTE_VAULT", settings) if settings
+
+        ENV["LIGHTEK_RELEASE_ASSURANCE_COMPUTE_VAULT"].presence ||
+          vault_choices.fetch("compute").sole
+      rescue ActiveSupport::EnumerableCoreExt::SoleItemExpectedError
+        raise Invalid, "Select the staging Linode Vault entry"
+      end
+
+      def self.adapter_for!(request, requested_by:, operation_id: nil)
+        data = request.metadata.fetch(METADATA_KEY)
+        slug = data.fetch("vault").fetch("compute")
+        provider = request.compute_provider
+        unless request.compute_provider_id == data.fetch("provider_id") && eligible_provider?(provider, slug)
+          raise Invalid, "Staging Linode provider or Vault binding changed"
+        end
+
+        secret = LightekVault::Secret.active.find_by(slug: slug, environment: "staging")
+        raise Invalid, "Staging Linode Vault entry is unavailable" unless usable_vault?(secret, VAULT_POLICIES.fetch("compute"))
+
+        linode_adapter(provider, slug, requested_by: requested_by, operation_id: operation_id)
+      rescue KeyError
+        raise Invalid, "Missing staging Linode binding"
+      end
+
+      def self.linode_adapter(provider, slug, requested_by:, operation_id: nil)
+        Providers::LinodeAdapter.new(provider: provider, credential_slug: slug,
+          requested_by: requested_by, operation_id: operation_id)
       end
 
       def self.vault_choices

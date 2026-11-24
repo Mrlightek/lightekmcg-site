@@ -20,6 +20,7 @@ require ROOT.join('app/services/lightek_settings/website_identity')
 require ROOT.join('app/services/lightek_settings/site_domain')
 %w[connection event grant].each { |f| require ROOT.join("app/models/lightek_connect/#{f}") }
 require ROOT.join('app/helpers/nevaeh_control_center_helper')
+require_relative "../support/dashboard_team_navigation_fixture"
 %w[mfa_handoff workspace].each { |f| require ROOT.join("app/services/lightek_connect/#{f}") }
 require ROOT.join('app/controllers/concerns/lightek_connect/delegated_session')
 ApplicationController.include LightekConnect::DelegatedSession

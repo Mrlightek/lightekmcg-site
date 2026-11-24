@@ -10,6 +10,16 @@ module LightekPeople
     validates :tax_reference, presence: true, length: {maximum: 300}
     validates :status, inclusion: {in: %w[draft approved preparing review pending posted failed returned requires_action]}
     validate :approved_amounts_are_immutable, on: :update
+    validate :it_service_gross_matches_cases, on: :update
+
+    def it_service_gross_matches_cases
+      return unless will_save_change_to_gross_cents? && defined?(ItServices::Payout)
+
+      payouts = ItServices::Payout.where(pay_statement_id: id)
+      if payouts.exists? && gross_cents != payouts.sum(:gross_cents)
+        errors.add(:gross_cents, "must match the reviewed IT Services cases")
+      end
+    end
     def approved_amounts_are_immutable
       if PayRun.where(id: pay_run_id).where.not(approved_at: nil).exists? &&
           %w[pay_run_id employment_id prepared_by_id gross_cents tax_cents employer_tax_cents other_deductions_cents benefit_cents employer_benefit_cents net_cents snapshot tax_reference].any? { |field| will_save_change_to_attribute?(field) }

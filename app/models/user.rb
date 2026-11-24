@@ -2,7 +2,10 @@
 
 class User < ApplicationRecord
   # ── Rails 8 native authentication ─────────────────────────────────────────────
-  def access_active? = access_suspended_at.nil?
+  def access_active?
+    access_suspended_at.nil? && (!has_attribute?(:staging_access_expires_at) ||
+      staging_access_expires_at.nil? || staging_access_expires_at.future?)
+  end
 
   has_secure_password
   include FirstUsePassword
@@ -107,6 +110,7 @@ class User < ApplicationRecord
       infrastructure_catalog
       subscription_plan_management
       provisioning_requests
+      release_assurance
       vault
     ].include?(feature_slug)
 

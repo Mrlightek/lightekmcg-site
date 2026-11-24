@@ -1,0 +1,156 @@
+import hashlib
+from pathlib import Path
+import tempfile
+import unittest
+from unittest import mock
+import zipfile
+import lightek_device_agent as agent
+
+
+class EndpointChecksTest(unittest.TestCase):
+    def test_inventory_is_read_only(self):
+        result = agent.read_only_check("refresh_inventory")
+        self.assertEqual(result["status"], "ok")
+
+    def test_unsupported_actions_are_rejected(self):
+        for code in ("execute_shell", "install_patch", "restore_backup", None):
+            self.assertIsNone(agent.read_only_check(code))
+
+    def test_unknown_platform_does_not_claim_verified_protection_or_backups(self):
+        with mock.patch.object(agent.sys, "platform", "unsupported"):
+            for code in ("check_patch_status", "check_backup_status", "check_endpoint_protection"):
+                self.assertEqual(agent.read_only_check(code)["status"], "unavailable")
+
+    def test_linux_patch_inventory_does_not_install(self):
+        with (mock.patch.object(agent.sys, "platform", "linux"),
+              mock.patch.object(agent.shutil, "which", return_value="/usr/bin/apt"),
+              mock.patch.object(agent, "_probe", return_value=(0, "Listing...\\npackage [upgradable from: 1]")) as probe):
+            result = agent.read_only_check("check_patch_status")
+        self.assertEqual(result["status"], "warning")
+        self.assertIn("1 available updates", result["observation"])
+        probe.assert_called_once_with(["apt", "list", "--upgradable"], output_limit=64 * 1024)
+
+    def test_linux_patch_inventory_counts_past_the_generic_probe_limit(self):
+        output = "Listing...\n" + "package-stable [upgradable from: 1]\n" * 20
+        with (mock.patch.object(agent.sys, "platform", "linux"),
+              mock.patch.object(agent.shutil, "which", return_value="/usr/bin/apt"),
+              mock.patch.object(agent, "_probe", return_value=(0, output))):
+            result = agent.read_only_check("check_patch_status")
+        self.assertIn("20 available updates", result["observation"])
+
+    def test_windows_patch_inventory_uses_the_cached_catalog(self):
+        with (mock.patch.object(agent.sys, "platform", "win32"),
+              mock.patch.object(agent, "_probe", return_value=(0, "2\r\n")) as probe):
+            result = agent.read_only_check("check_patch_status")
+        self.assertEqual(result["status"], "warning")
+        self.assertIn("2 available updates", result["observation"])
+        self.assertIn("$searcher.Online = $false", probe.call_args.args[0][-1])
+
+    def test_macos_patch_inventory_reports_only_recognized_results(self):
+        with mock.patch.object(agent.sys, "platform", "darwin"):
+            for output, status in (
+                ("* Label: Example update\n\tTitle: Example", "warning"),
+                ("No new software available.", "ok"),
+                ("Unable to find catalog", "unavailable"),
+            ):
+                with self.subTest(status=status), mock.patch.object(agent, "_probe", return_value=(0, output)):
+                    self.assertEqual(agent.read_only_check("check_patch_status")["status"], status)
+
+    def test_probe_never_uses_shell(self):
+        completed = mock.Mock(returncode=0, stdout="ok", stderr="")
+        with mock.patch.object(agent.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(agent._probe(["apt", "list", "--upgradable"]), (0, "ok"))
+        self.assertFalse(run.call_args.kwargs["shell"])
+        self.assertTrue(run.call_args.kwargs["timeout"] <= 12)
+
+    def test_windows_defender_status_does_not_claim_remediation(self):
+        with (mock.patch.object(agent.sys, "platform", "win32"),
+              mock.patch.object(agent, "_probe", return_value=(0, "False"))):
+            result = agent.read_only_check("check_endpoint_protection")
+        self.assertEqual(result["status"], "warning")
+        self.assertIn("false", result["observation"])
+
+    def test_mac_backup_is_not_claimed_restorable(self):
+        with (mock.patch.object(agent.sys, "platform", "darwin"),
+              mock.patch.object(agent.shutil, "which", return_value="/usr/bin/tmutil"),
+              mock.patch.object(agent, "_probe", return_value=(0, "/Volumes/Backup/Latest"))):
+            result = agent.read_only_check("check_backup_status")
+        self.assertEqual(result["status"], "warning")
+        self.assertIn("not verified", result["observation"])
+
+    def test_backup_recovery_reads_configured_sample_and_does_not_extract_files(self):
+        sample = b"backup recovery test content"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / "sample.zip"
+            with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as backup:
+                backup.writestr(agent.RECOVERY_SAMPLE, sample)
+                backup.writestr("unrelated.txt", b"must never be written")
+            with mock.patch.dict(agent.os.environ, {"LIGHTEK_RECOVERY_ARCHIVE": str(archive)}):
+                result = agent.verify_backup_recovery()
+            self.assertEqual(result, {"status": "restored", "sha256": hashlib.sha256(sample).hexdigest()})
+            self.assertEqual(list(root.iterdir()), [archive])
+
+    def test_backup_recovery_rejects_missing_and_oversized_samples(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / "sample.zip"
+            with mock.patch.dict(agent.os.environ, {"LIGHTEK_RECOVERY_ARCHIVE": str(archive)}):
+                self.assertEqual(agent.verify_backup_recovery(), {"status": "unavailable"})
+                with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as backup:
+                    backup.writestr(agent.RECOVERY_SAMPLE, b"x" * (agent.MAX_SAMPLE_BYTES + 1))
+                self.assertEqual(agent.verify_backup_recovery(), {"status": "unavailable"})
+
+    def test_backup_recovery_runs_only_after_gatekeeper_claim(self):
+        action = {"id": 1, "code": "verify_backup_recovery", "nonce": "a" * 48,
+                  "expires_at": "2999-01-01T00:00:00Z"}
+        evidence = {"status": "restored", "sha256": "c" * 64}
+        outcomes = [{"ok": True, "maintenance_actions": [action]}, {"ok": True, "action_id": 1}, {"ok": True}]
+        with (mock.patch.dict(agent.os.environ, {"LIGHTEK_DEVICE_IDENTIFIER": "test"}),
+              mock.patch.object(agent, "collect", return_value={}),
+              mock.patch.object(agent, "post", side_effect=outcomes) as post,
+              mock.patch.object(agent, "verify_backup_recovery", return_value=evidence) as recover):
+            agent.report()
+        recover.assert_called_once()
+        self.assertEqual([call.args[0]["method_type"] for call in post.call_args_list],
+                         ["device_heartbeat", "device_maintenance_claim", "device_maintenance_report"])
+        self.assertEqual(post.call_args.args[0]["result"], evidence)
+
+    def test_backup_recovery_does_not_run_when_claim_is_rejected(self):
+        action = {"id": 1, "code": "verify_backup_recovery", "nonce": "a" * 48,
+                  "expires_at": "2999-01-01T00:00:00Z"}
+        rejected = agent.urllib.error.HTTPError("https://example.org", 422, "Unprocessable", {}, None)
+        outcomes = [{"ok": True, "maintenance_actions": [action]}, rejected]
+        with (mock.patch.dict(agent.os.environ, {"LIGHTEK_DEVICE_IDENTIFIER": "test"}),
+              mock.patch.object(agent, "collect", return_value={}),
+              mock.patch.object(agent, "post", side_effect=outcomes) as post,
+              mock.patch.object(agent, "verify_backup_recovery") as recover):
+            agent.report()
+        recover.assert_not_called()
+        self.assertEqual(post.call_count, 2)
+
+    def test_heartbeat_actions_are_bounded(self):
+        calls = []
+        def fake_post(payload):
+            calls.append(payload)
+            if payload["method_type"] == "device_heartbeat":
+                return {"ok": True, "maintenance_actions": [
+                    {"id": 1, "code": "refresh_inventory", "nonce": "a" * 48,
+                     "expires_at": "2999-01-01T00:00:00Z"},
+                    {"id": 2, "code": "execute_shell", "nonce": "b" * 48,
+                     "expires_at": "2999-01-01T00:00:00Z"},
+                    {"id": 3, "code": "refresh_inventory", "nonce": "c" * 48,
+                     "expires_at": "2000-01-01T00:00:00Z"},
+                    {"id": 4, "code": "refresh_inventory", "nonce": "d" * 48,
+                     "expires_at": "invalid"}]}
+            return {"ok": True}
+        with mock.patch.dict(agent.os.environ, {"LIGHTEK_DEVICE_IDENTIFIER": "test"}), \
+             mock.patch.object(agent, "collect", return_value={"disk_percent": 50}), \
+             mock.patch.object(agent, "post", side_effect=fake_post):
+            agent.report()
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1]["method_type"], "device_maintenance_report")
+        self.assertEqual(calls[1]["action_id"], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

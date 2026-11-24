@@ -4,7 +4,7 @@ FROM ruby:3.3.6-slim
 # Install Postfix alongside essential build tools
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     build-essential libpq-dev libyaml-dev libffi-dev pkg-config \
-    git openssh-client postgresql-client curl postfix \
+    git openssh-client postgresql-client curl postfix ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

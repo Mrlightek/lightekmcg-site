@@ -24,6 +24,10 @@ class ReservationsController < ApplicationController
     end
     @industry = params[:industry].to_s
     @resources = @resources.where(template_key: @industry) if @industry.present?
+    @resources = @resources.where(id: params[:resource_id]) if params[:resource_id].present?
+    if defined?(ItServices::Plan)
+      @managed_resource_ids = ItServices::Plan.where(resource_id: @resources.select(:id)).pluck(:resource_id).to_set
+    end
   end
   def slots
     resource = LightekReservations::Resource.available.where(site: public_site).find(params.require(:resource_id))

@@ -176,6 +176,7 @@ require_relative '../../app/services/nevaeh_onboarding/improvement'
 
 require_relative '../../app/models/nevaeh_resolution_playbook'
 require_relative '../../app/models/nevaeh_resolution_observation'
+require_relative '../../app/services/nevaeh_improvement/release_assurance'
 require_relative '../../app/services/nevaeh_improvement/cycle'
 require_relative '../../app/services/nevaeh_improvement/agency'
 require_relative '../../app/services/nevaeh_improvement/purchased_service'

@@ -1,6 +1,13 @@
 module LightekReservations
   module Settlement
     module_function
+    def complete_appointment!(reservation)
+      return unless reservation.order&.status == "paid"
+      return if defined?(ItServices::CompletedAppointmentSettlement) && ItServices::CompletedAppointmentSettlement.required?(reservation)
+
+      LightekCommerce::Fulfillment.complete!(order: reservation.order, reference: reservation.reference)
+    end
+
     def for_order!(order)
       if (reservation = Reservation.find_by(order_id: order.id))
         Booking.reconcile!(reservation)

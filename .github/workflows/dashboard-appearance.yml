@@ -1,5 +1,7 @@
 name: Dashboard appearance
 on:
+  push:
+    branches: ["release-candidates/**"]
   pull_request:
     paths:
       - 'app/controllers/dashboard/appearance_colors_controller.rb'

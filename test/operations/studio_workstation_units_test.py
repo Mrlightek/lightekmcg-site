@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('installer',ROOT/'lib/scripts/install_studio_workstation.py')
 installer=importlib.util.module_from_spec(spec);spec.loader.exec_module(installer)
@@ -31,6 +31,18 @@ class WorkstationUnitTest(unittest.TestCase):
             config['unit']=config['unit'].replace('WorkingDirectory='+str(root),'WorkingDirectory="'+str(root)+'"')
             with self.assertRaisesRegex(RuntimeError,'WorkingDirectory=.*not absolute'):
                 installer.validate_units(config,run=self.verify_with_docker_fixture)
+    def test_apache_reload_is_deferred_while_apache_is_inactive(self):
+        status = ['systemctl', 'is-active', '--quiet', 'apache2']
+        reload = ['systemctl', 'reload', 'apache2']
+        with patch.object(installer.subprocess, 'run') as run:
+            run.return_value.returncode = 3
+            installer.reload_active_apache()
+            run.assert_called_once_with(status)
+            run.reset_mock()
+            run.return_value.returncode = 0
+            installer.reload_active_apache()
+            self.assertEqual(run.call_args_list, [call(status), call(reload, check=True)])
+
     def test_failed_validation_precedes_all_installer_mutations(self):
         args=['installer','--app-root','/var/www/lightekmcg-site','--app-user','lightek','--app-name','lightekmcg-site','--domain','lightekmcg.com']
         with patch('sys.argv',args),patch.object(installer.os,'geteuid',return_value=0),patch.object(installer,'validate_units',side_effect=RuntimeError('Invalid fixture')),patch.object(installer.subprocess,'run') as command,patch.object(installer.Path,'write_text') as write,patch.object(installer.Path,'glob') as scan:

@@ -1,0 +1,32 @@
+server lightek_gateway {
+    listen {
+        type = auth
+        ipaddr = 127.0.0.1
+        port = 1812
+    }
+
+    listen {
+        type = acct
+        ipaddr = 127.0.0.1
+        port = 1813
+    }
+
+    authorize {
+        lightek_subscriber_access
+        if (!ok) {
+            reject
+        }
+        files
+        pap
+    }
+
+    authenticate {
+        Auth-Type PAP {
+            pap
+        }
+    }
+
+    accounting {
+        detail
+    }
+}

@@ -51,6 +51,9 @@ module LightekCommerce
         apply!(subscription: subscription, data: data)
         record_invoice!(subscription: subscription, invoice: event.data.object.to_h.deep_stringify_keys, at: Time.at(event.created)) if event.type == "invoice.paid"
       end
+      if event.type == "invoice.paid" && defined?(LightekCommunications::VoiceProvisioningJob)
+        LightekCommunications::VoiceProvisioningJob.enqueue_paid!(subscription.order)
+      end
       subscription
     end
 

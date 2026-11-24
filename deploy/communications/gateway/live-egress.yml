@@ -1,0 +1,13 @@
+services:
+  gateway:
+    environment:
+      PILOT_HTTPS_IP: ${PILOT_HTTPS_IP:?Run check.sh --live-egress}
+    networks:
+      egress:
+        ipv4_address: 172.30.250.2
+
+networks:
+  egress:
+    ipam:
+      config:
+        - subnet: 172.30.250.0/29

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<scenario name="Authenticated call to Lightek echo extension">
+  <send retrans="500">
+    <![CDATA[
+      INVITE sip:600@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch]
+      From: <sip:2001@[local_ip]:[local_port]>;tag=[call_number]
+      To: <sip:600@[remote_ip]:[remote_port]>
+      Call-ID: [call_id]
+      CSeq: 1 INVITE
+      Contact: <sip:2001@[local_ip]:[local_port]>
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"/>
+  <recv response="401" auth="true"/>
+
+  <send>
+    <![CDATA[
+      ACK sip:600@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch-3]
+      From: <sip:2001@[local_ip]:[local_port]>;tag=[call_number]
+      To: <sip:600@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 1 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send retrans="500">
+    <![CDATA[
+      INVITE sip:600@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch]
+      From: <sip:2001@[local_ip]:[local_port]>;tag=[call_number]
+      To: <sip:600@[remote_ip]:[remote_port]>
+      Call-ID: [call_id]
+      CSeq: 2 INVITE
+      Contact: <sip:2001@[local_ip]:[local_port]>
+      [authentication]
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 1 1 IN IP4 [local_ip]
+      s=Lightek pilot
+      c=IN IP4 [local_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 0
+      a=rtpmap:0 PCMU/8000
+    ]]>
+  </send>
+
+  <recv response="100" optional="true"/>
+  <recv response="200" rrs="true"/>
+
+  <send>
+    <![CDATA[
+      ACK [next_url] SIP/2.0
+      Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch]
+      From: <sip:2001@[local_ip]:[local_port]>;tag=[call_number]
+      To: <sip:600@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 2 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send retrans="500">
+    <![CDATA[
+      BYE [next_url] SIP/2.0
+      Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch]
+      From: <sip:2001@[local_ip]:[local_port]>;tag=[call_number]
+      To: <sip:600@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 3 BYE
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="200"/>
+</scenario>

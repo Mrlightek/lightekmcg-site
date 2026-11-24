@@ -31,6 +31,13 @@ get '/dashboard/team-network', to: 'dashboard/network_team#index', as: :dashboar
 post '/dashboard/team-network/:operation', to: 'dashboard/network_team#change',
   as: :change_dashboard_network_team, constraints: {operation: /create|accept|disconnect|member|post/}
 
+post '/api/reservations/federation/installation/voice/status', to: 'api/installation_voice#status'
+post '/api/reservations/federation/installation/voice/device', to: 'api/installation_voice#device'
+post '/api/reservations/federation/installation/voice/checkout', to: 'api/installation_voice#checkout'
+get '/dashboard/voice', to: 'dashboard/installation_voice#show', as: :dashboard_installation_voice
+post '/dashboard/voice/device', to: 'dashboard/installation_voice#device', as: :dashboard_installation_voice_device
+post '/dashboard/voice', to: 'dashboard/installation_voice#checkout'
+
 get '/dashboard/mail/installation', to: 'dashboard/installation_mail#index', as: :dashboard_installation_mail
 post '/dashboard/mail/installation', to: 'dashboard/installation_mail#send_message'
 

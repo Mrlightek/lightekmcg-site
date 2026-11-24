@@ -1,0 +1,57 @@
+<% content_for :page_title, "Lightek #{@service.kind.titleize}" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Voice & Internet services", dashboard_communications_services_path %></p>
+  <h1>Lightek <%= @service.kind.titleize %></h1>
+  <p class="intro">Order #<%= @subscription.order_id %> · <%= @subscription.order.customer_email %> · <%= @service.status.humanize %></p>
+  <% if @installation_host %><p>Customer installation <strong><%= @installation_host %></strong></p><% end %>
+  <div class="grid">
+    <%= render "carrier_operations" if @carrier_operations %>
+    <section class="card">
+      <h2>Billing</h2>
+      <p>Commerce subscription #<%= @subscription.id %> · <%= @subscription.status.humanize %></p>
+      <% if @receipt %>
+        <p>Paid receipt #<%= @receipt.id %> · Current period ends <%= l(@subscription.current_period_end.to_date, format: :long) %></p>
+      <% else %>
+        <p>Activation and restoration need a paid receipt for the current subscription period.</p>
+      <% end %>
+    </section>
+    <section class="card">
+      <% if @service.status == "in_service" %>
+        <h2>Record suspension</h2>
+        <p>Enter the confirmation from the access operator or carrier after they suspend service.</p>
+        <%= form_with scope: :service, url: dashboard_communications_service_path(@service), method: :patch do |form| %>
+          <%= form.hidden_field :operation, value: "suspend" %>
+          <%= form.label :suspension_reference, "Suspension reference" %>
+          <%= form.text_field :suspension_reference, maxlength: 120, required: true %>
+          <%= form.submit "Record suspension" %>
+        <% end %>
+      <% elsif @receipt %>
+        <% operation = @service.status == "suspended" ? "restore" : "activate" %>
+        <h2><%= operation == "restore" ? "Record restoration" : "Record activation" %></h2>
+        <p>Enter references from the access operator or carrier after completing the live tests. Use reference IDs only.</p>
+        <%= form_with scope: :service, url: dashboard_communications_service_path(@service), method: :patch do |form| %>
+          <%= form.hidden_field :operation, value: operation %>
+          <% LightekCommunications::Fulfillment::TEST_EVIDENCE.fetch(@service.kind).each do |field, label| %>
+            <%= form.label field, label %>
+            <%= form.text_field field, maxlength: field == :phone_number ? 16 : 120, required: true %>
+          <% end %>
+          <%= form.submit operation == "restore" ? "Record restoration" : "Record activation" %>
+        <% end %>
+      <% else %>
+        <h2>Provisioning</h2>
+        <p>Once the current invoice is paid, this page will accept activation evidence.</p>
+      <% end %>
+    </section>
+    <section class="card">
+      <h2>Service history</h2>
+      <% @events.each do |event| %>
+        <div class="setting-link">
+          <strong><%= { "register" => "Provisioning started", "activate" => "Activation recorded", "restore" => "Restoration recorded", "suspend" => "Suspension recorded" }.fetch(event.action) %></strong>
+          <small><%= l(event.created_at, format: :long) %> · <%= event.operator&.email_address || "Automatic fulfillment" %><%= " · Receipt ##{event.billing_invoice_id}" if event.billing_invoice_id %></small>
+          <% event.evidence.each do |field, value| %><small><%= field.humanize %> · <%= value %></small><% end %>
+        </div>
+      <% end %>
+    </section>
+  </div>
+</main>

@@ -1,0 +1,71 @@
+<% content_for :page_title, "Lightek Voice" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "Your workspace", dashboard_client_home_path %></p>
+  <h1>Lightek Voice</h1>
+  <section class="card">
+    <h2><%= {
+      "available" => "Add phone service",
+      "pending_payment" => "Checkout pending",
+      "provisioning" => "Phone service is being set up",
+      "in_service" => "Phone service active",
+      "suspended" => "Phone service suspended",
+      "needs_review" => "Contact support about this order",
+      "unavailable" => "Phone service signup is unavailable"
+    }.fetch(@voice["status"], "Phone service status unavailable") %></h2>
+    <% if @voice["status"] == "available" %>
+      <p>Voice is billed separately from your existing service.</p>
+      <%= form_with url: dashboard_installation_voice_path, multipart: true do |form| %>
+        <fieldset>
+          <legend>Choose a plan</legend>
+          <% @voice.fetch("offers").each do |offer| %>
+            <div>
+              <%= form.radio_button :plan, offer.fetch("key"), required: true %>
+              <%= form.label :plan, value: offer.fetch("key") do %>
+                <%= offer.fetch("name") %> · <%= number_to_currency(offer.fetch("price_cents") / 100.0) %> per <%= offer.fetch("billing_interval") %>
+              <% end %>
+              <% if offer["description"].present? %><p><%= offer["description"] %></p><% end %>
+            </div>
+          <% end %>
+          <p>Applicable taxes are shown at checkout.</p>
+        </fieldset>
+        <%= fields_for :number_request do |number| %>
+          <fieldset>
+            <legend>Choose your phone number</legend>
+            <%= number.radio_button :option, "new", required: true %>
+            <%= number.label :option, "Get a new number", value: "new" %>
+            <%= number.label :area_code, "Preferred US area code" %>
+            <%= number.text_field :area_code, inputmode: "numeric", maxlength: 3, pattern: "[2-9][0-9]{2}" %>
+            <%= number.radio_button :option, "port", required: true %>
+            <%= number.label :option, "Keep my existing number", value: "port" %>
+            <%= number.label :phone_number, "US business landline to transfer" %>
+            <%= number.telephone_field :phone_number, maxlength: 30 %>
+            <p>Keep your current service active until the transfer completes.</p>
+          </fieldset>
+        <% end %>
+        <%= render "voice_setup" %>
+        <%= form.submit "Continue to checkout" %>
+      <% end %>
+    <% elsif @voice["status"] == "pending_payment" %>
+      <p><%= number_to_currency(@voice.fetch("price_cents") / 100.0) %> per <%= @voice.fetch("billing_interval") %>, plus applicable taxes.</p>
+      <%= button_to "Resume checkout", dashboard_installation_voice_path %>
+    <% elsif @voice["billing_status"].present? %>
+      <p>Subscription <%= @voice["billing_status"].humanize.downcase %></p>
+    <% end %>
+    <% if @voice["fulfillment_status"] == "processing" %><p>We’re setting up your service automatically.</p>
+    <% elsif @voice["fulfillment_status"] == "port_pending" %><p>Your transfer is with the carrier. Keep the current line active until the transfer is complete.</p>
+    <% elsif @voice["fulfillment_status"] == "carrier_ready" && @voice["status"] == "provisioning" %><p>Your carrier setup is complete. Line testing is pending.</p>
+    <% elsif @voice["fulfillment_status"] == "needs_attention" %><p>Your order needs attention. Contact Customer Service & Billing for help.</p>
+    <% end %>
+    <% if @voice["phone_number"].present? %>
+      <p>Your phone number is <strong><%= @voice["phone_number"] %></strong>.</p>
+    <% elsif (request = @voice["number_request"]) %>
+      <% if request["option"] == "port" %><p>Number transfer requested for the line ending in <%= request.fetch("last_four") %>.</p><% end %>
+      <% if request["option"] == "new" %><p>New number requested in area code <%= request.fetch("area_code") %>.</p><% end %>
+    <% end %>
+    <% if @voice["device_settings"] %>
+      <%= button_to "Set up your phone", dashboard_installation_voice_device_path, form: { data: { turbo: false } } %>
+    <% end %>
+    <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %></p>
+  </section>
+</main>

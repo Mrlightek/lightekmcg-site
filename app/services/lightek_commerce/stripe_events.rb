@@ -85,6 +85,8 @@ module LightekCommerce
         PaidInstanceProvisioningJob.perform_later(order.id) if order.purpose != "reservation_change" && order.items.any? { |item| item.product.product_type == "lightek_instance" }
       end
       LightekReservations::Settlement.for_order!(order)
+      LightekCommunications::VoiceProvisioningJob.enqueue_paid!(order) if session.mode == "subscription" &&
+        defined?(LightekCommunications::VoiceProvisioningJob)
       order
     end
   end

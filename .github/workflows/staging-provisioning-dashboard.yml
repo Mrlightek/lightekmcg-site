@@ -4,6 +4,7 @@ on:
     paths:
       - 'app/controllers/dashboard/provisioning_requests_controller.rb'
       - 'app/services/gatekeeper/compute/**'
+      - 'app/services/gatekeeper/website_dns_publication.rb'
       - 'app/views/dashboard/infrastructure/index.html.erb'
       - 'app/views/dashboard/provisioning_requests/**'
       - 'config/routes.rb'

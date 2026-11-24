@@ -1,0 +1,69 @@
+<main class="container" style="max-width:850px;margin:3rem auto;padding:1rem">
+  <h1>My IT support requests</h1>
+  <p><%= link_to "Request IT support", new_it_service_request_path %></p>
+  <section aria-label="Managed device monitoring">
+    <h2>My managed devices</h2>
+    <p>Monitoring is optional. You can turn it off at any time; pending checks are cancelled. This does not authorize remote repairs.</p>
+    <% NetworkManagedDevice.where(owner_id: current_user.id).where.not(enrolled_at: nil).order(:id).limit(100).each do |device| %>
+      <div>
+        <strong><%= device.name %></strong> — <%= device.managed_monitoring_enabled? ? "Monitoring enabled" : "Monitoring off" %>
+        <%= form_with url: managed_device_monitoring_it_service_requests_path, method: :post do |form| %>
+          <%= form.hidden_field :device_id, value: device.id %>
+          <%= form.hidden_field :enabled, value: !device.managed_monitoring_enabled? %>
+          <%= form.submit device.managed_monitoring_enabled? ? "Disable monitoring" : "Enable read-only monitoring" %>
+        <% end %>
+      </div>
+    <% end %>
+  </section>
+  <% if @requests.empty? %><p>No IT support requests yet.</p><% end %>
+  <% @requests.each do |request| %>
+    <article style="border:1px solid #777;padding:1rem;margin:1rem 0">
+      <h2><%= ItServiceRequest::SERVICES.fetch(request.service_code) %></h2>
+      <p><strong>Status:</strong> <%= request.status.humanize %> | <strong>Delivery:</strong> <%= request.delivery_mode.humanize %></p>
+      <p><%= request.description %></p>
+      <% ticket = NevaehCustomerService::Cases.customer_scope(current_user).where(related: request).order(id: :desc).first %>
+      <% if ticket %><p><%= link_to "Nevaeh support case ##{ticket.id}", dashboard_customer_case_path(ticket) %> — <%= ticket.status.humanize %></p><% end %>
+      <% if request.status == "awaiting_customer" %>
+        <section aria-label="Service completion confirmation">
+          <h3>Review technician completion</h3>
+          <p><%= request.resolution_notes %></p>
+          <%= form_with url: confirm_completion_it_service_request_path(request), method: :post do |form| %>
+            <p><%= form.label :decision, "Was the issue resolved?" %><br>
+            <%= form.select :decision, [["Yes, confirm completion", "confirmed"], ["No, more work is needed", "needs_more_work"]] %></p>
+            <p><%= form.label :note, "Your feedback" %><br><%= form.text_area :note, required: true, maxlength: 1500 %></p>
+            <%= form.submit "Submit service review" %>
+          <% end %>
+        </section>
+      <% end %>
+      <% if request.network_managed_device %>
+        <% consent = ItServiceDiagnosticConsent.find_by(it_service_request: request) %>
+        <section aria-label="Device diagnostics">
+          <h3>Device diagnostics</h3>
+          <p>Read-only health information from Lightek's existing managed-device record. This does not run a scan, install software, or authorize repairs.</p>
+          <% if consent&.active? %>
+            <p><%= link_to "View device health snapshot (JSON)", device_health_it_service_request_path(request) %></p>
+            <p><%= link_to "View interpreted diagnostic report (JSON)", diagnostic_report_it_service_request_path(request) %></p>
+            <%= button_to "Revoke diagnostic consent", revoke_diagnostic_consent_it_service_request_path(request), method: :delete %>
+          <% else %>
+            <%= button_to "Authorize read-only device health", diagnostic_consent_it_service_request_path(request), method: :post %>
+          <% end %>
+        </section>
+      <% end %>
+      <% if request.reservation %>
+        <p><strong>Appointment:</strong> <%= request.reservation.status.humanize %> | <strong>Payment:</strong> <%= request.reservation.order&.status&.humanize || "Not yet invoiced" %></p>
+        <p><%= link_to "View appointment and checkout", my_reservation_path(request.reservation) %></p>
+      <% else %>
+        <p><%= link_to "Browse available appointments", reservations_catalog_path %></p>
+        <% available = LightekReservations::Reservation.where(customer: current_user).joins(:resource).where(lightek_reservation_resources: { kind: "service" }).where.not(status: %w[canceled expired]).order(created_at: :desc).limit(20) %>
+        <% if available.any? %>
+          <%= form_with url: attach_reservation_it_service_request_path(request), method: :post do |form| %>
+            <%= form.label :reservation_id, "Link an existing service appointment" %>
+            <%= form.select :reservation_id, available.map { |reservation| ["#{reservation.reference} — #{reservation.status.humanize}", reservation.id] } %>
+            <%= form.submit "Link appointment" %>
+          <% end %>
+        <% end %>
+      <% end %>
+      <small>Requested <%= request.created_at.to_date %></small>
+    </article>
+  <% end %>
+</main>

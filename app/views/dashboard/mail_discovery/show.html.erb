@@ -1,7 +1,7 @@
-<% content_for :page_title, "Mail discovery matter" %>
+<% content_for :page_title, "Workspace discovery matter" %>
 <%= render "dashboard/mail_studio/style" %>
 <main class="lm lm-reader">
-  <%= link_to "← Mail retention & discovery", dashboard_mail_discovery_path, class: "back-link" %>
+  <%= link_to "← Workspace discovery", dashboard_mail_discovery_path, class: "back-link" %>
   <header class="mail-header"><h1><%= @matter.name %></h1></header>
   <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>
   <% if flash[:notice] %><p class="notice" role="status"><%= flash[:notice] %></p><% end %>
@@ -69,10 +69,12 @@
     </section>
   <% end %>
 
+  <%= render "drive_holds" %>
+
   <% if @can_manage %>
     <section class="conversation-card" aria-labelledby="matter-reviewers">
       <h2 id="matter-reviewers">Reviewers</h2>
-      <p>Reviewers can search and download mail covered by this matter.</p>
+      <p>Reviewers can search and download mail and Shared Drive files covered by this matter.</p>
       <% @reviewers.each do |reviewer| %>
         <div class="message-tools">
           <span><%= reviewer.user.full_name.presence || reviewer.user.email %></span>

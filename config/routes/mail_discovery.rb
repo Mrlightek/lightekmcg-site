@@ -9,4 +9,8 @@ scope "/dashboard/workspace/mail-discovery", controller: "dashboard/mail_discove
   delete "/matters/:id/reviewers/:reviewer_id", action: :revoke, as: :revoke_dashboard_mail_matter
   post "/matters/:id/search", action: :search, as: :search_dashboard_mail_matter
   post "/matters/:id/export", action: :export, as: :export_dashboard_mail_matter
+  post "/matters/:id/drives", action: :hold_drive, as: :hold_dashboard_discovery_drive
+  delete "/matters/:id/drives", action: :release_drive, as: :release_dashboard_discovery_drive
+  post "/matters/:id/drives/search", action: :search_drive, as: :search_dashboard_discovery_drive
+  post "/matters/:id/drives/export", action: :export_drive, as: :export_dashboard_discovery_drive
 end

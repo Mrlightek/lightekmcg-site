@@ -37,8 +37,12 @@ class Dashboard::SharedDrivesController < Dashboard::SharedWorkspaceController
     upload = attrs[:upload]
     raise ArgumentError, 'Choose a file up to 25 MB.' if upload && (!upload.respond_to?(:original_filename) || upload.size > 25.megabytes)
 
-    @drive.entries.create!(parent: folder, creator: current_user, folder: upload.nil?, upload: upload,
-      name: attrs[:name].presence || upload&.original_filename)
+    @drive.with_lock do
+      raise LightekPeople::Access::Denied unless @drive.editable_by?(current_user)
+
+      @drive.entries.create!(parent: folder, creator: current_user, folder: upload.nil?, upload: upload,
+        name: attrs[:name].presence || upload&.original_filename)
+    end
     redirect_to dashboard_shared_drive_path(@drive, employer_id: @employer.id, folder: folder&.id), status: :see_other
   end
 

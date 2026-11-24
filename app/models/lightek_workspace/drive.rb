@@ -5,6 +5,8 @@ module LightekWorkspace
     belongs_to :employer, class_name: 'User'
     has_many :members, class_name: 'LightekWorkspace::DriveMember'
     has_many :entries, class_name: 'LightekWorkspace::DriveEntry'
+    has_many :discovery_holds, class_name: "LightekWorkspace::DiscoveryDriveHold", dependent: :restrict_with_error
+
     def self.accessible_to(actor, employer)
       scope = where(employer: employer)
       return scope if actor.id == employer.id

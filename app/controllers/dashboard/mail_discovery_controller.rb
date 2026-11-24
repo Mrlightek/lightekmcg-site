@@ -126,6 +126,47 @@ class Dashboard::MailDiscoveryController < DymondDash::ApplicationController
     send_data archive, type: "application/zip", disposition: "attachment", filename: "mail-matter-#{@matter.id}.zip"
   end
 
+  def hold_drive
+    with_matter_drive(manage: true) do |drive|
+      hold = @matter.drive_holds.find_or_initialize_by(drive: drive)
+      raise ArgumentError, "This Shared Drive is already on hold in this matter." if hold.persisted? && !hold.released_at?
+
+      hold.update!(released_at: nil)
+      audit!("drive_hold_placed", drive: drive)
+    end
+    back(notice: "Shared Drive hold placed.")
+  end
+
+  def release_drive
+    with_matter_drive(manage: true) do |drive|
+      @matter.drive_holds.active.find_by!(drive: drive).update!(released_at: Time.current)
+      audit!("drive_hold_released", drive: drive)
+    end
+    back(notice: "Shared Drive hold released.")
+  end
+
+  def search_drive
+    with_matter_drive do |drive|
+      @selected_drive = drive
+      @drive_matches = drive_search(drive).matches
+      audit!("drive_searched", drive: drive, count: @drive_matches.size)
+    end
+    prepare_matter
+    render :show
+  end
+
+  def export_drive
+    archive = with_matter_drive do |drive|
+      search = drive_search(drive)
+      matches = search.matches
+      bundle = search.export(matches, matter: @matter)
+      reload_matter_access!
+      audit!("drive_exported", drive: drive, count: matches.size, details: {sha256: Digest::SHA256.hexdigest(bundle)})
+      bundle
+    end
+    send_data archive, type: "application/zip", disposition: "attachment", filename: "drive-matter-#{@matter.id}.zip"
+  end
+
   private
 
   def load_access
@@ -151,20 +192,22 @@ class Dashboard::MailDiscoveryController < DymondDash::ApplicationController
     @mailboxes = @access.own_mailboxes.order(:address)
     @rules = LightekMail::RetentionRule.where(account_id: @mailboxes.select(:id)).includes(:account).order(:id)
     @activity = LightekMail::DiscoveryEvent.where(employer: current_user, matter_id: nil)
-      .includes(:account, :actor).order(created_at: :desc, id: :desc).limit(25)
+      .includes(:account, :actor, :drive).order(created_at: :desc, id: :desc).limit(25)
   end
 
   def prepare_matter
     @can_manage = @matter.employer_id == current_user.id && @access.owner?
     @holds = @matter.holds.active.where(account_id: matter_mailboxes.select(:id)).includes(:account).order(:id)
     @search_mailboxes = @can_manage ? @access.own_mailboxes.order(:address) : @holds.map(&:account)
+    @drive_holds = @matter.drive_holds.active.where(drive_id: matter_drives.select(:id)).includes(:drive).order(:id)
+    @available_drives = matter_drives.where.not(id: @drive_holds.select(:drive_id)).order(:name, :id) if @can_manage
     return unless @can_manage
 
     @available_mailboxes = @access.own_mailboxes.where.not(id: @holds.select(:account_id)).order(:address)
     @reviewers = @matter.reviewers.includes(:user).order(:id)
     @eligible_reviewers = @access.eligible_reviewers.where.not(id: @reviewers.select(:user_id)).order(:id)
     @activity = LightekMail::DiscoveryEvent.where(matter: @matter, employer_id: @matter.employer_id)
-      .includes(:account, :actor).order(created_at: :desc, id: :desc).limit(25)
+      .includes(:account, :actor, :drive).order(created_at: :desc, id: :desc).limit(25)
   end
 
   def with_owned_mailbox
@@ -184,6 +227,32 @@ class Dashboard::MailDiscoveryController < DymondDash::ApplicationController
     end
   end
 
+  def matter_drives
+    LightekWorkspace::Drive.where(employer_id: @matter.employer_id)
+  end
+
+  def with_matter_drive(manage: false)
+    drive = matter_drives.find(params[:drive_id])
+    drive.with_lock do
+      reload_matter_access!
+      if manage
+        require_matter_owner!
+      else
+        @matter.drive_holds.active.find_by!(drive: drive)
+      end
+      yield drive
+    end
+  end
+
+  def reload_matter_access!
+    @access = LightekMail::DiscoveryAccess.new(current_user.reload)
+    @matter = @access.matters.find(@matter.id)
+  end
+
+  def drive_search(drive)
+    LightekWorkspace::DriveDiscovery.new(drive, query: params[:drive_discovery_query], from: params[:drive_from], through: params[:drive_through])
+  end
+
   def matter_mailboxes
     LightekMail::DiscoveryAccess.mailboxes_for(@matter.employer_id)
   end
@@ -192,9 +261,9 @@ class Dashboard::MailDiscoveryController < DymondDash::ApplicationController
     LightekMail::DiscoverySearch.new(mailbox, query: params[:mail_discovery_query], from: params[:from_date], through: params[:through_date])
   end
 
-  def audit!(action, matter: @matter, account: nil, count: nil, details: {})
+  def audit!(action, matter: @matter, account: nil, drive: nil, count: nil, details: {})
     LightekMail::DiscoveryEvent.create!(employer_id: matter&.employer_id || current_user.id,
-      matter: matter, account: account, actor: current_user, action: action, result_count: count, details: details)
+      matter: matter, account: account, drive: drive, actor: current_user, action: action, result_count: count, details: details)
   end
 
   def back(**flash_messages)

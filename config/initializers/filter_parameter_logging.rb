@@ -39,4 +39,4 @@ Rails.application.config.filter_parameters += [:support_case, :support_reply, :s
 Rails.application.config.filter_parameters += ['show.brief']
 Rails.application.config.filter_parameters += %w[brief.recipient brief.email brief.contact_basis brief.facts brief.response brief.notes]
 
-Rails.application.config.filter_parameters += [:mail_discovery_query, :mail_matter_name]
+Rails.application.config.filter_parameters += [:mail_discovery_query, :mail_matter_name, :drive_discovery_query]

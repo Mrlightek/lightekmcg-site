@@ -1,11 +1,11 @@
-<% content_for :page_title, "Mail retention & discovery" %>
+<% content_for :page_title, "Workspace discovery" %>
 <%= render "dashboard/mail_studio/style" %>
 <main class="lm lm-reader">
   <%= link_to "← Mail Studio", dashboard_mail_path, class: "back-link" %>
   <header class="mail-header">
     <div>
-      <h1>Mail retention &amp; discovery</h1>
-      <p class="muted">Preserve workspace mail and review it by matter.</p>
+      <h1>Workspace discovery</h1>
+      <p class="muted">Preserve workspace mail and Shared Drive files for review.</p>
     </div>
   </header>
   <% if flash[:alert] %><p class="notice danger" role="alert"><%= flash[:alert] %></p><% end %>

@@ -40,6 +40,18 @@ ActiveRecord::Schema.define do
     t.references :worker
     t.boolean :active, default: true
   end
+  create_table(:lightek_team_channels) { |table| table.references :employer, null: false }
+  create_table(:lightek_office_files) do |table|
+    table.references :channel, null: false, foreign_key: {to_table: :lightek_team_channels}
+    table.references :creator, null: false, foreign_key: {to_table: :users}
+    table.references :editor, null: false, foreign_key: {to_table: :users}
+    table.string :kind, null: false
+    table.string :title, null: false
+    table.text :content, null: false
+    table.boolean :rich_text, default: false, null: false
+    table.integer :lock_version, default: 0, null: false
+    table.timestamps
+  end
   create_table(:action_mailbox_inbound_emails)
   create_table(:lightek_mail_sending_policies) { |t| t.boolean :sending_enabled; t.string :stop_reason }
   create_table(:active_storage_blobs) do |t|
@@ -61,10 +73,14 @@ ActiveRecord::Schema.define do
 end
 
 %w[20261026150000_create_lightek_mail_studio 20261113140000_add_lightek_mailbox_management
-   20261123170000_add_mail_discovery].each { |migration| require File.join(ROOT, "db/migrate", migration) }
+   20261122196000_add_shared_workspace 20261123090000_add_office_files_to_shared_drives
+   20261123170000_add_mail_discovery 20261123173000_add_discovery_drive_holds].each { |migration| require File.join(ROOT, "db/migrate", migration) }
 CreateLightekMailStudio.new.migrate(:up)
 AddLightekMailboxManagement.new.migrate(:up)
+AddSharedWorkspace.new.migrate(:up)
+AddOfficeFilesToSharedDrives.new.migrate(:up)
 AddMailDiscovery.new.migrate(:up)
+AddDiscoveryDriveHolds.new.migrate(:up)
 
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
@@ -104,7 +120,12 @@ end
    services/lightek_team/workspace services/lightek_mail/access services/lightek_mail/submission
    services/lightek_mail/retention services/lightek_mail/discovery_access services/lightek_mail/discovery_search
    services/lightek_mail/discovery_export controllers/dashboard/mail_studio_controller
-   controllers/dashboard/mail_discovery_controller jobs/application_job jobs/lightek_mail/expire_retained_mail_job].each do |path|
+   controllers/dashboard/mail_discovery_controller
+   controllers/dashboard/shared_workspace_controller controllers/dashboard/shared_drives_controller
+   models/lightek_workspace/drive models/lightek_workspace/drive_entry models/lightek_workspace/drive_member
+   models/lightek_workspace/discovery_drive_hold models/lightek_office/shared_file models/lightek_office/revision
+   services/lightek_office/content services/lightek_office/document services/lightek_office/changes
+   services/lightek_workspace/drive_discovery controllers/dashboard/team_office_controller jobs/application_job jobs/lightek_mail/expire_retained_mail_job].each do |path|
   require File.join(ROOT, "app", path)
 end
 Dashboard::MailDiscoveryController.prepend_view_path(File.join(ROOT, "app/views"))
@@ -116,6 +137,7 @@ MailDiscoveryTestApp.routes.draw do
   get "/dashboard/mail/accounts/:account_id/messages/:id/attachments/:attachment_id", to: "dashboard/mail_studio#attachment",
     as: :dashboard_mail_attachment
   instance_eval(File.read(File.join(ROOT, "config/routes/mail_discovery.rb")))
+  instance_eval(File.read(File.join(ROOT, "config/routes/executive_operations.rb")))
 end
 
 class MailDiscoveryChecks < ActionDispatch::IntegrationTest
@@ -241,6 +263,90 @@ class MailDiscoveryChecks < ActionDispatch::IntegrationTest
       LightekMail::ExpireRetainedMailJob.perform_now
       refute LightekMail::RetainedMessage.exists?(original_id: recent.id)
     end
+  end
+
+  def test_shared_drive_hold_exports_revision_and_upload_to_a_scoped_reviewer
+    editor = User.create!(role: "employee", email: "editor@example.test")
+    LightekPeople::Employment.create!(employer: @owner, worker: editor)
+    drive = LightekWorkspace::Drive.create!(employer: @owner, name: "Records Drive")
+    drive.members.create!(user: editor, role: "editor")
+    other_drive = LightekWorkspace::Drive.create!(employer: @outsider, name: "Other Drive")
+    unheld_drive = LightekWorkspace::Drive.create!(employer: @owner, name: "Unheld Drive")
+    matter = create_matter
+    post hold_dashboard_discovery_drive_path(matter), params: {drive_id: other_drive.id}, headers: as(@owner)
+    assert_response :not_found
+    post hold_dashboard_discovery_drive_path(matter), params: {drive_id: drive.id}, headers: as(@owner)
+    assert_response :see_other
+    post grant_dashboard_mail_matter_path(matter), params: {reviewer_id: @reviewer.id}, headers: as(@owner)
+    assert_response :see_other
+
+    post dashboard_drive_office_path(drive, employer_id: @owner.id), params: {
+      office_file: {kind: "document", title: "Original brief", content: "First edition"}
+    }, headers: as(editor)
+    assert_response :see_other
+    file = drive.entries.find_by!(name: "Original brief").office_file
+    patch update_dashboard_drive_office_path(drive, file, employer_id: @owner.id), params: {
+      office_file: {title: "Final brief", content: "Second edition", lock_version: file.lock_version}
+    }, headers: as(editor)
+    assert_response :see_other
+    assert_equal "Second edition", file.reload.content
+    revision = LightekOffice::Changes.revisions(file).sole
+    upload = drive.entries.create!(creator: editor, folder: false, name: "Original receipt",
+      upload: {io: StringIO.new("receipt bytes"), filename: "receipt.txt"})
+    assert_raises(ActiveRecord::RecordNotDestroyed) { revision.destroy! }
+    assert_raises(ActiveRecord::RecordNotDestroyed) { file.destroy! }
+    assert_raises(ActiveRecord::RecordNotDestroyed) { upload.destroy! }
+    refute upload.update(upload: {io: StringIO.new("replacement"), filename: "replacement.txt"})
+    assert_equal "receipt bytes", upload.reload.upload.download
+
+    get dashboard_shared_drive_path(drive, employer_id: @owner.id), headers: as(@reviewer)
+    assert_response :not_found
+    assert_empty drive.members.where(user: @reviewer)
+    query = {drive_id: drive.id, drive_discovery_query: "Original", drive_from: Date.current.iso8601}
+    post search_dashboard_discovery_drive_path(matter), params: query, headers: as(@reviewer)
+    assert_response :success
+    assert_includes response.body, "Original brief"
+    assert_includes response.body, "Earlier version"
+    assert_includes response.body, "Original receipt"
+    refute_includes response.body, "Final brief"
+    assert_equal "private, no-store", response.headers["Cache-Control"]
+
+    post export_dashboard_discovery_drive_path(matter), params: query, headers: as(@reviewer)
+    assert_response :success
+    assert_equal "application/zip", response.media_type
+    digest = Digest::SHA256.hexdigest(response.body.b)
+    Zip::File.open_buffer(StringIO.new(response.body.b)) do |zip|
+      items = JSON.parse(zip.read("manifest.json")).fetch("files").index_by { |item| item.fetch("name") }
+      assert_equal 2, items.size
+      original = items.fetch("Original brief")
+      payload = zip.read(original.fetch("path"))
+      assert_equal "First edition", JSON.parse(payload).fetch("content")
+      assert_equal 0, original.fetch("version")
+      assert_equal Digest::SHA256.hexdigest(payload), original.fetch("sha256")
+      receipt = items.fetch("Original receipt")
+      assert_equal "receipt bytes", zip.read(receipt.fetch("path"))
+    end
+    event = LightekMail::DiscoveryEvent.find_by!(matter: matter, drive: drive, action: "drive_exported")
+    assert_equal @reviewer.id, event.actor_id
+    assert_equal digest, event.details.fetch("sha256")
+
+    post export_dashboard_discovery_drive_path(matter), params: query, headers: as(@outsider)
+    assert_response :not_found
+    post search_dashboard_discovery_drive_path(matter), params: {drive_id: unheld_drive.id}, headers: as(@reviewer)
+    assert_response :not_found
+    delete release_dashboard_discovery_drive_path(matter), params: {drive_id: drive.id}, headers: as(@reviewer)
+    assert_response :forbidden
+    second_matter = create_matter
+    post hold_dashboard_discovery_drive_path(second_matter), params: {drive_id: drive.id}, headers: as(@owner)
+    assert_response :see_other
+    delete release_dashboard_discovery_drive_path(matter), params: {drive_id: drive.id}, headers: as(@owner)
+    assert_response :see_other
+    post export_dashboard_discovery_drive_path(matter), params: query, headers: as(@reviewer)
+    assert_response :not_found
+    assert_raises(ActiveRecord::RecordNotDestroyed) { revision.destroy! }
+    delete release_dashboard_discovery_drive_path(second_matter), params: {drive_id: drive.id}, headers: as(@owner)
+    assert_response :see_other
+    assert revision.destroy!
   end
 
   private

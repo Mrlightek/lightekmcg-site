@@ -44,6 +44,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+
+      - name: Check Ruby application syntax before touching production
+        run: |
+          git ls-files -z -- 'app/*.rb' 'config/*.rb' 'lib/*.rb' 'db/*.rb' |
+            xargs -0 -r -n 1 -P 4 bash -c 'ruby -c "$1" >/dev/null' _
+
       - name: Verify DNS recovery regressions before release
         run: |
           python3 -m unittest test.operations.deploy_checkout_test test.operations.deployment_storage_test test.operations.session_media_access_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test

@@ -111,6 +111,7 @@ class User < ApplicationRecord
       subscription_plan_management
       provisioning_requests
       release_assurance
+      feature_flags
       vault
     ].include?(feature_slug)
 

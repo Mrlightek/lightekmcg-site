@@ -9,6 +9,8 @@ module LightekManagedDns
   class Enrollment < ApplicationRecord
     self.table_name = "lightek_managed_dns_enrollments"
     class Invalid < StandardError; end
+    ROLLOUT_FLAG = "managed_dns"
+    ROLLOUT_PAUSED = "New Managed DNS enrollments and cutovers are paused for this account."
 
     belongs_to :order, class_name: "LightekCommerce::Order"
     belongs_to :owner, class_name: "User"
@@ -35,6 +37,24 @@ module LightekManagedDns
       order.hosting_owner || User.find_by(email_address: order.customer_email)
     end
 
+    def self.rollout_enabled?(order, owner: owner_for(order))
+      LightekFeatureFlags::Flag.enabled?(ROLLOUT_FLAG, account: owner, installation: -> { fleet_installation(order) })
+    end
+
+    def self.with_rollout!(order, owner:, &operation)
+      LightekFeatureFlags::Flag.with_enabled!(ROLLOUT_FLAG, account: owner, installation: -> { fleet_installation(order) }, &operation)
+    rescue LightekFeatureFlags::Flag::Unavailable
+      raise Invalid, ROLLOUT_PAUSED
+    end
+
+    def self.fleet_installation(order)
+      node_id = ProvisioningRequest.find_by(id: order.provisioning_request_id)&.gatekeeper_node_id
+      return unless node_id
+
+      GatekeeperInstallation.find_by(gatekeeper_node_id: node_id, domain: LightekCommerce::Installations.hostname(order), component: "lightek_app")
+    end
+    private_class_method :fleet_installation
+
     def self.domain_for(order)
       return unless LightekCommerce::Installations.ready?(order) && LightekCommerce::Installations.external_dns?(order)
 
@@ -55,10 +75,12 @@ module LightekManagedDns
         return existing if existing && existing.state != "withdrawn"
 
         enrollment = existing || new(order: order)
-        enrollment.update!(owner: owner, domain: domain, requested_by: actor, proof: SecureRandom.hex(24),
-          provider_kind: configured_provider,
-          state: "requested", provider_zone_id: nil, records_digest: nil, previous_nameservers: [], nameservers: [],
-          reviewed_by: nil, reviewed_at: nil, verified_at: nil)
+        with_rollout!(order, owner: owner) do
+          enrollment.update!(owner: owner, domain: domain, requested_by: actor, proof: SecureRandom.hex(24),
+            provider_kind: configured_provider,
+            state: "requested", provider_zone_id: nil, records_digest: nil, previous_nameservers: [], nameservers: [],
+            reviewed_by: nil, reviewed_at: nil, verified_at: nil)
+        end
         enrollment
       end
     rescue ActiveRecord::RecordNotUnique
@@ -71,6 +93,7 @@ module LightekManagedDns
       require_operator!(actor)
       with_lock do
         raise Invalid, "Only pending requests can be staged." unless state.in?(%w[requested staged])
+        require_rollout!
         verify_ownership!
         current = public_nameservers
         zone = provider.zone!(zone_id, domain)
@@ -80,8 +103,10 @@ module LightekManagedDns
         records = provider_records(provider, zone_id, zone)
         verify_website!(records)
         verify_authority!(provider, zone, proposed)
-        update!(state: "staged", provider_zone_id: zone_id, previous_nameservers: current, nameservers: proposed,
-          records_digest: digest(records))
+        self.class.with_rollout!(order, owner: owner) do
+          update!(state: "staged", provider_zone_id: zone_id, previous_nameservers: current, nameservers: proposed,
+            records_digest: digest(records))
+        end
       end
     rescue ActiveRecord::RecordNotUnique
       raise Invalid, "That provider zone is already bound to another request."
@@ -91,10 +116,13 @@ module LightekManagedDns
       require_operator!(actor)
       with_lock do
         raise Invalid, "Stage the zone before approving it." unless state == "staged"
+        require_rollout!
         verify_ownership!
         raise Invalid, "The current nameservers changed. Stage the zone again." unless public_nameservers == previous_nameservers
         verify_staged!(provider)
-        update!(state: "awaiting_delegation", reviewed_by: actor, reviewed_at: Time.current)
+        self.class.with_rollout!(order, owner: owner) do
+          update!(state: "awaiting_delegation", reviewed_by: actor, reviewed_at: Time.current)
+        end
       end
     end
 
@@ -179,6 +207,10 @@ module LightekManagedDns
     end
 
     private
+
+    def require_rollout!
+      raise Invalid, ROLLOUT_PAUSED unless self.class.rollout_enabled?(order, owner: owner)
+    end
 
     def require_operator!(actor)
       raise Invalid, "A Lightek operator must review the DNS zone." unless Gatekeeper::Hosting::Access.super_admin?(actor)

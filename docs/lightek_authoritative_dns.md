@@ -38,7 +38,9 @@ Set `LIGHTEK_MANAGED_DNS_PROVIDER=cloudflare` only to select the
 ## Stage and pilot
 
 1. Use a ready hosting order and a separate Lightek-owned test domain. Opt in
-   and publish the ownership TXT record at the current authoritative provider.
+   after enabling the pilot account under **Dashboard → Operations → Feature
+   Flags**, then publish the ownership TXT record at the current authoritative
+   provider. Managed DNS enrollment is paused until an operator enables it.
 2. Export its entire zone and keep a protected copy. On the private primary,
    import the reviewed file with `pdnsutil zone load`, set the zone kind to
    primary, replace its apex NS set with the Lightek nameservers, and set a

@@ -188,6 +188,11 @@ Rails.application.routes.draw do
     post :retry_installation, on: :member, path: "resume"
   end
   get "/dashboard/installations", to: "dashboard/installations#index", as: :dashboard_installations
+namespace :dashboard do
+  resources :feature_flags, only: %i[index update] do
+    post :pause, on: :member
+  end
+end
   post "/dashboard/installations/:id/resume", to: "dashboard/installations#retry_installation", as: :resume_dashboard_installation
   post "/dashboard/marketing/campaigns/:id/studio", to: "dashboard/marketing_campaigns#studio", as: :studio_dashboard_marketing_campaign
   post "/dashboard/marketing/campaigns/:id/send_email", to: "dashboard/marketing_campaigns#send_email", as: :send_dashboard_marketing_campaign

@@ -27,7 +27,7 @@
     <div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Select</th><th>Customer installation</th><th>Server</th><th>Installed version</th><th>Channel</th><th>Auto updates</th><th>State</th></tr></thead><tbody>
       <% @installations.each do |installation| %>
         <tr><td><%= check_box_tag "installation_ids[]", installation.id, false, disabled: !installation.eligible?, aria: {label: "Select #{installation.domain}"} %></td>
-        <td><%= installation.domain %><br><small><%= installation.account&.email_address || "Account unassigned" %> · <%= installation.adapter %> · <%= installation.component %><% if installation.pinned_release_id %> · Custom release pinned<% end %></small></td><td><%= installation.gatekeeper_node.name %></td>
+        <td><%= installation.domain %><br><small><%= installation.account&.email_address || "Account unassigned" %> · <%= installation.adapter %> · <%= installation.component %><% if installation.pinned_release_id %> · Custom release pinned<% end %></small><br><small>Installation ID <%= installation.id %><% if installation.account_id %> · Account ID <%= installation.account_id %><% end %></small></td><td><%= installation.gatekeeper_node.name %></td>
         <td><%= installation.current_version.presence || "Awaiting first version report" %></td><td><%= installation.channel %></td>
         <td><%= installation.automatic_updates? ? "Enabled" : "Manual" %></td><td><%= installation.eligible? ? "Available" : "Disabled / unavailable" %></td></tr>
       <% end %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_25_180000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_25_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2121,6 +2121,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_180000) do
     t.datetime "updated_at", null: false
     t.index ["site_id", "id"], name: "index_lightek_experiments_on_site_id_and_id"
     t.index ["site_id", "surface", "target"], name: "idx_lightek_running_experiment", unique: true, where: "(finished_at IS NULL)"
+  end
+
+  create_table "lightek_feature_flag_changes", force: :cascade do |t|
+    t.bigint "flag_id", null: false
+    t.bigint "actor_id", null: false
+    t.jsonb "previous", null: false
+    t.jsonb "current", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_feature_flag_changes_on_actor_id"
+    t.index ["flag_id"], name: "index_lightek_feature_flag_changes_on_flag_id"
+  end
+
+  create_table "lightek_feature_flags", force: :cascade do |t|
+    t.string "key", null: false
+    t.boolean "enabled", default: false, null: false
+    t.boolean "staff", default: false, null: false
+    t.integer "percentage", default: 0, null: false
+    t.jsonb "account_ids", default: [], null: false
+    t.jsonb "agency_ids", default: [], null: false
+    t.jsonb "installation_ids", default: [], null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_lightek_feature_flags_on_key", unique: true
+    t.check_constraint "percentage >= 0 AND percentage <= 100", name: "feature_flags_valid_percentage"
   end
 
   create_table "lightek_full_packages", force: :cascade do |t|
@@ -7409,6 +7435,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_180000) do
   add_foreign_key "lightek_discovery_drive_holds", "lightek_shared_drives", column: "drive_id"
   add_foreign_key "lightek_experiment_assignments", "lightek_experiments", column: "experiment_id"
   add_foreign_key "lightek_experiment_outcomes", "lightek_experiment_assignments", column: "assignment_id"
+  add_foreign_key "lightek_feature_flag_changes", "lightek_feature_flags", column: "flag_id"
+  add_foreign_key "lightek_feature_flag_changes", "users", column: "actor_id"
   add_foreign_key "lightek_full_packages", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_full_packages", "users", column: "buyer_id"
   add_foreign_key "lightek_growth_audit_findings", "dymond_site_sites", column: "site_id"

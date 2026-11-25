@@ -2,12 +2,15 @@
 <%= link_to "← My Applications", installations_path, class: "li-back" %>
 <div class="li-heading"><h1>Managed DNS</h1><p><%= @domain %></p></div>
 <section class="li-card li-installation">
+  <% unless @rollout_enabled %><p role="status">New Managed DNS enrollments and cutovers are paused for this account.</p><% end %>
   <% if @enrollment.nil? || @enrollment.state == "withdrawn" %>
-    <h2>Request Lightek nameservers</h2>
-    <p>Managed DNS is optional for this domain. The domain stays registered with your current registrar. Its existing DNS stays in use until you change nameservers there.</p>
-    <%= form_with url: installation_managed_dns_path(@order) do %>
-      <p><%= check_box_tag :consent, "1", false, required: true %> <%= label_tag :consent, "The domain owner authorizes Lightek to prepare managed DNS for this domain." %></p>
-      <%= submit_tag "Request managed DNS", class: "li-button" %>
+    <% if @rollout_enabled %>
+      <h2>Request Lightek nameservers</h2>
+      <p>Managed DNS is optional for this domain. The domain stays registered with your current registrar. Its existing DNS stays in use until you change nameservers there.</p>
+      <%= form_with url: installation_managed_dns_path(@order) do %>
+        <p><%= check_box_tag :consent, "1", false, required: true %> <%= label_tag :consent, "The domain owner authorizes Lightek to prepare managed DNS for this domain." %></p>
+        <%= submit_tag "Request managed DNS", class: "li-button" %>
+      <% end %>
     <% end %>
   <% else %>
     <% enrollment = @enrollment %>
@@ -16,7 +19,7 @@
       <h2>Prove domain control</h2>
       <p>Add this TXT record at your current DNS provider. Keep your current nameservers during review.</p>
       <dl><dt>Hostname</dt><dd><code><%= enrollment.proof_name %></code></dd><dt>TXT value</dt><dd><code><%= enrollment.proof %></code></dd></dl>
-      <% if operator? %>
+      <% if operator? && @rollout_enabled %>
         <h2>Stage provider zone</h2>
         <% if enrollment.powerdns? %>
           <p>Import <code><%= @domain %></code> on the Lightek DNS primary. Replicate it to the assigned public nameservers before staging.</p>
@@ -31,17 +34,20 @@
         <% end %>
       <% end %>
     <% elsif enrollment.state.in?(%w[awaiting_delegation active]) %>
-      <h2>Lightek nameservers</h2>
-      <ul><% enrollment.nameservers.each do |server| %><li><code><%= server %></code></li><% end %></ul>
-      <% if enrollment.state == "awaiting_delegation" %>
+      <% if @rollout_enabled %>
+        <h2>Lightek nameservers</h2>
+        <ul><% enrollment.nameservers.each do |server| %><li><code><%= server %></code></li><% end %></ul>
+      <% end %>
+      <% if enrollment.state == "awaiting_delegation" && @rollout_enabled %>
         <p>Replace the nameservers at your registrar with the full list above. Then check delegation here.</p>
-      <% else %>
+      <% elsif enrollment.state == "active" %>
         <p>Last verified <%= l(enrollment.verified_at, format: :short) %>.</p>
         <% if !enrollment.powerdns? && operator? && !@records_error && LightekManagedDns::Cloudflare::ID.match?(ENV["LIGHTEK_MANAGED_DNS_ACCOUNT_ID"].to_s) %>
           <p><%= link_to "Open Cloudflare DNS records", "https://dash.cloudflare.com/#{ENV['LIGHTEK_MANAGED_DNS_ACCOUNT_ID']}/#{@domain}/dns/records", target: "_blank", rel: "noopener" %></p>
         <% end %>
       <% end %>
-      <%= button_to "Verify nameservers", verify_installation_managed_dns_path(@order), class: "li-button" %>
+      <%= button_to(@rollout_enabled ? "Verify nameservers" : "Verify an already completed registrar change",
+        verify_installation_managed_dns_path(@order), class: "li-button") %>
       <details><summary>Return to your previous DNS service</summary>
         <p>First confirm the old DNS provider still serves current records. Restore these nameservers at the registrar, then withdraw here.</p>
         <ul><% enrollment.previous_nameservers.each do |server| %><li><code><%= server %></code></li><% end %></ul>
@@ -63,7 +69,7 @@
           </td><% end %>
         </tr><% end %></tbody></table>
       </div>
-      <% if operator? && enrollment.state == "staged" %>
+      <% if operator? && @rollout_enabled && enrollment.state == "staged" %>
         <%= form_with url: approve_installation_managed_dns_path(@order) do %>
           <p><%= check_box_tag :reviewed, "1", false, required: true %> <%= label_tag :reviewed, "I compared the imported zone to the current export and reviewed mail, verification records, and the DNSSEC transition." %></p>
           <%= submit_tag "Approve nameserver instructions", class: "li-button" %>

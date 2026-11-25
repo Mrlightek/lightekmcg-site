@@ -11,7 +11,8 @@ class Dashboard::ManagedDnsController < ApplicationController
     LightekManagedDns::PowerDns::Unavailable, with: :show_error
 
   def show
-    @records = @enrollment&.records(provider) || []
+    @rollout_enabled = @enrollment&.state == "active" || LightekManagedDns::Enrollment.rollout_enabled?(@order)
+    @records = @rollout_enabled ? (@enrollment&.records(provider) || []) : []
     if @enrollment&.powerdns? && @enrollment.state == "active"
       @revision = @enrollment.record_revision(@records)
       @selected = @records.select { |row| row["name"] == params[:record_name] && row["type"] == params[:record_type] }

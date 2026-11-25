@@ -252,6 +252,20 @@ def switch(include, journal, slot, sha, expected_active):
     sync_directory(journal.parent)
 
 
+def start_active_slot(include, journal):
+    if journal.exists():
+        raise CutoverError("An interrupted cutover needs recovery before starting a slot")
+    slot, sha = read_route(include)
+    other = next(color for color in SLOTS if color != slot)
+    if worker_state(other) != "inactive":
+        raise CutoverError("Inactive slot worker is already running")
+    command("systemctl", "start", f"lightek-production-web@{slot}.service",
+        f"lightek-production-cable@{slot}.service")
+    prove_web(slot, sha)
+    command("systemctl", "start", worker_unit(slot))
+    check_worker(slot, sha)
+
+
 def positive(value):
     number = int(value)
     if number <= 0:
@@ -276,7 +290,7 @@ def main():
     boot.add_argument("--inactive-mib", type=positive, required=True)
     boot.add_argument("--reserve-mib", type=positive, required=True)
     commands.add_parser("recover")
-    commands.add_parser("start-active-worker")
+    commands.add_parser("start-active-slot")
     args = parser.parse_args()
 
     if args.action == "capacity":
@@ -292,15 +306,8 @@ def main():
         if args.action == "recover":
             restore(include, journal)
             print("Previous release restored and verified")
-        elif args.action == "start-active-worker":
-            if journal.exists():
-                raise CutoverError("An interrupted cutover needs recovery before starting a worker")
-            slot, sha = read_route(include)
-            other = next(color for color in SLOTS if color != slot)
-            if worker_state(other) != "inactive":
-                raise CutoverError("Inactive slot worker is already running")
-            command("systemctl", "start", worker_unit(slot))
-            check_worker(slot, sha)
+        elif args.action == "start-active-slot":
+            start_active_slot(include, journal)
         elif args.action == "prepare":
             if not SHA.fullmatch(args.sha):
                 parser.error("Enter the full candidate SHA")

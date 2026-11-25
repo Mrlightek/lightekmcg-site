@@ -100,3 +100,10 @@ class BlueGreenTest(unittest.TestCase):
                 self.switch()
         self.assertEqual([], self.history)
         self.assertFalse(self.journal.exists())
+
+    def test_reboot_starts_only_recorded_slot(self):
+        self.workers.update(blue="inactive", green="inactive")
+        self.include.write_text(rollout.route("green", GREEN))
+        rollout.start_active_slot(self.include, self.journal)
+        self.assertEqual([("start", "green")], self.history)
+        self.assertEqual({"blue": "inactive", "green": "active"}, self.workers)

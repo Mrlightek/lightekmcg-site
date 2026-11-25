@@ -7232,7 +7232,11 @@ const studio3DWorkspace=record=>{
 const studioSceneView=record=>{
   window.LightekStudioApp?.prepare(record);
   if(window.LightekStudioMusic?.active())return window.LightekStudioMusic.view(record);
-  if(window.LightekStudioVisual?.enabled())return window.LightekStudioVisual.view(record);
+  const scriptRoute = location.hash === `#/studio/${record.scene.id}/script`;
+  if(scriptRoute){
+    ST.workspaceMode = "script";
+    document.body.classList.remove('lt-visual');
+  }else if(window.LightekStudioVisual?.enabled())return window.LightekStudioVisual.view(record);
   const {
     project,
     production,
@@ -10274,6 +10278,9 @@ studioWorkspaceMode:button=>{
       ?requested
       :"production";
 
+  if (requested !== "script" && location.hash.endsWith("/script")) {
+    history.replaceState(history.state, "", location.hash.replace(/\/script$/, "/stage"));
+  }
   render(1)
 },
 
@@ -13420,7 +13427,7 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 <script src="/lightek/remote-content.js"></script>
 <script src="/lightek/bootstrap-adapter.js?v=93"></script>
 <script src="/lightek/nevaeh-reply-stream.js?v=1"></script>
-<script src="/lightek/studio-unified.js?v=33"></script>
+<script src="/lightek/studio-unified.js?v=34"></script>
 <script src="/lightek/application-settings.js?v=93"></script>
 
 <script src="/lightek/vendor/gsap/gsap.min.js"></script>

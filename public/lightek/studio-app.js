@@ -2,6 +2,76 @@
 (() => {
   let currentScene = null;
   const sceneDrafts = new Map();
+  const scriptPreviews = new Map();
+  const benchExample = `EXT. PARK BENCH - NIGHT
+
+[[SHOT: WIDE @ 0]]
+Alex walks to the bench.
+
+[[SHOT: MEDIUM @ 4]]
+Alex turns and sits.
+
+[[SHOT: CLOSE @ 7]]
+ALEX
+We can build this world together.
+
+[[SHOT: WIDE @ 16.75]]
+Alex stands.`;
+  const previewActive = result => ['pending','running'].includes(result?.status);
+
+  function previewState(sceneId) {
+    if (!scriptPreviews.has(sceneId)) {
+      const state = {};
+      scriptPreviews.set(sceneId, state);
+      updateScriptPreview(sceneId, 'status', {scene_id: sceneId, script: true});
+    }
+    return scriptPreviews.get(sceneId);
+  }
+
+  async function updateScriptPreview(sceneId, action, payload) {
+    const state = scriptPreviews.get(sceneId);
+    clearTimeout(state.timer);
+    state.loading = true;
+    state.error = '';
+    try {
+      const response = await nevaeh.execute({capability: 'studio.workspace.character.scene.' + action, payload});
+      if (!response.result?.status) throw Error(response.error || 'Studio could not read the script preview.');
+      state.result = response.result;
+      if (previewActive(state.result)) {
+        state.timer = setTimeout(() => updateScriptPreview(sceneId, 'status', {operation_id: state.result.operation_id}), 4000);
+      }
+    } catch (error) {
+      state.error = error.message;
+    } finally {
+      state.loading = false;
+      const panel = app.querySelector(`[data-script-preview-scene="${sceneId}"]`);
+      if (panel) panel.outerHTML = scriptPreviewPanel(sceneId);
+    }
+  }
+
+  function scriptPreviewPanel(sceneId) {
+    const state = previewState(sceneId);
+    const result = state.result;
+    const plan = result?.inputs?.script_preview;
+    const pending = previewActive(result);
+    const issue = state.error || result?.error;
+    const phases = {queued:'Queued',building_character:'Preparing cast',preparing_dialogue:'Preparing dialogue',
+      analyzing_speech:'Timing lip sync',directing_cameras:'Setting up cameras',rendering_preview:'Rendering in Blender'};
+    return `<section class="studio-wave2-panel" data-script-preview-scene="${sceneId}" aria-label="Script preview">
+      <h3>Preview the bench scene</h3>
+      <p>Generate a 20-second bench performance with one speaker. Edit the seconds in the shot notes to change the camera cuts, then generate again.</p>
+      <details><summary>Fountain example</summary><pre>${E(benchExample)}</pre></details>
+      ${button('Use bench example', 'studioScriptExample')}
+      <button type="button" class="btn p sm" data-a="studioScriptGenerate" ${pending || state.loading ? 'disabled' : ''}>Generate Preview</button>
+      ${pending ? `<p role="status">${E(phases[result.phase] || 'Preparing preview')}…</p>` : ''}
+      ${issue ? `<p role="alert">${E(issue)}</p>` : ''}
+      ${state.error && (!result || pending) ? button('Check preview status', 'studioScriptStatus') : ''}
+      ${result?.status === 'failed' ? button('Retry saved preview', 'studioScriptRetry') : ''}
+      ${plan ? `<ol aria-label="Preview camera cuts">${plan.cuts.map(cut => `<li>${E(cut.seconds)}s · ${E(cut.camera)}</li>`).join('')}</ol>` : ''}
+      ${result?.url ? `<video controls playsinline preload="metadata" style="max-width:100%" aria-label="Rendered script preview" src="${E(result.url)}"></video>` : ''}
+      ${result?.status === 'completed' && result.scene_id ? button('Open editable scene', 'studioScriptOpen') : ''}
+    </section>`;
+  }
   const copy = value => JSON.parse(JSON.stringify(value));
   let operationRows = [];
   let publicationRows = [];
@@ -40,7 +110,7 @@
   function story(record, mode) {
     if (!['script', 'storyboard', 'audio', 'planning'].includes(mode)) return null;
     const state = STUDIO_WAVE2_STATE;
-    if (mode === 'script') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Script</h2><label class="fld"><span>${E(record.scene.name)} · Scene script</span><textarea data-studio-script rows="18" placeholder="Write the scene…">${E(state.scriptDraft)}</textarea></label><p>Save workspace to persist your script with this scene.</p><details><summary>Write with Nevaeh</summary>${writingPanel(record)}</details></section>`;
+    if (mode === 'script') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Script</h2><label class="fld"><span>${E(record.scene.name)} · Scene script</span><textarea data-studio-script rows="18" placeholder="Write the scene…">${E(state.scriptDraft)}</textarea></label>${scriptPreviewPanel(record.scene.id)}<p>Save workspace to persist your script with this scene.</p><details><summary>Write with Nevaeh</summary>${writingPanel(record)}</details></section>`;
     if (mode === 'storyboard') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Storyboard</h2><div class="g2">${(state.storyboard || []).map((shot, i) => `<div class="studio-wave2-panel"><h3>Shot ${i + 1}</h3><label class="fld"><span>Framing & action</span><textarea data-studio-shot="${i}" rows="5">${E(shot)}</textarea></label>${button('Remove shot', 'studioShotRemove', `data-index="${i}"`)}</div>`).join('')}</div>${button('Add shot', 'studioShotAdd')}</section>`;
     if (mode === 'planning') return `<section class="studio-wave2"><span class="eb">Production Planning</span><h2>Readiness</h2>${STUDIO_WAVE2_TASKS.map((task, i) => `<label class="studio-wave2-check"><input type="checkbox" data-studio-wave2-task="${i}" ${state.checks.includes(i) ? 'checked' : ''}><span>${E(task)}</span></label>`).join('')}<p>Readiness is saved with the scene.</p></section>`;
     return `<section class="studio-wave2"><span class="eb">Audio</span><h2>Scene sound</h2><p>Publish or upload audio through Create, then reference its post ID in your scene notes.</p><label class="fld"><span>Dialogue, ambience, music & cues</span><textarea data-studio-audio rows="10">${E(state.audioNotes || '')}</textarea></label><a class="btn sm" href="#/create/audio">Upload audio</a></section>`;
@@ -88,6 +158,53 @@
     const status = document.getElementById('studio-save-status'); if (status) status.textContent = 'Saved to your account';
   }
   A.studioWorkspaceSave=()=>run(saveWorkspace);
+  A.studioScriptExample = () => {
+    const field = app.querySelector('[data-studio-script]');
+    if (!field || (field.value.trim() && !window.confirm('Replace this script draft with the bench example?'))) return;
+    field.value = benchExample;
+    field.dispatchEvent(new Event('input', {bubbles: true}));
+    field.focus();
+  };
+  A.studioScriptGenerate = async control => {
+    const record = current();
+    const state = record && previewState(record.scene.id);
+    if (!state || state.loading || previewActive(state.result)) return;
+    const fountain = STUDIO_WAVE2_STATE.scriptDraft;
+    const prior = state.result;
+    const sameSpeaker = prior?.inputs?.script_preview?.speaker &&
+      fountain.split(/\r?\n/).some(line => line.trim().replace(/^@/, '') === prior.inputs.script_preview.speaker);
+    if (!state.request || state.request.fountain !== fountain || !state.error) {
+      state.request = {scene_id: record.scene.id, fountain, request_key: crypto.randomUUID(),
+        ...(sameSpeaker && prior.cast_asset_id ? {cast_asset_id: prior.cast_asset_id} : {})};
+    }
+    control.disabled = true;
+    try { await updateScriptPreview(record.scene.id, 'prepare', state.request); }
+    finally { control.disabled = false; }
+  };
+  A.studioScriptStatus = () => {
+    const id = current()?.scene.id;
+    const state = scriptPreviews.get(id);
+    if (!state || state.loading) return;
+    const operationId = state.result?.operation_id;
+    return updateScriptPreview(id, 'status', operationId ? {operation_id: operationId} : {scene_id: id, script: true});
+  };
+  A.studioScriptRetry = () => {
+    const id = current()?.scene.id;
+    const state = scriptPreviews.get(id);
+    if (!state || state.loading || state.result?.status !== 'failed') return;
+    return updateScriptPreview(id, 'retry', {operation_id: state.result.operation_id});
+  };
+  A.studioScriptOpen = () => run(async () => {
+    const sceneId = scriptPreviews.get(current()?.scene.id)?.result?.scene_id;
+    if (!sceneId) return;
+    await A.studioLoad(true);
+    if (!studioSceneRecord(sceneId)) throw Error('Refresh Studio to open the generated scene.');
+    if (window.LightekStudioProduction) LightekStudioProduction.go('camera', sceneId);
+    else {
+      ST.workspaceMode = '3d';
+      location.hash = `#/studio/${sceneId}/stage`;
+    }
+  });
   A.studioShotAdd = () => { STUDIO_WAVE2_STATE.storyboard ||= []; STUDIO_WAVE2_STATE.storyboard.push(''); dirty = true; render(1); };
   A.studioShotRemove = b => { STUDIO_WAVE2_STATE.storyboard.splice(Number(b.dataset.index), 1); dirty = true; render(1); };
   A.studioProjectDelete = b => run(async () => { if (!confirm('Delete this project, its scenes and artifacts?')) return; await execute('studio.workspace.project.delete', { project_id: Number(b.dataset.project) }); location.hash = '#/studio'; await A.studioLoad(true); });

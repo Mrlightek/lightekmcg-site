@@ -52,6 +52,68 @@ class StudioCharacterSceneTest < StudioLipSyncTest
     refute_includes ids,wide.id
     assert_equal [1,19],copied.settings["camera_cuts"].map { |cut| cut["frame"] }
   end
+  def test_script_preview_freezes_camera_cues_and_scopes_status
+    script = Studio::Performance::ScriptPreview::EXAMPLE
+    assert_equal({status: "idle"}, action("character_scene_status", scene_id: @scene.id, script: true))
+    ordinary = prepare
+    assert_equal ordinary[:operation_id], action("character_scene_status", scene_id: @scene.id)[:operation_id]
+    StudioOperation.find(ordinary[:operation_id]).update!(status: "completed")
+    assert_equal({status: "idle"}, action("character_scene_status", scene_id: @scene.id, script: true))
+
+    result = prepare(fountain: script, request_key: "script-preview-123")
+    assert_equal result, prepare(fountain: script, request_key: "script-preview-123")
+    assert_equal result, action("character_scene_status", scene_id: @scene.id, script: true)
+    assert_equal ordinary[:operation_id], action("character_scene_status", scene_id: @scene.id)[:operation_id]
+    assert_equal [1, 49, 85, 202], result.dig(:inputs, "script_preview", "cuts").map { |cue| cue["frame"] }
+    assert_equal %w[wide medium close wide], result.dig(:inputs, "script_preview", "cuts").map { |cue| cue["camera"] }
+    assert_equal "Alex", result.dig(:inputs, "name")
+    assert_equal "We can build this world together.", result.dig(:inputs, "dialogue")
+    assert_raises(ActiveRecord::RecordNotFound) { prepare(fountain: script, user_id: @bob.id) }
+    assert_raises(ArgumentError) { prepare(fountain: script.sub("@ 7", "@ 8"), request_key: "script-preview-123") }
+    assert_raises(ArgumentError) { prepare(fountain: script.sub("@ 4", "@ 0.01")) }
+    assert_raises(ArgumentError) { prepare(fountain: script.sub("@ 7", "@ 20")) }
+    assert_raises(ArgumentError) { prepare(fountain: script + "\nINT. OFFICE - DAY") }
+  end
+
+  def test_real_script_preview_renders_edited_camera_cues_and_audible_dialogue
+    skip "Set LIGHTEK_TEST_CHARACTER_SCENE=1 with speech and Blender tools" unless ENV["LIGHTEK_TEST_CHARACTER_SCENE"] == "1"
+    previous = ENV["BLENDER_OUTPUT_ROOT"]
+    Dir.mktmpdir("script-preview-") do |root|
+      ENV["BLENDER_OUTPUT_ROOT"] = root
+      Rails.stub(:root, Pathname(ROOT)) do
+        script = Studio::Performance::ScriptPreview::EXAMPLE
+        result = prepare(fountain: script)
+        StudioCharacterSceneJob.perform_now(result[:operation_id])
+        first = action("character_scene_status", scene_id: @scene.id, script: true)
+        assert_equal "completed", first[:status], first[:error]
+        assert_equal 20, first[:duration_seconds]
+        assert first[:url]
+        scene = StudioScene.find(first[:scene_id])
+        assert_equal script.strip, scene.settings.dig("workspace", "story", "scriptDraft")
+        assert_equal [1, 49, 85, 202], scene.settings.fetch("camera_cuts").map { |cut| cut["frame"] }
+        cut_video = StudioOperation.find(first[:preview_operation_id]).artifacts.find_by!(kind: "video")
+        cut_video.file.blob.open do |file|
+          info = JSON.parse(IO.popen(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", file.path], &:read))
+          assert_in_delta 20, info.dig("format", "duration").to_f, 0.1
+          assert info.fetch("streams").any? { |stream| stream["codec_type"] == "audio" }
+          samples = IO.popen(["ffmpeg", "-v", "error", "-ss", "7", "-i", file.path, "-t", "3", "-vn", "-ac", "1", "-ar", "8000", "-f", "s16le", "-"], "rb", &:read).unpack("s<*")
+          assert samples.any? { |sample| sample.abs > 500 }
+          FileUtils.cp(file.path, ENV["STUDIO_SCRIPT_PROOF_VIDEO"]) if ENV["STUDIO_SCRIPT_PROOF_VIDEO"]
+        end
+
+        revision = prepare(fountain: script.sub("@ 7", "@ 8"), request_key: "script-revision-123", cast_asset_id: first[:cast_asset_id])
+        StudioCharacterSceneJob.perform_now(revision[:operation_id])
+        latest = action("character_scene_status", scene_id: @scene.id, script: true)
+        assert_equal "completed", latest[:status], latest[:error]
+        assert_equal first[:cast_asset_id], latest[:cast_asset_id]
+        assert_equal [1, 49, 97, 202], StudioScene.find(latest[:scene_id]).settings.fetch("camera_cuts").map { |cut| cut["frame"] }
+        assert_equal 85, scene.reload.settings.fetch("camera_cuts")[2].fetch("frame")
+      end
+    end
+  ensure
+    ENV["BLENDER_OUTPUT_ROOT"] = previous if defined?(previous)
+  end
+
   def test_real_illustrated_character_speech_pose_cut_and_editable_source
     skip "Set LIGHTEK_TEST_CHARACTER_SCENE=1 with speech and Blender tools" unless ENV["LIGHTEK_TEST_CHARACTER_SCENE"]=="1"
     previous=ENV["BLENDER_OUTPUT_ROOT"];ENV["BLENDER_OUTPUT_ROOT"]=Dir.mktmpdir("performed-short-output-")

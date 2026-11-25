@@ -1,0 +1,6 @@
+<% portfolio = LightekDesign::AgencyPortfolio %>
+<% source = portfolio.url(data["cover_url"], image: true) %>
+<% sample = portfolio.sample_art(data) %>
+<div class="lt-portfolio-art <%= "lt-portfolio-art--#{sample}" if sample %>">
+  <% if source %><%= image_tag source, alt: data["cover_alt"].to_s, loading: eager ? "eager" : "lazy", decoding: "async" %><% end %>
+</div>

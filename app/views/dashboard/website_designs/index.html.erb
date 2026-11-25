@@ -16,6 +16,19 @@
 <% if @site %>
 <nav class="content-actions" data-tour-step="website" data-tour-title="Edit your website" data-tour-body="Open Pages &amp; Sections for content or Design Studio to work on the layout." aria-label="Website editing"><%= link_to "Open Pages & Sections",dymond_dash.pages_path(site_id:@site.id),class:"content-button primary" %><%= link_to "Open Design Studio",dashboard_design_studio_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Write & manage articles",dashboard_blog_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Manage store",dashboard_commerce_path(site_id:@site.id),class:"content-button" %></nav>
 <%= render "nevaeh_website" if @site.tenant == current_user || current_user.role == 'super_admin' %>
+<% if current_user.role != "client" || @site.tenant == current_user %>
+<section class="card">
+  <h2>Portfolio & case studies</h2>
+  <% portfolio_page = LightekDesign::AgencyPortfolio.index_page(site: @site, draft: true) %>
+  <% if portfolio_page %>
+    <p>Edit project pages in Pages & Sections. Published projects automatically appear in the portfolio.</p>
+    <%= link_to "Preview portfolio", preview_dashboard_agency_portfolio_path(site_id: @site.id, slug: portfolio_page.slug), class: "content-button primary" %>
+  <% else %>
+    <p>Create a portfolio and three editable concept case studies as private drafts.</p>
+    <%= button_to "Create portfolio drafts", dashboard_agency_portfolio_path(site_id: @site.id), method: :post, class: "content-button primary" %>
+  <% end %>
+</section>
+<% end %>
 <%= render "site_themes" %>
 <p><%= link_to "Sign-in & account branding →", dashboard_authentication_branding_path(site_id: @site.id) %></p>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>

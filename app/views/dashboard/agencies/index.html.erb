@@ -7,6 +7,7 @@
     <% if @agency %><%= link_to 'Add a client', '#new-client', class: 'infra-button infra-button-primary' %><% end %>
     <% if current_user.role == 'super_admin' %>
       <%= link_to 'Agency demos', dashboard_agency_trials_path, class: 'infra-button' %>
+      <%= link_to 'Fleet updates', dashboard_fleet_updates_path(agency_id: @agency&.id), class: 'infra-button' %>
     <% end %>
   </header>
   <% if @paid_trial %>
@@ -31,6 +32,24 @@
     </section>
   <% end %>
   <% if @agency %>
+    <section class="infra-panel" aria-labelledby="agency-ownership-title">
+      <h2 id="agency-ownership-title">Agency ownership</h2>
+      <p>Parent agency or operator: <%= @agency.agency&.agency_profile&.brand_name || @agency.agency&.email_address || 'Unassigned' %></p>
+      <% if current_user.role == 'super_admin' && @agency.agency_id.nil? %>
+        <%= button_to 'Attach to my Lightek branch', attach_to_lightek_dashboard_agency_path(@agency), method: :patch,
+          form: {data: {turbo_confirm: 'Confirm Lightek is this agency’s direct parent. Its existing subagencies keep their parents. Future sales use the new ownership chain.'}},
+          class: 'infra-button' %>
+      <% end %>
+      <% if @child_agencies.any? %>
+        <h3>Direct child agencies</h3>
+        <% @child_agencies.each do |child| %>
+          <div class="agency-site">
+            <strong><%= child.agency_profile&.brand_name || child.email_address %></strong>
+            <%= link_to 'Open agency', dashboard_agencies_path(agency_id: child.id), class: 'infra-button' %>
+          </div>
+        <% end %>
+      <% end %>
+    </section>
     <section class="infra-panel" id="new-client" data-tour-step="agency" data-tour-title="Invite a client" data-tour-body="Add the client’s name and email. They receive a private password setup invitation." aria-labelledby="new-client-title">
       <div class="infra-panel-header"><div><h2 id="new-client-title">Add a client</h2><p><%= @agency.agency_profile&.brand_name || @agency.email_address %> · The client receives a private password setup invitation.</p></div></div>
       <%= form_with scope: :client, url: create_client_dashboard_agency_path(@agency), class: 'infra-form' do |f| %>
@@ -62,7 +81,7 @@
           </li>
           <li><h3>Manage their business</h3>
             <% if @client_sites.any? %>
-              <% @client_sites.each do |site| %><div class="agency-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><%= link_to 'Open business workspace', dashboard_business_hub_path(site_id: site.id), class: 'infra-button' %></div><% end %>
+              <% @client_sites.each do |site| %><div class="agency-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><div class="infra-actions"><%= link_to 'Develop & deploy website', dashboard_agency_website_path(site), class: 'infra-button infra-button-primary' %><% unless site.manifest.to_h['network_ledger'] == true %><%= link_to 'Open business workspace', dashboard_business_hub_path(site_id: site.id), class: 'infra-button' %><% end %></div></div><% end %>
             <% else %><p>No website available to manage here yet. Follow the installation below, or choose hosting to get started.</p><% end %>
           </li>
         </ol>

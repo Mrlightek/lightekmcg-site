@@ -1,0 +1,77 @@
+<% content_for :title, "Managed DNS · #{@domain}" %>
+<%= link_to "← My Applications", installations_path, class: "li-back" %>
+<div class="li-heading"><h1>Managed DNS</h1><p><%= @domain %></p></div>
+<section class="li-card li-installation">
+  <% if @enrollment.nil? || @enrollment.state == "withdrawn" %>
+    <h2>Request Lightek nameservers</h2>
+    <p>Managed DNS is optional for this domain. The domain stays registered with your current registrar. Its existing DNS stays in use until you change nameservers there.</p>
+    <%= form_with url: installation_managed_dns_path(@order) do %>
+      <p><%= check_box_tag :consent, "1", false, required: true %> <%= label_tag :consent, "The domain owner authorizes Lightek to prepare managed DNS for this domain." %></p>
+      <%= submit_tag "Request managed DNS", class: "li-button" %>
+    <% end %>
+  <% else %>
+    <% enrollment = @enrollment %>
+    <span class="li-badge" role="status"><%= enrollment.state.humanize %></span>
+    <% if enrollment.state.in?(%w[requested staged]) %>
+      <h2>Prove domain control</h2>
+      <p>Add this TXT record at your current DNS provider. Keep your current nameservers during review.</p>
+      <dl><dt>Hostname</dt><dd><code><%= enrollment.proof_name %></code></dd><dt>TXT value</dt><dd><code><%= enrollment.proof %></code></dd></dl>
+      <% if operator? %>
+        <h2>Stage provider zone</h2>
+        <% if enrollment.powerdns? %>
+          <p>Import <code><%= @domain %></code> on the Lightek DNS primary. Replicate it to the assigned public nameservers before staging.</p>
+        <% else %>
+          <p>Import the current zone at the managed provider and assign the Lightek nameservers. Enter the pending zone ID to review the imported records.</p>
+        <% end %>
+        <%= form_with url: stage_installation_managed_dns_path(@order) do |f| %>
+          <% unless enrollment.powerdns? %>
+            <p><%= f.label :zone_id, "Cloudflare zone ID" %> <%= f.text_field :zone_id, value: enrollment.provider_zone_id, required: true, maxlength: 32 %></p>
+          <% end %>
+          <%= f.submit "Stage for review", class: "li-button" %>
+        <% end %>
+      <% end %>
+    <% elsif enrollment.state.in?(%w[awaiting_delegation active]) %>
+      <h2>Lightek nameservers</h2>
+      <ul><% enrollment.nameservers.each do |server| %><li><code><%= server %></code></li><% end %></ul>
+      <% if enrollment.state == "awaiting_delegation" %>
+        <p>Replace the nameservers at your registrar with the full list above. Then check delegation here.</p>
+      <% else %>
+        <p>Last verified <%= l(enrollment.verified_at, format: :short) %>.</p>
+        <% if !enrollment.powerdns? && operator? && !@records_error && LightekManagedDns::Cloudflare::ID.match?(ENV["LIGHTEK_MANAGED_DNS_ACCOUNT_ID"].to_s) %>
+          <p><%= link_to "Open Cloudflare DNS records", "https://dash.cloudflare.com/#{ENV['LIGHTEK_MANAGED_DNS_ACCOUNT_ID']}/#{@domain}/dns/records", target: "_blank", rel: "noopener" %></p>
+        <% end %>
+      <% end %>
+      <%= button_to "Verify nameservers", verify_installation_managed_dns_path(@order), class: "li-button" %>
+      <details><summary>Return to your previous DNS service</summary>
+        <p>First confirm the old DNS provider still serves current records. Restore these nameservers at the registrar, then withdraw here.</p>
+        <ul><% enrollment.previous_nameservers.each do |server| %><li><code><%= server %></code></li><% end %></ul>
+      </details>
+    <% end %>
+    <% if @records_error %><p role="status"><%= @records_error %></p><% end %>
+    <% if @records.any? %>
+      <h2>Provider DNS records</h2>
+      <div style="overflow-x:auto">
+        <table><thead><tr><th scope="col">Type</th><th scope="col">Hostname</th><th scope="col">Value</th><th scope="col">TTL</th><% if @revision %><th scope="col">Manage</th><% end %></tr></thead>
+        <tbody><% @records.each do |row| %><tr>
+          <td><%= row["type"] %></td><td><%= row["name"] %></td>
+          <td><%= row["content"].presence || row["data"].to_h.to_json %><%= " · priority #{row['priority']}" if row["priority"] %><%= " · proxied" if row["proxied"] %><%= " · disabled" if row["disabled"] %></td>
+          <td><%= row["ttl"] %></td>
+          <% if @revision %><td>
+            <% if enrollment.editable_rrset?(row["name"], row["type"]) %>
+              <%= link_to "Edit set", installation_managed_dns_path(@order, record_name: row["name"], record_type: row["type"], anchor: "dns-record-editor") %>
+            <% end %>
+          </td><% end %>
+        </tr><% end %></tbody></table>
+      </div>
+      <% if operator? && enrollment.state == "staged" %>
+        <%= form_with url: approve_installation_managed_dns_path(@order) do %>
+          <p><%= check_box_tag :reviewed, "1", false, required: true %> <%= label_tag :reviewed, "I compared the imported zone to the current export and reviewed mail, verification records, and the DNSSEC transition." %></p>
+          <%= submit_tag "Approve nameserver instructions", class: "li-button" %>
+        <% end %>
+      <% end %>
+    <% end %>
+    <%= render "record_editor", selected: @selected, revision: @revision if @revision %>
+    <%= button_to "Withdraw managed DNS request", withdraw_installation_managed_dns_path(@order), class: "li-button li-secondary",
+      form: {data: {turbo_confirm: "Withdraw this managed DNS request?"}} %>
+  <% end %>
+</section>

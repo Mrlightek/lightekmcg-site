@@ -22,6 +22,32 @@
 <% end %>
 <p><small>Website address: <%= @site.host %></small></p>
 </section>
+<% if current_user.role == "super_admin" %>
+  <section class="card" aria-labelledby="website-workspace-management">
+    <h2 id="website-workspace-management">Workspace management</h2>
+    <% if LightekSettings::WebsiteIdentity.primary?(@site, request.host) %>
+      <p>The primary website is protected.</p>
+    <% else %>
+      <% hidden = LightekSettings::WebsiteIdentity.overview_hidden?(@site) %>
+      <p><%= hidden ? "This website is hidden from the super admin Overview." : "Hide this website from the super admin Overview while keeping it available in Website Settings." %></p>
+      <%= button_to(hidden ? "Restore to Overview" : "Hide from Overview", dashboard_website_overview_path(site_id: @site.id),
+        method: :patch, params: {visibility: hidden ? "visible" : "hidden"}) %>
+      <% if (reason = LightekSettings::WebsiteIdentity.deletion_blocker(@site)) %>
+        <p><%= reason %></p>
+      <% else %>
+        <details>
+          <summary>Delete website</summary>
+          <p>This permanently deletes the website and its website content. Enter <strong><%= @site.host %></strong> to confirm.</p>
+          <%= form_with url: dashboard_website_settings_path(site_id: @site.id), method: :delete do %>
+            <%= label_tag :confirmation, "Website hostname" %>
+            <%= text_field_tag :confirmation, nil, required: true, autocomplete: "off" %>
+            <%= submit_tag "Permanently delete website" %>
+          <% end %>
+        </details>
+      <% end %>
+    <% end %>
+  </section>
+<% end %>
 <% elsif @sites.empty? %><p>No website is assigned to this account.</p>
 <% else %><p>Choose a website above to edit its settings.</p><% end %>
 </main>

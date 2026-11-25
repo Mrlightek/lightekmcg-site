@@ -1,0 +1,98 @@
+.lt-portfolio, .lt-portfolio-preview {
+  background: #f7f5ef;
+  color: #172019;
+}
+.lt-portfolio {
+  --portfolio-ink: #172019;
+  --portfolio-muted: #555d51;
+  --portfolio-line: #d4d8cb;
+  --portfolio-accent: #d8ef7e;
+  font: 400 1rem/1.55 "DM Sans", system-ui, sans-serif;
+}
+.lt-portfolio *, .lt-portfolio *::before, .lt-portfolio *::after { box-sizing: border-box; }
+.lt-portfolio-preview { margin: 0; }
+.lt-portfolio-preview-nav {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: .75rem; padding: .8rem max(1.25rem, calc((100% - 1240px) / 2));
+  background: #172019; color: #f7f5ef; font: 500 .875rem system-ui, sans-serif;
+}
+.lt-portfolio-preview-nav a { color: inherit; text-underline-offset: .22em; }
+.lt-portfolio-wrap { width: min(1240px, calc(100% - 3rem)); margin-inline: auto; padding-block: clamp(3rem, 6vw, 6rem); }
+.lt-portfolio-header { margin-bottom: clamp(2.5rem, 5vw, 4.75rem); }
+.lt-portfolio h1, .lt-portfolio h2, .lt-portfolio h3 { color: var(--portfolio-ink); margin: 0; }
+.lt-portfolio h1 {
+  max-width: 15ch; font: 400 clamp(3.25rem, 9vw, 8.6rem)/.88 Georgia, serif;
+  letter-spacing: -.092em; overflow-wrap: anywhere; text-wrap: balance;
+}
+.lt-portfolio-studio, .lt-portfolio-category {
+  margin: 0 0 1.1rem; font-size: .78rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase;
+}
+.lt-portfolio-studio::before { content: ""; display: inline-block; width: .64rem; height: .64rem; border-radius: 50%; margin-right: .6rem; background: #536d31; }
+.lt-portfolio-intro { max-width: 39rem; margin: 1.5rem 0 0; color: var(--portfolio-muted); font-size: clamp(1.05rem, 2vw, 1.35rem); }
+.lt-portfolio-toolbar { border-top: 1px solid var(--portfolio-line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .8rem; padding-block: 1rem; }
+.lt-portfolio-toolbar h2 { font-size: 1rem; font-weight: 700; }
+.lt-portfolio-filters { display: flex; flex-wrap: wrap; gap: .45rem; }
+.lt-portfolio [hidden] { display: none !important; }
+.lt-portfolio-filters button {
+  appearance: none; border: 1px solid var(--portfolio-line); background: transparent; color: var(--portfolio-ink);
+  border-radius: 99px; padding: .54rem .85rem; font: inherit; font-size: .88rem; cursor: pointer;
+}
+.lt-portfolio-filters button[aria-pressed="true"] { border-color: var(--portfolio-ink); background: var(--portfolio-ink); color: #fff; }
+.lt-portfolio-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem 1rem; }
+.lt-portfolio-card { min-width: 0; }
+.lt-portfolio-card.is-featured { grid-column: 1 / -1; }
+.lt-portfolio-card > a { position: relative; display: block; height: 100%; color: inherit; text-decoration: none; }
+.lt-portfolio-art { position: relative; overflow: hidden; aspect-ratio: 4 / 3; background: #e5e5d7; border-radius: .75rem; }
+.lt-portfolio-art img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.lt-portfolio-card.is-featured .lt-portfolio-art, .lt-portfolio-case-header + .lt-portfolio-art { aspect-ratio: 2 / 1; }
+.lt-portfolio-art[class*="lt-portfolio-art--"] img {
+  position: absolute; width: 300%; max-width: none; height: auto; top: 50%; left: 0; transform: translateY(-50%);
+}
+.lt-portfolio-art.lt-portfolio-art--2 img { left: -100%; }
+.lt-portfolio-art.lt-portfolio-art--3 img { left: -200%; }
+.lt-portfolio-caption { padding: 1rem .1rem 0; }
+.lt-portfolio-caption .lt-portfolio-category { color: var(--portfolio-muted); margin-bottom: .3rem; }
+.lt-portfolio-caption h3, .lt-portfolio-story h2, .lt-portfolio-cta h2 {
+  font: 400 clamp(1.7rem, 4vw, 2.8rem)/1.04 Georgia, serif; letter-spacing: -.05em;
+}
+.lt-portfolio-caption p:not(.lt-portfolio-category) { max-width: 55ch; margin: .35rem 0 0; color: var(--portfolio-muted); }
+.lt-portfolio-arrow {
+  position: absolute; top: 1rem; right: 1rem; width: 2.5rem; height: 2.5rem; display: grid; place-items: center;
+  border-radius: 50%; background: #f7f5ef; color: var(--portfolio-ink); font-size: 1.25rem;
+  transition: background-color .2s ease, transform .2s ease;
+}
+.lt-portfolio-card a:hover .lt-portfolio-arrow, .lt-portfolio-card a:focus-visible .lt-portfolio-arrow {
+  transform: translate(.13rem, -.13rem); background: var(--portfolio-accent);
+}
+.lt-portfolio a:focus-visible, .lt-portfolio button:focus-visible { outline: 3px solid #425d24; outline-offset: 4px; }
+.lt-portfolio-back { display: inline-block; margin-bottom: 1.4rem; color: var(--portfolio-ink); text-underline-offset: .25em; }
+.lt-portfolio-case-header { margin-bottom: clamp(1.5rem, 3vw, 3rem); }
+.lt-portfolio-story {
+  padding-block: clamp(2rem, 5vw, 4rem); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem;
+}
+.lt-portfolio-story section { border-top: 1px solid var(--portfolio-line); padding-top: 1rem; }
+.lt-portfolio-story p { color: var(--portfolio-muted); white-space: pre-line; }
+.lt-portfolio-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.lt-portfolio-gallery figure { margin: 0; }
+.lt-portfolio-cta {
+  margin-top: clamp(2rem, 5vw, 4.5rem); padding: clamp(1.25rem, 4vw, 2.75rem);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;
+  background: var(--portfolio-accent); border-radius: .75rem;
+}
+.lt-portfolio-cta a { color: var(--portfolio-ink); font-weight: 750; text-underline-offset: .22em; }
+.lt-portfolio-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (min-width: 900px) {
+  .lt-portfolio-card.is-featured > a {
+    display: grid; grid-template-columns: 1.6fr 1fr; align-items: center; gap: 2.5rem;
+    background: #edeee4; border-radius: .75rem;
+  }
+  .lt-portfolio-card.is-featured .lt-portfolio-art { aspect-ratio: 1.8 / 1; border-radius: .75rem 0 0 .75rem; }
+  .lt-portfolio-card.is-featured .lt-portfolio-caption { padding: 2rem 2rem 2rem 0; }
+  .lt-portfolio-card.is-featured .lt-portfolio-caption h3 { font-size: clamp(2.8rem, 5vw, 4.5rem); }
+}
+@media (max-width: 650px) {
+  .lt-portfolio-wrap { width: calc(100% - 2rem); }
+  .lt-portfolio-grid, .lt-portfolio-story { grid-template-columns: minmax(0, 1fr); }
+  .lt-portfolio-card.is-featured .lt-portfolio-art, .lt-portfolio-case-header + .lt-portfolio-art { aspect-ratio: 4 / 3; }
+}
+@media (prefers-reduced-motion: reduce) { .lt-portfolio-arrow { transition: none; } }

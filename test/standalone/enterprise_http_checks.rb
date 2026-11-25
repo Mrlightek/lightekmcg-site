@@ -65,6 +65,10 @@ EnterpriseHarness.routes.draw do
   post '/connect/management', to: 'connect_management#create'
   post '/api/reservations/federation/connect/redeem', to: 'api/connect_federation#redeem'
   post '/api/reservations/federation/connect/validate', to: 'api/connect_federation#validate_session'
+  post '/api/connect/instance/website-releases/list', to: 'api/agency_website_releases#index'
+  resources :dashboard_agency_websites, path: '/dashboard/agencies/websites', controller: 'dashboard/agency_websites', only: :show do
+    member { %i[edit_site stage review deploy rollback].each { |action| post action } }
+  end
   resources :dashboard_agencies, path: '/dashboard/agencies', controller: 'dashboard/agencies', only: %i[index create update] do
     member do
       post :create_client

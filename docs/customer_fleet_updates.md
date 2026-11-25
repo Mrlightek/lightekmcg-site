@@ -19,13 +19,16 @@ commands only back up the configured database or control an explicitly configure
 container worker. Existing DB, Redis, MinIO, storage, TLS and customer credentials
 are preserved. Updates do not allocate replacement servers.
 
-## One account, selected installations, or the fleet
+## Customer Dashboard access and rollout targets
 
 Sync discovers existing `GatekeeperProject` records as native Rails installations.
 Deployment defaults come from the actual project: checkout, application user, Ruby
 version, hostname and worker service. Adjust the environment file, Ruby binary path
 or worker mode in its Dashboard deployment profile when the server differs from
 those defaults. Previously saved profiles are preserved on subsequent syncs.
+On shared nodes, the deployment's registered owner takes precedence over the
+server owner's default assignment. Installations with an active rollout keep
+their account assignment until that rollout is resolved.
 Website metadata without a project does **not** imply a Docker application; it
 requires an explicit adapter/profile before it can receive an update.
 
@@ -35,12 +38,23 @@ share a hostname, and CDN replicas on different nodes can share the same public
 hostname/component. Assign the installation to its customer account when applicable.
 Only super administrators can read or change fleet controls.
 
-Select a release, then choose individual installations, all matching installations,
-or one account's matching installations. Matching includes adapter, component,
+Select a release, then choose individual installations, one account, an agency
+and its descendant accounts, or all matching installations. The Lightek branch
+starts at your super administrator account. Use **Clients & agencies** to check
+an agency's parent and attach a legacy agency if it has no assigned parent.
+Matching includes adapter, component,
 repository, channel and release pin. A Rails application release cannot update a
 CDN or unrelated service. The preview is a fixed target snapshot; start it after
 reviewing the targets. Canaries, batch sizes (1–50), UTC scheduling, pause, cancel,
 retry and automatic promotion work identically for every adapter.
+
+To sign into an instance, use **Open instance Dashboard**. The host and account
+must match an active, verified federation connection. The handoff uses the
+operator's verified MFA session, records the actor, and opens the remote
+owner's Dashboard under that owner's permissions.
+
+These release adapters update Lightek and registered services. Ubuntu package
+updates and distribution upgrades are outside the release adapters.
 
 For customer-specific development, register the custom commit as a separate
 release and assign it in **Installation update policies → Assigned release**.
@@ -246,6 +260,20 @@ Apache/Passenger, Certbot, Ruby and the updated application code including the
 hosted-site routes. Logs live under `/var/lib/lightek/hosted-sites/APPLICATION_KEY`.
 Unknown/unowned site identities cannot be claimed by a retry. The default starter
 design can be changed through the existing website design/editor interface.
+
+### Connecting a custom domain during paid hosting setup
+
+Paid hosting plans allow an optional website hostname. Leaving it blank uses a
+Lightek subdomain and the existing managed DNS flow. For a customer domain, the
+same paid order allocates a VPS, then **My Applications** shows the public IPv4
+and the exact hostname for the DNS A record. Add that record at the domain's
+authoritative DNS provider, then choose **Check DNS & continue**.
+
+The installer verifies that the hostname resolves directly to the allocated IP.
+Stale A or AAAA records and proxy addresses keep the order waiting for DNS.
+Successful verification continues the same allocation, configures the website
+on the instance, and provisions and verifies HTTPS. Connecting a hostname this
+way does not change the domain's registrar or unrelated DNS records.
 
 ### Deleting a server
 

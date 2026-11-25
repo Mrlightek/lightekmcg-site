@@ -118,10 +118,14 @@ class FleetHostedSiteTest(unittest.TestCase):
             with self.subTest(config=config), self.assertRaises(ValueError):
                 hosted.validate(config)
 
-    def test_packaged_customer_installer_rejects_private_domains_before_setup(self):
+    def customer_installer(self):
         script = (ROOT / "script/lightek/website_deploy.sh").read_text().split("<<'LIGHTEK_PYTHON'\n", 1)[1].split("\nLIGHTEK_PYTHON", 1)[0]
         namespace = {"__name__": "installer_domain_test", "__file__": str(ROOT / "script/lightek/website_deploy.sh")}
         exec(compile(script, "customer_installer", "exec"), namespace)
+        return namespace
+
+    def test_packaged_customer_installer_rejects_private_domains_before_setup(self):
+        namespace = self.customer_installer()
         config = dict(domain="customer.example.com", ssh="deploy@server", port=22, email="owner@example.com", owner_email="owner@example.com", owner_password="test-password", site_name="Customer", headline="Hello", description="Company")
         namespace["validate"](config)
         for domain in ("192.168.64.2", "127.0.0.1", "8.8.8.8", "client.local", "client.localhost", "a..example.com"):
@@ -131,6 +135,17 @@ class FleetHostedSiteTest(unittest.TestCase):
         bootstrap = base64.b64decode(namespace["PAYLOAD"]["payload/app/services/lightek_website/bootstrap.rb"])
         check = 'eval(STDIN.read); begin; LightekWebsite::Bootstrap.call({"domain" => "192.168.64.2"}); abort "IP accepted"; rescue LightekSettings::SiteDomain::Invalid; end'
         subprocess.run(["ruby", "-r", str(ROOT / "app/services/lightek_settings/site_domain.rb"), "-e", check], input=bootstrap, check=True)
+
+    def test_external_dns_mismatch_never_calls_managed_dns(self):
+        installer = self.customer_installer()
+        config = dict(domain="customer.example.com", ssh="root@8.8.8.8", public_ip="8.8.8.8", external_dns=True)
+        managed_dns = MagicMock()
+        installer["rails_code"] = managed_dns
+        lookup = [(0, 0, 0, "", ("8.8.4.4", 0))]
+        with patch.object(installer["socket"], "getaddrinfo", return_value=lookup):
+            with self.assertRaisesRegex(installer["DeployError"], "authoritative DNS provider"):
+                installer["dns_setup"](ROOT, self.base, config)
+        managed_dns.assert_not_called()
 
     def test_public_verification_requires_rendered_homepage_as_well_as_health_record(self):
         site = hosted.HostedSite(self.config, self.base)

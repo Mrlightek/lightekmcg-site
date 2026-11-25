@@ -1,0 +1,140 @@
+<%= stylesheet_link_tag '/lightek/demo-workspace.css' %>
+<%= javascript_include_tag '/lightek/demo-workspace.js', type: 'module' %>
+<section id="demo-workspace-tools" class="lp-card demo-workspace" data-workspace-preview aria-labelledby="demo-workspace-title">
+  <h2 id="demo-workspace-title">Workspace & Team Chat</h2>
+  <p>Try the Lightek tools that cover work you might do in Google Workspace and Slack. Practice edits use sample data and stay in this tab.</p>
+
+  <div class="demo-workspace-grid">
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Lightek Mail & Contacts"
+      data-tour-body="Try finding a client email and drafting a reply. In Lightek Mail, teams can use branded mailboxes, threads, templates, and managed contacts." data-tour-try>
+      <h3>Lightek Mail &amp; Contacts</h3>
+      <label for="practice-mail-search">Search sample inbox</label>
+      <input id="practice-mail-search" type="search" data-workspace-search="mail" placeholder="Try review">
+      <ul data-workspace-list="mail">
+        <li><strong>Review requested · <%= sample[:project] %></strong><br><small>Sample Client · client@example.test</small></li>
+        <li><strong>Invoice received</strong><br><small>Sample Operations · operations@example.test</small></li>
+      </ul>
+      <p hidden data-workspace-empty="mail">No matching messages.</p>
+      <label for="practice-mail-draft">Draft a reply to Sample Client</label>
+      <textarea id="practice-mail-draft" rows="2" maxlength="500" placeholder="Thanks, I’ll review this today."></textarea>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Shared Drives"
+      data-tour-body="Choose a folder and review file access. Shared Drives keep client assets and Office files together, with viewer and editor access." data-tour-try>
+      <h3>Shared Drives</h3>
+      <label for="practice-drive-folder"><%= sample[:project] %> files</label>
+      <select id="practice-drive-folder" data-workspace-drive>
+        <option value="drafts">Drafts</option>
+        <option value="handoff">Client handoff</option>
+      </select>
+      <ul data-workspace-folder="drafts"><li><%= sample[:deliverable] %></li><li>Project budget</li></ul>
+      <ul data-workspace-folder="handoff" hidden><li>Client review deck</li><li>Handoff checklist</li></ul>
+      <label for="practice-drive-access">Sample teammate access</label>
+      <select id="practice-drive-access" data-workspace-option="drive-access">
+        <option value="Can open files">Viewer</option>
+        <option value="Can open and edit files">Editor</option>
+      </select>
+      <output data-workspace-output="drive-access">Can open files</output>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Documents"
+      data-tour-body="Edit a client brief and restore the sample. Lightek Documents supports shared editing, version history, and Word import and export." data-tour-try>
+      <h3>Documents</h3>
+      <label for="practice-document"><%= sample[:deliverable] %></label>
+      <textarea id="practice-document" rows="3" maxlength="500" data-workspace-document><%= sample[:next_action] %></textarea>
+      <button type="button" class="lp-button secondary" data-workspace-restore>Restore sample draft</button>
+      <p role="status" data-workspace-status="document"></p>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Spreadsheets"
+      data-tour-body="Change the billable hours or rate and watch the budget recalculate. Lightek Spreadsheets supports formulas and Excel import and export." data-tour-try>
+      <h3>Spreadsheets</h3>
+      <p><%= sample[:budget_item] %></p>
+      <div class="demo-workspace-fields">
+        <div><label for="practice-hours">Hours (A2)</label><input id="practice-hours" type="number" min="0" max="1000" step="0.5" value="<%= sample[:hours] %>" data-workspace-number="hours"></div>
+        <div><label for="practice-rate">Rate (B2)</label><input id="practice-rate" type="number" min="0" max="10000" step="1" value="<%= sample[:rate] %>" data-workspace-number="rate"></div>
+      </div>
+      <p><code>=A2*B2</code> <output for="practice-hours practice-rate" data-workspace-output="budget"><%= number_to_currency(sample[:hours] * sample[:rate]) %></output></p>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Presentations"
+      data-tour-body="Click through a two-slide client review. Lightek Presentations supports shared decks and PowerPoint import and export." data-tour-try>
+      <h3>Presentations</h3>
+      <div class="demo-workspace-slide" aria-live="polite">
+        <div data-workspace-slide><strong><%= sample[:project] %></strong><p><%= sample[:next_action] %></p></div>
+        <div data-workspace-slide hidden><strong>Approval checkpoint</strong><p><%= sample[:checkpoint] %></p></div>
+      </div>
+      <button type="button" class="lp-button secondary" data-workspace-slide-button>Next slide</button>
+      <span data-workspace-output="slide-count">1 of 2</span>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Shared Calendar & video meetings"
+      data-tour-body="Pick a free time for a client review and preview the meeting room. Lightek supports shared calendars, recurring events, client invitations, and private video rooms with host controls." data-tour-try>
+      <h3>Shared Calendar &amp; video meetings</h3>
+      <label for="practice-meeting-time">Client review time</label>
+      <select id="practice-meeting-time" data-workspace-option="meeting">
+        <option value="The producer is busy at 10:00 AM.">10:00 AM · Busy</option>
+        <option value="11:30 AM is open for the client review.">11:30 AM · Available</option>
+        <option value="2:00 PM is open for the client review.">2:00 PM · Available</option>
+      </select>
+      <output data-workspace-output="meeting" role="status">The producer is busy at 10:00 AM.</output>
+      <details><summary>Preview meeting controls</summary>
+        <p>Private room · <%= sample[:project] %></p>
+        <label class="demo-workspace-check"><input type="checkbox"> Preview with the microphone muted</label>
+        <label class="demo-workspace-check"><input type="checkbox"> Require the host to admit guests</label>
+      </details>
+    </article>
+
+    <article class="demo-workspace-tool demo-workspace-wide" data-tour-step="<%= scope %>" data-tour-title="Team Chat channels & threads"
+      data-tour-body="Switch to a shared client channel, search the conversation, or post a sample thread reply. Team Chat supports private channels, thread replies, and shared channels between organizations, including connected Lightek instances." data-tour-try>
+      <h3>Team Chat</h3>
+      <div class="demo-workspace-fields">
+        <div><label for="practice-channel">Channel</label>
+          <select id="practice-channel" data-workspace-channel>
+            <option value="internal">#<%= sample[:channel] %> · Private agency channel</option>
+            <option value="client">#client-handoff · Shared client channel</option>
+          </select>
+        </div>
+        <div><label for="practice-chat-search">Search channel</label><input id="practice-chat-search" type="search" data-workspace-search="chat" placeholder="Find a message"></div>
+      </div>
+      <div data-workspace-thread="internal">
+        <p data-workspace-chat-message><strong>Jordan · Agency producer</strong><br><%= sample[:next_action] %></p>
+        <ol data-workspace-list="chat"><li>Sam · I’ll update the <%= sample[:deliverable].downcase %> before review.</li></ol>
+      </div>
+      <div data-workspace-thread="client" hidden>
+        <p data-workspace-chat-message><strong>Alex · Sample client</strong><br>What should we approve at the next review?</p>
+        <ol data-workspace-list="chat"><li>Jordan · <%= sample[:checkpoint] %>.</li></ol>
+      </div>
+      <p hidden data-workspace-empty="chat">No matching messages in this channel.</p>
+      <label for="practice-chat-reply">Reply in this thread</label>
+      <input id="practice-chat-reply" maxlength="300" data-workspace-reply>
+      <button type="button" class="lp-button secondary" data-workspace-post>Post sample reply</button>
+      <p role="status" data-workspace-status="chat"></p>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Google Workspace migration"
+      data-tour-body="See what goes into a pilot. Lightek’s Workspace Migration Center supports Gmail, contacts, calendar history, and Shared Drive file imports." data-tour-try>
+      <h3>Workspace Migration Center</h3>
+      <label for="practice-migration">Preview a pilot import</label>
+      <select id="practice-migration" data-workspace-option="migration">
+        <option value="Map one Gmail export to an existing Lightek mailbox and review the import.">Gmail</option>
+        <option value="Preview a contacts CSV before importing it into Lightek Mail.">Contacts</option>
+        <option value="Preview a calendar export before importing its events.">Calendar history</option>
+        <option value="Preview one Shared Drive ZIP and confirm its destination folder.">Shared Drive files</option>
+      </select>
+      <output data-workspace-output="migration">Map one Gmail export to an existing Lightek mailbox and review the import.</output>
+    </article>
+
+    <article class="demo-workspace-tool" data-tour-step="<%= scope %>" data-tour-title="Workspace administration & discovery"
+      data-tour-body="Preview admin controls for directory access, sign-in, and retention. Lightek Discovery supports holds and scoped search and exports for mail, drive files, and chat channels." data-tour-try>
+      <h3>Workspace administration &amp; discovery</h3>
+      <label for="practice-admin">Review an admin task</label>
+      <select id="practice-admin" data-workspace-option="admin">
+        <option value="Require authenticator MFA or configure organization single sign-on.">Sign-in security</option>
+        <option value="Review who can sign in to an assigned application or server.">Directory access</option>
+        <option value="Choose authorized reviewers and preserve mail, drive files, or channel messages for a matter.">Discovery and holds</option>
+      </select>
+      <output data-workspace-output="admin">Require authenticator MFA or configure organization single sign-on.</output>
+    </article>
+  </div>
+</section>

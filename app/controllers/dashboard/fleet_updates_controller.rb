@@ -3,10 +3,18 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
   protect_from_forgery with: :exception
   before_action :require_fleet_operator!
   rescue_from Gatekeeper::Fleet::Rollouts::Invalid, ActiveRecord::RecordInvalid, ArgumentError, with: :invalid_request
+  rescue_from Gatekeeper::Hosting::Access::Denied, with: :invalid_request
 
   def index
     @releases = GatekeeperRelease.order(created_at: :desc).limit(50)
-    @installations = GatekeeperInstallation.includes(:gatekeeper_node, :account, :pinned_release).order(:domain, :component).page(params[:page]).per(50)
+    @agency = agency_branches.find(params[:agency_id]) if params[:agency_id].present?
+    @agency_options = [["Lightek and its descendants", current_user.id]] +
+      agency_branches.where(role: "white_label").order(:email_address).pluck(:email_address, :id)
+    scope = GatekeeperInstallation.includes(:gatekeeper_node, :account, :pinned_release)
+    scope = scope.where(account_id: @agency.descendant_account_ids) if @agency
+    @installations = scope.order(:domain, :component).page(params[:page]).per(50)
+    sites = DymondSite::Site.where(host: @installations.map(&:domain)).select(:id)
+    @instance_peers = LightekReservations::Peer.where(site_id: sites).includes(:site, :order, :member_backend).index_by { |peer| peer.site.host }
     @rollouts = GatekeeperRollout.includes(:gatekeeper_release).order(created_at: :desc).limit(25)
     @accounts = User.order(:email_address)
     @nodes = GatekeeperNode.order(:name)
@@ -19,8 +27,21 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
   end
 
   def sync
-    Gatekeeper::Fleet::Inventory.sync!
-    redirect_to dashboard_fleet_updates_path, notice: "Registered customer installations synchronized."
+    failures = Gatekeeper::Fleet::Inventory.sync!
+    if failures.empty?
+      redirect_to dashboard_fleet_updates_path, notice: "Registered customer installations synchronized."
+    else
+      redirect_to dashboard_fleet_updates_path, alert: "Inventory synchronized. Review registration errors for server IDs #{failures.first(20).join(', ')}."
+    end
+  end
+
+  def open_instance
+    installation = GatekeeperInstallation.find(params.require(:installation_id))
+    raise Gatekeeper::Hosting::Access::Denied, "Choose a registered Lightek application." unless installation.component == "lightek_app" && installation.account_id
+
+    site = DymondSite::Site.find_by!(host: installation.domain, tenant_type: "User", tenant_id: installation.account_id)
+    code = LightekConnect::AgencyDashboard.instance_code!(actor: current_user, site: site)
+    redirect_to "/connect/management?code=#{code}", status: :see_other
   end
 
   def installation
@@ -49,14 +70,18 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
 
   def create
     release = GatekeeperRelease.find(params.require(:release_id))
-    ids = if %w[all account].include?(params[:selection])
+    ids = if %w[all account agency].include?(params[:selection])
       scope = GatekeeperInstallation.where(enabled: true, channel: release.channel).includes(:gatekeeper_node)
       if params[:selection] == "account"
         raise ArgumentError, "Select an account" if params[:account_id].blank?
-        scope = scope.where(account_id: params[:account_id])
+        scope = scope.where(account_id: User.find(params[:account_id]).id)
+      elsif params[:selection] == "agency"
+        agency = agency_branches.find(params.require(:target_agency_id))
+        scope = scope.where(account_id: agency.descendant_account_ids)
       end
       scope.select { |installation| installation.accepts_release?(release) }.map(&:id)
     else
+      raise ArgumentError, "Choose a rollout target type" unless params[:selection].in?([nil, "", "selected"])
       Array(params[:installation_ids]).reject(&:blank?).map { |id| Integer(id.to_s, 10) }
     end
     installations = GatekeeperInstallation.where(id: ids).to_a
@@ -93,8 +118,13 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
 
   def require_fleet_operator!
     Gatekeeper::Fleet::Rollouts.authorize!(current_user)
+    raise Gatekeeper::Fleet::Rollouts::Invalid, "An active operator account is required" unless LightekPeople::LifecycleAccess.active?(current_user)
   rescue Gatekeeper::Fleet::Rollouts::Invalid => error
     redirect_to dymond_dash.dashboard_path, alert: error.message
+  end
+
+  def agency_branches
+    User.where(role: "white_label").or(User.where(id: current_user.id))
   end
 
   def invalid_request(error)

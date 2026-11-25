@@ -18,6 +18,7 @@
 <section class="lp-card"><h2>Create a client demo</h2>
 <%= form_with scope: :demo, url: dashboard_demos_path, class: 'lp-form' do |f| %><%= hidden_field_tag :agency_id, @agency.id %>
   <label>Demo name<%= f.text_field :name, maxlength: 150 %></label>
+  <label>Guided tour<%= f.select :tour, LightekAgency::DemoTours.options, include_blank: 'General workspace tour' %></label>
   <label>Existing client (optional)<%= f.collection_select :client_id, @clients, :id, :email_address, include_blank: 'Create a new client below' %></label>
   <label>First name<%= f.text_field :first_name, maxlength: 100 %></label><label>Last name<%= f.text_field :last_name, maxlength: 100 %></label>
   <label>Email<%= f.email_field :email_address %></label><%= f.submit 'Create demo', class: 'lp-button' %>

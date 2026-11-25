@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= @page.title %> · <%= @site.name %> · Portfolio preview</title>
+</head>
+<body class="lt-portfolio-preview">
+  <nav class="lt-portfolio-preview-nav" aria-label="Preview tools">
+    <strong>Private preview</strong>
+    <%= link_to "Edit in Pages & Sections", dymond_dash.pages_path(site_id: @site.id) %>
+  </nav>
+  <main>
+    <%= render "dymond_site/themes/default/sections/#{@record.kind}", section: @record.presenter, portfolio_draft: true %>
+  </main>
+</body>
+</html>

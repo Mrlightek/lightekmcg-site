@@ -18,6 +18,13 @@ Rails.application.routes.draw do
   get "/connect/shopify", to: "connect_shopify#index"
   post "/connect/shopify/webhooks", to: "connect_shopify#webhook"
   patch "/api/connect/instance/site", to: "api/connect_instance#update"
+  scope "/api/connect/instance/website-releases", controller: "api/agency_website_releases" do
+    post "list", action: :index
+    post "stage", action: :stage
+    post "review", action: :review
+    post "deploy", action: :deploy
+    post "rollback", action: :rollback
+  end
   post "/api/connect/pair", to: "api/connect#pair"
   get "/api/connect/workspace", to: "api/connect#show"
   patch "/api/connect/sites/:id", to: "api/connect#update_site"
@@ -41,6 +48,7 @@ Rails.application.routes.draw do
     get "/:id/exports/:operation_id", action: :status, as: :status
   end
   post "/dashboard/website/designs/themes", to: "dashboard/website_designs#install_theme", as: :dashboard_website_themes
+  get "/dashboard/website/designs/themes/starter.zip", to: "dashboard/website_designs#theme_starter", as: :dashboard_website_theme_starter, format: false
   post "/dashboard/website/designs/themes/:template_id/activate", to: "dashboard/website_designs#activate_theme", as: :activate_dashboard_website_theme
   resources :blog, only: %i[index show], param: :slug, controller: "lightek_blog", as: :website_blog
   get "/blog/:slug/images/:attachment_id", to: "lightek_blog#image", as: :website_blog_image
@@ -167,6 +175,14 @@ Rails.application.routes.draw do
   get "/my/installations/packages/:product_id", to: "installations#full_package", as: :full_package_installations
   post "/my/installations/packages/:product_id", to: "installations#purchase_full_package"
   resources :installations, path: "/my/installations", only: %i[index show create] do
+    resource :managed_dns, controller: "dashboard/managed_dns", only: %i[show create] do
+      post :stage
+      post :approve
+      post :verify
+      post :withdraw
+      patch :update_record, path: "records"
+      delete :remove_record, path: "records"
+    end
     post :access, on: :member
     post :cancel_subscription, on: :member
     post :retry_installation, on: :member, path: "resume"
@@ -616,11 +632,21 @@ get "/api/reservations/federation/shipping/quotes/:key/labels/:index", to: "api/
 post "/api/reservations/federation/shipping/quotes/:key/cancel", to: "api/shipping_broker#cancel"
 get "/dashboard/commerce", to: "dashboard/commerce#index", as: :dashboard_commerce
 post "/dashboard/commerce/subscriptions/:id/cancel", to: "dashboard/commerce#cancel_subscription", as: :cancel_subscription_dashboard_commerce
+resources :dashboard_agency_websites, path: "/dashboard/agencies/websites", controller: "dashboard/agency_websites", only: :show do
+  member do
+    post :edit_site
+    post :stage
+    post :review
+    post :deploy
+    post :rollback
+  end
+end
 resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboard/agencies", only: %i[index create update] do
   member do
     post :create_client
     post :send_setup_invitation
     patch :update_terms
+    patch :attach_to_lightek
   end
 end
 post "/dashboard/hosting/packages/workspace", to: "dashboard/hosting_packages#create_workspace", as: :create_workspace_dashboard_hosting_packages
@@ -648,6 +674,7 @@ resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard
 end
 resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
   collection do
+    post :open_instance
     post :sync
     post :release
     patch :installation
@@ -726,10 +753,14 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   patch "/dashboard/settings", to: "dashboard/platform_settings#update"
   get "/dashboard/website/settings", to: "dashboard/website_settings#show", as: :dashboard_website_settings
   patch "/dashboard/website/settings", to: "dashboard/website_settings#update"
+  patch "/dashboard/website/settings/overview", to: "dashboard/website_workspaces#overview", as: :dashboard_website_overview
+  delete "/dashboard/website/settings", to: "dashboard/website_workspaces#destroy"
   # END LIGHTEK ORGANIZED SETTINGS
 
 # BEGIN LIGHTEK WEBSITE DESIGNS
   get "/dashboard/website/designs", to: "dashboard/website_designs#index", as: :dashboard_website_designs
+  post "/dashboard/website/portfolio", to: "dashboard/agency_portfolios#create", as: :dashboard_agency_portfolio
+  get "/dashboard/website/portfolio/preview/:slug", to: "dashboard/agency_portfolios#preview", as: :preview_dashboard_agency_portfolio
   patch "/dashboard/website/designs/nevaeh", to: "dashboard/website_designs#nevaeh_delegation", as: :delegate_dashboard_website_designs
   post "/dashboard/website/designs/nevaeh/landing-page", to: "dashboard/website_designs#nevaeh_landing_page", as: :publish_nevaeh_landing_page
   get "/dashboard/website/designs/preview", to: "dashboard/website_designs#preview", as: :preview_dashboard_website_designs

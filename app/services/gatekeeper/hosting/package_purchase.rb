@@ -35,13 +35,14 @@ module Gatekeeper
         owner = order.hosting_owner || buyer
         raise Access::Denied, "The agency no longer manages this client" unless Access.manages?(buyer, owner)
         snapshot = order.items.sole.purchase_snapshot.fetch("hosting")
+        external_dns = LightekCommerce::Installations.external_dns?(order)
         launch = order.gatekeeper_application_launch
         unless launch
           validate!(snapshot: snapshot, retail_cents: order.items.sole.unit_price_cents, actor: operator)
           order.with_lock do
             launch = order.gatekeeper_application_launch
             unless launch
-              launch = Launches.create!(actor: operator, enqueue: false, attributes: snapshot.merge(
+              launch = Launches.create!(actor: operator, enqueue: false, external_dns: external_dns, attributes: snapshot.merge(
                 "owner_id" => owner.id, "name" => order.items.sole.name, "domain" => LightekCommerce::Installations.hostname(order)))
               order.update!(gatekeeper_application_launch: launch, provisioning_request_id: launch.provisioning_request_id,
                 provisioning_state: "deploying", provisioning_error: nil)
@@ -59,6 +60,9 @@ module Gatekeeper
         managed = order.items.sole.purchase_snapshot.to_h['managed_package']
         if managed && !launch.template_snapshot['managed_package']
           launch.update!(template_snapshot: launch.template_snapshot.merge('managed_package' => managed))
+        end
+        if external_dns && !launch.template_snapshot["external_dns"]
+          launch.update!(template_snapshot: launch.template_snapshot.merge("external_dns" => true))
         end
         launch.update!(status: "queued") if launch.status == "failed"
         Launches.perform!(launch)

@@ -6,7 +6,11 @@ require "active_support/all"
 class ApplicationRecord < ActiveRecord::Base
   self.abstract_class = true
 end
-class User < ApplicationRecord; end
+class User < ApplicationRecord
+  belongs_to :agency, class_name: "User", optional: true
+  def white_label? = role == "white_label"
+end
+class GatekeeperInstallation < ApplicationRecord; end
 class ProvisioningRequest < ApplicationRecord
   belongs_to :owner, class_name: "User"
   def gatekeeper_node = Struct.new(:ip_address, :status).new("203.0.113.7", "healthy")
@@ -22,8 +26,23 @@ ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"
 ActiveRecord::Migration.verbose = false
 ActiveRecord::ConnectionAdapters::TableDefinition.alias_method :jsonb, :json
 ActiveRecord::Schema.define do
-  create_table(:users) { |t| t.string :email_address; t.string :role }
-  create_table(:provisioning_requests) { |t| t.references :owner }
+  create_table(:users) do |t|
+    t.string :email_address
+    t.string :role
+    t.references :agency
+    t.integer :upstream_share_bps, default: 0
+    t.datetime :access_suspended_at
+  end
+  create_table(:provisioning_requests) { |t| t.references :owner; t.references :gatekeeper_node }
+  create_table(:gatekeeper_installations) { |t| t.references :account; t.references :gatekeeper_node; t.string :domain; t.string :component }
+  create_table(:lightek_people_employments) do |t|
+    t.references :worker
+    t.references :employer
+    t.string :worker_kind
+    t.boolean :active
+    t.date :starts_on
+    t.date :ends_on
+  end
   create_table(:lightek_commerce_orders) do |t|
     t.string :status
     t.datetime :paid_at
@@ -39,6 +58,14 @@ require_relative "../../db/migrate/20261125160000_create_lightek_managed_dns_enr
 CreateLightekManagedDnsEnrollments.new.migrate(:up)
 require_relative "../../db/migrate/20261125180000_add_provider_to_managed_dns_enrollments"
 AddProviderToManagedDnsEnrollments.new.migrate(:up)
+require_relative "../../db/migrate/20261125190000_create_lightek_feature_flags"
+CreateLightekFeatureFlags.new.migrate(:up)
+require_relative "../../app/models/concerns/account_hierarchy"
+User.include(AccountHierarchy)
+require_relative "../../app/services/lightek_people/lifecycle_access"
+require_relative "../../app/models/lightek_people/employment"
+require_relative "../../app/models/lightek_feature_flags/flag"
+require_relative "../../app/models/lightek_feature_flags/change"
 require_relative "../../app/services/gatekeeper/hosting/access"
 require_relative "../../app/services/lightek_commerce/installations"
 require_relative "../../app/services/lightek_settings/site_domain"
@@ -54,6 +81,7 @@ end
 
 class ManagedDnsChecks < Minitest::Test
   Enrollment = LightekManagedDns::Enrollment
+  Flag = LightekFeatureFlags::Flag
   Brand = %w[ns1.lightekmcg.com ns2.lightekmcg.com].freeze
   Previous = %w[ns1.example.net ns2.example.net].freeze
   Provider = Struct.new(:status, :rows, :ns) do
@@ -63,9 +91,11 @@ class ManagedDnsChecks < Minitest::Test
   end
 
   def setup
-    [Enrollment, LightekCommerce::Order, User, ProvisioningRequest].each(&:delete_all)
+    [LightekFeatureFlags::Change, Flag, Enrollment, LightekCommerce::Order,
+      GatekeeperInstallation, LightekPeople::Employment, User, ProvisioningRequest].each(&:delete_all)
     @operator = User.create!(role: "super_admin")
     @owner = User.create!(role: "client")
+    @flag = Flag.create!(key: Enrollment::ROLLOUT_FLAG, enabled: true, percentage: 100)
     @request = ProvisioningRequest.create!(owner: @owner)
     @order = LightekCommerce::Order.create!(hosting_owner: @owner, provisioning_request_id: @request.id,
       hosting_domain: "store.example.com", status: "paid", provisioning_state: "ready",
@@ -78,6 +108,82 @@ class ManagedDnsChecks < Minitest::Test
 
   def request(actor = @owner)
     Enrollment.stub(:configured_provider, "cloudflare") { Enrollment.request!(order: @order, actor: actor) }
+  end
+
+  def test_managed_dns_is_off_until_a_target_is_enabled
+    @flag.destroy!
+    assert_raises(Enrollment::Invalid) { request }
+    assert_nil Enrollment.find_by(order: @order)
+
+    Flag.create!(key: Enrollment::ROLLOUT_FLAG, enabled: true, account_ids: [@owner.id])
+    assert_equal "requested", request.state
+  end
+
+  def test_rollout_targets_owner_even_when_a_platform_operator_is_reviewing
+    enrollment = request
+    @flag.update!(percentage: 0, staff: true)
+    assert Flag.enabled?(Enrollment::ROLLOUT_FLAG, account: @operator)
+    assert_raises(Enrollment::Invalid) { enrollment.stage!(actor: @operator, provider: @provider, zone_id: "test") }
+    assert_equal "requested", enrollment.reload.state
+
+    @flag.update!(account_ids: [@owner.id])
+    dns(enrollment, nameservers: Previous) { enrollment.stage!(actor: @operator, provider: @provider, zone_id: "test") }
+    @flag.update!(enabled: false)
+    assert_raises(Enrollment::Invalid) { enrollment.approve!(actor: @operator, provider: @provider) }
+    assert_equal "staged", enrollment.reload.state
+    enrollment.withdraw!
+    assert_equal "withdrawn", enrollment.reload.state
+  end
+
+  def test_staff_includes_lightek_employees_but_excludes_client_employees
+    worker = User.create!(role: "employee")
+    @flag.update!(percentage: 0, staff: true)
+    employment = {worker_id: worker.id, worker_kind: "employee", active: true, starts_on: Date.current}
+    LightekPeople::Employment.insert_all!([employment.merge(employer_id: @owner.id)])
+    refute Flag.enabled?(Enrollment::ROLLOUT_FLAG, account: worker)
+    LightekPeople::Employment.insert_all!([employment.merge(employer_id: @operator.id)])
+    assert Flag.enabled?(Enrollment::ROLLOUT_FLAG, account: worker)
+    worker.update!(access_suspended_at: Time.current)
+    refute Flag.enabled?(Enrollment::ROLLOUT_FLAG, account: worker)
+  end
+
+  def test_agency_and_site_installation_are_independent_targets
+    agency = User.create!(role: "white_label")
+    child = User.create!(role: "white_label", agency: agency)
+    @owner.update!(agency: child)
+    @flag.update!(percentage: 0, agency_ids: [agency.id])
+    assert Enrollment.rollout_enabled?(@order)
+
+    @request.update!(gatekeeper_node_id: 17)
+    other_site = GatekeeperInstallation.create!(account_id: @owner.id,
+      gatekeeper_node_id: 17, domain: "other.example.com", component: "lightek_app")
+    exact = GatekeeperInstallation.create!(account_id: @owner.id, gatekeeper_node_id: 17,
+      domain: @order.hosting_domain, component: "lightek_app")
+    @flag.update!(agency_ids: [], installation_ids: [other_site.id])
+    refute Enrollment.rollout_enabled?(@order)
+    @flag.update!(installation_ids: [exact.id])
+    assert Enrollment.rollout_enabled?(@order)
+    exact.update!(account_id: agency.id)
+    refute Enrollment.rollout_enabled?(@order)
+  end
+
+  def test_percentage_is_sticky_and_pause_is_audited_and_overrides_every_target
+    accounts = 60.times.map { User.create!(role: "client") }
+    @flag.update!(percentage: 40)
+    cohort = -> { accounts.select { |user| Flag.enabled?(Enrollment::ROLLOUT_FLAG, account: user) }.map(&:id) }
+    group = cohort.call
+    assert group.size.between?(1, accounts.size - 1)
+    assert_equal group, cohort.call
+    @flag.update!(percentage: 60, staff: true, account_ids: [@owner.id])
+    assert_empty group - cohort.call
+
+    version = @flag.lock_version
+    @flag.revise!(actor: @operator, attributes: {enabled: false})
+    assert_empty cohort.call
+    refute Enrollment.rollout_enabled?(@order)
+    assert_equal [true, false], @flag.revisions.sole.then { |change| [change.previous["enabled"], change.current["enabled"]] }
+    assert_raises(Flag::Unavailable) { @flag.revise!(actor: @operator, attributes: {enabled: true}, expected_version: version) }
+    assert_raises(Flag::Unavailable) { @flag.revise!(actor: @owner, attributes: {enabled: true}) }
   end
 
   def dns(enrollment, nameservers:, proof: true)
@@ -117,6 +223,7 @@ class ManagedDnsChecks < Minitest::Test
       assert_raises(Enrollment::Invalid) { enrollment.verify!(provider: @provider) }
     end
     assert_equal "awaiting_delegation", enrollment.reload.state
+    @flag.update!(enabled: false)
     @provider.status = "active"
     dns(enrollment, nameservers: Brand) do
       enrollment.verify!(provider: @provider)
@@ -207,6 +314,7 @@ class ManagedDnsChecks < Minitest::Test
   def test_powerdns_record_changes_are_scoped_and_version_checked
     enrollment = request
     enrollment.update!(provider_kind: "powerdns", state: "active", nameservers: Brand, provider_zone_id: enrollment.domain)
+    @flag.update!(enabled: false)
     provider = LightekManagedDns::PowerDns.new(@owner)
     rows = @provider.rows
     params = {record_name: "@", record_type: "MX", ttl: "600", record_values: "10 new-mail.example.net.\n", revision: enrollment.record_revision(rows)}

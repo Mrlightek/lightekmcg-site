@@ -10,6 +10,7 @@ module ReleaseAssurance
     ORIGIN = "https://github.com/Mrlightek/lightekmcg-site.git"
     SHA = /\A[0-9a-f]{40}\z/
     BRANCH = /\A[a-zA-Z0-9][a-zA-Z0-9._\/-]{0,199}\z/
+    PUBLICATION_REF = /\Arelease-candidates\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
     MSP = %w[pr:426 pr:432 pr:433].freeze
     MSP_WORKFLOWS = %w[it-device-agent it-services-business-acceptance batch-d-acceptance].freeze
     IDENTITY = {
@@ -88,6 +89,18 @@ module ReleaseAssurance
       raise Invalid, "Invalid candidate publication ref" unless ref.match?(/\Arelease-candidates\/[0-9a-f-]{36}\z/)
       git!(dir, "push", @origin, "#{sha}:refs/heads/#{ref}")
       raise Invalid, "Remote candidate differs from assembled revision" unless fetch(dir, "refs/heads/#{ref}") == sha
+    end
+
+    def verify_publication!(sha, ref)
+      raise Invalid, "Enter the full reviewed candidate SHA" unless sha.match?(SHA)
+      raise Invalid, "Enter a release-candidates/ branch" unless ref.match?(PUBLICATION_REF)
+
+      qualified_ref = "refs/heads/#{ref}"
+      output = git!(Dir.tmpdir, "-c", "http.lowSpeedLimit=1024", "-c", "http.lowSpeedTime=15",
+        "ls-remote", "--exit-code", "--refs", "--", @origin, qualified_ref)
+      raise Invalid, "Published candidate differs from the reviewed revision" unless output == "#{sha}\t#{qualified_ref}"
+
+      true
     end
 
     def checkout(sha, ref)

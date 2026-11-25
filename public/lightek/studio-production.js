@@ -1,8 +1,8 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['ai','Generate video'],['workflows','Workflows'],['media','Media library'],['edit','Edit'],['cast','Character rigs'],['deliver','Export']];
-  const tools = [['stage','Stage'],['shots','Shots'],['script','Script'],['music','Music'],['color','Color'],
+  const modes = [['ai','Generate video'],['workflows','Workflows'],['media','Media library'],['script','Script'],['edit','Edit'],['cast','Character rigs'],['deliver','Export']];
+  const tools = [['stage','Stage'],['shots','Shots'],['music','Music'],['color','Color'],
     ['assets','Asset library'],['scene','Model & animate'],['camera','Camera & lighting'],['look','Look & materials']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
   const allowed = new Set([...modes,...tools].map(([key])=>key));

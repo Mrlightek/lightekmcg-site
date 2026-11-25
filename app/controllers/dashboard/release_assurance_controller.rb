@@ -16,6 +16,27 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
     @testers = testers.order(:name).limit(100)
   end
 
+  def import_msp
+    load_staging_request
+    raise ReleaseAssurance::Policy::Denied, "Choose a current approved staging request" unless @staging_request
+
+    ref = params[:publication_ref].to_s.strip
+    sha = params[:reviewed_revision].to_s.strip
+    ReleaseAssurance::Source.new.verify_publication!(sha, ref)
+    candidate = candidates.create_or_find_by!(publication_key: ref.delete_prefix("release-candidates/")) do |record|
+      record.assign_attributes(name: "Combined MSP", profile: "msp", source_sha: sha, state: "published")
+    end
+    unless candidate.profile == "msp" && candidate.state == "published" && candidate.source_sha == sha
+      raise ReleaseAssurance::Policy::Denied, "This branch is already registered with a different candidate"
+    end
+
+    redirect_to dashboard_release_assurance_path(candidate, request_id: @staging_request.id),
+      notice: "Published MSP candidate registered.", status: :see_other
+  rescue ActiveRecord::RecordNotFound
+    redirect_to dashboard_release_assurance_index_path(request_id: @staging_request&.id),
+      alert: "This candidate is already registered by another operator or the request is unavailable.", status: :see_other
+  end
+
   def show
     @readiness = ReleaseAssurance::Readiness.new(@candidate).evaluation
     @environments = @candidate.environments.includes(:provisioning_request).order(id: :desc)
@@ -192,7 +213,7 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   end
 
   def invalid_action(error)
-    path = @candidate&.persisted? ? dashboard_release_assurance_path(@candidate) : dashboard_release_assurance_index_path
+    path = @candidate&.persisted? ? dashboard_release_assurance_path(@candidate) : dashboard_release_assurance_index_path(request_id: @staging_request&.id)
     redirect_to path, alert: error.message, status: :see_other
   end
 end

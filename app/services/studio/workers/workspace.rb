@@ -32,7 +32,7 @@ module Studio
       def character_template_use = Studio::Performance::SceneTemplates.launch(access:@access,payload:@payload)
       def character_scene_prepare = Studio::Performance::CharacterScene.start(access:@access,payload:@payload)
       def character_scene_status
-        @payload["operation_id"] ? Studio::Performance::CharacterScene.receipt(access:@access,id:@payload["operation_id"]) : Studio::Performance::CharacterScene.latest(access:@access,scene_id:@payload.fetch("scene_id"))
+        @payload["operation_id"] ? Studio::Performance::CharacterScene.receipt(access:@access,id:@payload["operation_id"]) : Studio::Performance::CharacterScene.latest(access:@access,scene_id:@payload.fetch("scene_id"),script:@payload["script"]==true)
       end
       def character_scene_retry = Studio::Performance::CharacterScene.retry(access:@access,id:@payload.fetch("operation_id"))
       def character_scene_quote = Studio::Performance::CharacterScene.quote(access:@access,payload:@payload)
@@ -136,9 +136,13 @@ module Studio
         if @payload["operation_id"]
           operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview").find(@payload["operation_id"])
         else
-          seconds=Float(@payload.fetch("preview_seconds",3))
-          raise ArgumentError,"Choose a preview lasting 0.25–8 seconds" unless seconds.finite? && seconds.between?(0.25,8)
           scene_playback=@payload["scene_playback"]==true
+          script_preview=scene_playback && scene.settings["script_preview"]==true
+          max_seconds=script_preview ? Studio::Performance::ScriptPreview::DURATION : 8
+          seconds=Float(@payload.fetch("preview_seconds",script_preview ? max_seconds : 3))
+          unless seconds.finite? && (script_preview ? seconds==max_seconds : seconds.between?(0.25,max_seconds))
+            raise ArgumentError, script_preview ? "Render the full 20-second script preview" : "Choose a preview lasting 0.25–8 seconds"
+          end
           starts=scene.scene_objects.flat_map do |object|
             [object.definition.dig("performance","start"),*Array(object.definition["motion_clips"]).map { |clip| clip["start"] }].compact
           end
@@ -159,9 +163,10 @@ module Studio
               first=scene_playback ? settings.fetch("frame_start",1) : 1+(starts.min*fps).round
               first=[first,last].min
               width=settings.fetch("resolution_x",1280);height=settings.fetch("resolution_y",720)
-              factor=320.0/[width,height].max
-              settings.merge!("resolution_x"=>((width*factor/2).round*2).clamp(64,320),
-                "resolution_y"=>((height*factor/2).round*2).clamp(64,320),"samples"=>8,
+              edge=script_preview ? 512 : 320
+              factor=edge.to_f/[width,height].max
+              settings.merge!("resolution_x"=>((width*factor/2).round*2).clamp(64,edge),
+                "resolution_y"=>((height*factor/2).round*2).clamp(64,edge),"samples"=>(script_preview ? 4 : 8),
                 "frame_start"=>first,"frame_end"=>[first+(seconds*fps).round-1,last].min,"frame_current"=>first)
               manifest["outputs"]={"animation"=>true,"blend"=>true}
               operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"scene_playback"=>scene_playback,"preview_seconds"=>seconds,"native_revision"=>revision})

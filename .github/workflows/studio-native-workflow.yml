@@ -59,6 +59,8 @@ on:
       - 'test/standalone/studio_sequence_checks.rb'
       - 'test/javascript/studio_sequence_test.cjs'
       - 'test/javascript/studio_native_workflow_test.cjs'
+      - 'test/javascript/studio_script_preview_test.cjs'
+      - 'public/lightek/studio-app.js'
       - 'test/operations/studio_layered_renderer_test.py'
       - '.github/workflows/studio-native-workflow.yml'
   workflow_dispatch:
@@ -179,6 +181,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_native_workflow_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_genesis_connection_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_character_scene_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_script_preview_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_scene_templates_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_dialogue_scene_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_sequence_test.cjs

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require "digest"
+require_relative "script_preview"
 module Studio
   module Performance
     class CharacterScene
@@ -22,6 +23,14 @@ module Studio
       end
 
       def self.start(access:,payload:)
+        script = ScriptPreview.parse(payload["fountain"]) if payload.key?("fountain")
+        if script
+          payload = payload.slice("scene_id", "request_key", "cast_asset_id", "voice", "audio_asset_id").merge(
+            "mode"=>"single","shot_name"=>script.fetch("heading"),"name"=>script.fetch("speaker").downcase.titleize,
+            "dialogue"=>script.fetch("dialogue"),"scene_template"=>"bench","camera_mode"=>"template","gesture"=>"still",
+            "mechanics"=>{"action"=>"bench","version"=>3,"target_id"=>"seat"}
+          )
+        end
         payload=VerifiedGrasp.from_prompt(payload)
         raise ArgumentError,"The validated pickup is a silent action" if VerifiedGrasp.active?(payload) && payload["audio_asset_id"].present?
         return DialogueScene.start(access:access,payload:payload) if payload["mode"]=="dialogue"
@@ -48,6 +57,12 @@ module Studio
         raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
         staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
         inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}.merge(Acting.inputs(payload)).merge(Contact.inputs(payload)).merge(Mechanics.inputs(payload)).merge(Attention.inputs(payload))
+        if script
+          inputs["script_preview"] = script
+          staging = ScriptPreview.stage(staging, script)
+        elsif inputs.dig("mechanics", "action") == "bench" && inputs.dig("mechanics", "version") == 3
+          raise ArgumentError, "Use the Script workspace for the twenty-second bench preview"
+        end
         inputs.merge!(shot_name(payload))
         if payload.key?("hair_style") && !VerifiedGrasp.active?(inputs) && payload["cast_asset_id"].blank?
           colors["hair_style"]=Cast.hair_style(payload["hair_style"])
@@ -98,17 +113,23 @@ module Studio
         raise ActiveRecord::RecordNotFound unless operation.intent["user_id"]==access.user.id
         operation
       end
-      def self.latest(access:,scene_id:)
+      def self.latest(access:,scene_id:,script:false)
         scene=access.scene!(scene_id)
         raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==access.site_id
-        operation=scene.studio_operations.where(capability:CAPABILITY).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s).order(id: :desc).first
+        scope=scene.studio_operations.where(capability:CAPABILITY).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s)
+        scope=if script
+          scope.where("manifest -> 'inputs' -> 'script_preview' IS NOT NULL")
+        else
+          scope.where("manifest -> 'inputs' -> 'script_preview' IS NULL")
+        end
+        operation=scope.order(id: :desc).first
         operation ? receipt(access:access,id:operation.id) : {status:"idle"}
       end
       def self.receipt(access:,id:)
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("portrait_asset_id","shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","motion_action_id","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("portrait_asset_id","shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","motion_action_id","entrance","contact","mechanics","attention","script_preview"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
@@ -182,11 +203,15 @@ module Studio
         return DialogueScene.prepare(operation) if operation.manifest.dig("inputs","mode")=="dialogue"
         access=check!(operation);inputs=operation.manifest.fetch("inputs");tag="character-scene-#{operation.id}"
         verified=VerifiedGrasp.active?(inputs)
+        script=inputs["script_preview"]
         raise ArgumentError,"This action implementation changed; prepare a new take" if verified && inputs["driver_fingerprint"]!=Mechanics.driver_fingerprint("grasp",4)
         operation.with_lock do
           unless operation.metadata["scene_id"]
             scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:inputs["shot_name"] || "#{inputs['name']} · performed short",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>(verified ? 24 : 12),"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
             SceneTemplates.apply!(scene,operation.manifest.fetch("staging"),access:access)
+            if script
+              scene.update!(settings:scene.settings.merge("script_preview"=>true,"workspace"=>{"story"=>{"scriptDraft"=>script.fetch("script")}}))
+            end
             operation.update!(metadata:operation.metadata.merge("scene_id"=>scene.id))
           end
         end
@@ -238,7 +263,7 @@ module Studio
         Acting.apply!(access:access,scene:scene,object:object,character:inputs,turns:[take],key:tag+"-acting") unless verified
         Contact.apply!(scene:scene,object:object,character:inputs)
         Mechanics.apply!(scene:scene,object:object,character:inputs)
-        seconds=[inputs["mechanics"] ? 8 : 3,(take["start"]+take["duration"]+0.1).ceil,Contact.ending(inputs).ceil,Attention.ending(inputs).ceil].max
+        seconds=script ? ScriptPreview::DURATION : [inputs["mechanics"] ? 8 : 3,(take["start"]+take["duration"]+0.1).ceil,Contact.ending(inputs).ceil,Attention.ending(inputs).ceil].max
         rate=verified ? 24 : 12
         scene.with_lock { scene.update!(settings:scene.settings.merge("frame_end"=>seconds*rate,"fps"=>rate)) } unless scene.reload.settings["frame_end"]==seconds*rate
         phase(operation,"directing_cameras")
@@ -270,7 +295,10 @@ module Studio
         raise Waiting,"Waiting for the preview worker" if %w[pending running].include?(preview.reload.status)
         raise ArgumentError,"The character preview did not finish" unless preview.status=="completed" && preview.artifacts.exists?(kind:"video")
         operation.with_lock do
-          check!(operation);operation.update!(status:"completed",completed_at:Time.current,metadata:operation.metadata.merge("phase"=>"ready"))
+          check!(operation)
+          metadata = operation.metadata.merge("phase"=>"ready")
+          metadata["duration_seconds"] = seconds if script
+          operation.update!(status:"completed",completed_at:Time.current,metadata:metadata)
         end
       end
     end

@@ -261,6 +261,20 @@ hosted-site routes. Logs live under `/var/lib/lightek/hosted-sites/APPLICATION_K
 Unknown/unowned site identities cannot be claimed by a retry. The default starter
 design can be changed through the existing website design/editor interface.
 
+### Connecting a custom domain during paid hosting setup
+
+Paid hosting plans allow an optional website hostname. Leaving it blank uses a
+Lightek subdomain and the existing managed DNS flow. For a customer domain, the
+same paid order allocates a VPS, then **My Applications** shows the public IPv4
+and the exact hostname for the DNS A record. Add that record at the domain's
+authoritative DNS provider, then choose **Check DNS & continue**.
+
+The installer verifies that the hostname resolves directly to the allocated IP.
+Stale A or AAAA records and proxy addresses keep the order waiting for DNS.
+Successful verification continues the same allocation, configures the website
+on the instance, and provisions and verifies HTTPS. Connecting a hostname this
+way does not change the domain's registrar or unrelated DNS records.
+
 ### Deleting a server
 
 Open a server and expand **Delete this server instance**. Review its applications

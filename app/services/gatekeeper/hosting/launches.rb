@@ -1,7 +1,7 @@
 module Gatekeeper
   module Hosting
     class Launches
-      def self.create!(actor:, attributes:, enqueue: true)
+      def self.create!(actor:, attributes:, enqueue: true, external_dns: false)
         raise Access::Denied, "Sign in to install an application" unless actor&.persisted?
         attributes = attributes.to_h.with_indifferent_access
         if !Access.super_admin?(actor) && attributes["node_id"].blank?
@@ -46,9 +46,11 @@ module Gatekeeper
                 approved_at: Time.current, approval_reason: "Server creation requested by super admin in Dashboard")
             end
             Access.active!(node) if node
+            template_snapshot = attributes["template_configuration"].presence || template.attributes.slice("kind", "image", "container_port", "credential_slug", "rails_database", "rails_worker", "lightek_application")
+            template_snapshot = template_snapshot.merge("external_dns" => true) if external_dns
             launch = GatekeeperApplicationLaunch.create!(gatekeeper_application_template: template, owner: owner,
               requested_by: actor, name: attributes.fetch("name"), domain: domain, gatekeeper_node: node,
-              provisioning_request: request, template_snapshot: attributes["template_configuration"].presence || template.attributes.slice("kind", "image", "container_port", "credential_slug", "rails_database", "rails_worker", "lightek_application"))
+              provisioning_request: request, template_snapshot: template_snapshot)
           end
         end
         LaunchApplicationJob.perform_later(launch.id) if enqueue
@@ -110,8 +112,9 @@ module Gatekeeper
             site['demo_content'] = config['demo_content'] if config['demo_content']
             WebsiteDeployment.register!(actor: actor, record: launch.gatekeeper_node || request, config: site)
           end
-          receipt = request ? WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain) :
-            WebsiteDeployment.run!(actor: actor, node: launch.gatekeeper_node, domain: domain)
+          external_dns = config["external_dns"] == true
+          receipt = request ? WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain, external_dns: external_dns) :
+            WebsiteDeployment.run!(actor: actor, node: launch.gatekeeper_node, domain: domain, external_dns: external_dns)
           raise Access::Denied, "Rails application verification failed" unless receipt[:verified] == true
           launch.update!(gatekeeper_node: launch.gatekeeper_node || request.reload.gatekeeper_node, receipt: receipt, status: "ready")
         else
@@ -121,7 +124,11 @@ module Gatekeeper
           Access.authorize!(actor, node)
           raise Access::Denied, "Server is pending deletion" if %w[deleting delete_failed decommissioned].include?(node.status)
           wait_for_ssh!(node) if request
-          Dns.prepare!(domain: domain, ip_address: node.ip_address)
+          if config["external_dns"] == true
+            Dns.verify_external!(domain: domain, ip_address: node.ip_address)
+          else
+            Dns.prepare!(domain: domain, ip_address: node.ip_address)
+          end
           secrets = {}
           if config["credential_slug"].present?
             secrets = LightekVault::Service.checkout!(slug: config["credential_slug"], consumer: name,

@@ -2,6 +2,7 @@
 # Run without private gems: ruby test/scripts/paid_dns_recovery_standalone.rb
 # Exercises real service orchestration with doubles only at DB/provider boundaries.
 require "minitest/autorun"
+require "minitest/mock"
 
 class Object
   def blank? = respond_to?(:empty?) ? !!empty? : !self
@@ -19,6 +20,7 @@ require_relative "../../app/services/gatekeeper/website_deployment"
 require_relative "../../app/services/lightek_commerce/paid_instance_provisioning"
 require_relative "../../app/services/lightek_commerce/installations"
 require_relative "../../app/services/gatekeeper/hosting/access"
+require_relative "../../app/services/gatekeeper/hosting/dns"
 
 module DymondDash
   class Notification
@@ -52,6 +54,7 @@ module LightekCommerce
 end
 class ProvisioningRequest
   def self.find(*) = raise("Unexpected request lookup")
+  def self.find_by(**) = raise("Unexpected request lookup")
 end
 module Gatekeeper::Compute
   class ProvisioningExecutionService
@@ -83,6 +86,59 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
     Deployment.stub(:preview, @config) do
       User.stub(:find, @owner) { yield }
     end
+  end
+
+  def test_external_dns_waits_on_the_allocated_node_and_reuses_it
+    domain = "client.example.com"
+    node = Node.new(42, "203.0.113.44", "1234")
+    operator = Struct.new(:email_address, :persisted?, :role).new("operator@example.test", true, "super_admin")
+    allocations = 0
+    allocate = lambda do |request:, requested_by:|
+      allocations += 1
+      request.gatekeeper_node = node
+      request.gatekeeper_node_id = node.id
+      node
+    end
+    deployer = Object.new
+    deployer.define_singleton_method(:run!) { {verified: true, url: "https://#{domain}"} }
+    with_deployment do
+      LightekVault::Service.stub(:checkout!, ->(**) { {"owner_password" => "x" * 12} }) do
+        Gatekeeper::Compute::ProvisioningExecutionService.stub(:call, allocate) do
+          Gatekeeper::Compute::NodeVerificationService.stub(:call, {provider_status: "running"}) do
+            Deployment.stub(:register!, nil) do
+              Resolv.stub(:getaddresses, [node.ip_address, "2001:db8::1"]) do
+                assert_raises(Gatekeeper::Hosting::Dns::AwaitingExternalDns) do
+                  Deployment.provision_and_run!(actor: operator, request: @request, domain: domain, external_dns: true)
+                end
+              end
+              assert_equal node, @request.gatekeeper_node
+              Resolv.stub(:getaddresses, [node.ip_address]) do
+                Deployment.stub(:new, deployer) do
+                  assert Deployment.provision_and_run!(actor: operator, request: @request, domain: domain, external_dns: true)[:verified]
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    assert_equal 1, allocations
+  end
+
+  def test_external_dns_instructions_show_the_allocated_address_for_a_paid_order
+    node = Node.new(42, "203.0.113.44", "1234")
+    node.define_singleton_method(:metadata) { {} }
+    @request.gatekeeper_node = node
+    order = Struct.new(:id, :provisioning_request_id, :hosting_domain, :status, :provisioning_state, :paid_at?, :provisioned_at, :provisioned_at?)
+      .new(21, 11, "example.com", "paid", "awaiting_dns", true, nil, false)
+    ProvisioningRequest.stub(:find_by, @request) do
+      summary = LightekCommerce::Installations.summary(order)
+      assert_equal({hostname: "example.com", type: "A", value: node.ip_address}, summary[:dns_record])
+      assert summary[:retryable]
+      refute summary[:ready]
+    end
+    order.hosting_domain = nil
+    refute LightekCommerce::Installations.external_dns?(order)
   end
 
   def test_dedicated_staging_requests_cannot_enter_the_production_website_deployer

@@ -3,6 +3,23 @@ require "ipaddr"
 module Gatekeeper
   module Hosting
     class Dns
+      class AwaitingExternalDns < Access::Denied; end
+
+      def self.external_record(domain:, ip_address:)
+        address = IPAddr.new(ip_address.to_s)
+        raise ArgumentError, "Expected a public server IP" if address.private? || address.loopback? || address.link_local?
+
+        { hostname: domain, type: address.ipv4? ? "A" : "AAAA", value: address.to_s }
+      end
+
+      def self.verify_external!(domain:, ip_address:)
+        record = external_record(domain: domain, ip_address: ip_address)
+        addresses = Resolv.getaddresses(domain).map { |address| IPAddr.new(address).to_s }.uniq
+        return if addresses == [record.fetch(:value)]
+
+        raise AwaitingExternalDns, "Point #{domain} to #{record.fetch(:value)} and retry after DNS resolves."
+      end
+
       def self.prepare!(domain:, ip_address:)
         target = IPAddr.new(ip_address)
         current = Resolv.getaddresses(domain)

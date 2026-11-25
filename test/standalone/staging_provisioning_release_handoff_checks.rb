@@ -41,12 +41,26 @@ class StagingProvisioningDashboardChecks
     assert_response :success
     assert_includes response.body, "No published MSP candidate is available"
 
-    candidate = ReleaseAssurance::Candidate.create!(operator: @operator, name: "Reviewed MSP", profile: "msp",
-      publication_key: SecureRandom.uuid, selectors: [], source_sha: "a" * 40, state: "published")
+    ENV.delete("LIGHTEK_RELEASE_ASSURANCE_RUNNER")
+    publication_key = SecureRandom.uuid
+    imported_sha = "a" * 40
+    source = Object.new
+    source.define_singleton_method(:verify_publication!) do |sha, ref|
+      raise ReleaseAssurance::Source::Invalid unless sha == imported_sha && ref == "release-candidates/#{publication_key}"
+    end
+    ReleaseAssurance::Source.stub(:new, source) do
+      post "/dashboard/release_assurance/import_msp", params: { authenticity_token: csrf_token,
+        request_id: request.id, publication_ref: "release-candidates/#{publication_key}", reviewed_revision: imported_sha }
+      assert_response :see_other
+    end
+    candidate = ReleaseAssurance::Candidate.find_by!(publication_key: publication_key)
+    assert_equal @operator, candidate.operator
+    assert_equal imported_sha, candidate.source_sha
+    assert_empty candidate.runs
     path = "/dashboard/release_assurance/#{candidate.id}"
     get link["href"]
     assert_response :success
-    candidate_link = css_select("a").find { |item| item.text == "Reviewed MSP" }
+    candidate_link = css_select("a").find { |item| item.text == "Combined MSP" }
     assert candidate_link
     get candidate_link["href"]
     assert_response :success
@@ -74,6 +88,11 @@ class StagingProvisioningDashboardChecks
     assert_raises(ReleaseAssurance::Policy::Denied) { staging.send(:dns_target!) }
     ENV["GODADDY_DOMAINS"] = "lightekmcg.com"
 
+    post "#{path}/deploy", params: { authenticity_token: token, environment_id: environment.id }
+    assert_response :see_other
+    assert_equal "prepared", environment.reload.state
+    assert_empty ApplicationJob.queue_adapter.enqueued_jobs
+    ENV["LIGHTEK_RELEASE_ASSURANCE_RUNNER"] = "1"
     forbid_execution do
       post "#{path}/deploy", params: { authenticity_token: token, environment_id: environment.id }
       assert_response :see_other

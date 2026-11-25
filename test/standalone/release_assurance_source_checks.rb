@@ -52,6 +52,9 @@ class ReleaseAssuranceSourceTest < Minitest::Test
       @source.publish!(dir, sha, ref)
     end
     assert_equal assembled, repinned
+    assert @source.verify_publication!(assembled.fetch(:source_sha), ref)
+    assert_raises(Source::Invalid) { @source.verify_publication!(first, ref) }
+    assert_raises(Source::Invalid) { @source.verify_publication!(first, "develop") }
     @source.checkout(assembled.fetch(:source_sha), ref) do |dir|
       assert_equal "dependent\n", File.read(File.join(dir, "dependent.txt"))
       refute File.exist?(File.join(dir, "new-content.txt"))

@@ -12,6 +12,18 @@
       <p>Choose a published MSP candidate for Gatekeeper request #<%= @staging_request.id %>.</p>
       <% if @candidates.empty? %>
         <p>No published MSP candidate is available in this Dashboard. Your Gatekeeper approval is already recorded.</p>
+        <%= form_with url: import_msp_dashboard_release_assurance_index_path, class: "infra-form" do |form| %>
+          <%= form.hidden_field :request_id, value: @staging_request.id %>
+          <div class="infra-field">
+            <%= form.label :publication_ref, "Published candidate branch" %>
+            <%= form.text_field :publication_ref, required: true, maxlength: 55, placeholder: "release-candidates/…" %>
+          </div>
+          <div class="infra-field">
+            <%= form.label :reviewed_revision, "Reviewed commit SHA" %>
+            <%= form.text_field :reviewed_revision, required: true, maxlength: 40 %>
+          </div>
+          <%= form.submit "Register published candidate", class: "infra-button infra-button-primary" %>
+        <% end %>
       <% end %>
     <% else %>
       <%= form_with url: dashboard_release_assurance_index_path, class: "row g-2 align-items-end mb-3" do |form| %>

@@ -3,7 +3,7 @@
 <div class="infra">
   <header class="infra-hero">
     <div><h1><%= @candidate.name %></h1><p><%= @candidate.state.humanize %> · <%= @candidate.profile.upcase %></p></div>
-    <%= link_to "All candidates", dashboard_release_assurance_index_path, class: "infra-button" %>
+    <%= link_to "All candidates", dashboard_release_assurance_index_path(request_id: @staging_request&.id), class: "infra-button" %>
   </header>
 
   <section class="infra-panel p-3">
@@ -34,9 +34,9 @@
     <% if @candidate.state == "published" %>
       <p>Attach an approved Gatekeeper request by ID. An empty ID prepares a new request with the configured staging plan.</p>
       <%= form_with url: prepare_dashboard_release_assurance_path(@candidate), class: "row g-2 align-items-end" do |form| %>
-        <div class="col-md-2"><%= form.label :request_id, "Existing request ID" %><%= form.number_field :request_id, min: 1, class: "form-control" %></div>
-        <div class="col-md-4"><%= form.label :hostname, "Staging hostname" %><%= form.text_field :hostname, required: true, class: "form-control" %></div>
-        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, max: 2400, value: 2400, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :request_id, "Existing request ID" %><%= form.number_field :request_id, min: 1, value: @staging_request&.id, class: "form-control" %></div>
+        <div class="col-md-4"><%= form.label :hostname, "Staging hostname" %><%= form.text_field :hostname, value: @staging_request_details&.fetch("hostname"), required: true, class: "form-control" %></div>
+        <div class="col-md-2"><%= form.label :budget_cents, "Monthly cap (¢)" %><%= form.number_field :budget_cents, required: true, min: 1, max: 2400, value: @staging_request_details&.fetch("budget_cents") || 2400, class: "form-control" %></div>
         <div class="col-md-2"><%= form.label :hours, "Lifetime (hours)" %><%= form.number_field :hours, required: true, min: 4, max: 168, value: 48, class: "form-control" %></div>
         <div class="col-md-2"><%= form.submit "Prepare", class: "infra-button" %></div>
       <% end %>

@@ -7,6 +7,7 @@ module ReleaseAssurance
     def perform
       return unless ENV["LIGHTEK_RELEASE_ASSURANCE_RUNNER"] == "1"
 
+      Workflow.unfinished.find_each { |workflow| AcceptanceWorkflow.enqueue(workflow) }
       ExpirationJob.perform_later
       Candidate.where(state: "published").where(updated_at: 7.days.ago..).find_each do |candidate|
         AcceptanceJob.perform_later(candidate.id)

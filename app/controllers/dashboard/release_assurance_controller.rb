@@ -40,6 +40,7 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   def show
     @readiness = ReleaseAssurance::Readiness.new(@candidate).evaluation
     @environments = @candidate.environments.includes(:provisioning_request).order(id: :desc)
+    @workflow = @candidate.workflows.where(environment: @candidate.active_staging_environment).order(id: :desc).first
     @runs = @candidate.runs.order(id: :desc).limit(100)
     @defects = @candidate.defects.includes(:run, :retest).order(id: :desc)
     @testers = testers.where(offboarded_at: nil).order(:name)
@@ -67,12 +68,8 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   end
 
   def accept
-    ReleaseAssurance::Policy.runner!
-    ReleaseAssurance::AcceptanceJob.perform_later(@candidate.id)
-    if (environment = @candidate.environments.where(state: "ready").where("expires_at > ?", Time.current).last)
-      ReleaseAssurance::BrowserJob.perform_later(environment.id)
-    end
-    redirect_to_candidate("Acceptance refresh queued.")
+    workflow = ReleaseAssurance::AcceptanceWorkflow.start!(@candidate, current_user)
+    redirect_to_candidate("Nevaeh queued acceptance workflow ##{workflow.id}.")
   end
 
   def prepare

@@ -5,6 +5,8 @@ require "action_controller"
 require "action_dispatch"
 require "active_job"
 require "minitest/autorun"
+require "minitest/mock"
+require "active_support/testing/time_helpers"
 require "active_support/security_utils"
 
 # Exercise real models, foreign keys, transactions and migration against an
@@ -31,8 +33,14 @@ class GatekeeperOperation < ApplicationRecord; end
 require_relative "../../app/services/lightek_people/lifecycle_access"
 require_relative "../../db/migrate/20261124210000_create_release_assurance"
 CreateReleaseAssurance.new.migrate(:up)
-%w[source policy readiness github_checks beta_access production_promotion].each { |name| require_relative "../../app/services/release_assurance/#{name}" }
-%w[candidate environment tester assignment run defect].each { |name| require_relative "../../app/models/release_assurance/#{name}" }
+require_relative "../../db/migrate/20261125143000_create_release_assurance_workflows"
+CreateReleaseAssuranceWorkflows.new.migrate(:up)
+require_relative "../../app/jobs/application_job"
+require_relative "../../app/services/nevaeh_orchestration/workflow_steps"
+%w[source policy readiness github_checks beta_access production_promotion acceptance_workflow browser_smoke nevaeh].each { |name| require_relative "../../app/services/release_assurance/#{name}" }
+%w[candidate environment tester assignment run defect workflow].each { |name| require_relative "../../app/models/release_assurance/#{name}" }
+
+%w[acceptance_step_job sweep_job expiration_job acceptance_job].each { |name| require_relative "../../app/jobs/release_assurance/#{name}" }
 
 module Gatekeeper
   class WebsiteDeployment
@@ -44,8 +52,11 @@ module Gatekeeper
   end
 end
 
+ApplicationJob.queue_adapter = :test
+
 class ReleaseAssuranceRecordsTest < Minitest::Test
   include ReleaseAssurance
+  include ActiveSupport::Testing::TimeHelpers
 
   def setup
     @operator = User.create!(role: "super_admin")
@@ -184,7 +195,156 @@ class ReleaseAssuranceRecordsTest < Minitest::Test
     assert_equal "blocked", receipt.result
   end
 
+  def test_native_workflow_fans_out_and_reviews_once_after_both_results
+    with_runner do
+      reviews = []
+      receipts = [["application", "passed", { "run_id" => 50, "attempt" => 1, "workflow" => ".github/workflows/ci.yml" }]]
+      checks = GithubChecks.new(@candidate)
+      checks.stub(:collect, receipts) do
+        GithubChecks.stub(:new, checks) do
+          BrowserSmoke.stub(:capture, ->(_, _, &block) { block.call("failed", "Staging Chromium acceptance did not pass.", nil) }) do
+            Nevaeh.stub(:review!, ->(candidate, actor) { reviews << [candidate.id, actor.id] }) do
+              workflow = AcceptanceWorkflow.start!(@candidate, @operator)
+              assert_equal [[workflow.id, "ci"], [workflow.id, "browser"]], queued_steps
+              assert_equal workflow.id, AcceptanceWorkflow.start!(@candidate, @operator).id
+              assert_includes @readiness.evaluation[:blockers], "Acceptance refresh is still in progress"
+
+              runner = AcceptanceStepJob.new
+              runner.perform(workflow.id, "review")
+              runner.perform(workflow.id, "browser")
+              runner.perform(workflow.id, "browser")
+              assert_empty reviews
+              assert_equal 1, @candidate.runs.where(check_key: "browser_smoke", result: "failed").count
+
+              runner.perform(workflow.id, "ci")
+              assert_includes queued_steps, [workflow.id, "review"]
+              2.times { runner.perform(workflow.id, "review") }
+              assert_equal [[@candidate.id, @operator.id]], reviews
+              assert_equal "failed", workflow.reload.status
+              assert_equal "completed", workflow.steps.fetch("review").fetch("status")
+              assert_includes @readiness.evaluation[:blockers], "Retry the failed acceptance refresh"
+            end
+          end
+        end
+      end
+    end
+  end
+
+  def test_sweep_recovers_worker_restart_and_rejects_stale_completion
+    with_runner do
+      workflow = AcceptanceWorkflow.start!(@candidate, @operator)
+      first = AcceptanceWorkflow.coordinator(workflow)
+      stale = first.claim!("ci")
+      refute_nil stale
+      ApplicationJob.queue_adapter.enqueued_jobs.clear
+
+      travel 11.minutes do
+        SweepJob.new.perform
+        assert_includes queued_steps, [workflow.id, "ci"]
+        recovered = AcceptanceWorkflow.coordinator(Workflow.find(workflow.id))
+        current = recovered.claim!("ci")
+        refute_equal stale, current
+        first.finish!("ci", stale) { flunk "stale worker tried to commit evidence" }
+        assert recovered.finish!("ci", current) { ["completed", "Recovered"] }
+        recovered.finish!("ci", current) { flunk "duplicate completion tried to commit evidence" }
+        assert_equal 2, workflow.reload.steps.fetch("ci").fetch("attempt")
+      end
+    end
+  end
+
+  def test_denied_or_changed_candidate_cannot_collect_evidence
+    with_runner do
+      assert_raises(Policy::Denied) { AcceptanceWorkflow.start!(@candidate, User.create!(role: "super_admin")) }
+      workflow = AcceptanceWorkflow.start!(@candidate, @operator)
+      @candidate.update!(source_sha: "c" * 40)
+      GithubChecks.stub(:new, ->(*) { flunk "stale work should not query GitHub" }) do
+        AcceptanceStepJob.new.perform(workflow.id, "ci")
+      end
+      assert_equal "failed", workflow.reload.steps.fetch("ci").fetch("status")
+      assert_empty @candidate.runs
+    end
+  end
+
+  def test_a_ci_only_run_does_not_prevent_starting_a_staging_workflow
+    with_runner do
+      @environment.update!(state: "prepared")
+      first = AcceptanceWorkflow.start!(@candidate, @operator)
+      assert_nil first.environment
+      AcceptanceStepJob.new.perform(first.id, "browser")
+      assert_equal "skipped", first.reload.steps.fetch("browser").fetch("status")
+
+      @environment.update!(state: "ready")
+      second = AcceptanceWorkflow.start!(@candidate, @operator)
+      assert_equal @environment, second.environment
+      refute_equal first.id, second.id
+    end
+  end
+
+  def test_exhausted_claims_settle_and_unblock_review
+    with_runner do
+      workflow = AcceptanceWorkflow.start!(@candidate, @operator)
+      runner = AcceptanceWorkflow.coordinator(workflow)
+      assert runner.finish!("browser", runner.claim!("browser")) { ["completed", "Browser verified"] }
+      travel_to(Time.current.change(usec: 0)) do
+        3.times do
+          assert runner.claim!("ci")
+          travel 11.minutes
+        end
+        assert_equal :expired, runner.claim!("ci")
+        assert_equal "failed", workflow.steps.fetch("ci").fetch("status")
+        assert_equal ["review"], runner.due
+      end
+    end
+  end
+
+  def test_finished_workflow_keeps_existing_promotion_approval_required
+    with_runner do
+      @readiness.required.each { |key, kind| run_check(key, kind) }
+      previous = @readiness.evaluation.fetch(:digest)
+      @readiness.approve!(@operator, evidence_digest: previous)
+      workflow = AcceptanceWorkflow.start!(@candidate, @operator)
+      refute @readiness.evaluation.fetch(:approved)
+      runner = AcceptanceWorkflow.coordinator(workflow)
+      runner.finish!("ci", runner.claim!("ci")) { ["completed", "CI evidence refreshed"] }
+      runner.finish!("browser", runner.claim!("browser")) do
+        run_check("browser_smoke", "automated")
+        ["completed", "Browser verified"]
+      end
+      runner.finish!("review", runner.claim!("review")) { ["completed", "Reviewed"] }
+
+      assert_equal "completed", workflow.reload.status
+      assert_empty @readiness.evaluation.fetch(:blockers)
+      refute @readiness.evaluation.fetch(:approved)
+      assert_raises(Policy::Denied) { @readiness.approve!(@operator, evidence_digest: previous) }
+    end
+  end
+
+  def test_late_ci_poll_cannot_overwrite_a_newer_receipt
+    importer = GithubChecks.new(@candidate)
+    @candidate.with_lock do
+      newest = { "run_id" => 10, "attempt" => 2 }
+      importer.record!([["application", "passed", newest]])
+      importer.record!([["application", "running", newest]])
+      importer.record!([["application", "failed", newest.merge("attempt" => 1)]])
+    end
+    assert_equal ["passed"], @candidate.runs.pluck(:result)
+  end
+
   private
+
+  def queued_steps
+    ApplicationJob.queue_adapter.enqueued_jobs.filter_map { |job| job[:args] if job[:job] == AcceptanceStepJob }
+  end
+
+  def with_runner
+    ApplicationJob.queue_adapter.enqueued_jobs.clear
+    previous = ENV["LIGHTEK_RELEASE_ASSURANCE_RUNNER"]
+    ENV["LIGHTEK_RELEASE_ASSURANCE_RUNNER"] = "1"
+    yield
+  ensure
+    ENV["LIGHTEK_RELEASE_ASSURANCE_RUNNER"] = previous
+  end
+
 
   def run_check(key, kind, result: "passed")
     @candidate.runs.create!(check_key: key, kind: kind, result: result, source_sha: @candidate.source_sha,

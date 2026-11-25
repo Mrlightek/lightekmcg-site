@@ -6,6 +6,11 @@ Open **Release Assurance** under Operations or from **Servers & Applications**. 
 
 Configure the web process and a Sidekiq worker that consumes the `release_assurance` queue. The existing Gatekeeper deletion worker on `default` must run as well. The deployment worker needs Ruby 3.3.6, the candidate's private gems installed for its exact lockfile, Git 2.38 or newer, an existing Gatekeeper control node, and Chromium with Playwright available to Node. Use the same browser package version as Batch D. The browser probe reads the staging revision and a public synthetic page, captures the homepage, and checks that the staging sign-in form loads.
 
+From a published candidate, select **Refresh acceptance** to start a workflow for the displayed revision and current staging environment. A verified staging deployment starts the same workflow. GitHub Actions and the Chromium probe are independently queued on the existing `release_assurance` queue. A runner with two available slots can run both at once. With one slot, both still run and Nevaeh reviews the evidence after they settle. Without an active environment the browser step is skipped and staging remains a readiness blocker.
+
+The candidate page displays progress and failed steps. The existing five-minute sweep requeues unclaimed work and recovers expired worker claims. A blocked or failed check still requires current evidence and any applicable retest. Use **Refresh acceptance** after resolving a failed workflow. Production promotion continues to require approval for the current revision and evidence.
+
+
 | Setting | Value |
 | --- | --- |
 | `LIGHTEK_RELEASE_ASSURANCE_RUNNER` | `1` on the isolated control plane |

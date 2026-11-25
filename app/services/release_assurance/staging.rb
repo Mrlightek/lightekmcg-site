@@ -142,9 +142,9 @@ module ReleaseAssurance
           @candidate.runs.create!(environment: @environment, check_key: "staging",
             kind: "automated", result: "passed", source_sha: @candidate.source_sha,
             evidence: { "operation_id" => operation.id })
+          AcceptanceWorkflow.start!(@candidate, @actor)
         end
       end
-      BrowserJob.perform_later(@environment.id)
     rescue StandardError => error
       reason = error.is_a?(Policy::Denied) || error.is_a?(Gatekeeper::Compute::StagingRequests::Invalid) ? error.message : "Deployment halted (#{error.class.name})."
       @environment.update!(state: "failed", failure: reason)

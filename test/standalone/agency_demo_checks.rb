@@ -54,6 +54,7 @@ require ROOT.join('app/services/lightek_design/catalog')
 require ROOT.join('app/services/lightek_design/website_designs')
 require ROOT.join('app/services/lightek_design/agency_portfolio')
 require ROOT.join('app/services/lightek_agency/demo_tours')
+require ROOT.join('app/services/lightek_agency/workspace_preview')
 require ROOT.join('app/models/user_feature_entitlement')
 %w[demo_setting demo_request].each { |file| require ROOT.join("app/models/lightek_agency/#{file}") }
 ActiveRecord::Schema.define do
@@ -361,6 +362,12 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
     demo = make_demo
     get dashboard_demo_path(demo)
     assert_response :success
+    assert_select '#demo-workspace-tools [data-tour-title="Documents"]'
+    assert_select '#demo-workspace-tools [data-tour-title="Team Chat channels & threads"]'
+    demo.update!(expires_at: 1.minute.ago)
+    get dashboard_demo_path(demo)
+    assert_response :success
+    assert_select '#demo-workspace-tools', count: 0
     stranger = User.create!(role: 'white_label', email_address: 'stranger@example.test')
     other_demo = LightekAgency::Demos.create!(agency: stranger, values: {first_name: 'Other', last_name: 'Client', email_address: 'other-demo@example.test'})
     assert_raises(ActiveRecord::RecordNotFound) { get dashboard_demo_path(other_demo) }

@@ -1,0 +1,35 @@
+<section id="dns-record-editor" class="li-access" aria-labelledby="dns-record-title">
+  <% record = selected.first %>
+  <h2 id="dns-record-title"><%= record ? "Edit #{record['type']} record set" : "Add a DNS record set" %></h2>
+  <p>Use <code>@</code> for this domain or enter the full hostname. Saving replaces every value for that hostname and type. Values use DNS zone-file format, one per line.</p>
+  <%= form_with url: update_record_installation_managed_dns_path(@order), method: :patch, scope: :dns_record do |f| %>
+    <%= f.hidden_field :revision, value: revision %>
+    <p><%= f.label :record_name, "Hostname" %> <%= f.text_field :record_name, value: record&.fetch("name"), placeholder: "mail.#{@domain}", maxlength: 254, required: true, readonly: record.present? %></p>
+    <p><%= f.label :record_type, "Record type" %>
+      <% if record %>
+        <%= f.hidden_field :record_type, value: record.fetch("type") %><%= record.fetch("type") %>
+      <% else %>
+        <%= f.select :record_type, LightekManagedDns::PowerDns::EDITABLE_TYPES %>
+      <% end %>
+    </p>
+    <p><%= f.label :ttl, "TTL in seconds" %> <%= f.number_field :ttl, value: record&.fetch("ttl") || 600, min: 60, max: 86_400, required: true %></p>
+    <% if selected.any? { |row| row["disabled"] } %><p>Saving enables all values in this set.</p><% end %>
+    <p><%= f.label :record_values, "Record values" %><br>
+      <%= f.text_area :record_values, value: selected.map { |row| row.fetch("content") }.join("\n"),
+        rows: 4, maxlength: 12_000, required: true, placeholder: 'For MX: 10 mail.example.com.' %>
+    </p>
+    <%= f.submit "Save record set", class: "li-button" %>
+    <% if record %><%= link_to "Add another set", installation_managed_dns_path(@order, anchor: "dns-record-editor"), class: "li-button li-secondary" %><% end %>
+  <% end %>
+  <% if record %>
+    <details><summary>Delete this record set</summary>
+      <%= form_with url: remove_record_installation_managed_dns_path(@order), method: :delete, scope: :dns_record do |f| %>
+        <%= f.hidden_field :revision, value: revision, id: nil %>
+        <%= f.hidden_field :record_name, value: record.fetch("name"), id: nil %>
+        <%= f.hidden_field :record_type, value: record.fetch("type"), id: nil %>
+        <p><%= check_box_tag :confirm, "1", false, required: true %> <%= label_tag :confirm, "Delete all #{record['type']} records for #{record['name']}." %></p>
+        <%= f.submit "Delete record set", class: "li-button li-secondary" %>
+      <% end %>
+    </details>
+  <% end %>
+</section>

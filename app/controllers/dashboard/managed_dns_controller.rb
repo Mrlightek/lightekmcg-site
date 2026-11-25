@@ -7,11 +7,17 @@ class Dashboard::ManagedDnsController < ApplicationController
   before_action :require_sensitive_session!, except: :show
   rate_limit to: 20, within: 1.minute
 
-  rescue_from LightekManagedDns::Enrollment::Invalid, LightekManagedDns::Cloudflare::Unavailable, with: :show_error
+  rescue_from LightekManagedDns::Enrollment::Invalid, LightekManagedDns::Cloudflare::Unavailable,
+    LightekManagedDns::PowerDns::Unavailable, with: :show_error
 
   def show
     @records = @enrollment&.records(provider) || []
-  rescue LightekManagedDns::Cloudflare::Unavailable => error
+    if @enrollment&.powerdns? && @enrollment.state == "active"
+      @revision = @enrollment.record_revision(@records)
+      @selected = @records.select { |row| row["name"] == params[:record_name] && row["type"] == params[:record_type] }
+      @selected = [] if @selected.any? && !@enrollment.editable_rrset?(@selected.first["name"], @selected.first["type"])
+    end
+  rescue LightekManagedDns::Cloudflare::Unavailable, LightekManagedDns::PowerDns::Unavailable => error
     @records = []
     @records_error = error.message
   ensure
@@ -25,7 +31,8 @@ class Dashboard::ManagedDnsController < ApplicationController
   end
 
   def stage
-    enrollment.stage!(actor: current_user, provider: provider, zone_id: params.require(:zone_id).strip)
+    zone_id = enrollment.powerdns? ? enrollment.domain : params.require(:zone_id).strip
+    enrollment.stage!(actor: current_user, provider: provider, zone_id: zone_id)
     redirect_to path, notice: "Zone staged for record review.", status: :see_other
   ensure
     @provider&.close
@@ -51,6 +58,16 @@ class Dashboard::ManagedDnsController < ApplicationController
     redirect_to path, notice: "Managed DNS request withdrawn.", status: :see_other
   end
 
+  def update_record
+    change_record
+  end
+
+  def remove_record
+    raise LightekManagedDns::Enrollment::Invalid, "Confirm deletion of this DNS record set." unless params[:confirm] == "1"
+
+    change_record(remove: true)
+  end
+
   private
 
   def load_order
@@ -72,8 +89,21 @@ class Dashboard::ManagedDnsController < ApplicationController
   helper_method :operator?
 
   def enrollment = @enrollment || raise(ActiveRecord::RecordNotFound)
-  def provider = @provider ||= LightekManagedDns::Cloudflare.new(current_user)
+  def provider = @provider ||= enrollment.provider_for(current_user)
   def path = installation_managed_dns_path(@order)
+
+  def change_record(remove: false)
+    attributes = params.require(:dns_record).permit(:record_name, :record_type, :ttl, :record_values, :revision).to_h.symbolize_keys
+    replication = enrollment.change_rrset!(actor: current_user, provider: provider, attributes: attributes, remove: remove)
+    notice = if replication == :awaiting_refresh
+      "DNS change accepted by the primary. The notification failed. Verify nameservers after the secondaries refresh."
+    else
+      "DNS change accepted by the primary. Verify nameservers to confirm replication."
+    end
+    redirect_to path, notice: notice, status: :see_other
+  ensure
+    @provider&.close
+  end
 
   def show_error(error)
     redirect_to path, alert: error.message, status: :see_other

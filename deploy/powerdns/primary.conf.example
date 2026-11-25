@@ -1,0 +1,17 @@
+# PowerDNS Authoritative primary. Replace the example private address.
+launch=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+gsqlite3-dnssec=yes
+local-address=10.0.53.1
+primary=yes
+secondary=no
+autosecondary=no
+dnsupdate=no
+allow-axfr-ips=
+webserver=yes
+webserver-address=127.0.0.1
+webserver-port=8081
+webserver-allow-from=127.0.0.1
+api=yes
+# Set api-key in a restricted configuration file. Put an authenticated HTTPS
+# proxy on the private network in front of :8081 if Rails runs on another host.

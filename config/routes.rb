@@ -180,6 +180,8 @@ Rails.application.routes.draw do
       post :approve
       post :verify
       post :withdraw
+      patch :update_record, path: "records"
+      delete :remove_record, path: "records"
     end
     post :access, on: :member
     post :cancel_subscription, on: :member

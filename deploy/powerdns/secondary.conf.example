@@ -1,0 +1,14 @@
+# PowerDNS Authoritative public secondary. Replace both example addresses.
+launch=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+gsqlite3-dnssec=yes
+local-address=203.0.113.53
+primary=no
+secondary=yes
+autosecondary=no
+dnsupdate=no
+allow-notify-from=10.0.53.1
+allow-unsigned-notify=no
+allow-axfr-ips=
+webserver=no
+api=no

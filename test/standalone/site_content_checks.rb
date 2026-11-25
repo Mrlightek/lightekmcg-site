@@ -14,6 +14,8 @@ ActiveRecord::Schema.define do
   create_table(:dymond_site_sections){|t|t.references :page;t.string :kind;t.json :data,default:{};t.integer :position}
   create_table(:dymond_site_nav_menus){|t|t.references :site;t.string :name}
   create_table(:dymond_site_nav_items){|t|t.references :nav_menu;t.references :page;t.integer :parent_id;t.string :label;t.string :external_url;t.integer :position}
+  add_foreign_key :dymond_site_nav_items, :dymond_site_pages, column: :page_id
+  add_foreign_key :dymond_site_nav_items, :dymond_site_nav_items, column: :parent_id
 end
 ActiveRecord::Schema.define do
   create_table(:gatekeeper_application_templates){|t|t.string :kind}
@@ -73,6 +75,8 @@ module DymondSite
     def self.find(key) = @entries[key]
   end
 end
+require Rails.root.join('app/models/concerns/lightek_design/page_navigation_cleanup')
+DymondSite::Page.include(LightekDesign::PageNavigationCleanup)
 %w[catalog fonts studio_blocks studio_document content_sections commerce_sections html_document html_import starter_library website_designs studio_context studio_catalog site_theme html_bindings template_branding].each{|f|require Rails.root.join("app/services/lightek_design/#{f}")}
 LightekDesign::Catalog.singleton_class.alias_method(:builtin_designs,:designs)
 LightekDesign::Catalog.singleton_class.prepend(LightekDesign::StudioCatalog)
@@ -225,6 +229,40 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
   def article(**values)
     LightekBlog::Editor.save!(site:@site,user:@user,attributes:{title:'Own every layer',content:'<p>A connected business platform.</p>',slug:'own-every-layer',excerpt:'One platform.',category:'Ideas',status:'draft'}.merge(values))
   end
+  def test_site_delete_page_removes_navigation_links_and_preserves_other_destinations
+    page = @site.pages.create!(title: 'Old home', slug: 'home2')
+    other = @site.pages.create!(title: 'Home', slug: 'home', published: true)
+    menu = @site.create_nav_menu!(name: 'Main')
+    parent = menu.nav_items.create!(label: 'Home', page: other, position: 0)
+    link = menu.nav_items.create!(label: 'Old home', page: page, parent_id: parent.id, position: 1)
+    duplicate = menu.nav_items.create!(label: 'Duplicate link', page: page, parent_id: link.id, position: 0)
+    child = menu.nav_items.create!(label: 'Support', external_url: '/help', parent_id: duplicate.id, position: 0)
+    alternate = menu.nav_items.create!(label: 'Contact', page: page, external_url: '/contact', position: 1)
+
+    page.destroy!
+
+    assert_not DymondSite::Page.exists?(page.id)
+    assert_empty menu.nav_items.where(id: [link.id, duplicate.id])
+    assert_equal parent.id, child.reload.parent_id
+    assert_equal other.id, parent.reload.page_id
+    assert_nil alternate.reload.page_id
+    assert_equal '/contact', alternate.external_url
+  end
+
+  def test_site_page_delete_rolls_back_navigation_changes_if_deletion_rolls_back
+    page = @site.pages.create!(title: 'Old home', slug: 'home2')
+    menu = @site.create_nav_menu!(name: 'Main')
+    link = menu.nav_items.create!(label: 'Old home', page: page, position: 0)
+
+    DymondSite::Page.transaction(requires_new: true) do
+      page.destroy!
+      raise ActiveRecord::Rollback
+    end
+
+    assert DymondSite::Page.exists?(page.id)
+    assert_equal page.id, link.reload.page_id
+  end
+
   def test_site_theme_install_is_draft_atomic_idempotent_and_retains_existing_work
     old=@site.pages.create!(title:'Existing home',slug:'home',published:true)
     key=SecureRandom.uuid;theme=install(key:key)

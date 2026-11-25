@@ -1,0 +1,44 @@
+<% content_for :page_title, "Feature Flags" %>
+<h1>Feature Flags</h1>
+<p>Enable a release for selected accounts or roll it out gradually. Access still depends on the feature’s permissions and plan.</p>
+
+<% LightekFeatureFlags::Flag::REGISTRY.each do |key, definition| %>
+  <% flag = @flags[key] || LightekFeatureFlags::Flag.new(key: key) %>
+  <section class="dd-card" aria-labelledby="flag-<%= key %>" style="padding:24px;margin-bottom:24px">
+    <h2 id="flag-<%= key %>"><%= definition.fetch(:label) %></h2>
+    <p><strong><%= flag.enabled? ? "Rollout enabled" : "Paused" %></strong> · <%= definition.fetch(:description) %></p>
+    <%= form_with scope: :feature_flag, url: dashboard_feature_flag_path(key), method: :patch do |f| %>
+      <%= f.hidden_field :lock_version, value: flag.lock_version, id: "#{key}_version" %>
+      <p><%= f.check_box :enabled, checked: flag.enabled?, id: "#{key}_enabled" %> <%= f.label :enabled, "Enable rollout", for: "#{key}_enabled" %></p>
+      <p><%= f.check_box :staff, checked: flag.staff?, id: "#{key}_staff" %> <%= f.label :staff, "Include Lightek staff accounts", for: "#{key}_staff" %></p>
+      <p><%= f.label :percentage, "Percent of remaining eligible accounts", for: "#{key}_percentage" %><br>
+        <%= f.number_field :percentage, value: flag.percentage, min: 0, max: 100, required: true, id: "#{key}_percentage" %></p>
+      <p><%= f.label :account_ids, "Account IDs", for: "#{key}_accounts" %><br>
+        <%= f.text_field :account_ids, value: flag.account_ids.join(", "), id: "#{key}_accounts" %></p>
+      <p><%= f.label :agency_ids, "Agency IDs, including their descendants", for: "#{key}_agencies" %><br>
+        <%= f.text_field :agency_ids, value: flag.agency_ids.join(", "), id: "#{key}_agencies" %></p>
+      <p><%= f.label :installation_ids, "Fleet installation IDs", for: "#{key}_installations" %><br>
+        <%= f.text_field :installation_ids, value: flag.installation_ids.join(", "), id: "#{key}_installations" %></p>
+      <p>Separate IDs with commas. <%= link_to "Find account and installation IDs", dashboard_fleet_updates_path %>.</p>
+      <%= f.submit "Save rollout", class: "dd-btn dd-btn-primary" %>
+    <% end %>
+    <% if flag.enabled? %>
+      <%= button_to "Pause rollout", pause_dashboard_feature_flag_path(key), class: "dd-btn dd-btn-secondary" %>
+    <% end %>
+  </section>
+<% end %>
+<section class="dd-card" style="padding:24px" aria-labelledby="feature-flag-history">
+  <h2 id="feature-flag-history">Recent flag changes</h2>
+  <% if @recent_changes.empty? %><p>No rollout changes yet.</p><% end %>
+  <% @recent_changes.each do |entry| %>
+    <details>
+      <summary><%= LightekFeatureFlags::Flag::REGISTRY.fetch(entry.flag.key).fetch(:label) %> · <%= entry.actor.email_address %> · <%= l(entry.created_at, format: :short) %></summary>
+      <dl>
+        <% entry.current.each do |name, value| %>
+          <% next if entry.previous[name] == value %>
+          <dt><%= name.humanize %></dt><dd><%= entry.previous[name].to_json %> → <%= value.to_json %></dd>
+        <% end %>
+      </dl>
+    </details>
+  <% end %>
+</section>

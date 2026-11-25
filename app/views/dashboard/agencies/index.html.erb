@@ -62,7 +62,7 @@
           </li>
           <li><h3>Manage their business</h3>
             <% if @client_sites.any? %>
-              <% @client_sites.each do |site| %><div class="agency-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><%= link_to 'Open business workspace', dashboard_business_hub_path(site_id: site.id), class: 'infra-button' %></div><% end %>
+              <% @client_sites.each do |site| %><div class="agency-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><div class="infra-actions"><%= link_to 'Develop & deploy website', dashboard_agency_website_path(site), class: 'infra-button infra-button-primary' %><% unless site.manifest.to_h['network_ledger'] == true %><%= link_to 'Open business workspace', dashboard_business_hub_path(site_id: site.id), class: 'infra-button' %><% end %></div></div><% end %>
             <% else %><p>No website available to manage here yet. Follow the installation below, or choose hosting to get started.</p><% end %>
           </li>
         </ol>

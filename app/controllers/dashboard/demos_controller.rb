@@ -22,7 +22,7 @@ class Dashboard::DemosController < ApplicationController
   end
   def create
     agency = LightekAgency::Demos.agencies(current_user).find(params.require(:agency_id))
-    values = params.require(:demo).permit(:name, :first_name, :last_name, :email_address, :client_id).to_h.symbolize_keys
+    values = params.require(:demo).permit(:name, :first_name, :last_name, :email_address, :client_id, :tour).to_h.symbolize_keys
     client = agency.agency_clients.find(values[:client_id]) if values[:client_id].present?
     demo = LightekAgency::Demos.create!(agency: agency, values: values, existing_client: client)
     redirect_to dashboard_demo_path(demo), notice: 'Demo created on this instance. A new client receives a private password setup invitation.'
@@ -31,6 +31,7 @@ class Dashboard::DemosController < ApplicationController
     @demo = LightekAgency::Demos.scope(current_user).find_by!(public_id: params[:id])
     @setting = LightekAgency::DemoSetting.find_by(agency_id: @demo.agency_id)
     @order = @demo.upgrade_order
+    @tour = LightekAgency::DemoTours.fetch(@demo.site&.manifest.to_h['agency_demo_tour'])
   end
   def upgrade
     demo = LightekAgency::Demos.scope(current_user).find_by!(public_id: params[:id])

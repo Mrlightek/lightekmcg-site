@@ -1,0 +1,30 @@
+<section class="lp-card" aria-labelledby="demo-selling-point-tour">
+  <h2 id="demo-selling-point-tour"><%= tour.fetch(:label) %></h2>
+  <p><%= tour.fetch(:intro) %></p>
+  <ol>
+    <% LightekAgency::DemoTours.steps(tour).each do |title, body, route, params| %>
+      <% options = {site_id: demo.site_id}.merge(params || {}) %>
+      <% if route == :preview_dashboard_agency_portfolio_path %>
+        <% portfolio = LightekDesign::AgencyPortfolio.index_page(site: demo.site, draft: true) %>
+        <% next unless portfolio %>
+        <% options[:slug] = portfolio.slug %>
+      <% end %>
+      <% url = case route
+        when :release_practice then '#demo-release-practice'
+        when :pages then dymond_dash.pages_path(**options)
+        else public_send(route, **options)
+      end %>
+      <li data-tour-step="client-demo" data-tour-title="<%= title %>" data-tour-body="<%= body %>" data-tour-try>
+        <% if route == :release_practice %>
+          <%= link_to title, url, class: 'lp-button secondary' %>
+        <% else %>
+          <%= link_to title, url, target: '_blank', rel: 'noopener', class: 'lp-button secondary', aria: {label: "#{title} (opens in a new tab)"} %>
+        <% end %>
+        <p><%= body %></p>
+      </li>
+    <% end %>
+  </ol>
+  <% if tour[:closing] %><p><%= tour.fetch(:closing) %></p><% end %>
+  <p>Client tools open in a new tab so you can return here and resume the tour.</p>
+</section>
+<%= render 'dashboard/demos/release_practice', tour: tour %>

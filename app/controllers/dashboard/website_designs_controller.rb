@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   skip_before_action :require_settings_operator!
-  protect_from_forgery with: :exception, only: %i[nevaeh_delegation nevaeh_landing_page]
-  before_action :set_design_site, except: %i[manifest starter_preview]
+  protect_from_forgery with: :exception, only: %i[nevaeh_delegation nevaeh_landing_page install_theme activate_theme]
+  before_action :set_design_site, except: %i[manifest starter_preview theme_starter]
   before_action :set_design, only: %i[preview apply import start]
   helper DymondDash::TemplateSchemaHelper
   helper LightekDesign::StudioHelper
@@ -44,7 +44,11 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   end
 
   def install_theme
-    template=if params[:home_design].present?
+    template=if params[:theme_package].present?
+      inputs = LightekDesign::ThemePackage.read!(params[:theme_package])
+      LightekDesign::SiteTheme.install!(site: @site, user: current_user, name: params[:name],
+        request_key: params[:request_key], **inputs)
+    elsif params[:home_design].present?
       LightekDesign::SiteTheme.from_designs!(site:@site,user:current_user,name:params[:name],home_design:params[:home_design],page_designs:params[:page_designs],include_store:params[:include_store]=="1",include_blog:params[:include_blog]=="1",request_key:params[:request_key])
     else
       LightekDesign::SiteTheme.install!(site:@site,user:current_user,name:params[:name],files:params[:theme_files],css_file:params[:css_file],home_file:params[:home_file],product_selector:params[:product_selector],request_key:params[:request_key])
@@ -52,6 +56,10 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
     redirect_to dashboard_website_designs_path(site_id:@site.id),status: :see_other,notice:"#{template.name} prepared. New pages are drafts; existing pages keep their edits. Review Pages & Sections, publish the pages you want, then activate the shared theme."
   rescue ArgumentError, ActiveRecord::RecordInvalid => error
     redirect_to dashboard_website_designs_path(site_id:@site.id),status: :see_other,alert:error.message
+  end
+
+  def theme_starter
+    send_data LightekDesign::ThemePackage.starter, filename: "lightek-theme-starter.zip", type: "application/zip", disposition: :attachment
   end
   def activate_theme
     LightekDesign::SiteTheme.activate!(site:@site,user:current_user,template_id:params.require(:template_id))

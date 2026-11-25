@@ -16,12 +16,13 @@ module DymondSite
 end
 require ROOT.join('app/models/lightek_agency/installed_package')
 require ROOT.join('app/services/lightek_agency/package_policy')
+require ROOT.join('app/services/lightek_people/lifecycle_access')
 require ROOT.join('app/services/lightek_settings/website_identity')
 require ROOT.join('app/services/lightek_settings/site_domain')
 %w[connection event grant].each { |f| require ROOT.join("app/models/lightek_connect/#{f}") }
 require ROOT.join('app/helpers/nevaeh_control_center_helper')
 require_relative "../support/dashboard_team_navigation_fixture"
-%w[mfa_handoff workspace].each { |f| require ROOT.join("app/services/lightek_connect/#{f}") }
+%w[mfa_handoff workspace agency_dashboard instance_transport].each { |f| require ROOT.join("app/services/lightek_connect/#{f}") }
 require ROOT.join('app/controllers/concerns/lightek_connect/delegated_session')
 ApplicationController.include LightekConnect::DelegatedSession
 require ROOT.join('app/controllers/connect_management_controller')
@@ -45,6 +46,10 @@ require ROOT.join('app/models/lightek_reservations/peer')
 module Api; end
 require ROOT.join('app/controllers/api/reservation_federation_controller')
 require ROOT.join('app/controllers/api/connect_federation_controller')
+require ROOT.join('app/services/lightek_agency/website_releases')
+require ROOT.join('app/controllers/api/agency_website_releases_controller')
+require ROOT.join('app/controllers/dashboard/agency_websites_controller')
+Dashboard::AgencyWebsitesController.layout false
 
 class EnterpriseConnectMfaChecks < EnterpriseHttpChecks
   def self.runnable_methods = super.grep(/test_connect_/)
@@ -351,6 +356,112 @@ class EnterpriseConnectMfaChecks < EnterpriseHttpChecks
     post '/api/reservations/federation/connect/redeem', params: {code: @code}, headers: {'Authorization' => "Bearer #{@token}"}, as: :json
     assert_response :not_found
     assert_nil @grant.reload.consumed_at
+  end
+  def test_connect_agency_release_grant_is_mfa_verified_action_bound_and_single_use
+    @other.update!(role: 'client')
+    dashboard = LightekConnect::AgencyDashboard
+    assert_raises(Gatekeeper::Hosting::Access::Denied) do
+      dashboard.release_code!(actor: @employer, session: nil, site: @site, action: 'deploy')
+    end
+    central_login
+    code = dashboard.release_code!(actor: @employer, session: @source, site: @site, action: 'deploy')
+    grant = LightekConnect::Grant.find_by!(code_digest: LightekConnect::Connection.digest(code))
+    assert_equal 'dashboard', grant.connection.platform
+    assert_nil grant.connection.token_digest
+    assert_equal @source.id, grant.authorization_session_id
+
+    headers = {'Authorization' => "Bearer #{@token}"}
+    path = '/api/reservations/federation/connect/redeem'
+    post path, params: {code: code}, headers: headers, as: :json
+    assert_response :forbidden
+    post path, params: {code: code, release_action: 'rollback'}, headers: headers, as: :json
+    assert_response :forbidden
+    assert_nil grant.reload.consumed_at
+    post path, params: {code: code, release_action: 'deploy'}, headers: headers, as: :json
+    assert_response :success
+    assert_equal @employer.email_address, JSON.parse(response.body).dig('delegation', 'actor')
+    assert_equal 'deploy', JSON.parse(response.body).fetch('agency_release_action')
+    post path, params: {code: code, release_action: 'deploy'}, headers: headers, as: :json
+    assert_response :forbidden
+  end
+  def test_connect_native_release_revalidates_client_ownership_before_redemption
+    @other.update!(role: 'client')
+    central_login
+    code = LightekConnect::AgencyDashboard.release_code!(actor: @employer, session: @source, site: @site, action: 'stage')
+    @other.update!(agency: nil)
+    post '/api/reservations/federation/connect/redeem', params: {code: code, release_action: 'stage'},
+      headers: {'Authorization' => "Bearer #{@token}"}, as: :json
+    assert_response :forbidden
+  end
+  def test_connect_native_release_endpoint_checks_remote_token_and_issuer_action
+    @other.update!(role: 'client')
+    central_login
+    code = LightekConnect::AgencyDashboard.release_code!(actor: @employer, session: @source, site: @site, action: 'list')
+    path = '/api/connect/instance/website-releases/list'
+    browser = remote_browser
+    service = Object.new
+    service.define_singleton_method(:list) { [] }
+    headers = {'X-Lightek-Release-Code' => code}
+    checkout = ->(**) { {'token' => @token.dup} }
+    with_remote do
+      LightekVault::Service.stub(:checkout!, checkout) do
+        LightekAgency::WebsiteReleases.stub(:new, service) do
+          browser.post path, headers: headers.merge('Authorization' => 'Bearer wrong'), as: :json
+          assert_equal 401, browser.response.status
+          browser.post path, headers: headers.merge('Authorization' => "Bearer #{@token}"), as: :json
+          assert_equal 200, browser.response.status
+          assert_equal({'host' => @site.host, 'releases' => []}, JSON.parse(browser.response.body))
+          browser.post path, headers: headers.merge('Authorization' => "Bearer #{@token}"), as: :json
+          assert_equal 503, browser.response.status
+        end
+      end
+    end
+  end
+  def test_connect_agency_dashboard_deploys_for_the_selected_client_and_checks_its_receipt
+    @other.update!(role: 'client')
+    central_login
+    revision = 'a' * 64
+    preview = {'releases' => [{'id' => 42, 'name' => 'Client website release', 'status' => 'draft', 'revision' => revision,
+      'active' => false, 'pages' => [{'slug' => 'work', 'role' => 'page', 'warnings' => []}]}]}
+    LightekConnect::InstanceTransport.stub(:website_release!, preview) do
+      get dashboard_agency_website_path(@site)
+      assert_response :success
+      assert_includes response.body, 'Publish to client.example.test'
+      assert_includes response.body, 'Client website release'
+      assert_includes response.body, revision
+    end
+    callback = lambda do |peer:, actor:, session:, action:, payload:|
+      assert_equal @peer, peer
+      assert_equal @employer, actor
+      assert_equal @source, session
+      assert_equal 'deploy', action
+      assert_equal({id: 42, revision: revision}, payload)
+      {'release' => {'id' => 42, 'status' => 'deployed', 'revision' => revision}}
+    end
+    LightekConnect::InstanceTransport.stub(:website_release!, callback) do
+      post deploy_dashboard_agency_website_path(@site), params: {release_id: 42, revision: revision}
+      assert_redirected_to dashboard_agency_website_path(@site)
+    end
+    @other.update!(agency: nil)
+    LightekConnect::InstanceTransport.stub(:website_release!, ->(**) { flunk('Unrelated agency reached transport') }) do
+      post deploy_dashboard_agency_website_path(@site), params: {release_id: 42, revision: revision}
+      assert_response :not_found
+    end
+  end
+  def test_connect_agency_editor_opens_design_tools_on_the_selected_client
+    @other.update!(role: 'client')
+    central_login
+    code = LightekConnect::AgencyDashboard.code!(actor: @employer, site: @site,
+      destination: LightekConnect::AgencyDashboard::EDIT_DESTINATION)
+    post '/connect/management', params: {code: code}
+    assert_redirected_to "https://#{@site.host}/connect/management?code=#{code}"
+    browser = remote_browser
+    with_remote do
+      browser.post '/connect/management', params: {code: code}
+      assert_equal 302, browser.response.status
+      assert_equal "https://#{@site.host}#{dashboard_website_designs_path(site_id: @site.id)}", browser.response.location
+      assert_equal @employer.email_address, @other.sessions.last.connect_delegation['actor']
+    end
   end
   def test_connect_claimed_mfa_without_verified_server_response_is_rejected
     authorize_remote

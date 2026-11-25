@@ -1,0 +1,60 @@
+<% content_for :page_title, @site.name %>
+<%= render "dashboard/infrastructure/styles" %>
+<main class="infra agency-workspace">
+  <header class="infra-hero"><div>
+    <%= link_to "Clients & agencies", dashboard_agencies_path %>
+    <h1><%= @site.name %></h1>
+    <p><%= @site.host %> · <%= @site.tenant.full_name %></p>
+  </div></header>
+  <% if @available %>
+    <section class="infra-panel">
+      <h2>Development</h2>
+      <p>Open the client’s editors to work on pages, sections, navigation, and themes.</p>
+      <%= button_to "Open client editors", edit_site_dashboard_agency_website_path(@site), class: "infra-button", form: {target: "_blank", data: {turbo: false}} %>
+    </section>
+    <section class="infra-panel">
+      <h2>Website releases</h2>
+      <% if @mfa_verified %>
+        <% if @release_status_error %><p role="alert"><%= @release_status_error %></p><% end %>
+        <p>Upload an HTML and CSS theme ZIP to stage draft pages on <strong><%= @site.host %></strong>. Review the release there before publishing. Existing page URLs are preserved.</p>
+        <%= form_with url: stage_dashboard_agency_website_path(@site), multipart: true, class: "infra-form" do |form| %>
+          <%= hidden_field_tag :request_key, SecureRandom.uuid %>
+          <div class="infra-field"><%= form.label :name, "Release name" %><%= form.text_field :name, required: true, maxlength: 120 %></div>
+          <div class="infra-field"><%= form.label :theme_package, "Theme ZIP" %><%= form.file_field :theme_package, accept: ".zip,application/zip", required: true %></div>
+          <%= form.submit "Stage release", class: "infra-button infra-button-primary" %>
+        <% end %>
+        <% @releases.each do |release| %>
+          <article class="agency-site">
+            <div>
+              <h3><%= release.fetch("name") %></h3>
+              <p><%= release.fetch("status").humanize %><%= " · Active" if release["active"] %></p>
+              <ul>
+                <% release.fetch("pages").each do |page| %>
+                  <li><%= page.fetch("slug") %> · <%= page.fetch("role").humanize %>
+                    <% Array(page["warnings"]).each do |warning| %><p><%= warning %></p><% end %>
+                  </li>
+                <% end %>
+              </ul>
+              <% if release.fetch("status") == "draft" %>
+                <%= button_to "Review current draft revision", review_dashboard_agency_website_path(@site), class: "infra-button",
+                  params: {release_id: release.fetch("id"), revision: release.fetch("revision")} %>
+                <%= button_to "Publish to #{@site.host}", deploy_dashboard_agency_website_path(@site), class: "infra-button infra-button-primary",
+                  params: {release_id: release.fetch("id"), revision: release.fetch("revision")},
+                  form: {data: {turbo_confirm: "Publish these drafts and activate this theme on #{@site.host}?"}} %>
+              <% elsif release.fetch("status") == "deployed" && release["active"] %>
+                <%= button_to "Restore previous theme", rollback_dashboard_agency_website_path(@site), class: "infra-button",
+                  params: {release_id: release.fetch("id"), revision: release.fetch("revision")},
+                  form: {data: {turbo_confirm: "Restore the previous theme and unpublish this release’s pages on #{@site.host}?"}} %>
+              <% end %>
+            </div>
+          </article>
+        <% end %>
+      <% else %>
+        <p>Verify your agency authenticator to stage, publish, or restore a release.</p>
+        <%= link_to "Sign-in security", identity_security_path, class: "infra-button" %>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="infra-panel"><h2>Client application unavailable</h2><p>Check the client’s installation and Lightek connection.</p></section>
+  <% end %>
+</main>

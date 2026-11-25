@@ -1,0 +1,53 @@
+<% portfolio = LightekDesign::AgencyPortfolio %>
+<% draft = local_assigns.fetch(:portfolio_draft, false) %>
+<% data = section.data.to_h %>
+<% projects = portfolio.projects(site: @site, draft: draft) %>
+<% categories = projects.map { |project| project.fetch(:category) }.uniq %>
+<% cta = portfolio.url(data["cta_url"]) %>
+<%= stylesheet_link_tag "/lightek/agency-portfolio.css" %>
+<%= javascript_include_tag "/lightek/agency-portfolio.js", defer: true %>
+<section class="lt-portfolio" data-portfolio>
+  <div class="lt-portfolio-wrap">
+    <header class="lt-portfolio-header">
+      <p class="lt-portfolio-studio"><%= @site.name %></p>
+      <h1><%= data["heading"].presence || "Selected work" %></h1>
+      <% if data["intro"].present? %><p class="lt-portfolio-intro"><%= data["intro"] %></p><% end %>
+    </header>
+    <% if projects.any? %>
+      <div class="lt-portfolio-toolbar">
+        <h2>Selected work</h2>
+        <% if categories.size > 1 %>
+          <div class="lt-portfolio-filters" data-portfolio-filters hidden role="group" aria-label="Filter projects">
+            <button type="button" data-filter-all aria-pressed="true">All work</button>
+            <% categories.each do |category| %><button type="button" data-filter="<%= category %>" aria-pressed="false"><%= category %></button><% end %>
+          </div>
+          <p class="lt-portfolio-sr" role="status" data-portfolio-status></p>
+        <% end %>
+      </div>
+      <div class="lt-portfolio-grid">
+        <% projects.each do |project| %>
+          <% page, details, category = project.values_at(:page, :data, :category) %>
+          <article class="lt-portfolio-card <%= 'is-featured' if portfolio.enabled?(details["featured"]) %>" data-project-category="<%= category %>">
+            <%= link_to portfolio.path(page, site: @site, draft: draft) do %>
+              <%= render "lightek_design/portfolio_art", data: details, eager: page == projects.first[:page] %>
+              <div class="lt-portfolio-caption">
+                <p class="lt-portfolio-category"><%= category %><%= " · Concept" if portfolio.enabled?(details["sample"]) %></p>
+                <h3><%= page.title %></h3>
+                <% if details["summary"].present? %><p><%= details["summary"] %></p><% end %>
+              </div>
+              <span class="lt-portfolio-arrow" aria-hidden="true">↗︎</span>
+            <% end %>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="lt-portfolio-empty">No projects are available yet.</p>
+    <% end %>
+    <% if cta %>
+      <footer class="lt-portfolio-cta">
+        <h2>Have a project in mind?</h2>
+        <%= link_to "#{data['cta_label'].presence || 'Book a consultation'} ↗", cta %>
+      </footer>
+    <% end %>
+  </div>
+</section>

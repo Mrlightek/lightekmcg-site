@@ -13,30 +13,57 @@ module LightekDesign
       raise ArgumentError,"A valid installation key is required." unless request_key.to_s.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
       files=Array(files).reject(&:blank?)
       raise ArgumentError,"Choose 1–10 HTML pages for this website." unless files.length.between?(1,10)
-      names=files.map{|f|File.basename(f.original_filename.to_s)}
+      sources = files.map do |file|
+        filename = File.basename(file.original_filename.to_s)
+        source = HtmlImport.read_file!(file, %w[.html .htm])
+        parsed = Nokogiri::HTML5.parse(source)
+        role = parsed.at_css("body")["data-lightek-page"].to_s.strip.downcase.presence
+        if role && !%w[home store blog page].include?(role)
+          raise ArgumentError, "#{filename} needs data-lightek-page set to home, page, store, or blog."
+        end
+        {filename: filename, source: source, parsed: parsed, role: role}
+      end
+      names=sources.pluck(:filename)
       raise ArgumentError,"Each HTML file must have a different filename." unless names.uniq.size==names.size
-      home=home_file.to_s.presence || names.find{|n|n.match?(/\A(?:index|home)\.html?\z/i)} || names.first
+      authored_home = sources.select { |item| item[:role] == "home" }
+      if home_file.blank? && authored_home.size > 1
+        raise ArgumentError, "Mark just one page as home, or choose the home file during upload."
+      end
+      default_home = sources.find { |item| item[:filename].match?(/\A(?:index|home)\.html?\z/i) && !%w[store blog].include?(item[:role]) }
+      first_page = sources.find { |item| !%w[store blog].include?(item[:role]) }
+      home = home_file.to_s.presence || authored_home.first&.fetch(:filename) || default_home&.fetch(:filename) || first_page&.fetch(:filename)
+      raise ArgumentError, "Include a home page alongside your store or journal." unless home
       raise ArgumentError,"The home filename must match an uploaded HTML file." unless names.include?(home)
       css=css_file.present? ? HtmlImport.read_file!(css_file,%w[.css]) : ""
-      documents=files.map do |file|
-        filename=File.basename(file.original_filename.to_s)
-        role=filename==home ? "home" : filename.match?(/store|shop/i) ? "store" : filename.match?(/blog|journal/i) ? "blog" : "page"
-        source=HtmlImport.read_file!(file,%w[.html .htm])
-        original_source=source
-        parsed=Nokogiri::HTML5.parse(source)
+      css_name = File.basename(css_file.original_filename.to_s) if css_file.present?
+      documents=sources.map do |item|
+        filename, source, parsed, authored_role = item.values_at(:filename, :source, :parsed, :role)
+        role = if filename == home
+          "home"
+        elsif authored_role
+          authored_role == "home" ? "page" : authored_role
+        elsif filename.match?(/store|shop/i)
+          "store"
+        elsif filename.match?(/blog|journal/i)
+          "blog"
+        else
+          "page"
+        end
         main=parsed.at_css('main')
         if !%w[store blog].include?(role) && parsed.at_css('script') && main && main.text.strip.blank? && !main.at_css('img,video,audio')
           raise ArgumentError,"#{filename} generates its main content in JavaScript. Export visible HTML or connect a native application section before installing this page."
         end
         # Store and journal are application surfaces, not mock product/post data.
-        selector=role=="store" ? product_selector.presence || (Nokogiri::HTML5.parse(source).at_css('[data-lightek-products]') ? '[data-lightek-products]' : '#grid') : nil
-        if role=='store'
-          parsed.css('button[data-f],aside[aria-label="Cart"],aside[aria-label="Product details"],#ov').each(&:remove)
-          source=parsed.to_html
+        selector=role=="store" ? product_selector.presence || (parsed.at_css('[data-lightek-products]') ? '[data-lightek-products]' : '#grid') : nil
+        remove = role == 'store' ? parsed.css('button[data-f],aside[aria-label="Cart"],aside[aria-label="Product details"],#ov').to_a : []
+        if css_name
+          remove.concat(parsed.css('link[rel="stylesheet"]').select { |link| link['href'].to_s.delete_prefix('./') == css_name })
         end
-        document,warnings=HtmlDocument.convert(html:source,css:css,name:File.basename(filename,'.html').tr('_',' ').humanize,
+        remove.each(&:remove)
+        title = parsed.at_css('title')&.text.to_s.strip.first(120).presence if authored_role
+        document,warnings=HtmlDocument.convert(html:remove.empty? ? source : parsed.to_html,css:css,name:title || File.basename(filename,'.html').tr('_',' ').humanize,
           product_selector:selector,blog_selector:role=="blog" ? "main" : nil)
-        {filename:filename,role:role,document:document,warnings:warnings,source:original_source}
+        {filename:filename,role:role,document:document,warnings:warnings,source:source}
       end
       site.with_lock do
         existing=site.manifest.to_h.fetch("lightek_site_themes",{})[request_key]

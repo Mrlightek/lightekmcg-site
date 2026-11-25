@@ -52,6 +52,8 @@ LightekCommerce::Order.reset_column_information
 DymondSite::Site.reset_column_information
 require ROOT.join('app/services/lightek_design/catalog')
 require ROOT.join('app/services/lightek_design/website_designs')
+require ROOT.join('app/services/lightek_design/agency_portfolio')
+require ROOT.join('app/services/lightek_agency/demo_tours')
 require ROOT.join('app/models/user_feature_entitlement')
 %w[demo_setting demo_request].each { |file| require ROOT.join("app/models/lightek_agency/#{file}") }
 ActiveRecord::Schema.define do
@@ -134,6 +136,29 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
     refute LightekAgency::Demos.feature_available?(demo.client, 'studio')
     refute LightekSettings::WebsiteIdentity.sites_for(demo.client).exists?(id: demo.site_id)
     refute LightekAgency::Access.sites_for(demo.client).exists?(id: demo.site_id)
+  end
+  def test_demo_selects_a_tour_and_prepares_portfolio_drafts_only_for_that_workspace
+    assert_nil make_demo.site.manifest['agency_demo_tour']
+    portfolio = LightekAgency::Demos.create!(agency: @employer, values: {
+      first_name: 'Portfolio', last_name: 'Client', email_address: 'portfolio@example.test', tour: 'portfolio'
+    })
+    marketing = LightekAgency::Demos.create!(agency: @employer, values: {
+      first_name: 'Marketing', last_name: 'Client', email_address: 'marketing@example.test', tour: 'campaign_delivery'
+    })
+    migration = LightekAgency::Demos.create!(agency: @employer, values: {
+      first_name: 'Migration', last_name: 'Client', email_address: 'migration@example.test', tour: 'client_migration'
+    })
+    assert_equal 'portfolio', portfolio.site.manifest['agency_demo_tour']
+    assert_equal 'campaign_delivery', marketing.site.manifest['agency_demo_tour']
+    assert_equal 'client_migration', migration.site.manifest['agency_demo_tour']
+    assert_equal 3, LightekDesign::AgencyPortfolio.projects(site: portfolio.site, draft: true).size
+    assert portfolio.site.pages.exists?(slug: 'work')
+    refute marketing.site.pages.exists?(slug: 'work')
+    refute migration.site.pages.exists?(slug: 'work')
+    refute portfolio.site.pages.where(published: true).exists?
+    assert_raises(LightekAgency::Demos::Invalid) do
+      LightekAgency::Demos.create!(agency: @employer, values: {tour: 'unknown'})
+    end
   end
   def test_demo_cannot_attach_another_agencys_client_or_exceed_capacity
     assert_raises(LightekAgency::Demos::Invalid) { LightekAgency::Demos.create!(agency: @employer, existing_client: @other, values: {}) }

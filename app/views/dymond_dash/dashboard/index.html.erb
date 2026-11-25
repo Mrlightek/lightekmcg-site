@@ -10,13 +10,24 @@
       <%= link_to main_app.dashboard_agencies_path, class: "dd-task-card" do %><strong>Manage my clients</strong><span>Client accounts, invitations and agency branding</span><% end %>
     <% end %>
   </div>
-  <% commerce_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:id).limit(20) %>
+  <% commerce_sites = LightekSettings::WebsiteIdentity.overview_sites_for(current_user).order(:id).limit(20) %>
   <section class="dd-panel dd-home-sites" aria-labelledby="dd-sites-title">
     <h2 id="dd-sites-title" data-tour-step="dashboard" data-tour-title="Choose a website" data-tour-body="Open the website you want to work on to reach its business and content tools.">Your websites</h2><p>Open a website to manage its business and content.</p>
     <% commerce_sites.each do |site| %>
-      <div class="dd-home-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><%= link_to "Open workspace", main_app.dashboard_business_hub_path(site_id: site.id), class: "dd-button" %></div>
+      <div class="dd-home-site">
+        <div><strong><%= site.name %></strong><small><%= site.host %></small></div>
+        <div>
+          <% if current_user.role == "super_admin" %>
+            <%= link_to "Manage workspace", main_app.dashboard_website_settings_path(site_id: site.id), class: "dd-button", aria: {label: "Manage workspace for #{site.name}"} %>
+          <% end %>
+          <%= link_to "Open workspace", main_app.dashboard_business_hub_path(site_id: site.id), class: "dd-button" %>
+        </div>
+      </div>
     <% end %>
     <% if commerce_sites.empty? %><p>No websites are linked to your account yet. Start with <%= link_to "website setup", main_app.dashboard_website_designs_path %>.</p><% end %>
+    <% if current_user.role == "super_admin" %>
+      <p><%= link_to "Manage all workspaces", main_app.dashboard_website_settings_path %></p>
+    <% end %>
   </section>
 </section>
 <% content_for :page_title, "Dashboard" %>

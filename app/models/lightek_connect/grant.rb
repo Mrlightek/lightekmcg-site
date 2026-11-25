@@ -36,6 +36,7 @@ module LightekConnect
       end
       raise Gatekeeper::Hosting::Access::Denied, 'Connection revoked or agency access removed' if connection.revoked_at? || !connection.user.role.in?(%w[white_label super_admin])
       raise Gatekeeper::Hosting::Access::Denied, 'Client access removed' if site && !LightekSettings::WebsiteIdentity.sites_for(connection.user).exists?(id: site.id)
+      AgencyDashboard.authorize!(connection.user, site) if site && connection.platform == 'dashboard'
       raise Gatekeeper::Hosting::Access::Denied, 'Company requires direct sign-in' unless MfaHandoff.allowed_for?(connection.user) && (!site || MfaHandoff.allowed_for?(site.tenant))
     end
 
@@ -49,11 +50,17 @@ module LightekConnect
         'actor' => connection.user.email_address, 'mfa_verified_at' => source.mfa_verified_at.iso8601,
         'expires_at' => delegation_expires_at.iso8601}
     end
-    def self.consume!(code:, site:)
+    def self.consume!(code:, site:, release_action: nil)
       raise Gatekeeper::Hosting::Access::Denied, "Invalid management grant" unless code.to_s.match?(/\A[0-9a-f]{64}\z/)
       grant = find_by!(code_digest: Connection.digest(code), site: site)
       grant.with_lock do
         connection = grant.connection.reload
+        if connection.platform == "dashboard"
+          destination = release_action ? AgencyDashboard::RELEASE_DESTINATIONS[release_action] : AgencyDashboard::EDIT_DESTINATION
+          raise Gatekeeper::Hosting::Access::Denied, "Management grant is for another action" unless destination && grant.destination == destination
+        elsif release_action
+          raise Gatekeeper::Hosting::Access::Denied, "Use the Agency Dashboard for website releases"
+        end
         raise Gatekeeper::Hosting::Access::Denied, "Management grant expired" if grant.consumed_at? || grant.expires_at <= Time.current || connection.revoked_at? || !connection.user.role.in?(%w[white_label super_admin])
         raise Gatekeeper::Hosting::Access::Denied, "Client access removed" if site && !LightekSettings::WebsiteIdentity.sites_for(connection.user).exists?(id: site.id)
         grant.mfa_context!(consumed: false)

@@ -17,6 +17,8 @@ module LightekAgency
     end
     def self.create!(agency:, values:, existing_client: nil, request: nil)
       raise Invalid, 'An agency or platform operator is required' unless agency.role.in?(%w[white_label super_admin])
+      tour = values[:tour].presence unless request
+      raise Invalid, 'Choose an available demo tour' if tour && !DemoTours.fetch(tour)
       demo = nil
       agency.with_lock do
         setting = DemoSetting.find_or_create_by!(agency: agency)
@@ -34,11 +36,13 @@ module LightekAgency
         demo = Demo.new(agency: agency, client: client, demo_request: request, created_client: created,
           name: values[:name].presence || "#{client.first_name}'s demo", expires_at: setting.duration_days.days.from_now)
         demo.save!
-        site = DymondSite::Site.create!(tenant: client, name: demo.name, host: "demo-#{demo.public_id}.invalid",
-          manifest: {'agency_demo' => demo.public_id})
+        manifest = {'agency_demo' => demo.public_id}
+        manifest['agency_demo_tour'] = tour if tour
+        site = DymondSite::Site.create!(tenant: client, name: demo.name, host: "demo-#{demo.public_id}.invalid", manifest: manifest)
         page = site.pages.find_or_initialize_by(slug: 'home')
         page.update!(title: 'Home', position: 0, published: false)
         page.sections.create!(kind: 'hero', position: 0, data: {'heading' => demo.name, 'subheading' => 'Make this workspace yours. Your demo website can move with you when you upgrade.'})
+        DemoTours.prepare!(site: site, key: tour) if tour
         demo.update!(site: site)
         request&.update!(status: 'activated', verified_at: Time.current)
       end

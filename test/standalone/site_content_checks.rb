@@ -23,6 +23,7 @@ ActiveRecord::Schema.define do
 end
 %w[20261028210000_expand_lightek_commerce_products 20261028220000_create_lightek_commerce_product_variants 20261112070000_connect_hosting_agencies_and_commerce 20261112080000_create_platform_shipping 20261118001500_add_hosting_wholesale_prices].each{|name|migrate_session_fixture(name)}
 %w[app/models/lightek_commerce/product_variant app/models/lightek_shipping/quote app/services/lightek_shipping/quotes].each{|path|require Rails.root.join(path)}
+require Rails.root.join('app/services/gatekeeper/hosting/workspace_plans')
 module DymondSite
   class Site
     has_many :pages,class_name:'DymondSite::Page'
@@ -73,7 +74,8 @@ module DymondSite
     def self.find(key) = @entries[key]
   end
 end
-%w[catalog fonts studio_blocks studio_document content_sections commerce_sections html_document html_import starter_library website_designs studio_context studio_catalog site_theme html_bindings template_branding].each{|f|require Rails.root.join("app/services/lightek_design/#{f}")}
+%w[catalog fonts studio_blocks studio_document agency_portfolio content_sections commerce_sections html_document html_import starter_library website_designs studio_context studio_catalog site_theme theme_package html_bindings template_branding].each{|f|require Rails.root.join("app/services/lightek_design/#{f}")}
+require Rails.root.join('app/services/lightek_agency/website_releases')
 LightekDesign::Catalog.singleton_class.alias_method(:builtin_designs,:designs)
 LightekDesign::Catalog.singleton_class.prepend(LightekDesign::StudioCatalog)
 LightekDesign::WebsiteDesigns.singleton_class.prepend(LightekDesign::StudioSiteCopies)
@@ -178,6 +180,7 @@ Rails.application.routes.append do
   patch '/dashboard/website/designs/nevaeh', to: 'dashboard/website_designs#nevaeh_delegation', as: :delegate_dashboard_website_designs
   post '/dashboard/website/designs/nevaeh/landing-page', to: 'dashboard/website_designs#nevaeh_landing_page', as: :publish_nevaeh_landing_page
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
+  get '/dashboard/website/designs/themes/starter.zip',to:'dashboard/website_designs#theme_starter',as: :dashboard_website_theme_starter,format: false
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
   post '/dashboard/website/designs/upload',to:'dashboard/website_designs#upload_html',as: :upload_dashboard_website_designs
   get '/dashboard/website/designs/interactive-preview',to:'dashboard/website_designs#interactive_html',as: :interactive_dashboard_website_designs
@@ -241,6 +244,99 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
     assert_equal 'home-2',theme.settings.dig('lightek_site_theme','pages').first['slug']
     kinds=@site.pages.where.not(id:old.id).flat_map{|p|p.sections.map{|s|LightekDesign::Catalog.section_definition(s.kind)['render_kind']}}
     assert_includes kinds,'lightek_product_grid';assert_includes kinds,'lightek_blog_index'
+  end
+  def test_site_theme_starter_download_installs_drafts_with_shared_chrome_live_products_and_cart
+    get '/dashboard/website/designs/themes/starter.zip', headers: headers
+    assert_response :success
+    assert_equal 'application/zip', response.media_type
+    bytes = response.body
+    key = SecureRandom.uuid
+    Tempfile.create(['theme-starter', '.zip']) do |upload|
+      upload.binmode
+      upload.write(bytes)
+      upload.flush
+      zip = Rack::Test::UploadedFile.new(upload.path, 'application/zip', true, original_filename: 'northline.zip')
+      post '/dashboard/website/designs/themes', params: {site_id: @site.id, name: 'Agency starter', request_key: key, theme_package: zip}, headers: headers
+    end
+    assert_response :see_other
+    template = DymondSite::SiteTemplate.find(@site.reload.manifest.dig('lightek_site_themes', key))
+    theme = template.settings.fetch('lightek_site_theme')
+    assert_nil @site.active_template_id
+    refute @site.pages.where(published: true).exists?
+    assert_equal %w[home store], theme.fetch('pages').pluck('role')
+    assert theme.fetch('pages').none? { |entry| entry.fetch('warnings').any? { |warning| warning.include?('External stylesheets') } }
+    assert theme.fetch('chrome').any? { |entry| entry['chrome_footer'] }
+    shop = @site.pages.find_by!(title: 'Shop')
+    assert shop.sections.any? { |section| section.data.to_h.fetch('html', '').include?('Shop Northline') }
+    assert shop.sections.any? { |section| LightekDesign::Catalog.section_definition(section.kind)['render_kind'] == 'lightek_product_grid' }
+    @site.pages.update_all(published: true)
+    post "/dashboard/website/designs/themes/#{template.id}/activate", params: {site_id: @site.id}, headers: headers
+    assert_response :see_other
+    assert_equal shop.id, @site.reload.manifest['lightek_commerce_starter_page_id']
+    header = theme.fetch('chrome').find { |entry| entry['chrome_header'] }.fetch('data')
+    output = LightekDesign::HtmlBindings.render(header, site: @site, navigation_html: '<ul><li>Live menu</li></ul>')
+    assert_includes output, 'Live menu'
+    assert_includes output, "/commerce/shop?site_id=#{@site.id}#lightek-cart"
+  end
+
+  def test_site_theme_zip_validates_layout_and_uses_explicit_page_roles
+    upload = lambda do |entries|
+      buffer = Zip::OutputStream.write_buffer do |zip|
+        entries.each do |name, body|
+          zip.put_next_entry(name)
+          zip.write(body)
+        end
+      end
+      file('agency.zip', buffer.string)
+    end
+
+    assert_raises(ArgumentError) { LightekDesign::ThemePackage.read!(upload.call('pages/layout/index.html' => home_html)) }
+    assert_raises(ArgumentError) { LightekDesign::ThemePackage.read!(upload.call('index.html' => home_html, 'theme.js' => '')) }
+    assert_raises(ArgumentError) { LightekDesign::ThemePackage.read!(upload.call('index.html' => 'a' * (LightekDesign::HtmlDocument::MAX_BYTES + 1))) }
+    assert_empty @site.pages
+
+    inputs = LightekDesign::ThemePackage.read!(upload.call(
+      'pages/workshop.html' => '<body data-lightek-page="page"><title>Workshop</title><main><section><h1>Workshop</h1></section></main></body>',
+      'pages/welcome.html' => '<body data-lightek-page="home"><title>Welcome</title><main><section><h1>Welcome home</h1></section></main></body>',
+      'pages/collection.html' => '<body data-lightek-page="store"><title>Collection</title><main><div data-lightek-products></div></main></body>'
+    ))
+    template = LightekDesign::SiteTheme.install!(site: @site, user: @user, name: 'Structured theme', request_key: SecureRandom.uuid, **inputs)
+    entries = template.settings.dig('lightek_site_theme', 'pages')
+    assert_equal({'workshop.html' => 'page', 'welcome.html' => 'home', 'collection.html' => 'store'}, entries.to_h { |entry| entry.values_at('filename', 'role') })
+  end
+  def test_site_agency_website_release_rejects_stale_drafts_and_restores_previous_theme
+    previous = install
+    LightekDesign::SiteTheme.activate!(site: @site, user: @user, template_id: previous.id)
+    previous_menu_ids = @site.nav_menu.nav_items.pluck(:id)
+    previous_store = @site.manifest.fetch('lightek_commerce_starter_page_id')
+    key = SecureRandom.uuid
+    service = LightekAgency::WebsiteReleases.new(site: @site, editor: @user)
+    upload = -> { file('starter.zip', LightekDesign::ThemePackage.starter) }
+    release = service.stage!(upload: upload.call, name: 'Client release', request_key: key)
+    assert_equal release, service.stage!(upload: upload.call, name: 'Client release', request_key: key)
+    assert_raises(LightekAgency::WebsiteReleases::Invalid) { service.stage!(upload: upload.call, name: 'Another name', request_key: key) }
+    assert_equal previous.id, @site.reload.active_template_id
+    one_page = @site.pages.find_by!(slug: release.fetch('pages').first.fetch('slug'))
+    one_page.update!(title: 'Reviewed page')
+    assert_raises(LightekAgency::WebsiteReleases::Invalid) { service.deploy!(id: release['id'], revision: release['revision']) }
+
+    release = service.review!(id: release['id'], revision: release['revision'])
+    published = service.deploy!(id: release['id'], revision: release['revision'])
+    assert_equal 'deployed', published['status']
+    assert_equal published, service.deploy!(id: release['id'], revision: release['revision'])
+    assert_equal published['id'], @site.reload.active_template_id
+    assert one_page.reload.published?
+    refute_equal previous_store, @site.manifest.fetch('lightek_commerce_starter_page_id')
+    assert_raises(ActiveRecord::RecordNotFound) do
+      LightekAgency::WebsiteReleases.new(site: @foreign, editor: @other).deploy!(id: release['id'], revision: release['revision'])
+    end
+
+    restored = service.rollback!(id: release['id'], revision: release['revision'])
+    assert_equal 'rolled_back', restored['status']
+    assert_equal previous.id, @site.reload.active_template_id
+    assert_equal previous_store, @site.manifest.fetch('lightek_commerce_starter_page_id')
+    refute one_page.reload.published?
+    assert_equal previous_menu_ids.sort, @site.nav_menu.nav_items.pluck(:id).sort
   end
   def test_site_theme_activation_preserves_menu_and_binds_actual_app_routes_without_draft_links
     menu=@site.create_nav_menu!(name:'Existing navigation');menu.nav_items.create!(label:'Support',external_url:'/help',position:0)

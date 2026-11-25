@@ -1,0 +1,41 @@
+<% portfolio = LightekDesign::AgencyPortfolio %>
+<% draft = local_assigns.fetch(:portfolio_draft, false) %>
+<% data = section.data.to_h %>
+<% index = portfolio.index_page(site: @site, draft: draft) %>
+<% index_data = index&.sections&.find_by(kind: portfolio::INDEX_KIND)&.data.to_h %>
+<% cta = portfolio.url(index_data["cta_url"]) %>
+<% project_url = portfolio.url(data["project_url"]) %>
+<% gallery = portfolio.gallery_images(data) %>
+<%= stylesheet_link_tag "/lightek/agency-portfolio.css" %>
+<article class="lt-portfolio">
+  <div class="lt-portfolio-wrap">
+    <% if index %><%= link_to "← Selected work", portfolio.path(index, site: @site, draft: draft), class: "lt-portfolio-back" %><% end %>
+    <header class="lt-portfolio-header lt-portfolio-case-header">
+      <% if data["category"].present? || portfolio.enabled?(data["sample"]) %>
+        <p class="lt-portfolio-studio"><%= [data["category"].presence, ("Concept project" if portfolio.enabled?(data["sample"]))].compact.join(" · ") %></p>
+      <% end %>
+      <h1><%= @page.title %></h1>
+      <% if data["summary"].present? %><p class="lt-portfolio-intro"><%= data["summary"] %></p><% end %>
+    </header>
+    <%= render "lightek_design/portfolio_art", data: data, eager: true %>
+    <div class="lt-portfolio-story">
+      <% {"challenge" => "The brief", "approach" => "The approach", "outcome" => "The outcome"}.each do |key, label| %>
+        <% if data[key].present? %><section><h2><%= label %></h2><p><%= data[key] %></p></section><% end %>
+      <% end %>
+    </div>
+    <% if gallery.any? %>
+      <div class="lt-portfolio-gallery">
+        <% gallery.each do |source, alt| %>
+          <figure class="lt-portfolio-art"><%= image_tag source, alt: alt, loading: "lazy", decoding: "async" %></figure>
+        <% end %>
+      </div>
+    <% end %>
+    <% if project_url %><%= link_to "Visit project ↗", project_url, class: "lt-portfolio-back" %><% end %>
+    <% if cta %>
+      <footer class="lt-portfolio-cta">
+        <h2>Have a project in mind?</h2>
+        <%= link_to "#{index_data['cta_label'].presence || 'Book a consultation'} ↗", cta %>
+      </footer>
+    <% end %>
+  </div>
+</article>

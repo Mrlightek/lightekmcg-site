@@ -155,6 +155,7 @@ module LightekDesign
       doc = Nokogiri::HTML5.parse(html)
       styles = clean_css(([css] + doc.css("style").map(&:text)).join("\n"))
       warnings = []
+      has_scripts = doc.at_css("script")
       warnings << "JavaScript, forms and event handlers need service wiring; they are not executed by imported sections." if doc.at_css("script,form,[onclick]")
       warnings << "External stylesheets and relative assets are not bundled. Upload CSS and use hosted image URLs." if doc.css('link[rel="stylesheet"]').any? || doc.css("[src]").any? { |n| !n['src'].to_s.match?(/\A(?:https?:|#)/) }
       # Font stylesheet links are retained only for Google's font CSS endpoint.
@@ -191,7 +192,7 @@ module LightekDesign
         raise ArgumentError, "Choose a blog layout with exactly one main content area."
       end
       # Dynamic visibility effects cannot leave content invisible without scripts.
-      warnings << "Review script-generated areas in preview; HTML import does not execute JavaScript to generate missing content."
+      warnings << "Review script-generated areas in preview; HTML import does not execute JavaScript to generate missing content." if has_scripts
       document = {"name" => name.to_s.strip.presence || doc.at_css("title")&.text.to_s.first(120).presence || "Imported website", "description" => "Imported HTML/CSS design", "base_design" => "plain", "fonts" => typography(styles), "tokens" => palette(styles), "sections" => sections}
       [StudioDocument.normalize(document), warnings.uniq]
     rescue Nokogiri::CSS::SyntaxError

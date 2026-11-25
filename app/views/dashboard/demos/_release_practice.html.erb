@@ -1,0 +1,19 @@
+<%= javascript_include_tag '/lightek/demo-release-practice.js', type: 'module' %>
+<section id="demo-release-practice" class="lp-card" aria-labelledby="demo-release-title" data-demo-release-practice>
+  <h2 id="demo-release-title">Try a client website release</h2>
+  <p>In the Agency Dashboard, open a client and choose <strong>Develop &amp; deploy website</strong>. Open that client’s editors or stage your HTML/CSS ZIP for review.</p>
+  <dl>
+    <dt><strong>Sample destination</strong></dt>
+    <dd><code><%= tour.fetch(:practice_host) %></code></dd>
+    <dt><strong>Release</strong></dt>
+    <dd><%= tour.fetch(:practice_release) %></dd>
+  </dl>
+  <p>This practice uses a fictional client. Every action stays in this page.</p>
+  <p aria-live="polite" role="status" data-release-status>Ready to stage a sample draft.</p>
+  <div>
+    <button type="button" class="lp-button secondary" data-release-action="stage">Stage sample draft</button>
+    <button type="button" class="lp-button secondary" data-release-action="review" disabled>Review draft</button>
+    <button type="button" class="lp-button secondary" data-release-action="publish" disabled>Publish sample</button>
+    <button type="button" class="lp-button secondary" data-release-action="restore" disabled>Restore previous theme</button>
+  </div>
+</section>

@@ -206,10 +206,11 @@ module Studio
           end
           preset["camera_cuts"]=[]
         end
+        limit = staging.fetch("script_frame_end", staging["key"]==VerifiedGrasp::KEY ? 192 : %w[grasp grasp_acting].include?(staging["key"]) ? 96 : 36)
         settings["camera_cuts"]=authored.filter_map do |cut|
           target_fps=staging["key"]==VerifiedGrasp::KEY ? 24 : 12
           frame=1+((cut.fetch("frame")-1)*target_fps/fps).round
-          {"camera_id"=>map.fetch(cut.fetch("camera_id")),"frame"=>frame} if frame.between?(1,staging["key"]==VerifiedGrasp::KEY ? 192 : %w[grasp grasp_acting].include?(staging["key"]) ? 96 : 36)
+          {"camera_id"=>map.fetch(cut.fetch("camera_id")),"frame"=>frame} if frame.between?(1,limit)
         end.uniq { |cut| cut["frame"] }.sort_by { |cut| cut["frame"] }
         scene.update!(settings:settings.merge(scene.settings).merge("template_source"=>staging.slice("key","name")))
       end

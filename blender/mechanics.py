@@ -2,13 +2,14 @@
 import bpy
 from bench_v1 import BenchV1
 from bench_v2 import BenchV2
+from bench_v3 import BenchV3
 from carry_v1 import CarryV1
 from grasp_v1 import GraspV1
 from grasp_v2 import GraspV2
 from grasp_v3 import GraspV3
 from grasp_v4 import GraspV4
 
-DRIVERS={('bench',1):BenchV1,('bench',2):BenchV2,('carry',1):CarryV1,('grasp',1):GraspV1,('grasp',2):GraspV2,('grasp',3):GraspV3,('grasp',4):GraspV4}
+DRIVERS={('bench',1):BenchV1,('bench',2):BenchV2,('bench',3):BenchV3,('carry',1):CarryV1,('grasp',1):GraspV1,('grasp',2):GraspV2,('grasp',3):GraspV3,('grasp',4):GraspV4}
 def apply(objects,created,settings):
     contacts=[];original=bpy.context.scene.frame_current
     indexed={str(item['id']):item for item in objects}

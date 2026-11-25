@@ -244,6 +244,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       <nav aria-label="Studio workspaces">{workspaces.map(([name,Icon,label])=><button type="button" key={name} aria-current={tab===name?'page':undefined} onClick={()=>go(name)} disabled={busy}><Icon size={17}/>{label}</button>)}</nav>
       <nav aria-label="More Studio tools">
         <a href={api.pipeline} onClick={event=>{if(busy || dirty&&!window.confirm('Open Pipeline Hub and discard unsaved timeline changes?'))event.preventDefault();}}>Pipeline Hub</a>
+        <a href={api.native(scene.id,'script')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Script and discard unsaved timeline changes?'))event.preventDefault();}}>Script &amp; preview</a>
         <a href={api.native(scene.id,'music')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Music and discard unsaved timeline changes?'))event.preventDefault();}}>Music &amp; audio</a>
         <a href={api.characterBuilder} onClick={event=>{if(busy || dirty&&!window.confirm('Open Character Builder and discard unsaved timeline changes?'))event.preventDefault();}}>Character builder</a>
         <a href={api.native(scene.id,'stage')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Animation and discard unsaved timeline changes?'))event.preventDefault();}}>Animation &amp; characters</a>

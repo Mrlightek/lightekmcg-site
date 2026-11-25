@@ -4,13 +4,15 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action :authorize_operator
+  before_action :load_staging_request, only: %i[index show]
   before_action :set_candidate, only: %i[show publish accept prepare deploy retire recommend promote learn rollback
     assign verify_feedback evidence retest]
   rescue_from ReleaseAssurance::Policy::Denied, ReleaseAssurance::Source::Invalid, ActiveRecord::RecordInvalid,
     Gatekeeper::WebsiteDeployment::Invalid, Gatekeeper::Compute::StagingRequests::Invalid, ArgumentError, with: :invalid_action
 
   def index
-    @candidates = candidates.order(id: :desc).limit(100)
+    scope = @staging_request ? candidates.where(profile: "msp", state: "published") : candidates
+    @candidates = scope.order(id: :desc).limit(100)
     @testers = testers.order(:name).limit(100)
   end
 
@@ -140,6 +142,19 @@ class Dashboard::ReleaseAssuranceController < ApplicationController
   end
 
   private
+
+  def load_staging_request
+    return if params[:request_id].blank?
+
+    request = ProvisioningRequest.find(params[:request_id])
+    details = Gatekeeper::Compute::StagingRequests.validate!(request)
+    unless request.approval_status == "approved" && request.executable? && request.gatekeeper_node_id.nil?
+      raise ReleaseAssurance::Policy::Denied, "Choose a current approved staging request"
+    end
+
+    @staging_request = request
+    @staging_request_details = details
+  end
 
   def prepare_target!(candidate)
     hostname = params.require(:hostname).to_s.strip.downcase

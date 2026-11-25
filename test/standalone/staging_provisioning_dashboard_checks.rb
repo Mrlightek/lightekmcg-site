@@ -161,6 +161,7 @@ app.routes.draw do
   get "/dashboard/servers", to: "dashboard/infrastructure#index", as: :dashboard_servers
   get "/dashboard/servers/:id", to: "dashboard/infrastructure#index", as: :dashboard_server
   get "/dashboard/infrastructure/updates", to: "dashboard/infrastructure#index", as: :dashboard_fleet_updates
+  instance_eval(File.read(File.join(source, "config/routes/release_assurance.rb"))) if File.exist?(File.join(source, "config/routes/release_assurance.rb"))
   instance_eval(provisioning_routes, File.join(source, "config/routes.rb"))
 end
 
@@ -243,7 +244,7 @@ class StagingProvisioningDashboardChecks < ActionDispatch::IntegrationTest
       assert_equal "approved", request.reload.approval_status
       assert_equal "ready", request.execution_status
       assert_equal %w[prepared approved], audit_actions(request)
-      assert_match "Release Assurance", response.body
+      assert_select "a[href=?]", "/dashboard/release_assurance?request_id=#{request.id}", text: "Choose a release candidate"
       assert_no_match "EXECUTE BILLABLE PROVISION", response.body
 
       post "/dashboard/infrastructure/provisioning/#{request.id}/execute", params: { authenticity_token: csrf_token }

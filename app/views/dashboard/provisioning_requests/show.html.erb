@@ -37,7 +37,12 @@
         <li><%= entry.fetch("action").humanize %> · Operator #<%= entry.fetch("actor_id") %> · <%= l(Time.iso8601(entry.fetch("at")), format: :short) %></li>
       <% end %>
     </ul>
-    <p>After approval, attach request #<%= @request.id %> to the reviewed candidate in Release Assurance for separate deployment authorization.</p>
+    <% if @request.approval_status == "approved" && @request.executable? && Time.iso8601(staging.fetch("expires_at")).future? %>
+      <%= link_to "Choose a release candidate", dashboard_release_assurance_index_path(request_id: @request.id), class: "infra-button" %>
+      <p>Attaching this request does not deploy a server.</p>
+    <% elsif @request.approval_status == "pending" %>
+      <p>Approve this request to make it available in Release Assurance.</p>
+    <% end %>
   </div>
 <% end %>
 

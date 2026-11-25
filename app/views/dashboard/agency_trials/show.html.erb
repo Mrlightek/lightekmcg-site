@@ -4,8 +4,9 @@
   <%= stylesheet_link_tag '/lightek/agency-demo-preview.css?v=1' %>
   <%= javascript_include_tag '/lightek/agency-demo-preview.js?v=1', type: 'module' %>
 <% end %>
-<main class="lp-workspace"<% if @trial.preview_open? %> data-tour-page="agency-demo" data-tour-variant="<%= @trial.business_type %>" data-tour-auto<% end %>>
-  <header class="lp-heading"><div><h1><%= @trial.brand_name %></h1><p>Lightek Agency</p></div></header>
+<main class="lp-workspace"<% if @trial.preview_open? %> data-tour-page="agency-demo" data-tour-variant="<%= "#{@trial.business_type}-#{LightekAgency::WorkspacePreview::VERSION}" %>" data-tour-auto<% end %>>
+  <header class="lp-heading"><div><h1><%= @trial.brand_name %></h1><p>Lightek Agency</p>
+    <% if @trial.preview_open? %><%= link_to 'Try Workspace & Team Chat', '#demo-workspace-tools' %><% end %></div></header>
 
   <% if @trial.preview_open? %>
     <section class="lp-card">
@@ -36,6 +37,8 @@
       <% end %>
     </section>
     <%= render 'business_preview', business_type: @trial.business_type %>
+    <%= render 'dashboard/demos/workspace_preview', scope: 'agency-demo',
+      sample: LightekAgency::WorkspacePreview.for_trial(@trial.business_type) %>
   <% elsif !@trial.activated_at? %>
     <section class="lp-card"><h2>Your demo has ended</h2><p>You can still activate your agency with this login.</p></section>
   <% end %>

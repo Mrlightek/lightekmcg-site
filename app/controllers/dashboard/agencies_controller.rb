@@ -15,6 +15,8 @@ class Dashboard::AgenciesController < ApplicationController
     end
     return unless @agency
 
+    @child_agencies = @agencies.where(agency_id: @agency.id)
+
     if @agency == current_user && current_user.white_label? && Current.session.connect_delegation.blank?
       @paid_trial = NevaehOnboarding::StandingAssignment.paid_trial(current_user)
       @branded_mailbox = NevaehOnboarding::StandingAssignment.branded_mailbox(current_user) if @paid_trial
@@ -52,7 +54,7 @@ class Dashboard::AgenciesController < ApplicationController
   def create
     User.transaction do
       scope = current_user.role == "super_admin" ? User.where(role: "client") : current_user.agency_clients.where(role: "client")
-      user = scope.find(params.require(:user_id))
+      user = scope.lock.find(params.require(:user_id))
       if defined?(LightekAgency::Trial) && LightekAgency::Trial.table_exists? && LightekAgency::Trial.exists?(prospect_id: user.id)
         return redirect_to dashboard_agencies_path, alert: "This agency trial activates through its annual checkout."
       end
@@ -79,14 +81,26 @@ class Dashboard::AgenciesController < ApplicationController
     raise CanCan::AccessDenied unless current_user.role == "super_admin" || user.agency_id == current_user.id
     user.with_lock do
       user.update!(upstream_share_bps: params.require(:upstream_share_bps))
-      User.where(id: user.managed_account_ids).find_each do |account|
-        terms = LightekCommerce::RevenueSharing.snapshot_for(account)
-        raise ArgumentError, "Combined upstream shares exceed 100%" if terms.sum { |row| row.fetch("basis_points") } > 10_000
-      end
+      validate_upstream_shares!(user.managed_account_ids)
     end
     redirect_to dashboard_agencies_path(agency_id: user.id), notice: "Revenue terms saved for future purchases. Existing orders and subscriptions keep their agreed terms."
   rescue ActiveRecord::RecordInvalid, ArgumentError => error
     redirect_to dashboard_agencies_path(agency_id: user&.id), alert: error.message
+  end
+
+  def attach_to_lightek
+    raise CanCan::AccessDenied unless current_user.role == "super_admin"
+
+    agency = agency_scope.find(params[:id])
+    agency.with_lock do
+      raise ArgumentError, "This agency already has a parent." if agency.agency_id
+
+      agency.update!(agency: current_user)
+      validate_upstream_shares!(agency.descendant_account_ids)
+    end
+    redirect_to dashboard_agencies_path(agency_id: agency.id), notice: "Agency added to your Lightek branch.", status: :see_other
+  rescue ActiveRecord::RecordInvalid, ArgumentError => error
+    redirect_to dashboard_agencies_path(agency_id: agency&.id), alert: error.message, status: :see_other
   end
   def create_client
     agency = agency_scope.find(params[:id])
@@ -116,6 +130,14 @@ class Dashboard::AgenciesController < ApplicationController
     redirect_to dashboard_agencies_path(agency_id: agency.id, client_id: client.id, anchor: 'client-setup'), alert: 'This account already has a chosen password. Its owner can use Forgot password.'
   end
   private
+
+  def validate_upstream_shares!(account_ids)
+    User.where(id: account_ids).find_each do |account|
+      terms = LightekCommerce::RevenueSharing.snapshot_for(account)
+      raise ArgumentError, "Combined upstream shares exceed 100%" if terms.sum { |row| row.fetch("basis_points") } > 10_000
+    end
+  end
+
   def record_onboarding_dashboard
     return unless response.successful? && @agency == current_user && Current.session.connect_delegation.blank?
     return unless current_user.white_label? && NevaehOnboardingCase.table_exists?

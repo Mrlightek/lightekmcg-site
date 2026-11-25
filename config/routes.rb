@@ -175,6 +175,12 @@ Rails.application.routes.draw do
   get "/my/installations/packages/:product_id", to: "installations#full_package", as: :full_package_installations
   post "/my/installations/packages/:product_id", to: "installations#purchase_full_package"
   resources :installations, path: "/my/installations", only: %i[index show create] do
+    resource :managed_dns, controller: "dashboard/managed_dns", only: %i[show create] do
+      post :stage
+      post :approve
+      post :verify
+      post :withdraw
+    end
     post :access, on: :member
     post :cancel_subscription, on: :member
     post :retry_installation, on: :member, path: "resume"
@@ -638,6 +644,7 @@ resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboa
     post :create_client
     post :send_setup_invitation
     patch :update_terms
+    patch :attach_to_lightek
   end
 end
 post "/dashboard/hosting/packages/workspace", to: "dashboard/hosting_packages#create_workspace", as: :create_workspace_dashboard_hosting_packages
@@ -665,6 +672,7 @@ resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard
 end
 resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
   collection do
+    post :open_instance
     post :sync
     post :release
     patch :installation

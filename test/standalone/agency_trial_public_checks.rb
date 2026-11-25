@@ -186,13 +186,15 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
     assert_equal 'marketing', trial.business_type
     login(existing)
     get dashboard_agency_trial_path(trial)
-    assert_select '[data-tour-variant="marketing"] [data-demo-input="prospect"]'
+    assert_select '[data-tour-variant="marketing-workspace-collaboration"] [data-demo-input="prospect"]'
+    assert_select '#demo-workspace-tools option', text: '#campaign-delivery · Private agency channel'
     assert_select '[data-demo-input="headline"]', count: 0
     patch dashboard_agency_trial_path(trial), params: {trial: {business_type: 'web_design'}}
     assert_redirected_to dashboard_agency_trial_path(trial)
     assert_equal 'web_design', trial.reload.business_type
     get dashboard_agency_trial_path(trial)
-    assert_select '[data-tour-variant="web_design"] [data-demo-input="headline"]'
+    assert_select '[data-tour-variant="web_design-workspace-collaboration"] [data-demo-input="headline"]'
+    assert_select '#demo-workspace-tools option', text: '#portfolio-review · Private agency channel'
     assert_select '[data-demo-input="prospect"]', count: 0
   end
 

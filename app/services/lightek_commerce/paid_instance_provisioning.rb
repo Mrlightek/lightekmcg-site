@@ -159,9 +159,12 @@ module LightekCommerce
       order
     rescue StandardError => e
       if order&.persisted? && !order.reload.provisioned_at?
-        order.update_columns(provisioning_state: "failed",
+        state = e.is_a?(Gatekeeper::Hosting::Dns::AwaitingExternalDns) ? "awaiting_dns" : "failed"
+        order.update_columns(provisioning_state: state,
           provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000))
       end
+      return order if state == "awaiting_dns"
+
       raise
     end
 

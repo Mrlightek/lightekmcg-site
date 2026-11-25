@@ -4,7 +4,14 @@ module Gatekeeper
     class Inventory
       # Both the paid-instance installer and the standalone website installer register nodes.
       def self.sync!
-        GatekeeperNode.find_each { |node| sync_node!(node) }
+        failures = []
+        GatekeeperNode.find_each do |node|
+          node.with_lock { sync_node!(node) }
+        rescue ArgumentError, KeyError, ActiveRecord::RecordInvalid => error
+          failures << node.id
+          Rails.logger.warn("[Fleet] Inventory sync could not register node #{node.id}: #{error.class}")
+        end
+        failures
       end
 
       def self.sync_node!(node)
@@ -41,6 +48,7 @@ module Gatekeeper
               adapter: adapter, repository: project.repository, deployment_config: config.merge(profile.fetch("config", {})))
             installation.current_version ||= project.deployed_sha
           end
+          bind_account!(installation, node, metadata.fetch("website_deployments", {}).fetch(project.domain, {})["owner_id"]) if component == "lightek_app"
           installation.account_id ||= node.owner_id if node.owner_type == "User"
           installation.save!
         end
@@ -58,12 +66,21 @@ module Gatekeeper
             # Website metadata alone does not imply that Rails runs in Docker.
             installation.adapter = config.fetch("deployment_adapter", "native_rails")
             installation.deployment_config = config.fetch("fleet_config", {})
-            installation.account_id = config["owner_id"]
           end
+          bind_account!(installation, node, config["owner_id"])
           installation.current_version ||= (receipt["source_sha"] || receipt["release"]) if url == "https://#{domain}"
           installation.save!
         end
       end
+
+      def self.bind_account!(installation, node, recorded_owner)
+        return if recorded_owner.blank?
+        return unless installation.account_id.nil? || (node.owner_type == "User" && installation.account_id == node.owner_id)
+        return if installation.gatekeeper_update_targets.where(status: %w[reserved queued running failed]).exists?
+
+        installation.account_id = recorded_owner if User.exists?(recorded_owner)
+      end
+      private_class_method :bind_account!
     end
   end
 end

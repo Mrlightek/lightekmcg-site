@@ -3,7 +3,7 @@ class Api::ConnectFederationController < Api::ReservationFederationController
   def redeem
     grant = LightekConnect::Grant.consume!(code: params.require(:code), site: @peer.site, release_action: params[:release_action])
     render json: {owner_email: @peer.merchant.email_address,
-      delegation: grant.mfa_context!, agency_editor: grant.connection.platform == 'dashboard' && params[:release_action].blank?,
+      delegation: grant.mfa_context!, agency_editor: grant.connection.platform == 'dashboard' && grant.destination == LightekConnect::AgencyDashboard::EDIT_DESTINATION,
       agency_release_action: params[:release_action]}
   end
   def validate_session
@@ -12,7 +12,7 @@ class Api::ConnectFederationController < Api::ReservationFederationController
     allowed = false if connection&.platform == 'dashboard' && params[:grant_id].blank?
     if allowed && params[:grant_id].present?
       grant = LightekConnect::Grant.find_by!(id: params[:grant_id], connection: connection, site: @peer.site)
-      if connection.platform == 'dashboard' && grant.destination != LightekConnect::AgencyDashboard::EDIT_DESTINATION
+      if connection.platform == 'dashboard' && !grant.destination.in?([LightekConnect::AgencyDashboard::EDIT_DESTINATION, LightekConnect::AgencyDashboard::INSTANCE_DESTINATION])
         raise Gatekeeper::Hosting::Access::Denied, 'Use an editor management grant'
       end
       context = grant.mfa_context!

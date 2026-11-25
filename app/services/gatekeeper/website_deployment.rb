@@ -86,12 +86,13 @@ module Gatekeeper
         "request_id" => record.is_a?(ProvisioningRequest) ? record.id : nil)
     end
 
-    def self.run!(actor:, node:, domain:, staging: nil)
+    def self.run!(actor:, node:, domain:, staging: nil, external_dns: false)
       authorize!(actor)
-      new(actor:, node:, domain:, staging:).run!
+      Hosting::Dns.verify_external!(domain: domain, ip_address: node.ip_address) if external_dns
+      new(actor:, node:, domain:, staging:, external_dns:).run!
     end
 
-    def self.provision_and_run!(actor:, request:, domain:, staging: nil)
+    def self.provision_and_run!(actor:, request:, domain:, staging: nil, external_dns: false)
       if request.metadata.to_h["release_assurance_staging"]
         raise Invalid, "Use Release Assurance for this dedicated staging request" unless staging
         staging.authorize_deployment!(actor:, request:, domain:)
@@ -105,7 +106,7 @@ module Gatekeeper
           credential = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
             consumer: CONSUMER, purpose: "website_deploy", requested_by: actor.email_address)
           raise Invalid, "Owner credential must have at least 8 characters" unless credential["owner_password"].is_a?(String) && credential["owner_password"].size >= 8
-          Gatekeeper::WebsiteDnsPublication.preflight!(hostname: domain)
+          Gatekeeper::WebsiteDnsPublication.preflight!(hostname: domain) unless external_dns && !staging
         ensure
           credential&.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? }
         end
@@ -138,14 +139,17 @@ module Gatekeeper
       if staging
         staging.publish_dns!(node.reload)
         run!(actor:, node:, domain:, staging:)
+      elsif external_dns
+        run!(actor:, node: node.reload, domain:, external_dns: true)
       else
         Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
         run!(actor:, node:, domain:)
       end
     end
 
-    def initialize(actor:, node:, domain:, staging: nil)
+    def initialize(actor:, node:, domain:, staging: nil, external_dns: false)
       @actor, @node, @domain, @staging = actor, node, domain, staging
+      @external_dns = external_dns && !staging
     end
 
     def run!
@@ -228,7 +232,7 @@ module Gatekeeper
             end
             input['demo_content_digest'] = LightekAgency::DemoContent.digest(input['demo_content']) if input['demo_content']
             input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
-              "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
+              "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key, "external_dns" => @external_dns)
             @deployment_stage = "remote_installer"
             receipt = run_packager(input)
             if @staging

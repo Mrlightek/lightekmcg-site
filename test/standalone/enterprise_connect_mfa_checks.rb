@@ -463,6 +463,40 @@ class EnterpriseConnectMfaChecks < EnterpriseHttpChecks
       assert_equal @employer.email_address, @other.sessions.last.connect_delegation['actor']
     end
   end
+
+  def test_connect_platform_operator_opens_the_verified_instance_as_its_owner
+    @other.update!(role: 'client')
+    assert_raises(Gatekeeper::Hosting::Access::Denied) do
+      LightekConnect::AgencyDashboard.instance_code!(actor: @employer, site: @site)
+    end
+    @employer.update!(role: 'super_admin')
+    central_login
+    code = LightekConnect::AgencyDashboard.instance_code!(actor: @employer, site: @site)
+    post '/connect/management', params: {code: code}
+    assert_redirected_to "https://#{@site.host}/connect/management?code=#{code}"
+    browser = remote_browser
+    with_remote do
+      browser.post '/connect/management', params: {code: code}
+      assert_equal 302, browser.response.status
+      assert_equal "https://#{@site.host}/dashboard", browser.response.location
+      assert_equal @employer.email_address, @other.sessions.last.connect_delegation['actor']
+      assert_equal 'client', @other.reload.role
+    end
+  end
+
+  def test_connect_account_branches_keep_subagencies_under_their_creator
+    @employer.update!(role: 'super_admin')
+    direct = User.create!(role: 'white_label', email_address: 'agency-branch@example.test', agency: @employer)
+    nested = User.create!(role: 'white_label', email_address: 'nested-agency@example.test', agency: direct)
+    outside = User.create!(role: 'white_label', email_address: 'other-agency@example.test')
+    @other.update!(role: 'client', agency: nested)
+
+    assert_includes @employer.descendant_account_ids, @other.id
+    assert_includes direct.descendant_account_ids, nested.id
+    assert_equal [nested.id, @other.id], nested.descendant_account_ids
+    refute_includes direct.descendant_account_ids, outside.id
+    assert_equal direct, nested.reload.agency
+  end
   def test_connect_claimed_mfa_without_verified_server_response_is_rejected
     authorize_remote
     browser = remote_browser

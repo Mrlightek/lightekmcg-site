@@ -187,6 +187,7 @@ def dns_setup(root,stage,c):
         print('DNS: matched',flush=True)
         return
     if c.get('staging'):raise DeployError('Staging DNS differs from the approved Gatekeeper binding')
+    if c.get('external_dns'):raise DeployError('Point the hostname to '+ip+' at its authoritative DNS provider, then retry.')
     result=rails_code(root,stage,DNS_CODE,dict(domain=c['domain'],ip=ip))
     line=next((x for x in result.splitlines() if x.startswith('LIGHTEK_DNS_RESULT=')),None)
     if not line:raise DeployError('DNS integration returned no result')

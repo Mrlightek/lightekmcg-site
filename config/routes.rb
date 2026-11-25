@@ -175,6 +175,12 @@ Rails.application.routes.draw do
   get "/my/installations/packages/:product_id", to: "installations#full_package", as: :full_package_installations
   post "/my/installations/packages/:product_id", to: "installations#purchase_full_package"
   resources :installations, path: "/my/installations", only: %i[index show create] do
+    resource :managed_dns, controller: "dashboard/managed_dns", only: %i[show create] do
+      post :stage
+      post :approve
+      post :verify
+      post :withdraw
+    end
     post :access, on: :member
     post :cancel_subscription, on: :member
     post :retry_installation, on: :member, path: "resume"

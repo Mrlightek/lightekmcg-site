@@ -6,6 +6,7 @@ class Dashboard::InstallationsController < Dashboard::SettingsHomeController
   def index
     @orders = LightekCommerce::Installations.scope_for(current_user, operator: true)
       .includes(:site, items: :product).order(created_at: :desc).limit(150)
+    @managed_dns_states = LightekManagedDns::Enrollment.where(order_id: @orders.map(&:id)).pluck(:order_id, :state).to_h
   end
 
   def connect_reservations

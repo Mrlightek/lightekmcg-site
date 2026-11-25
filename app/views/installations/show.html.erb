@@ -1,4 +1,7 @@
 <% if @installation[:ready] %><p><%= link_to "Manage your PWA", "#{@installation[:url]}/dashboard/pwa" %></p><% end %>
+<% if LightekManagedDns::Enrollment.domain_for(@order) %>
+  <p><%= link_to "Managed DNS", installation_managed_dns_path(@order) %></p>
+<% end %>
 <% content_for :title, "Application ##{@order.id} · Lightek" %>
 <%= link_to "← My Applications", installations_path, class: "li-back" %>
 <div class="li-heading"><span class="li-eyebrow">ORDER #<%= @order.id %></span><h1><%= @installation[:ready] ? (@installation[:owner_onboarding_required_at_install] ? "Your application is ready for first sign-in" : "Your application is ready") : "Your application installation" %></h1><p><%= @installation[:hostname] %></p></div>

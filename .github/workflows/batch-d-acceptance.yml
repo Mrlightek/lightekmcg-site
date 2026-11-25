@@ -1,0 +1,96 @@
+name: Batch D isolated acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'deploy/it-support-staging/**'
+      - 'app/services/it_services/remote_support_file_scanner.rb'
+      - 'app/javascript/controllers/remote_recording_controller.js'
+      - '.github/workflows/batch-d-acceptance.yml'
+permissions:
+  contents: read
+jobs:
+  desktop-relay-and-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Linux desktop and relay dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y coturn clamav-daemon xvfb xauth libnss3-tools
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Exercise the live ClamAV INSTREAM adapter
+        run: |
+          set -euo pipefail
+          work=$(mktemp -d)
+          mkdir "$work/signatures"
+          ruby deploy/it-support-staging/clamav_probe.rb --signature > "$work/signatures/acceptance.ndb"
+          printf '%s\n' "Foreground true" "TCPSocket 13310" "TCPAddr 127.0.0.1"             "DatabaseDirectory $work/signatures" "TemporaryDirectory $work" > "$work/clamd.conf"
+          clamd -c "$work/clamd.conf" > "$work/clamd.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if ruby -rsocket -e 'TCPSocket.new("127.0.0.1", 13310).close' 2>/dev/null; then break; fi
+            sleep 1
+          done
+          ruby deploy/it-support-staging/clamav_probe.rb || { cat "$work/clamd.log"; exit 1; }
+      - name: Capture and relay a real disposable Linux desktop
+        run: |
+          set -euo pipefail
+          umask 077
+          work=$(mktemp -d)
+          secret=$(openssl rand -hex 32)
+          # Install a one-day test CA only in this disposable runner's Chromium trust store.
+          openssl req -x509 -newkey rsa:2048 -noenc -days 1 -subj '/CN=Batch D CI test CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+            -keyout "$work/ca.key" -out "$work/ca.crt" 2>/dev/null
+          openssl req -new -newkey rsa:2048 -noenc -subj '/CN=localhost' \
+            -keyout "$work/turn.key" -out "$work/turn.csr" 2>/dev/null
+          printf '%s\n' 'subjectAltName=DNS:localhost,IP:127.0.0.1' 'extendedKeyUsage=serverAuth' > "$work/turn.ext"
+          openssl x509 -req -in "$work/turn.csr" -CA "$work/ca.crt" -CAkey "$work/ca.key" \
+            -CAcreateserial -days 1 -extfile "$work/turn.ext" -out "$work/turn.crt"
+          nss="sql:$HOME/.pki/nssdb"
+          mkdir -p "$HOME/.pki/nssdb"
+          if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -N --empty-password -d "$nss"; fi
+          certutil -A -d "$nss" -n 'Batch D CI test CA' -t 'C,,' -i "$work/ca.crt"
+          printf '%s\n' "realm=batch-d-ci" "listening-ip=127.0.0.1" "relay-ip=127.0.0.1"             "listening-port=13479" "tls-listening-port=15350" "min-port=50110" "max-port=50159" "no-dtls" "no-cli" \
+            "cert=$work/turn.crt" "pkey=$work/turn.key"             "allow-loopback-peers" "cli-password=$secret" "no-multicast-peers" "use-auth-secret" "static-auth-secret=$secret"             "log-file=stdout" "fingerprint" > "$work/turn.conf"
+          # Match the Rails adapter's time-bound TURN REST credential format.
+          printf '%s' "$secret" | ruby -rjson -ropenssl -rbase64 -e '
+            key = STDIN.read
+            user = "#{Time.now.to_i + 300}:batch-d-ci"
+            credential = Base64.strict_encode64(OpenSSL::HMAC.digest("SHA1", key, user))
+            urls = ["turn:127.0.0.1:13479?transport=udp", "turns:127.0.0.1:15350?transport=tcp"]
+            puts JSON.generate(urls.map { |url| { urls: url, username: user, credential: credential } })
+          ' > "$work/ice.json"
+          turnserver -c "$work/turn.conf" > "$work/turn.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; certutil -D -d "$nss" -n "Batch D CI test CA"; rm -rf "$work"' EXIT
+          for attempt in {1..30}; do
+            if ruby -rsocket -e 'TCPSocket.new("127.0.0.1", 13479).close' 2>/dev/null; then break; fi
+            sleep 0.2
+          done
+          deploy/it-support-staging/run_desktop_probe.sh "$work/ice.json"
+  hosted-browser-codec:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --package-lock=false playwright@1.62.1
+      - run: npx playwright install chromium
+      - run: node deploy/it-support-staging/browser_codec_probe.cjs

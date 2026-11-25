@@ -6,6 +6,9 @@
       <p><%= link_to "Customer Service & Billing", dashboard_customer_service_path %> / <%= @ticket.number %></p>
       <h1><%= @ticket.title %></h1>
       <p><%= @ticket.status.humanize %> · <%= @ticket.assigned_team %></p>
+      <% if @ticket.related_type == "ItServiceRequest" && ItRemoteSupportSession.available? %>
+        <%= link_to "Review screen-sharing requests", dashboard_remote_support_sessions_path, class: "lp-button secondary" %>
+      <% end %>
     </div>
   </header>
 

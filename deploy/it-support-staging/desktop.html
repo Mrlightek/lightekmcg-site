@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Lightek isolated desktop acceptance</title>
+<h1>Lightek isolated desktop acceptance</h1>
+<p>Only synthetic content is displayed on this desktop.</p>
+<button type="button">Share desktop</button>
+<script>
+  document.querySelector("button").addEventListener("click", () => {
+    window.desktopCapture = navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+  });
+</script>
+</html>

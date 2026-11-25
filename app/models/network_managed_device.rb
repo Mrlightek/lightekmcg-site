@@ -37,6 +37,10 @@ class NetworkManagedDevice < ApplicationRecord
 
   def authenticate_enrollment_token?(token)
     return false if enrollment_token_digest.blank? || token.blank?
+    if identifier.start_with?("msp-beta-")
+      return false unless ItServices::BetaDevice.staging_host?(ENV["LIGHTEK_DEPLOYED_SITE_HOST"]) &&
+        respond_to?(:owner) && ItServices::BetaDevice.tester?(owner) && identifier == ItServices::BetaDevice.identifier(owner)
+    end
     candidate = Digest::SHA256.hexdigest(token.to_s)
     ActiveSupport::SecurityUtils.secure_compare(enrollment_token_digest, candidate)
   end

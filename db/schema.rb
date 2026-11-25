@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_24_210000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_25_143000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -6148,6 +6148,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_210000) do
     t.index ["operator_id"], name: "index_release_assurance_testers_on_operator_id"
   end
 
+  create_table "release_assurance_workflows", force: :cascade do |t|
+    t.bigint "candidate_id", null: false
+    t.bigint "environment_id"
+    t.string "source_sha", null: false
+    t.integer "definition_version", null: false
+    t.jsonb "steps", null: false
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id", "environment_id"], name: "idx_release_active_staging_workflow", unique: true, where: "((finished_at IS NULL) AND (environment_id IS NOT NULL))"
+    t.index ["candidate_id"], name: "idx_release_active_ci_workflow", unique: true, where: "((finished_at IS NULL) AND (environment_id IS NULL))"
+    t.index ["candidate_id"], name: "index_release_assurance_workflows_on_candidate_id"
+    t.index ["environment_id"], name: "index_release_assurance_workflows_on_environment_id"
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -7836,6 +7851,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_24_210000) do
   add_foreign_key "release_assurance_runs", "release_assurance_candidates", column: "candidate_id"
   add_foreign_key "release_assurance_runs", "release_assurance_environments", column: "environment_id"
   add_foreign_key "release_assurance_testers", "users", column: "operator_id"
+  add_foreign_key "release_assurance_workflows", "release_assurance_candidates", column: "candidate_id"
+  add_foreign_key "release_assurance_workflows", "release_assurance_environments", column: "environment_id"
   add_foreign_key "scene_objects", "studio_scenes"
   add_foreign_key "sessions", "lightek_identity_connections", column: "identity_connection_id"
   add_foreign_key "sessions", "users"

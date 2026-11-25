@@ -1,0 +1,5 @@
+[Unit]
+Description=Lightek green production slot memory group
+
+[Slice]
+MemoryAccounting=yes

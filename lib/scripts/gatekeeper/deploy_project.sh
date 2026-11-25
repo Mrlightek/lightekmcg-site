@@ -26,6 +26,11 @@ install -d -m 0700 "/var/lib/lightek/fleet/${FLEET_LOCK_KEY}"
 exec 9>"/var/lib/lightek/fleet/${FLEET_LOCK_KEY}/update.lock"
 flock -n 9 || { echo "ERROR: another deployment owns this checkout"; exit 1; }
 
+if [[ "$APP_ROOT" == "/var/www/lightekmcg-site" && -e /var/lib/lightek/blue-green/active.conf ]]; then
+  echo "ERROR: primary traffic uses blue-green slots; use the reviewed slot deployment procedure." >&2
+  exit 1
+fi
+
 echo "[1/8] Pull"
 
 run_as_app_user() {

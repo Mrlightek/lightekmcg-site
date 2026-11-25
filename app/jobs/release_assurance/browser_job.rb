@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-require "open3"
-require "tmpdir"
-
 module ReleaseAssurance
+  # Existing queued browser jobs remain executable across deployments.
   class BrowserJob < ApplicationJob
     queue_as :release_assurance
 
@@ -14,18 +12,11 @@ module ReleaseAssurance
 
       candidate = environment.candidate
       Policy.authorize!(candidate.operator, candidate)
-      hostname = Policy.hostname!(environment.hostname)
-      Dir.mktmpdir("release-browser-") do |dir|
-        screenshot = File.join(dir, "homepage.png")
-        stdout, stderr, status = Open3.capture3("node", Rails.root.join("script/lightek/release_assurance_browser.cjs").to_s,
-          hostname, candidate.source_sha, screenshot)
+      BrowserSmoke.capture(environment, candidate.source_sha) do |result, summary, screenshot|
         candidate.with_lock do
           return unless environment.reload.active?
 
-          run = candidate.runs.create!(environment: environment, check_key: "browser_smoke", kind: "automated",
-            result: status.success? ? "passed" : "failed", source_sha: candidate.source_sha,
-            evidence: { "summary" => status.success? ? stdout.strip : stderr.strip })
-          Feedback.attach_png!(run, File.binread(screenshot)) if status.success?
+          BrowserSmoke.record!(environment, result, summary, screenshot)
         end
       end
       Nevaeh.review!(candidate, candidate.operator)

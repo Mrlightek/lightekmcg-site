@@ -46,13 +46,17 @@ module ReleaseAssurance
     end
 
     def evaluation
-      environment = @candidate.environments.where(state: "ready").where("expires_at > ?", Time.current).order(id: :desc).first
+      environment = @candidate.active_staging_environment
       runs = @candidate.runs.where(source_sha: @candidate.source_sha).where(environment_id: [nil, environment&.id])
         .order(id: :desc).to_a.group_by { |run| [run.check_key, run.kind] }
 
       blockers = []
       blockers << "Publish the reviewed source revision" unless @candidate.state == "published"
       blockers << "Deploy an active staging environment" unless environment
+      if (workflow = @candidate.workflows.where(environment: environment, source_sha: @candidate.source_sha).order(id: :desc).first)
+        blockers << "Acceptance refresh is still in progress" unless workflow.finished_at
+        blockers << "Retry the failed acceptance refresh" if workflow.status == "failed"
+      end
       verified_defects = @candidate.defects.where(status: "verified").select(:run_id)
       if @candidate.defects.exists?(status: "open") || @candidate.runs.where(result: "failed").where.not(id: verified_defects).exists?
         blockers << "Resolve failed checks and record retests"

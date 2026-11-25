@@ -14,9 +14,21 @@ module ReleaseAssurance
     end
 
     def sync!(require_current: false)
+      revision = @candidate.source_sha
+      receipts = collect
+      raise Unavailable, "A required GitHub Actions run is missing" if require_current && receipts.any?(&:nil?)
+
+      @candidate.with_lock do
+        raise Unavailable, "The published candidate revision changed" unless @candidate.source_sha == revision
+
+        record!(receipts)
+      end
+    end
+
+    def collect
       checks = Readiness::CI
       checks = checks.except(*Readiness::SIMULATED_CI) unless @candidate.profile == "msp"
-      checks.each do |key, (path, required_jobs)|
+      checks.map do |key, (path, required_jobs)|
         payload = request("actions/workflows/#{File.basename(path)}/runs",
           head_sha: @candidate.source_sha, branch: @candidate.publication_ref, per_page: MAX_RUNS)
         matching = payload.fetch("workflow_runs").select do |run|
@@ -25,24 +37,31 @@ module ReleaseAssurance
             %w[push workflow_dispatch].include?(run["event"])
         end
         run = matching.max_by { |entry| entry.fetch("id") }
-        if run.nil?
-          raise Unavailable, "Required GitHub Actions run is missing for #{key}" if require_current
-
-          next
-        end
+        next if run.nil?
 
         jobs = if run["status"] == "completed"
           request("actions/runs/#{Integer(run.fetch('id'))}/attempts/#{Integer(run.fetch('run_attempt'))}/jobs", per_page: 100).fetch("jobs")
         else
           []
         end
-        result = result_for(run, jobs, required_jobs)
-        @candidate.with_lock do
-          receipt = @candidate.runs.find_or_initialize_by(check_key: key,
-            external_id: "github:#{run.fetch('id')}:#{run.fetch('run_attempt')}")
-          receipt.update!(source_sha: @candidate.source_sha, kind: Readiness::SIMULATED_CI.include?(key) ? "simulated" : "automated",
-            result: result, evidence: { "run_id" => run.fetch("id"), "attempt" => run.fetch("run_attempt"), "workflow" => path })
+        [key, result_for(run, jobs, required_jobs),
+          { "run_id" => run.fetch("id"), "attempt" => run.fetch("run_attempt"), "workflow" => path }]
+      end
+    end
+
+    # Call with the candidate locked. An older observation may finish after a newer poll.
+    def record!(receipts)
+      receipts.compact.each do |key, result, evidence|
+        run_id, attempt = evidence.values_at("run_id", "attempt")
+        recent = @candidate.runs.where(check_key: key, source_sha: @candidate.source_sha).where.not(external_id: nil).order(id: :desc).first
+        if recent && recent.evidence.key?("run_id")
+          comparison = [run_id, attempt] <=> recent.evidence.values_at("run_id", "attempt")
+          next if comparison.negative? || (comparison.zero? && result == "running" && recent.result != "running")
         end
+
+        receipt = @candidate.runs.find_or_initialize_by(check_key: key, external_id: "github:#{run_id}:#{attempt}")
+        receipt.update!(source_sha: @candidate.source_sha, kind: Readiness::SIMULATED_CI.include?(key) ? "simulated" : "automated",
+          result: result, evidence: evidence)
       end
     end
 

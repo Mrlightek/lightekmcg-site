@@ -9,7 +9,6 @@ module ReleaseAssurance
   class Staging
     def self.prepare!(candidate:, actor:, request:, hostname:, budget_cents:, hours:)
       Policy.authorize!(actor, candidate)
-      Policy.runner!
       Policy.hostname!(hostname)
       raise Policy::Denied, "Publish the candidate first" unless candidate.state == "published"
       raise Policy::Denied, "Choose a positive budget and expiration of 4 to 168 hours" unless budget_cents.positive? && (4..168).cover?(hours)

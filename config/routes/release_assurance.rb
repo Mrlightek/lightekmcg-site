@@ -3,6 +3,7 @@
 namespace :dashboard do
   resources :release_assurance, only: %i[index show create] do
     collection do
+      post :import_msp
       post :register_tester
       post :offboard_tester
     end

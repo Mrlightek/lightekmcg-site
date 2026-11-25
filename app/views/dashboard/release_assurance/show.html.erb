@@ -90,6 +90,18 @@
     <% if @candidate.state == "published" %>
       <%= button_to "Refresh acceptance", accept_dashboard_release_assurance_path(@candidate), class: "infra-button" %>
     <% end %>
+    <% if @workflow %>
+      <h3 class="h5 mt-3">Acceptance workflow #<%= @workflow.id %></h3>
+      <p><%= @workflow.status.humanize %> · <code><%= @workflow.source_sha %></code></p>
+      <ul>
+        <% { "ci" => "GitHub Actions", "browser" => "Staging browser", "review" => "Nevaeh review" }.each do |key, label| %>
+          <% step = @workflow.steps.fetch(key) %>
+          <li><strong><%= label %></strong> · <%= step.fetch("status").humanize %>
+            <% if step["message"] %><span> · <%= step.fetch("message") %></span><% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
     <div class="infra-table-wrap"><table class="infra-table">
       <thead><tr><th scope="col">Run</th><th scope="col">Verification</th><th scope="col">Result</th><th scope="col">Evidence</th></tr></thead>
       <tbody>

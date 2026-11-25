@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_25_143000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_25_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2940,6 +2940,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_143000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_lightek_mail_templates_on_account_id"
+  end
+
+  create_table "lightek_managed_dns_enrollments", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "owner_id", null: false
+    t.bigint "requested_by_id", null: false
+    t.bigint "reviewed_by_id"
+    t.string "domain", null: false
+    t.string "state", default: "requested", null: false
+    t.string "proof", null: false
+    t.string "provider_zone_id"
+    t.string "records_digest"
+    t.jsonb "previous_nameservers", default: [], null: false
+    t.jsonb "nameservers", default: [], null: false
+    t.datetime "reviewed_at"
+    t.datetime "verified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "provider_kind", default: "cloudflare", null: false
+    t.index ["domain"], name: "index_lightek_managed_dns_enrollments_on_domain", unique: true, where: "((state)::text <> 'withdrawn'::text)"
+    t.index ["order_id"], name: "index_lightek_managed_dns_enrollments_on_order_id", unique: true
+    t.index ["owner_id"], name: "index_lightek_managed_dns_enrollments_on_owner_id"
+    t.index ["provider_zone_id"], name: "index_lightek_managed_dns_enrollments_on_provider_zone_id", unique: true, where: "((state)::text <> 'withdrawn'::text)"
+    t.index ["requested_by_id"], name: "index_lightek_managed_dns_enrollments_on_requested_by_id"
+    t.index ["reviewed_by_id"], name: "index_lightek_managed_dns_enrollments_on_reviewed_by_id"
+    t.check_constraint "provider_kind::text = ANY (ARRAY['cloudflare'::character varying, 'powerdns'::character varying]::text[])", name: "managed_dns_provider_kind"
   end
 
   create_table "lightek_marketing_campaigns", force: :cascade do |t|
@@ -7490,6 +7516,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_143000) do
   add_foreign_key "lightek_mail_send_reservations", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_send_reservations", "users"
   add_foreign_key "lightek_mail_templates", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_managed_dns_enrollments", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_managed_dns_enrollments", "users", column: "owner_id"
+  add_foreign_key "lightek_managed_dns_enrollments", "users", column: "requested_by_id"
+  add_foreign_key "lightek_managed_dns_enrollments", "users", column: "reviewed_by_id"
   add_foreign_key "lightek_marketing_campaigns", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_campaigns", "lightek_mail_accounts", column: "mail_account_id"
   add_foreign_key "lightek_marketing_campaigns", "lightek_marketing_media_bindings", column: "media_binding_id"

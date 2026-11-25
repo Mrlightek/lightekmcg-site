@@ -1,0 +1,91 @@
+<% content_for :page_title, "IT Services billing" %>
+<main>
+  <h1>IT Services billing</h1>
+  <nav aria-label="IT Services">
+    <%= link_to "My reservations", my_reservations_path %>
+    <% if @batch_b_ready %>
+      <%= link_to "My support requests", it_service_requests_path %>
+      <%= link_to "Request IT support", new_it_service_request_path %>
+    <% end %>
+  </nav>
+  <section aria-labelledby="managed-it-plans">
+    <h2 id="managed-it-plans">Managed IT plans</h2>
+    <% if !@batch_b_ready %>
+      <p>Managed IT booking is currently unavailable.</p>
+    <% elsif @plans.empty? %>
+      <p>There are no Managed IT plans available on this website.</p>
+    <% else %>
+      <% @plans.each do |plan| %>
+        <article>
+          <h3><%= plan.product.name %></h3>
+          <% if plan.product.short_description.present? %><p><%= plan.product.short_description %></p><% end %>
+          <p><%= number_to_currency(plan.product.price_cents / 100.0) %> per <%= plan.product.billing_interval %></p>
+          <p>Includes <%= plan.resource.name %> appointments during each paid term.</p>
+          <%= button_to "Continue to checkout", checkout_it_service_plan_path(plan), method: :post %>
+        </article>
+      <% end %>
+    <% end %>
+  </section>
+  <section aria-labelledby="managed-it-subscriptions">
+    <h2 id="managed-it-subscriptions">My subscriptions</h2>
+    <% if @memberships.empty? %><p>You have no Managed IT subscriptions.</p><% end %>
+    <% @memberships.each do |membership| %>
+      <% subscription = membership.subscription %>
+      <article>
+        <h3><%= membership.plan.product.name %></h3>
+        <% if subscription %>
+          <p><%= subscription.status.humanize %> · <%= number_to_currency(subscription.amount_cents / 100.0) %> per <%= subscription.billing_interval %></p>
+          <% if subscription.current_period_end %>
+            <p><%= subscription.cancel_at_period_end? ? "Term ends" : "Current term ends" %> <%= l(subscription.current_period_end.to_date, format: :long) %>.</p>
+          <% end %>
+          <% if @batch_b_ready && @site == membership.plan.resource.site && subscription.status == "active" && membership.plan.resource.published? %>
+            <p><%= link_to "Book an included appointment", reservations_catalog_path(resource_id: membership.plan.resource_id) %></p>
+          <% end %>
+          <% if membership.cancellable? %>
+            <%= button_to "Cancel renewal", cancel_it_service_subscription_path(membership), method: :post, form: { data: { turbo_confirm: "Cancel this subscription’s next renewal?" } } %>
+          <% end %>
+          <% receipts = subscription.billing_invoices.order(paid_at: :desc).limit(24) %>
+          <% if receipts.any? %>
+            <table>
+              <caption>Paid invoices</caption>
+              <thead><tr><th scope="col">Receipt</th><th scope="col">Payment date</th><th scope="col">Amount</th><th scope="col">Order status</th></tr></thead>
+              <tbody>
+                <% receipts.each do |receipt| %>
+                  <tr>
+                    <td><%= receipt.processor_reference %></td>
+                    <td><%= l(receipt.paid_at.to_date, format: :long) %></td>
+                    <td><%= number_to_currency(receipt.amount_paid_cents / 100.0) %></td>
+                    <td><%= receipt.settlement_order&.status&.humanize || "Paid receipt recorded" %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
+        <% else %>
+          <p><%= membership.order.status.humanize %></p>
+          <% if @batch_b_ready && membership.order.status == "pending_payment" && @site == membership.plan.product.site %>
+            <%= button_to "Resume checkout", checkout_it_service_plan_path(membership.plan), method: :post %>
+          <% end %>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+<% if @appointments&.any? %>
+  <section aria-labelledby="it-service-appointments">
+    <h2 id="it-service-appointments">One-time appointments</h2>
+    <table>
+      <thead><tr><th scope="col">Reservation</th><th scope="col">Order</th><th scope="col">Amount</th><th scope="col">Billing status</th></tr></thead>
+      <tbody>
+        <% @appointments.each do |appointment| %>
+          <tr>
+            <td><%= link_to appointment.reference, my_reservation_path(appointment) %></td>
+            <td>#<%= appointment.order_id %></td>
+            <td><%= number_to_currency(appointment.order.total_cents / 100.0) %></td>
+            <td><%= appointment.order.status.humanize %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+<% end %>
+</main>

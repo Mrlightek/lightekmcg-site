@@ -15,6 +15,7 @@ module NevaehCustomerService
       "sign_in_help" => ["Get sign-in and authenticator help", "customer_service", "Customer Service"],
       "refund_request" => ["Request an installation refund", "billing", "Accounting & Billing"],
       "technical" => ["Technical support", "technical", "Technical"],
+      "it_service" => ["IT Services request", "technical", "Technical"],
       "installation_status" => ["Check an installation", "technical", "Technical"],
       "billing" => ["Billing question or dispute", "billing", "Accounting & Billing"],
       "invoice_status" => ["Check an invoice", "billing", "Accounting & Billing"],
@@ -64,13 +65,14 @@ module NevaehCustomerService
       label, category, team = TOPICS.fetch(topic) { raise Invalid, "Choose a support topic" }
       reference = case topic
       when "installation_status" then installations(actor).find(record_id)
+      when "it_service" then ItServiceRequest.where(user: actor).find(record_id)
       when "refund_request" then refundable_installations(actor).find(record_id)
       when "invoice_status" then invoices(actor).find(record_id)
       when "subscription_status" then subscriptions(actor).find(record_id)
       end
       if reference || GUIDED_HEADINGS.key?(topic)
         title = label
-        description = topic == "refund_request" ? message!(description) : nil
+        description = %w[refund_request it_service].include?(topic) ? message!(description) : nil
       else
         title = title.to_s.strip
         description = message!(description)
@@ -169,6 +171,16 @@ module NevaehCustomerService
       case state.fetch("topic")
       when "find_services", "sign_in_help"
         guided_answer(state)
+      when "it_service"
+        return unless ticket.related_type == "ItServiceRequest"
+        request = ItServiceRequest.where(user: actor).find_by(id: ticket.related_id)
+        return unless request
+        triage = ItServices::NevaehTriage.call!(request: request, actor: actor)
+        state["receipt"] = {"request_id" => request.id, "status" => request.status,
+          "updated_at" => request.updated_at.iso8601, "triage" => triage}
+        # Open work must remain with Technical; metadata findings never imply a repair.
+        return if request.status.in?(%w[requested triaged scheduled in_progress awaiting_customer])
+        "Your IT Services request ##{request.id} is #{request.status.humanize.downcase}. You can review its current status in My IT support requests."
       when "installation_status"
         return unless ticket.related_type == "LightekCommerce::Order"
         order = installations(actor).find_by(id: ticket.related_id)

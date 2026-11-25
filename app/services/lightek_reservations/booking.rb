@@ -19,6 +19,7 @@ module LightekReservations
         finish = resource.server? ? (resource.billing_interval == 'annual' ? start + 1.year : start + 1.month) : start + resource.duration_minutes.minutes
         raise Invalid, 'Server packages are reserved individually' if resource.server? && quantity != 1
         Availability.check!(resource: resource, starts_at: start, ends_at: finish, quantity: quantity)
+        managed_coverage!(customer: customer, resource: resource, starts_at: start, ends_at: finish, quantity: quantity)
         order = if resource.product && resource.price_cents.positive?
           if resource.server?
             LightekCommerce::InstallationCheckout.reserve!(actor: customer, product: resource.product, checkout_key: checkout_key)
@@ -37,6 +38,15 @@ module LightekReservations
     rescue ArgumentError, TypeError
       raise Invalid, 'Enter a valid party size'
     end
+    def managed_coverage!(customer:, resource:, starts_at:, ends_at:, quantity:)
+      return unless defined?(Gatekeeper::ItServiceBillingPolicy)
+
+      period = Gatekeeper::ItServiceBillingPolicy.coverage!(customer: customer, resource: resource, starts_at: starts_at, ends_at: ends_at)
+      raise Invalid, "Book one Managed IT appointment at a time." if period && quantity != 1
+    rescue Gatekeeper::ItServiceBillingPolicy::Denied => error
+      raise Invalid, error.message
+    end
+
     def reconcile!(reservation)
       reservation.with_lock do
         order = reservation.order&.reload
@@ -80,6 +90,7 @@ module LightekReservations
           start = Availability.parse(starts_at, resource)
           finish = start + (reservation.ends_at - reservation.starts_at)
           Availability.check!(resource: resource, starts_at: start, ends_at: finish, quantity: reservation.quantity, excluding: reservation)
+          managed_coverage!(customer: reservation.customer, resource: resource, starts_at: start, ends_at: finish, quantity: reservation.quantity)
           reservation.update!(starts_at: start, ends_at: finish, blocks_from: start - resource.buffer_minutes.minutes, blocks_until: finish + resource.buffer_minutes.minutes)
         end
       end

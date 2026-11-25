@@ -2,7 +2,14 @@
 module LightekCommerce
   class Fulfillment
     class Invalid < StandardError; end
-    def self.complete!(order:, reference:, note: nil)
+    def self.complete!(order:, reference:, note: nil, it_service_request: nil)
+      if defined?(ItServices::CompletedAppointmentSettlement)
+        reservation = LightekReservations::Reservation.find_by(order_id: order.id)
+        if ItServices::CompletedAppointmentSettlement.required?(reservation) &&
+            !ItServices::CompletedAppointmentSettlement.verified?(request: it_service_request, reservation: reservation, order: order)
+          raise Invalid, "IT Services orders require customer-confirmed completion."
+        end
+      end
       if order.payment_provider == "network"
         NetworkCheckout.action!(order: order, action: "fulfill", attributes: {reference: reference, note: note})
         return order

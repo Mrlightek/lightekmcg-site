@@ -638,6 +638,7 @@ resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboa
     post :create_client
     post :send_setup_invitation
     patch :update_terms
+    patch :attach_to_lightek
   end
 end
 post "/dashboard/hosting/packages/workspace", to: "dashboard/hosting_packages#create_workspace", as: :create_workspace_dashboard_hosting_packages
@@ -665,6 +666,7 @@ resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard
 end
 resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
   collection do
+    post :open_instance
     post :sync
     post :release
     patch :installation

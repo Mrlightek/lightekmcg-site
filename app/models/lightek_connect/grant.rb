@@ -36,7 +36,13 @@ module LightekConnect
       end
       raise Gatekeeper::Hosting::Access::Denied, 'Connection revoked or agency access removed' if connection.revoked_at? || !connection.user.role.in?(%w[white_label super_admin])
       raise Gatekeeper::Hosting::Access::Denied, 'Client access removed' if site && !LightekSettings::WebsiteIdentity.sites_for(connection.user).exists?(id: site.id)
-      AgencyDashboard.authorize!(connection.user, site) if site && connection.platform == 'dashboard'
+      if site && connection.platform == 'dashboard'
+        if destination == AgencyDashboard::INSTANCE_DESTINATION
+          AgencyDashboard.authorize_instance!(connection.user, site)
+        else
+          AgencyDashboard.authorize!(connection.user, site)
+        end
+      end
       raise Gatekeeper::Hosting::Access::Denied, 'Company requires direct sign-in' unless MfaHandoff.allowed_for?(connection.user) && (!site || MfaHandoff.allowed_for?(site.tenant))
     end
 
@@ -56,8 +62,12 @@ module LightekConnect
       grant.with_lock do
         connection = grant.connection.reload
         if connection.platform == "dashboard"
-          destination = release_action ? AgencyDashboard::RELEASE_DESTINATIONS[release_action] : AgencyDashboard::EDIT_DESTINATION
-          raise Gatekeeper::Hosting::Access::Denied, "Management grant is for another action" unless destination && grant.destination == destination
+          destinations = if release_action
+            [AgencyDashboard::RELEASE_DESTINATIONS[release_action]].compact
+          else
+            [AgencyDashboard::EDIT_DESTINATION, AgencyDashboard::INSTANCE_DESTINATION]
+          end
+          raise Gatekeeper::Hosting::Access::Denied, "Management grant is for another action" unless destinations.include?(grant.destination)
         elsif release_action
           raise Gatekeeper::Hosting::Access::Denied, "Use the Agency Dashboard for website releases"
         end

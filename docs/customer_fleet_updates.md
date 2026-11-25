@@ -19,13 +19,16 @@ commands only back up the configured database or control an explicitly configure
 container worker. Existing DB, Redis, MinIO, storage, TLS and customer credentials
 are preserved. Updates do not allocate replacement servers.
 
-## One account, selected installations, or the fleet
+## Customer Dashboard access and rollout targets
 
 Sync discovers existing `GatekeeperProject` records as native Rails installations.
 Deployment defaults come from the actual project: checkout, application user, Ruby
 version, hostname and worker service. Adjust the environment file, Ruby binary path
 or worker mode in its Dashboard deployment profile when the server differs from
 those defaults. Previously saved profiles are preserved on subsequent syncs.
+On shared nodes, the deployment's registered owner takes precedence over the
+server owner's default assignment. Installations with an active rollout keep
+their account assignment until that rollout is resolved.
 Website metadata without a project does **not** imply a Docker application; it
 requires an explicit adapter/profile before it can receive an update.
 
@@ -35,12 +38,23 @@ share a hostname, and CDN replicas on different nodes can share the same public
 hostname/component. Assign the installation to its customer account when applicable.
 Only super administrators can read or change fleet controls.
 
-Select a release, then choose individual installations, all matching installations,
-or one account's matching installations. Matching includes adapter, component,
+Select a release, then choose individual installations, one account, an agency
+and its descendant accounts, or all matching installations. The Lightek branch
+starts at your super administrator account. Use **Clients & agencies** to check
+an agency's parent and attach a legacy agency if it has no assigned parent.
+Matching includes adapter, component,
 repository, channel and release pin. A Rails application release cannot update a
 CDN or unrelated service. The preview is a fixed target snapshot; start it after
 reviewing the targets. Canaries, batch sizes (1–50), UTC scheduling, pause, cancel,
 retry and automatic promotion work identically for every adapter.
+
+To sign into an instance, use **Open instance Dashboard**. The host and account
+must match an active, verified federation connection. The handoff uses the
+operator's verified MFA session, records the actor, and opens the remote
+owner's Dashboard under that owner's permissions.
+
+These release adapters update Lightek and registered services. Ubuntu package
+updates and distribution upgrades are outside the release adapters.
 
 For customer-specific development, register the custom commit as a separate
 release and assign it in **Installation update policies → Assigned release**.

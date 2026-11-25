@@ -33,7 +33,7 @@ class ConnectManagementController < ApplicationController
     else
       raise Gatekeeper::Hosting::Access::Denied, "Open management at the central origin" unless request.base_url == LightekReservations::Federation::Issuer.origin
       candidate = LightekConnect::Grant.find_by!(code_digest: LightekConnect::Connection.digest(params.require(:code)))
-      if candidate.connection.platform == 'dashboard' && candidate.destination != LightekConnect::AgencyDashboard::EDIT_DESTINATION
+      if candidate.connection.platform == 'dashboard' && !candidate.destination.in?([LightekConnect::AgencyDashboard::EDIT_DESTINATION, LightekConnect::AgencyDashboard::INSTANCE_DESTINATION])
         raise Gatekeeper::Hosting::Access::Denied, 'Open website releases from the Agency Dashboard'
       end
       candidate.authorize_connection!
@@ -46,6 +46,8 @@ class ConnectManagementController < ApplicationController
         host = LightekSettings::SiteDomain.public_hostname!(candidate.site.host)
         return redirect_to("https://#{host}/connect/management?code=#{params.require(:code)}", allow_other_host: true)
       end
+      raise Gatekeeper::Hosting::Access::Denied, 'Client instance unavailable' if candidate.destination == LightekConnect::AgencyDashboard::INSTANCE_DESTINATION && candidate.connection.platform == 'dashboard'
+
       grant = LightekConnect::Grant.consume!(code: params.require(:code), site: candidate.site)
       start_new_session_for(grant.connection.user)
       Current.session.update!(connect_delegation: grant.mfa_context!.merge('local' => true))

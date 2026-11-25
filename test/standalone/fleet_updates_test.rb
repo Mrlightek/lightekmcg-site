@@ -80,6 +80,8 @@ class ProvisioningRequest < ApplicationRecord
   belongs_to :owner, polymorphic: true, optional: true
   belongs_to :gatekeeper_node
   belongs_to :compute_provider
+
+  def compute_adapter(**options) = compute_provider.adapter(**options)
 end
 class SubscriptionInfrastructureEntitlement < ApplicationRecord; end
 module DymondBank
@@ -574,6 +576,28 @@ class FleetUpdatesTest < Minitest::Test
     item.update!(deployment_config: item.deployment_config.merge("worker_mode" => "none"))
     Gatekeeper::Fleet::Inventory.sync_node!(node)
     assert_equal "none", item.reload.deployment_config["worker_mode"]
+  end
+
+  def test_inventory_corrects_a_shared_node_owner_fallback_for_a_registered_client
+    node = installation.gatekeeper_node
+    owner = User.create!(email_address: "operator@example.com")
+    client = User.create!(email_address: "client@example.com")
+    explicit_owner = User.create!(email_address: "explicit@example.com")
+    node.update!(owner_type: "User", owner_id: owner.id)
+    project = GatekeeperProject.create!(name: "customer", gatekeeper_node_id: node.id, domain: "native.example.com",
+      app_root: "/var/www/native", app_user: "lightek", repository: Gatekeeper::Fleet::Adapters::MAIN_REPOSITORY,
+      deployed_sha: "a" * 40, metadata: {})
+    Gatekeeper::Fleet::Inventory.sync_node!(node)
+    item = GatekeeperInstallation.find_by!(domain: project.domain)
+    assert_equal owner.id, item.account_id
+
+    node.update!(metadata: {"website_deployments" => {project.domain => {"owner_id" => client.id}}})
+    assert_empty Gatekeeper::Fleet::Inventory.sync!
+    assert_equal client.id, item.reload.account_id
+
+    item.update!(account_id: explicit_owner.id)
+    assert_empty Gatekeeper::Fleet::Inventory.sync!
+    assert_equal explicit_owner.id, item.reload.account_id
   end
 
   def test_specialized_services_can_share_hostname_without_sharing_release_component

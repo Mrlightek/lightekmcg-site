@@ -4,14 +4,21 @@
   <p>Publish once. Verify a canary, then update customer servers in controlled batches.</p></div>
   <%= button_to "Sync registered installations", sync_dashboard_fleet_updates_path, class: "dd-btn dd-btn-secondary" %>
 </div>
+<%= form_with url: dashboard_fleet_updates_path, method: :get do |f| %>
+  <%= f.label :agency_id, "Filter by agency branch" %>
+  <%= f.select :agency_id, @agency_options, {include_blank: "All installations", selected: @agency&.id} %>
+  <%= f.submit "Filter installations", class: "dd-btn dd-btn-secondary" %>
+<% end %>
+<% if @releases.empty? %><p role="status">No application releases are registered. Register a verified commit below or check the Publish Customer Release workflow and its callback configuration.</p><% end %>
 <div class="dd-card" style="padding:24px;margin-bottom:24px">
   <h2>Create a rollout</h2>
   <p>Choose a release and installations below. The next screen previews the complete target list before starting.</p>
   <%= form_with url: dashboard_fleet_updates_path do |f| %>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
       <label>Release <%= f.select :release_id, @releases.map { |r| ["#{r.version} · #{r.adapter} · #{r.component} · #{r.channel}", r.id] }, {include_blank: "Select a release"}, required: true %></label>
-      <label>Targets <%= f.select :selection, [["Selected installations below", "selected"], ["All matching installations", "all"], ["One account's matching installations", "account"]] %></label>
+      <label>Targets <%= f.select :selection, [["Selected installations below", "selected"], ["All matching installations", "all"], ["One account's matching installations", "account"], ["An agency and all its descendants", "agency"]], selected: @agency ? "agency" : "selected" %></label>
       <label>Account <%= f.select :account_id, @accounts.map { |account| [account.email_address, account.id] }, include_blank: "Select an account" %></label>
+      <label>Agency <%= f.select :target_agency_id, @agency_options, {include_blank: "Select an agency", selected: @agency&.id} %></label>
       <label>Canary servers <%= f.number_field :canary_size, value: 1, min: 1, max: 50, required: true %></label>
       <label>Servers per batch <%= f.number_field :batch_size, value: 10, min: 1, max: 50, required: true %></label>
       <label>Start at (UTC, optional) <%= f.datetime_local_field :scheduled_at %></label>
@@ -20,7 +27,7 @@
     <div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Select</th><th>Customer installation</th><th>Server</th><th>Installed version</th><th>Channel</th><th>Auto updates</th><th>State</th></tr></thead><tbody>
       <% @installations.each do |installation| %>
         <tr><td><%= check_box_tag "installation_ids[]", installation.id, false, disabled: !installation.eligible?, aria: {label: "Select #{installation.domain}"} %></td>
-        <td><%= installation.domain %><br><small><%= installation.adapter %> · <%= installation.component %><% if installation.pinned_release_id %> · Custom release pinned<% end %></small></td><td><%= installation.gatekeeper_node.name %></td>
+        <td><%= installation.domain %><br><small><%= installation.account&.email_address || "Account unassigned" %> · <%= installation.adapter %> · <%= installation.component %><% if installation.pinned_release_id %> · Custom release pinned<% end %></small></td><td><%= installation.gatekeeper_node.name %></td>
         <td><%= installation.current_version.presence || "Awaiting first version report" %></td><td><%= installation.channel %></td>
         <td><%= installation.automatic_updates? ? "Enabled" : "Manual" %></td><td><%= installation.eligible? ? "Available" : "Disabled / unavailable" %></td></tr>
       <% end %>
@@ -28,6 +35,22 @@
     <%= paginate @installations %>
     <% if @installations.empty? %><p>Sync registered installations to discover customer deployments.</p><% end %>
     <div style="margin-top:20px"><%= f.submit "Preview rollout", class: "dd-btn dd-btn-primary" %></div>
+  <% end %>
+</div>
+<div class="dd-card" style="padding:24px;margin-bottom:24px">
+  <h2>Open an instance Dashboard</h2>
+  <% @installations.each do |installation| %>
+    <% next unless installation.component == "lightek_app" %>
+    <% peer = @instance_peers[installation.domain] %>
+    <p><strong><%= installation.domain %></strong>
+      <% if peer&.active? && peer.merchant_id == installation.account_id %>
+        <%= button_to "Open instance Dashboard", open_instance_dashboard_fleet_updates_path(installation_id: installation.id),
+          form: {target: "_blank", rel: "noopener", data: {turbo: false}}, class: "dd-btn dd-btn-secondary",
+          aria: {label: "Open #{installation.domain} Dashboard"} %>
+      <% else %>
+        <span>Verified connection unavailable</span>
+      <% end %>
+    </p>
   <% end %>
 </div>
 <div class="dd-card" style="padding:24px;margin-bottom:24px"><h2>Rollouts</h2>

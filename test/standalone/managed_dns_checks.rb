@@ -37,11 +37,20 @@ end
 
 require_relative "../../db/migrate/20261125160000_create_lightek_managed_dns_enrollments"
 CreateLightekManagedDnsEnrollments.new.migrate(:up)
+require_relative "../../db/migrate/20261125180000_add_provider_to_managed_dns_enrollments"
+AddProviderToManagedDnsEnrollments.new.migrate(:up)
 require_relative "../../app/services/gatekeeper/hosting/access"
 require_relative "../../app/services/lightek_commerce/installations"
 require_relative "../../app/services/lightek_settings/site_domain"
 require_relative "../../app/models/lightek_managed_dns/enrollment"
 require_relative "../../app/services/lightek_managed_dns/cloudflare"
+require_relative "../../app/services/lightek_managed_dns/power_dns"
+require_relative "../../app/services/lightek_managed_dns/dns_probe"
+require "stringio"
+
+module Rails
+  def self.logger = @logger ||= Logger.new(File::NULL)
+end
 
 class ManagedDnsChecks < Minitest::Test
   Enrollment = LightekManagedDns::Enrollment
@@ -68,7 +77,7 @@ class ManagedDnsChecks < Minitest::Test
   end
 
   def request(actor = @owner)
-    Enrollment.request!(order: @order, actor: actor)
+    Enrollment.stub(:configured_provider, "cloudflare") { Enrollment.request!(order: @order, actor: actor) }
   end
 
   def dns(enrollment, nameservers:, proof: true)
@@ -165,6 +174,134 @@ class ManagedDnsChecks < Minitest::Test
         assert_equal Brand, adapter.nameservers!(zone)
         servers.first.fetch("dns_records").first["value"] = "203.0.113.9"
         assert_raises(LightekManagedDns::Cloudflare::Unavailable) { adapter.nameservers!(zone) }
+      end
+    end
+  end
+
+  def test_powerdns_requires_both_replicas_before_registrar_handoff
+    enrollment = Enrollment.stub(:configured_provider, "powerdns") { Enrollment.request!(order: @order, actor: @owner) }
+    assert_instance_of LightekManagedDns::PowerDns, enrollment.provider_for(@operator)
+    provider = LightekManagedDns::PowerDns.new(@operator)
+    provider.stub(:zone!, {"name" => "example.com."}) do
+      provider.stub(:records!, @provider.rows) do
+        provider.stub(:nameservers!, Brand) do
+          dns(enrollment, nameservers: Previous) do
+            provider.stub(:verify_authority!, ->(*) { raise LightekManagedDns::PowerDns::Unavailable }) do
+              assert_raises(LightekManagedDns::PowerDns::Unavailable) { enrollment.stage!(actor: @operator, provider: provider, zone_id: enrollment.domain) }
+            end
+            assert_equal "requested", enrollment.reload.state
+            provider.stub(:verify_authority!, true) do
+              enrollment.stage!(actor: @operator, provider: provider, zone_id: enrollment.domain)
+              enrollment.approve!(actor: @operator, provider: provider)
+            end
+          end
+          dns(enrollment, nameservers: Brand) do
+            provider.stub(:verify_authority!, true) { enrollment.verify!(provider: provider) }
+          end
+        end
+      end
+    end
+    assert_equal "active", enrollment.reload.state
+  end
+
+  def test_powerdns_record_changes_are_scoped_and_version_checked
+    enrollment = request
+    enrollment.update!(provider_kind: "powerdns", state: "active", nameservers: Brand, provider_zone_id: enrollment.domain)
+    provider = LightekManagedDns::PowerDns.new(@owner)
+    rows = @provider.rows
+    params = {record_name: "@", record_type: "MX", ttl: "600", record_values: "10 new-mail.example.net.\n", revision: enrollment.record_revision(rows)}
+    changes = []
+    provider.stub(:zone!, {"name" => "example.com."}) do
+      provider.stub(:records!, rows) do
+        provider.stub(:write_rrset!, ->(**values) { changes << values; :notified }) do
+          dns(enrollment, nameservers: Brand) do
+            assert_raises(Enrollment::Invalid) { enrollment.change_rrset!(actor: User.create!(role: "client"), provider: provider, attributes: params) }
+            assert_raises(Enrollment::Invalid) { enrollment.change_rrset!(actor: @owner, provider: provider, attributes: params.merge(revision: "stale")) }
+            assert_raises(Enrollment::Invalid) { enrollment.change_rrset!(actor: @owner, provider: provider, attributes: params.merge(record_name: "other.example.net")) }
+            assert_raises(Enrollment::Invalid) { enrollment.change_rrset!(actor: @owner, provider: provider, attributes: params.merge(record_name: @order.hosting_domain, record_type: "A")) }
+            enrollment.change_rrset!(actor: @owner, provider: provider, attributes: params)
+            enrollment.change_rrset!(actor: @owner, provider: provider, attributes: params, remove: true)
+          end
+          dns(enrollment, nameservers: Previous) do
+            assert_raises(Enrollment::Invalid) { enrollment.change_rrset!(actor: @owner, provider: provider, attributes: params) }
+          end
+        end
+      end
+    end
+    assert_equal ["10 new-mail.example.net."], changes.first[:contents]
+    assert_equal "example.com", changes.first[:domain]
+    assert_equal [false, true], changes.pluck(:remove)
+  end
+
+  def test_powerdns_uses_the_primary_rrset_api
+    provider = LightekManagedDns::PowerDns.new(@operator)
+    observed = []
+    provider.stub(:request, ->(*args) { observed << args }) do
+      provider.write_rrset!(domain: "example.com", name: "example.com", type: "MX", ttl: 600,
+        contents: ["10 mail.example.net."], remove: false)
+    end
+    method, path, data = observed.first
+    assert_equal Net::HTTP::Patch, method
+    assert_equal "/api/v1/servers/localhost/zones/example.com.", path
+    assert_equal [{"name"=>"example.com.", "type"=>"MX", "changetype"=>"REPLACE", "ttl"=>600,
+      "records"=>[{"content"=>"10 mail.example.net.", "disabled"=>false}]}], data.fetch("rrsets")
+    assert_equal [Net::HTTP::Put, "#{path}/notify"], observed.last
+  end
+
+  def test_powerdns_verifies_every_public_address_serves_the_primary_serial
+    provider = LightekManagedDns::PowerDns.new(@operator)
+    endpoint_map = {Brand.first => ["203.0.113.8"], Brand.last => ["203.0.113.9"]}
+    resolver = Object.new
+    def resolver.timeouts=(_value); end
+    resolver.define_singleton_method(:getaddresses) { |name| endpoint_map.fetch(name.delete_suffix(".")) }
+    observed = []
+    lagging = true
+    answers = lambda do |ip, _name, type|
+      observed << ip
+      case type.name.split("::").last
+      when "SOA" then [Struct.new(:serial).new(lagging && ip == endpoint_map.fetch(Brand.last).first ? 41 : 42)]
+      when "NS" then Brand.map { |host| Resolv::DNS::Resource::IN::NS.new(host) }
+      when "A" then [Resolv::DNS::Resource::IN::A.new("203.0.113.7")]
+      when "AAAA" then []
+      end
+    end
+    provider.stub(:public_endpoints!, endpoint_map) do
+      Resolv::DNS.stub(:open, ->(&block) { block.call(resolver) }) do
+        LightekManagedDns::DnsProbe.stub(:answers, answers) do
+          zone = {"name" => "example.com.", "serial" => 42}
+          arguments = {nameservers: Brand, website: "store.example.com", ip: "203.0.113.7"}
+          assert_raises(LightekManagedDns::PowerDns::Unavailable) { provider.verify_authority!(zone, **arguments) }
+          lagging = false
+          observed.clear
+          provider.verify_authority!(zone, **arguments)
+          assert_equal endpoint_map.values.flatten, observed.uniq
+        end
+      end
+    end
+  end
+
+  def test_probe_requires_an_authoritative_answer_to_the_exact_question
+    resource = Resolv::DNS::Resource::IN::A
+    [0, 1].each do |authoritative|
+      reply = Resolv::DNS::Message.new(111)
+      reply.qr = 1
+      reply.aa = authoritative
+      reply.add_question("store.example.com.", resource)
+      reply.add_answer("store.example.com.", 300, resource.new("203.0.113.7"))
+      data = reply.encode
+      buffer = StringIO.new([data.bytesize].pack("n") + data)
+      wire = Struct.new(:buffer) do
+        def write(_query) = nil
+        def read(size) = buffer.read(size)
+      end.new(buffer)
+      Socket.stub(:tcp, ->(*, **, &block) { block.call(wire) }) do
+        SecureRandom.stub(:random_number, 111) do
+          if authoritative == 1
+            assert_equal ["203.0.113.7"], LightekManagedDns::DnsProbe.answers("203.0.113.8", "store.example.com.", resource).map { |answer| answer.address.to_s }
+          else
+            assert_raises(LightekManagedDns::DnsProbe::Unavailable) { LightekManagedDns::DnsProbe.answers("203.0.113.8", "store.example.com.", resource) }
+          end
+        end
       end
     end
   end

@@ -1,5 +1,8 @@
 # Optional Lightek managed DNS
 
+New enrollments default to [Lightek PowerDNS](lightek_authoritative_dns.md).
+This guide covers enrollments configured to use Cloudflare.
+
 Customers can continue pointing a DNS A record to their VPS. Managed DNS is a
 separate, per-domain enrollment from **My Applications → Managed DNS** on a
 ready installation with a customer domain. The owner or an agency that manages

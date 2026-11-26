@@ -1,0 +1,22 @@
+<%= turbo_frame_tag "composition_header", data: {composition_editor_target: "header"} do %>
+  <header class="macro-header">
+    <div class="macro-top">
+      <h1><%= @record ? @definition.fetch("name") : "New Composition" %></h1>
+      <div class="macro-badges">
+        <span class="macro-badge" data-composition-editor-target="surfaceBadge"><%= @definition.fetch("surface").capitalize %></span>
+        <span class="macro-badge">Tenant<%= " · v#{@record.version}" if @record %></span>
+      </div>
+    </div>
+    <div class="macro-header-fields">
+      <label><span>Operation ID</span><input data-definition-field="id" type="text" value="<%= @definition.fetch("id") %>"
+        placeholder="studio.my_composition" pattern="studio\.[a-z][a-z0-9_]*" required <%= "readonly" if @record %>></label>
+      <label><span>Name</span><input data-definition-field="name" type="text" value="<%= @definition.fetch("name") %>" required></label>
+      <label><span>Surface</span>
+        <select data-definition-field="surface" data-action="change->composition-editor#changeSurface" <%= "disabled" if @record %>>
+          <%= options_for_select([["Image", "image"], ["Motion", "motion"]], @definition.fetch("surface")) %>
+        </select>
+      </label>
+      <label class="macro-description"><span>Description</span><textarea data-definition-field="description" rows="2" required><%= @definition.fetch("description") %></textarea></label>
+    </div>
+  </header>
+<% end %>

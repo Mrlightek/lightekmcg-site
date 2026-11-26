@@ -1,0 +1,81 @@
+id: studio.add_facial_hair
+display_name: Add Facial Hair
+surface: image
+description: Apply a tinted, textured facial-hair layer with an editable feathered mask.
+exposes:
+- parameter: position
+- parameter: scale
+- parameter: rotation
+- parameter: color
+- parameter: density
+- input: mask_path
+returns: {hair_group: layer_id, hair_layer: layer_id}
+accepts: {mask_path: polygon}
+recipe:
+  name: Add Facial Hair
+  version: 2
+  engine: photocraft
+  parameters:
+    position:
+      type: point
+      default: [0, 0]
+      min: -320
+      max: 320
+    scale:
+      type: number
+      default: 100
+      min: 25
+      max: 200
+    rotation:
+      type: number
+      default: 0
+      min: -180
+      max: 180
+    color:
+      type: color
+      default: '#392729'
+    density:
+      type: number
+      default: 0.85
+      min: 0
+      max: 1
+  inputs:
+    mask_path:
+      type: polygon
+      default:
+      - [97, 155]
+      - [115, 197]
+      - [140, 211]
+      - [190, 211]
+      - [225, 173]
+      - [220, 233]
+      - [193, 260]
+      - [161, 270]
+      - [127, 255]
+      - [104, 226]
+  steps:
+  - command: layer.new.group
+    params: {name: Facial Hair}
+    returns: {hair_group: [layer]}
+  - command: layer.select
+    params: {layer: {$ref: hair_group}}
+  - command: layer.new.layer
+    params: {name: Tint and texture}
+    returns: {hair_layer: [layer]}
+  - command: edit.fill
+    params: {contents: color, color: {$param: color}, target: pixels}
+  - command: filter.noise.addNoise
+    params: {amount: 65, distribution: gaussian, monochromatic: true, seed: 77}
+  - command: filter.blur.motionBlur
+    params: {angle: 78, distance: 7}
+  - command: select.lasso
+    params: {points: {$input: mask_path}, polygonal: true}
+  - command: select.modify.feather
+    params: {radius: 4}
+  - command: layer.layerMask.revealSelection
+    params: {layer: {$ref: hair_layer}}
+  - command: edit.transform
+    params: {scaleX: {$param: scale}, scaleY: {$param: scale}, rotate: {$param: rotation}, dx: {$param: [position, 0]}, dy: {$param: [
+          position, 1]}, reference: [160, 215], layer: {$ref: hair_layer}}
+  - command: layer.setProps
+    params: {opacity: {$param: density}, layer: {$ref: hair_layer}}

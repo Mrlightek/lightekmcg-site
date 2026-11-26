@@ -1,0 +1,10 @@
+<ul class="macro-errors" role="alert">
+  <% errors.each do |error| %>
+    <% error = error.with_indifferent_access %>
+    <li data-error-kind="<%= error.fetch(:kind) %>">
+      <% unless error[:step_index].nil? %>Step <%= error[:step_index] + 1 %> · <% end %>
+      <% if error[:step_operation_id] %><code><%= error[:step_operation_id] %></code> · <% end %>
+      <strong><%= error.fetch(:kind).to_s.humanize %></strong> · <%= error.fetch(:detail) %>
+    </li>
+  <% end %>
+</ul>

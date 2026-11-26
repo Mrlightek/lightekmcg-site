@@ -1,0 +1,84 @@
+.macro-workspace {
+  --ink: #172233;
+  --muted: #526174;
+  --line: #dce4eb;
+  --brand: #195547;
+  --wash: #f3f7f6;
+  box-sizing: border-box;
+  max-width: 1110px;
+  margin: 0 auto 4rem;
+  padding: 1.25rem clamp(1rem, 3vw, 2.5rem);
+  font: 15px/1.5 system-ui, sans-serif;
+  text-align: left;
+  color: var(--ink);
+}
+.macro-workspace *, .macro-workspace *::before { box-sizing: border-box; }
+.macro-workspace [hidden] { display: none !important; }
+.macro-workspace turbo-frame { display: block; }
+.macro-workspace h1 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.15; }
+.macro-workspace h2 { margin: 0 0 .85rem; font-size: 1.15rem; }
+.macro-workspace h3 { margin: 0; font-size: 1rem; }
+.macro-workspace p { margin: .25rem 0; }
+.macro-workspace a { color: var(--brand); text-underline-offset: .2em; }
+.macro-workspace input:not([type="hidden"]), .macro-workspace select, .macro-workspace textarea {
+  display: block; width: 100%; min-width: 0; color: inherit; background: white; border: 1px solid #aebac7;
+  padding: .5rem .65rem; border-radius: .4rem; font: inherit;
+}
+.macro-workspace textarea { resize: vertical; }
+.macro-workspace label { display: block; min-width: 0; font-size: .875rem; font-weight: 600; }
+.macro-workspace label > span { display: block; margin-bottom: .25rem; }
+.macro-workspace button, .macro-workspace .macro-primary {
+  appearance: none; display: inline-block; background: white; color: var(--ink); border: 1px solid var(--line);
+  border-radius: .4rem; padding: .5rem .75rem; font: inherit; text-decoration: none; cursor: pointer;
+}
+.macro-workspace .macro-primary { background: var(--brand); border-color: var(--brand); color: white; }
+.macro-workspace button:disabled { opacity: .45; cursor: default; }
+.macro-workspace :focus-visible { outline: 2px solid #256b5e; outline-offset: 3px; }
+.macro-top, .macro-badges, .macro-step-actions, .macro-save-bar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.macro-top { justify-content: space-between; }
+.macro-back { display: inline-block; margin-bottom: 1rem; }
+.macro-header { padding: 1.25rem; border: 1px solid var(--line); border-radius: .65rem; background: var(--wash); }
+.macro-badge { padding: .15rem .55rem; border-radius: 1rem; background: #e5eeeb; color: var(--brand); font-size: .8rem; }
+.macro-header-fields { display: grid; grid-template-columns: 1fr 1.2fr .65fr; gap: .8rem; margin-top: 1rem; }
+.macro-description { grid-column: 1 / -1; }
+.macro-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 300px); gap: 1.25rem; margin: 1.3rem 0; }
+.macro-sidebar section { margin-bottom: 1rem; border: 1px solid var(--line); border-radius: .6rem; padding: .9rem; }
+.macro-sidebar button { margin-top: .65rem; }
+.macro-steps, .macro-saved-list { list-style: none; padding: 0; margin: 0; }
+.macro-step, .macro-saved-list li { border: 1px solid var(--line); border-radius: .55rem; margin-bottom: .65rem; padding: .75rem; background: white; }
+.macro-step-heading { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; align-items: center; gap: .65rem; }
+.macro-step-number { background: var(--wash); text-align: center; border-radius: .35rem; font-weight: 700; padding: .3rem 0; }
+.macro-step-summary { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .82rem; color: var(--muted); }
+.macro-step-actions button { padding: .3rem .5rem; }
+.macro-step-actions [draggable="true"] { cursor: grab; }
+.macro-step turbo-frame { border-top: 1px solid var(--line); margin-top: .75rem; padding-top: .75rem; }
+.macro-step fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin: 0 0 .9rem; padding: .65rem; border: 1px solid var(--line); border-radius: .4rem; }
+.macro-step legend { font-weight: 700; padding: 0 .3rem; }
+.macro-field-label { display: block; font-size: .875rem; font-weight: 600; }
+.macro-point, .macro-color { display: flex; gap: .45rem; align-items: end; }
+.macro-point label, .macro-color label { flex: 1; }
+.macro-color input[type="color"] { width: 2.5rem; height: 2.3rem; padding: .2rem; }
+.macro-binding { margin-top: .4rem; }
+.macro-field output { display: block; color: var(--brand); margin-top: .25rem; }
+.macro-empty { border: 1px dashed #aebac7; border-radius: .55rem; padding: 1rem; color: var(--muted); }
+.macro-errors, .macro-workspace [data-step-field-error] { color: #9c2727; overflow-wrap: anywhere; }
+.macro-errors { padding-left: 1.1rem; }
+.macro-valid { color: var(--brand); }
+.macro-save-bar { justify-content: flex-end; border-top: 1px solid var(--line); padding-top: .85rem; }
+.macro-save-bar [role="status"] { margin-right: auto; color: var(--muted); }
+.macro-tabs { display: flex; gap: 1rem; margin: 1rem 0; border-bottom: 1px solid var(--line); }
+.macro-tabs a { padding: .4rem .65rem; text-decoration: none; }
+.macro-tabs [aria-current="page"] { border-bottom: 2px solid var(--brand); font-weight: 700; }
+.macro-saved-list .macro-badge { float: right; }
+@media (max-width: 760px) {
+  .macro-columns, .macro-header-fields { grid-template-columns: 1fr; }
+  .macro-step-heading { grid-template-columns: 2rem minmax(0, 1fr); }
+  .macro-step-heading .macro-step-actions { grid-column: 2; }
+}
+
+.macro-run fieldset { border: 1px solid var(--line); border-radius: .4rem; margin: .85rem 0; padding: .75rem; }
+.macro-run .macro-field { margin-bottom: .55rem; }
+.macro-run dl { padding: 0; }
+.macro-run dt { font-weight: 700; }
+.macro-run dd { margin: 0 0 .5rem; }
+.macro-run pre { white-space: pre-wrap; overflow-wrap: anywhere; }

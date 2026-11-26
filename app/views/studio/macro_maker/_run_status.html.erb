@@ -1,0 +1,15 @@
+<% tracking = !run.terminal? %>
+<%= tag.div id: "macro_run_#{run.id}",
+    data: ({"controller" => "motion-run-status", "motion-run-status-url-value" => studio_macro_maker_run_status_path(run)} if tracking) do %>
+  <% if run.completed? %>
+    <p class="macro-valid" role="status">Run completed.</p>
+  <% elsif run.failed? %>
+    <%= render "studio/macro_maker/run_failure", error: run.error_message.with_indifferent_access %>
+  <% else %>
+    <p role="status"><%= run.status == "pending" ? "Queued…" : (local_assigns[:rendering] ? "Rendering…" : "Preparing project…") %></p>
+    <% if local_assigns[:percent] %>
+      <%= tag.progress value: percent, max: 100, aria: {label: "Video render progress"} %>
+    <% end %>
+  <% end %>
+  <%= render "studio/macro_maker/run_downloads", run: run if run.terminal? %>
+<% end %>

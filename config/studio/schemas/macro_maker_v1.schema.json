@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Studio Macro Maker API v1 responses",
+  "oneOf": [
+    {"$ref": "#/$defs/catalog"},
+    {"$ref": "#/$defs/operation_detail"},
+    {"$ref": "#/$defs/validation"},
+    {"$ref": "#/$defs/created"},
+    {"$ref": "#/$defs/composition_list"},
+    {"$ref": "#/$defs/composition_detail"},
+    {"$ref": "#/$defs/errors"}
+  ],
+  "$defs": {
+    "catalog": {
+      "type": "object",
+      "properties": {
+        "thick_operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string", "pattern": "^studio\\.[a-z][a-z0-9_]*$"},
+              "display_name": {"type": "string"},
+              "description": {"type": "string"},
+              "surface": {"enum": ["image", "motion", "both"]},
+              "origin": {"enum": ["builtin", "tenant"]},
+              "version": {"type": "integer", "minimum": 1},
+              "runnable": {"type": "boolean"},
+              "params_schema": {"$ref": "#/$defs/form_schema"},
+              "inputs_schema": {"$ref": "#/$defs/form_schema"},
+              "returns": {"type": "object", "additionalProperties": {"$ref": "#/$defs/concrete_handle"}},
+              "accepts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {"anyOf": [{"$ref": "#/$defs/concrete_handle"}, {"const": "any"}]}
+                }
+              },
+              "applicable_context": {"type": "array", "items": {"$ref": "#/$defs/context"}}
+            },
+            "required": [
+              "id",
+              "display_name",
+              "description",
+              "surface",
+              "origin",
+              "version",
+              "runnable",
+              "params_schema",
+              "inputs_schema",
+              "returns",
+              "accepts",
+              "applicable_context"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "surfaces": {"const": ["image", "motion"]},
+        "engines": {"type": "array", "items": {"enum": ["photocraft", "effectcraft"]}, "uniqueItems": true}
+      },
+      "required": ["thick_operations", "surfaces", "engines"],
+      "additionalProperties": false
+    },
+    "operation_detail": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string", "pattern": "^studio\\.[a-z][a-z0-9_]*$"},
+        "display_name": {"type": "string"},
+        "description": {"type": "string"},
+        "surface": {"enum": ["image", "motion", "both"]},
+        "origin": {"enum": ["builtin", "tenant"]},
+        "version": {"type": "integer", "minimum": 1},
+        "runnable": {"type": "boolean"},
+        "params_schema": {"$ref": "#/$defs/form_schema"},
+        "inputs_schema": {"$ref": "#/$defs/form_schema"},
+        "returns": {"type": "object", "additionalProperties": {"$ref": "#/$defs/concrete_handle"}},
+        "accepts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"anyOf": [{"$ref": "#/$defs/concrete_handle"}, {"const": "any"}]}
+          }
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "description",
+        "surface",
+        "origin",
+        "version",
+        "runnable",
+        "params_schema",
+        "inputs_schema",
+        "returns",
+        "accepts"
+      ],
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "valid": {"const": true},
+        "compiled_recipe": {"$ref": "#/$defs/compiled_recipe"},
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "step_index": {"type": ["integer", "null"], "minimum": 0},
+              "step_operation_id": {"type": ["string", "null"]},
+              "detail": {"type": "string"},
+              "kind": {"const": "unavailable_operation"}
+            },
+            "required": ["step_index", "step_operation_id", "detail", "kind"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["valid", "compiled_recipe", "warnings"],
+      "additionalProperties": false
+    },
+    "created": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer", "minimum": 1},
+        "version": {"type": "integer", "minimum": 1},
+        "surface": {"enum": ["image", "motion"]},
+        "operation_id": {"type": "string", "pattern": "^studio\\.[a-z][a-z0-9_]*$"},
+        "published": {"type": "boolean"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["id", "version", "surface", "operation_id", "published", "created_at"],
+      "additionalProperties": false
+    },
+    "composition_list": {
+      "type": "object",
+      "properties": {
+        "compositions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "integer", "minimum": 1},
+              "version": {"type": "integer", "minimum": 1},
+              "surface": {"enum": ["image", "motion"]},
+              "operation_id": {"type": "string", "pattern": "^studio\\.[a-z][a-z0-9_]*$"},
+              "published": {"type": "boolean"},
+              "created_at": {"type": "string", "format": "date-time"},
+              "definition": {"$ref": "#/$defs/definition"}
+            },
+            "required": ["id", "version", "surface", "operation_id", "published", "created_at", "definition"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["compositions"],
+      "additionalProperties": false
+    },
+    "composition_detail": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer", "minimum": 1},
+        "version": {"type": "integer", "minimum": 1},
+        "surface": {"enum": ["image", "motion"]},
+        "operation_id": {"type": "string", "pattern": "^studio\\.[a-z][a-z0-9_]*$"},
+        "published": {"type": "boolean"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "definition": {"$ref": "#/$defs/definition"},
+        "compiled_recipe": {"$ref": "#/$defs/compiled_recipe"},
+        "references": {"type": "array", "items": {"$ref": "#/$defs/reference"}},
+        "params_schema": {"$ref": "#/$defs/form_schema"},
+        "inputs_schema": {"$ref": "#/$defs/form_schema"},
+        "returns": {"type": "object", "additionalProperties": {"$ref": "#/$defs/concrete_handle"}},
+        "accepts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"anyOf": [{"$ref": "#/$defs/concrete_handle"}, {"const": "any"}]}
+          }
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "surface",
+        "operation_id",
+        "published",
+        "created_at",
+        "definition",
+        "compiled_recipe",
+        "references",
+        "params_schema",
+        "inputs_schema",
+        "returns",
+        "accepts"
+      ],
+      "additionalProperties": false
+    },
+    "errors": {
+      "type": "object",
+      "properties": {
+        "valid": {"const": false},
+        "errors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "step_index": {"type": ["integer", "null"], "minimum": 0},
+              "step_operation_id": {"type": ["string", "null"]},
+              "detail": {"type": "string"},
+              "kind": {
+                "enum": ["invalid_binding", "unknown_operation", "unresolved_ref", "type_mismatch", "missing_context"]
+              }
+            },
+            "required": ["step_index", "step_operation_id", "detail", "kind"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["valid", "errors"],
+      "additionalProperties": false
+    },
+    "concrete_handle": {
+      "enum": [
+        "number",
+        "point",
+        "color",
+        "string",
+        "layer_id",
+        "polygon",
+        "mask",
+        "image",
+        "composition",
+        "keyframe"
+      ]
+    },
+    "context": {
+      "enum": [
+        "open_document",
+        "active_selection",
+        "selected_layer",
+        "selection_or_mask",
+        "open_composition",
+        "timeline_playhead"
+      ]
+    },
+    "form_schema": {
+      "type": "object",
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/form_property"}},
+        "required": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "additionalProperties": {"const": false}
+      },
+      "required": ["type", "properties", "required", "additionalProperties"],
+      "additionalProperties": false
+    },
+    "form_property": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["array", "integer", "number", "string"]},
+        "studio_type": {"enum": ["point", "polygon", "color", "layer_id"]},
+        "default": {},
+        "items": {"$ref": "#/$defs/form_property"},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "minItems": {"type": "integer"},
+        "maxItems": {"type": "integer"},
+        "minLength": {"type": "integer"},
+        "maxLength": {"type": "integer"},
+        "pattern": {"type": "string"}
+      }
+    },
+    "definition": {
+      "type": "object",
+      "required": ["id", "name", "version", "surface", "description", "steps"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^studio\\.[a-z][a-z0-9_]*$"},
+        "name": {"type": "string"},
+        "version": {"type": "integer", "minimum": 1},
+        "surface": {"enum": ["image", "motion"]},
+        "description": {"type": "string"},
+        "parameters": {"type": "object"},
+        "inputs": {"type": "object"},
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["operation"],
+            "additionalProperties": false,
+            "properties": {
+              "operation": {"type": "string"},
+              "params": {"type": "object"},
+              "inputs": {"type": "object"},
+              "returns": {"type": "object", "additionalProperties": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "compiled_recipe": {"$ref": "recipe.schema.json"},
+    "reference": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "engine": {"enum": ["photocraft", "effectcraft"]},
+        "surface": {"enum": ["image", "motion", "both"]},
+        "source": {"enum": ["thin", "thick"]},
+        "origin": {"enum": ["tenant", "builtin", null]},
+        "version": {"type": ["integer", "null"]},
+        "returns": {"type": "object"},
+        "accepts": {"type": "object"},
+        "parameters": {"type": ["object", "string", "null"]},
+        "inputs": {"type": "object"},
+        "requires": {"type": ["array", "null"]}
+      },
+      "required": [
+        "id",
+        "engine",
+        "surface",
+        "source",
+        "origin",
+        "version",
+        "returns",
+        "accepts",
+        "parameters",
+        "inputs",
+        "requires"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

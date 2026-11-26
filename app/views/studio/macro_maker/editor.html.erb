@@ -1,0 +1,57 @@
+<% content_for :title, "Studio Composition" %>
+<% content_for :head do %><%= stylesheet_link_tag "studio_macro_maker" %><% end %>
+<main class="macro-workspace" data-controller="composition-editor"
+    data-action="macro:step-added->composition-editor#add macro:step-edited->composition-editor#commit macro:step-reordered->composition-editor#reorder macro:step-removed->composition-editor#remove">
+  <%= link_to "← Compositions", studio_macro_maker_path(surface: @definition["surface"]), class: "macro-back" %>
+  <%= render "studio/macro_maker/header" %>
+  <script type="application/json" data-composition-editor-target="catalog"><%= raw(json_escape(@operations.to_json)) %></script>
+  <% @operations.each do |operation| %>
+    <template data-operation-form="<%= operation.fetch("id") %>" data-operation-surface="<%= operation.fetch("surface") %>">
+      <%= render_step_fields(operation) %>
+      <% if operation.fetch("returns").any? %>
+        <fieldset>
+          <legend>Capture outputs</legend>
+          <% operation.fetch("returns").each do |name, type| %>
+            <label><span><%= name.tr("_", " ").capitalize %> · <%= type %></span>
+              <input type="text" data-capture-output="<%= name %>" pattern="[a-z][a-z0-9_]*" placeholder="Handle name">
+            </label>
+          <% end %>
+        </fieldset>
+      <% end %>
+      <p role="alert" data-step-field-error></p>
+      <div class="macro-step-actions">
+        <button type="button" class="macro-primary" data-action="composition-editor#requestEdit">Save step</button>
+        <button type="button" data-action="composition-editor#cancelEdit">Cancel</button>
+      </div>
+    </template>
+  <% end %>
+  <template data-composition-editor-target="card"><%= render "studio/macro_maker/step_card", step: {}, index: 0 %></template>
+  <div class="macro-columns">
+    <section aria-labelledby="macro-chain-heading">
+      <h2 id="macro-chain-heading">Step chain</h2>
+      <%= render "studio/macro_maker/steps" %>
+    </section>
+    <aside class="macro-sidebar">
+      <section aria-labelledby="macro-add-heading">
+        <h2 id="macro-add-heading">Add a step</h2>
+        <label><span>Operation</span>
+          <select aria-label="Operation" data-composition-editor-target="picker">
+            <option value="">Choose an operation</option>
+            <% @operations.select { |op| [@definition["surface"], "both"].include?(op.fetch("surface").to_s) }.each do |op| %>
+              <option value="<%= op.fetch("id") %>"><%= op.fetch("display_name") %></option>
+            <% end %>
+          </select>
+        </label>
+        <button type="button" data-action="composition-editor#requestAdd">Add Step</button>
+      </section>
+      <%= render "studio/macro_maker/validation" %>
+    </aside>
+  </div>
+  <%= form_with url: studio_macro_maker_compositions_path, class: "macro-save-bar",
+      data: {action: "submit->composition-editor#serialize", turbo_stream: true} do %>
+    <%= hidden_field_tag :definition, "", data: {composition_editor_target: "payload"} %>
+    <span role="status" data-composition-editor-target="status"></span>
+    <button type="submit" name="publish" value="draft">Save Draft</button>
+    <button type="submit" name="publish" value="publish" class="macro-primary">Publish</button>
+  <% end %>
+</main>

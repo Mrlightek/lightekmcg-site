@@ -117,6 +117,29 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
   def make_demo
     LightekAgency::Demos.create!(agency: @employer, values: {first_name: 'Demo', last_name: 'Client', email_address: "demo-#{SecureRandom.hex(3)}@example.test"})
   end
+  def test_demo_email_links_keep_the_duration_set_when_issued
+    client = pending_user
+    setting = AccountSetupSetting.create!(id: 1, link_minutes: 60)
+    original = PasswordsMailer.reset(client).message
+    assert_includes original.text_part.decoded, '1 hour'
+    url = Nokogiri::HTML(original.html_part.decoded).at_css('a')['href']
+
+    setting.update!(link_minutes: 4320)
+    renewed = PasswordsMailer.reset(client).message
+    assert_includes renewed.text_part.decoded, '72 hours'
+    renewed_url = Nokogiri::HTML(renewed.html_part.decoded).at_css('a')['href']
+    refute_includes PasswordsMailer.reset(@employer).message.text_part.decoded, '72 hours'
+
+    travel 59.minutes
+    get url
+    assert_response :success
+    travel 2.minutes
+    get url
+    assert_redirected_to new_password_path
+    get renewed_url
+    assert_response :success
+  end
+
   def test_demo_upgrade_picker_includes_storefronts_bound_to_a_platform_operator
     operator = User.create!(email_address: 'demo-operator@example.test', role: 'super_admin')
     storefront = DymondSite::Site.create!(tenant: @other, name: 'Platform storefront', host: 'platform-store.test')

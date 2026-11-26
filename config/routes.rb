@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   draw :studio_macro_maker
   post "/api/lightek/pwa/studio/workflows/:id/mcp", to: "api/lightek/pwa/studio_workflows#mcp"
   get "/dashboard/mail-transport", to: "dashboard/mail_transport#show", as: :dashboard_mail_transport
+  patch "/dashboard/mail-transport/setup-link-expiry", to: "dashboard/mail_transport#update_setup_link_expiry", as: :dashboard_setup_link_expiry
   post "/dashboard/mail-transport/test", to: "dashboard/mail_transport#test_delivery", as: :test_dashboard_mail_transport
   post "/dashboard/mail-transport/retire-gmail", to: "dashboard/mail_transport#retire_gmail", as: :retire_gmail_dashboard_mail_transport
   get "/dashboard/appearance/colors", to: "dashboard/appearance_colors#show", as: :dashboard_appearance_colors

@@ -6,6 +6,7 @@ ActiveRecord::Schema.define do
   create_table(:dymond_site_sections) { |t| t.integer :page_id; t.string :kind; t.integer :position; t.json :data, default: {} }
   create_table(:user_feature_entitlements) { |t| t.integer :user_id; t.string :feature_slug; t.string :source; t.boolean :active, default: true; t.datetime :revoked_at }
   create_table(:lightek_commerce_products) { |t| t.integer :site_id; t.string :name; t.string :product_type; t.boolean :published; t.integer :subscription_plan_id; t.integer :price_cents; t.string :billing_interval }
+  create_table(:lightek_pwa_platform_operators) { |t| t.references :site; t.references :operator; t.timestamps }
   add_column :lightek_commerce_orders, :hosting_owner_id, :integer
   add_column :lightek_commerce_orders, :payment_reference, :string
   add_column :lightek_commerce_orders, :provisioning_state, :string
@@ -55,6 +56,7 @@ require ROOT.join('app/services/lightek_design/website_designs')
 require ROOT.join('app/services/lightek_design/agency_portfolio')
 require ROOT.join('app/services/lightek_agency/demo_tours')
 require ROOT.join('app/services/lightek_agency/workspace_preview')
+require ROOT.join('app/models/lightek_pwa/platform_operator')
 require ROOT.join('app/models/user_feature_entitlement')
 %w[demo_setting demo_request].each { |file| require ROOT.join("app/models/lightek_agency/#{file}") }
 ActiveRecord::Schema.define do
@@ -102,6 +104,7 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
   def self.runnable_methods = public_instance_methods.grep(/^test_demo_/).map(&:to_s)
   def setup
     [LightekExperiments::Outcome, LightekExperiments::Assignment, LightekExperiments::Experiment].each(&:delete_all)
+    LightekPwa::PlatformOperator.delete_all
     super
     DymondSite::Section.delete_all; DymondSite::Page.delete_all
     LightekCommerce::Product.delete_all; UserFeatureEntitlement.delete_all
@@ -113,6 +116,24 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
   end
   def make_demo
     LightekAgency::Demos.create!(agency: @employer, values: {first_name: 'Demo', last_name: 'Client', email_address: "demo-#{SecureRandom.hex(3)}@example.test"})
+  end
+  def test_demo_upgrade_picker_includes_storefronts_bound_to_a_platform_operator
+    operator = User.create!(email_address: 'demo-operator@example.test', role: 'super_admin')
+    storefront = DymondSite::Site.create!(tenant: @other, name: 'Platform storefront', host: 'platform-store.test')
+    product = @product.dup
+    product.update!(site: storefront)
+
+    refute LightekAgency::Demos.upgrade_products(@employer).exists?(id: product.id)
+
+    binding = LightekPwa::PlatformOperator.create!(site: storefront, operator: operator)
+    assert LightekAgency::Demos.upgrade_products(@employer).exists?(id: product.id)
+    assert @setting.update(upgrade_product: product)
+
+    product.update!(published: false)
+    refute LightekAgency::Demos.upgrade_products(@employer).exists?(id: product.id)
+    product.update!(published: true)
+    binding.update!(operator: @employer)
+    refute LightekAgency::Demos.upgrade_products(@employer).exists?(id: product.id)
   end
   def test_demo_is_local_scoped_timed_and_invites_a_client_without_admin_escalation
     before = GatekeeperNode.count

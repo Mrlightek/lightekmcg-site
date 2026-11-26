@@ -8,7 +8,13 @@
   <%= hidden_field_tag :agency_id, @agency.id %>
   <label>Duration (days)<%= f.number_field :duration_days, value: @setting.duration_days, min: 1, max: 90, required: true %></label>
   <label>Maximum active demos<%= f.number_field :max_active, value: @setting.max_active, min: 1, max: 100, required: true %></label>
-  <label>Paid upgrade package<%= f.collection_select :upgrade_product_id, @products, :id, :name, selected: @setting.upgrade_product_id, include_blank: 'Choose a package' %></label>
+  <% package_label = ->(product) { "#{product.name} · #{number_to_currency(product.price_cents / 100.0)} / #{product.billing_interval.humanize}" } %>
+  <label>Paid upgrade package<%= f.collection_select :upgrade_product_id, @products, :id, package_label, selected: @setting.upgrade_product_id, include_blank: 'Choose a package' %></label>
+  <% if @products.empty? %>
+    <p>No published Lightek installation packages with an installation plan are available from this agency or the platform.
+      <% if current_user.role == 'super_admin' %><%= link_to 'Open Hosting packages', dashboard_hosting_packages_path %><% end %>
+    </p>
+  <% end %>
   <label>Public website<%= f.collection_select :public_site_id, @sites, :id, :name, selected: @setting.public_site_id, include_blank: 'Choose an agency website' %></label>
   <label><%= f.check_box :public_enabled, checked: @setting.public_enabled? %> Allow public demo requests on this website</label>
   <%= f.submit 'Save demo settings', class: 'lp-button' %>

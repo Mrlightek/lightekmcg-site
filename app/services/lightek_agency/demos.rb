@@ -12,7 +12,11 @@ module LightekAgency
       Demo.where(client_id: actor.id)
     end
     def self.upgrade_products(agency)
-      sites = DymondSite::Site.where(tenant_type: 'User', tenant_id: [agency.id] + User.where(role: 'super_admin').pluck(:id))
+      platform_operators = User.where(role: 'super_admin')
+      agency_sites = DymondSite::Site.where(tenant: agency)
+      operator_sites = DymondSite::Site.where(tenant_type: 'User', tenant_id: platform_operators.select(:id))
+      platform_storefronts = LightekPwa::PlatformOperator.where(operator_id: platform_operators.select(:id)).select(:site_id)
+      sites = agency_sites.or(operator_sites).or(DymondSite::Site.where(id: platform_storefronts))
       LightekCommerce::Product.visible.where(site_id: sites.select(:id), product_type: 'lightek_instance').where.not(subscription_plan_id: nil)
     end
     def self.create!(agency:, values:, existing_client: nil, request: nil)

@@ -1,0 +1,6 @@
+<% pending_run = local_assigns[:pending_run] %>
+<% blocked = local_assigns.fetch(:requirements, []).any? %>
+<%= tag.div id: (pending_run ? "macro_run_button_#{pending_run.id}" : "macro_run_button") do %>
+  <%= button_tag(pending_run ? "Running…" : "Run", class: "macro-primary", type: "submit",
+    disabled: pending_run.present? || blocked, aria: {describedby: ("macro-run-requirements" if blocked)}) %>
+<% end %>

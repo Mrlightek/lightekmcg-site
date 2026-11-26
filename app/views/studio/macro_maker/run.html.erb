@@ -1,0 +1,38 @@
+<% content_for :title, "Run #{@operation.display_name}" %>
+<% content_for :head do %><%= stylesheet_link_tag "studio_macro_maker" %><% end %>
+<main class="macro-workspace macro-run">
+  <%= link_to "← Compositions", studio_macro_maker_path(surface: @surface || (@operation.engine == "photocraft" ? "image" : "motion")), class: "macro-back" %>
+  <header class="macro-header">
+    <div class="macro-top">
+      <h1>Run <%= @operation.display_name %></h1>
+      <span class="macro-badge"><%= @operation.surface.to_s.capitalize %> · v<%= @operation.recipe.version %></span>
+    </div>
+    <p><%= @operation.description %></p>
+  </header>
+  <div class="macro-columns">
+    <section aria-label="Run settings">
+      <% if @requirements.any? %>
+        <p class="macro-empty" id="macro-run-requirements">
+          This operation requires <%= @requirements.map { |flag| flag.to_s.humanize.downcase }.to_sentence %>.
+          Macro Maker has no live document context.
+        </p>
+      <% end %>
+      <%= form_with url: studio_macro_maker_run_path(@operation.id, surface: @surface), multipart: true,
+          data: {controller: "macro-run", action: "submit->macro-run#serialize", turbo_stream: true} do %>
+        <%= hidden_field_tag :parameters, "{}", data: {macro_run_target: "parameters"} %>
+        <%= hidden_field_tag :inputs, "{}", data: {macro_run_target: "inputs"} %>
+        <% if Studio::MacroMaker::Runner.requires_input?(@operation) %>
+          <%= label_tag :input_file, "Input image" %>
+          <%= file_field_tag :input_file, required: true, accept: Studio::MacroMaker::Runner::IMAGE_EXTENSIONS.keys.join(",") %>
+        <% end %>
+        <%= render_step_fields(@operation, {}, run_form: true) %>
+        <p role="alert" data-macro-run-target="message"></p>
+        <%= render "studio/macro_maker/run_button", requirements: @requirements %>
+      <% end %>
+    </section>
+    <aside class="macro-sidebar">
+      <%= render "studio/macro_maker/run_validation" %>
+      <%= render "studio/macro_maker/recent_runs" %>
+    </aside>
+  </div>
+</main>

@@ -1,0 +1,11 @@
+<%= turbo_frame_tag "composition_steps", data: {composition_editor_target: "steps",
+    edit_url: (@record && studio_macro_maker_edit_composition_path(@record.operation_id, surface: @record.surface, version: @record.version))} do %>
+  <script type="application/json" data-definition><%= raw(json_escape(@definition.to_json)) %></script>
+  <ol class="macro-steps" data-controller="step-list" data-step-list
+      data-action="dragstart->step-list#start dragover->step-list#over drop->step-list#drop dragend->step-list#clear">
+    <% @definition.fetch("steps").each_with_index do |step, index| %>
+      <%= render "studio/macro_maker/step_card", step: step, index: index %>
+    <% end %>
+  </ol>
+  <p class="macro-empty" data-empty-steps <%= "hidden" if @definition.fetch("steps").any? %>>Add an operation to start the chain.</p>
+<% end %>

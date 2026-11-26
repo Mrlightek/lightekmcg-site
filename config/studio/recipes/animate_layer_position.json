@@ -1,0 +1,43 @@
+{
+  "name": "Animate Layer Position",
+  "version": 2,
+  "engine": "effectcraft",
+  "parameters": {
+    "start_position": {
+      "type": "point",
+      "default": [
+        48,
+        90
+      ],
+      "min": -640,
+      "max": 640
+    },
+    "end_position": {
+      "type": "point",
+      "default": [
+        272,
+        90
+      ],
+      "min": -640,
+      "max": 640
+    },
+    "end_time": {
+      "type": "number",
+      "default": 2,
+      "min": 0.05,
+      "max": 2.95
+    }
+  },
+  "inputs": {
+    "layer_name": {
+      "type": "string",
+      "default": "Tile"
+    }
+  },
+  "steps": [
+    {"command": "comp.new", "params": {"name": "Recipe Motion", "width": 320, "height": 180, "frameRate": 24, "duration": 3}},
+    {"command": "layer.newSolid", "params": {"name": {"$input": "layer_name"}, "width": 30, "height": 30, "color": "#febb33"}, "returns": {"tile_layer": ["layer"]}},
+    {"command": "prop.addKey", "params": {"layer": {"$ref": "tile_layer"}, "path": "transform/position", "value": {"$param": "start_position"}, "time": 0, "timeBase": "comp"}},
+    {"command": "prop.addKey", "params": {"layer": {"$ref": "tile_layer"}, "path": "transform/position", "value": {"$param": "end_position"}, "time": {"$param": "end_time"}, "timeBase": "comp"}}
+  ]
+}

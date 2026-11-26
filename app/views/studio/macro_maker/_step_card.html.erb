@@ -1,0 +1,16 @@
+<li class="macro-step" data-step-index="<%= index %>">
+  <div class="macro-step-heading">
+    <span class="macro-step-number" data-step-number><%= index + 1 %></span>
+    <div><h3 data-step-name><%= @operations&.find { |op| op["id"] == step["operation"] && [@definition["surface"], "both"].include?(op["surface"].to_s) }&.fetch("display_name") || step["operation"] %></h3>
+      <p data-step-summary class="macro-step-summary"><%= (step.fetch("params", {}).keys + step.fetch("inputs", {}).keys).join(", ").presence || "Default settings" %></p>
+    </div>
+    <div class="macro-step-actions">
+      <button type="button" draggable="true" data-drag-handle aria-label="Drag step">↕</button>
+      <button type="button" data-action="step-list#moveUp" aria-label="Move step up">↑</button>
+      <button type="button" data-action="step-list#moveDown" aria-label="Move step down">↓</button>
+      <%= link_to "Edit", "#step_#{index}", data: {step_edit: true, action: "composition-editor#edit"} %>
+      <button type="button" data-action="composition-editor#requestRemove">Remove</button>
+    </div>
+  </div>
+  <%= turbo_frame_tag "step_#{index}", data: {step_form: true}, hidden: true %>
+</li>

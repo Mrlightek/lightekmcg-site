@@ -1,0 +1,10 @@
+<% content_for :title, @engine == "photocraft" ? "PhotoCraft" : "EffectCraft" %>
+<main data-controller="studio-editor-relay"
+  data-studio-editor-relay-origin-value="<%= @editor_origin %>"
+  data-studio-editor-relay-engine-value="<%= @engine %>"
+  data-studio-editor-relay-catalog-value="<%= studio_macro_maker_engine_features_path(@engine) %>"
+  data-studio-editor-relay-apply-value="<%= studio_macro_maker_apply_path('studio.operation_placeholder', surface: @surface) %>">
+  <iframe title="<%= @engine == "photocraft" ? "PhotoCraft" : "EffectCraft" %>" src="<%= @editor_url %>" width="100%" height="850"
+    sandbox="allow-scripts allow-same-origin allow-downloads allow-modals allow-forms"
+    data-studio-editor-relay-target="frame" data-action="load->studio-editor-relay#open"></iframe>
+</main>

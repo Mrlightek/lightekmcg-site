@@ -1,0 +1,22 @@
+id: studio.set_layer_opacity
+display_name: Set Layer Opacity
+surface: image
+description: Set the opacity of an existing layer.
+exposes:
+  - parameter: opacity
+  - input: layer
+accepts:
+  layer: layer_id
+recipe:
+  name: Set Layer Opacity
+  version: 1
+  engine: photocraft
+  parameters:
+    opacity: {type: number, min: 0, max: 1, default: 0.5}
+  inputs:
+    layer: {type: layer_id}
+  steps:
+    - command: layer.setProps
+      params:
+        layer: {$input: layer}
+        opacity: {$param: opacity}

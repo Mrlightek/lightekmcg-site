@@ -57,7 +57,20 @@ module Studio
       Open3.popen3(*command,pgroup:true) do |input,stdout,stderr,wait|
         input.write(stdin_data) if stdin_data
         input.close
-        readers=[Thread.new{while(chunk=stdout.read(16_384));output=(output+chunk).last(1_048_576);end},Thread.new{while(chunk=stderr.read(4096));errors=(errors+chunk).last(4096);end}]
+        readers = [
+          Thread.new do
+            while (chunk = stdout.read(16_384))
+              output += chunk
+              output = output[-1_048_576..] || output
+            end
+          end,
+          Thread.new do
+            while (chunk = stderr.read(4096))
+              errors += chunk
+              errors = errors[-4096..] || errors
+            end
+          end
+        ]
         begin
           deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
           tick=Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -87,7 +100,7 @@ module Studio
       if blender_slot && status.exitstatus == 125 && errors.include?("Conflict.") && errors.include?(BLENDER_SLOT)
         raise Studio::Compute::CpuProfile::Busy, "Waiting for the Blender worker on this server"
       end
-      raise "Media processing failed: #{errors.last(1000)}" unless status.success?
+      raise "Media processing failed: #{errors[-1000..] || errors}" unless status.success?
       output
     ensure
       if cleanup_container && command&.first=="docker" && (index=command.index("--name"))

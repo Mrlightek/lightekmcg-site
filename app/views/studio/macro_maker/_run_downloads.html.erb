@@ -1,0 +1,6 @@
+<% if run.downloadable_output %>
+  <%= link_to (run.video? ? "Download video" : "Download output"), studio_macro_maker_download_run_path(run), data: {turbo: false} %>
+<% end %>
+<% if run.downloadable_project %>
+  <%= link_to "Download project", studio_macro_maker_download_run_path(run, file: "project"), data: {turbo: false} %>
+<% end %>

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Studio recipe",
+  "type": "object",
+  "required": ["name", "version", "engine", "parameters", "steps"],
+  "properties": {
+    "name": {"type": "string", "pattern": "\\S"},
+    "version": {"type": "integer", "minimum": 1},
+    "engine": {"enum": ["photocraft", "effectcraft"]},
+    "parameters": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/parameterName"},
+      "additionalProperties": {"allOf": [{"$ref": "#/$defs/control"}, {"required": ["default"]}]}
+    },
+    "inputs": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/handle"},
+      "additionalProperties": {"$ref": "#/$defs/control"}
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["command", "params"],
+        "properties": {
+          "command": {"type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z0-9_]+)+$"},
+          "params": {"type": "object", "propertyNames": {"not": {"enum": ["$param", "$input", "$ref"]}}, "additionalProperties": {"$ref": "#/$defs/expression"}},
+          "timeout": {"type": "number", "exclusiveMinimum": 0, "default": 30},
+          "returns": {
+            "type": "object",
+            "propertyNames": {"$ref": "#/$defs/handle"},
+            "additionalProperties": {"type": "array", "items": {"$ref": "#/$defs/component"}}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "handle": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "parameterName": {"type": "string", "pattern": "^[a-z][a-zA-Z0-9_]*$"},
+    "handleToken": {
+      "oneOf": [
+        {"$ref": "#/$defs/handle"},
+        {"type": "array", "minItems": 1, "prefixItems": [{"$ref": "#/$defs/handle"}],
+          "items": {"$ref": "#/$defs/component"}}
+      ]
+    },
+    "component": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer", "minimum": 0}]},
+    "control": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["number", "point", "color", "string", "layer_id", "polygon"]},
+        "min": {"type": "number"},
+        "max": {"type": "number"},
+        "default": {}
+      },
+      "if": {"properties": {"type": {"enum": ["number", "point"]}}},
+      "then": {"required": ["min", "max"]}
+    },
+    "expression": {
+      "if": {"type": "object"},
+      "then": {
+        "oneOf": [
+          {"required": ["$ref"], "properties": {"$ref": {"$ref": "#/$defs/handleToken"}}, "additionalProperties": false},
+          {"required": ["$input"], "properties": {"$input": {"$ref": "#/$defs/handleToken"}}, "additionalProperties": false},
+          {
+            "required": ["$param"],
+            "properties": {
+              "$param": {
+                "oneOf": [
+                  {"$ref": "#/$defs/parameterName"},
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "prefixItems": [{"$ref": "#/$defs/parameterName"}],
+                    "items": {"$ref": "#/$defs/component"}
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "propertyNames": {"not": {"enum": ["$param", "$input", "$ref"]}},
+            "additionalProperties": {"$ref": "#/$defs/expression"}
+          }
+        ]
+      },
+      "else": {"if": {"type": "array"}, "then": {"items": {"$ref": "#/$defs/expression"}}}
+    }
+  }
+}

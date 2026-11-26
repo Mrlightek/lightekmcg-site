@@ -1,0 +1,45 @@
+<% content_for :title, "Studio Macro Maker" %>
+<% content_for :head do %><%= stylesheet_link_tag "studio_macro_maker" %><% end %>
+<main class="macro-workspace">
+  <header class="macro-top">
+    <h1>Macro Maker</h1>
+    <%= link_to "New Composition", studio_macro_maker_new_composition_path(surface: @surface), class: "macro-primary" %>
+  </header>
+  <nav class="macro-tabs" aria-label="Composition surfaces">
+    <% %w[image motion].each do |surface| %>
+      <%= link_to surface.capitalize, studio_macro_maker_path(surface: surface), aria: {current: (@surface == surface ? "page" : nil)} %>
+    <% end %>
+    <% engine = Studio::MacroMaker::EditorExport::SURFACES.key(@surface) %>
+    <% if engine && ENV["STUDIO_#{engine.upcase}_EDITOR_URL"].present? %>
+      <%= link_to(engine == "photocraft" ? "Open PhotoCraft" : "Open EffectCraft", studio_macro_maker_engine_editor_path(engine)) %>
+    <% end %>
+  </nav>
+  <% if @records.empty? %>
+    <p class="macro-empty">No <%= @surface %> compositions yet.</p>
+  <% else %>
+    <ul class="macro-saved-list">
+      <% @records.each do |record| %>
+        <li>
+          <%= link_to record.body.dig("composition", "definition", "name"),
+            studio_macro_maker_edit_composition_path(record.operation_id, surface: record.surface, version: record.version) %>
+          <span class="macro-badge"><%= record.published? ? "Published" : "Draft" %> · v<%= record.version %></span>
+          <% if record.published? %>
+            <%= link_to "Run", studio_macro_maker_run_path(record.operation_id, surface: record.surface),
+              aria: {label: "Run #{record.body.dig('composition', 'definition', 'name')}"} %>
+          <% end %>
+          <p><%= record.body.dig("composition", "definition", "description") %></p>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+  <% if @run_operations.any? %>
+    <section aria-labelledby="macro-builtins">
+      <h2 id="macro-builtins">Built-in operations</h2>
+      <ul class="macro-saved-list">
+        <% @run_operations.each do |operation| %>
+          <li><%= link_to operation.display_name, studio_macro_maker_run_path(operation.id, surface: @surface) %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+</main>

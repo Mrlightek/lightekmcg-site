@@ -1,0 +1,14 @@
+<% if error[:errors] %>
+  <%= render "studio/macro_maker/run_errors", errors: error[:errors] %>
+<% else %>
+  <dl class="macro-errors" role="alert" data-error-reason="<%= error.fetch(:reason) %>">
+    <dt>Step index</dt><dd><%= error[:step_index].nil? ? "—" : error[:step_index] %></dd>
+    <dt>Command</dt><dd><code><%= error.fetch(:command) %></code></dd>
+    <dt>Engine</dt><dd><%= error.fetch(:engine) %></dd>
+    <dt>Reason</dt><dd><%= error.fetch(:reason).humanize %></dd>
+    <dt>Details</dt><dd><%= error.fetch(:detail) %></dd>
+    <% if error[:stderr].present? %>
+      <dt>Engine stderr</dt><dd><pre><%= error[:stderr] %></pre></dd>
+    <% end %>
+  </dl>
+<% end %>

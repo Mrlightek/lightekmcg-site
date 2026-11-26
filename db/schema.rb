@@ -6792,6 +6792,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_190000) do
     t.index ["remote_key"], name: "index_studio_network_carriages_on_remote_key", unique: true
   end
 
+  create_table "studio_operation_records", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "operation_id", null: false
+    t.string "surface", null: false
+    t.integer "version", null: false
+    t.jsonb "body", null: false
+    t.boolean "published", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "owner_id"
+    t.index ["owner_id"], name: "index_studio_operation_records_on_owner_id"
+    t.index ["site_id", "operation_id", "surface", "version"], name: "idx_studio_operation_records_identity", unique: true
+    t.check_constraint "surface::text = ANY (ARRAY['image'::character varying, 'motion'::character varying, 'both'::character varying]::text[])", name: "studio_operation_records_surface"
+    t.check_constraint "version > 0", name: "studio_operation_records_positive_version"
+  end
+
   create_table "studio_operations", force: :cascade do |t|
     t.bigint "studio_project_id", null: false
     t.bigint "production_id"
@@ -6927,6 +6943,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_190000) do
     t.index ["studio_project_id"], name: "index_studio_publications_on_studio_project_id"
   end
 
+  create_table "studio_recipes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", limit: 120, null: false
+    t.integer "version", null: false
+    t.jsonb "body", null: false
+    t.text "source_tutorial_reference"
+    t.boolean "published", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "name", "version"], name: "index_studio_recipes_on_site_id_and_name_and_version", unique: true
+    t.check_constraint "version > 0", name: "studio_recipes_positive_version"
+  end
+
   create_table "studio_remote_renders", force: :cascade do |t|
     t.bigint "peer_id", null: false
     t.bigint "studio_operation_id", null: false
@@ -6939,6 +6968,27 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_190000) do
     t.index ["peer_id", "request_key"], name: "index_studio_remote_renders_on_peer_id_and_request_key", unique: true
     t.index ["peer_id"], name: "index_studio_remote_renders_on_peer_id"
     t.index ["studio_operation_id"], name: "index_studio_remote_renders_on_studio_operation_id", unique: true
+  end
+
+  create_table "studio_render_results", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "operation_record_id"
+    t.string "operation_id", null: false
+    t.string "surface", null: false
+    t.integer "version", null: false
+    t.string "input_filename"
+    t.string "status", default: "pending", null: false
+    t.jsonb "error_message"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["operation_record_id"], name: "index_studio_render_results_on_operation_record_id"
+    t.index ["site_id", "user_id", "operation_id", "surface", "created_at"], name: "index_studio_render_results_on_run_history"
+    t.index ["site_id"], name: "index_studio_render_results_on_site_id"
+    t.index ["user_id"], name: "index_studio_render_results_on_user_id"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "studio_render_results_status_check"
   end
 
   create_table "studio_scene_renders", force: :cascade do |t|
@@ -7964,6 +8014,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_190000) do
   add_foreign_key "studio_live_operations", "productions"
   add_foreign_key "studio_live_operations", "studio_projects"
   add_foreign_key "studio_network_carriages", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
+  add_foreign_key "studio_operation_records", "dymond_site_sites", column: "site_id", on_delete: :cascade
+  add_foreign_key "studio_operation_records", "users", column: "owner_id", on_delete: :nullify
   add_foreign_key "studio_operations", "productions"
   add_foreign_key "studio_operations", "studio_projects"
   add_foreign_key "studio_operations", "studio_scenes"
@@ -7981,8 +8033,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_190000) do
   add_foreign_key "studio_publications", "artifacts"
   add_foreign_key "studio_publications", "productions"
   add_foreign_key "studio_publications", "studio_projects"
+  add_foreign_key "studio_recipes", "dymond_site_sites", column: "site_id", on_delete: :cascade
   add_foreign_key "studio_remote_renders", "lightek_reservation_peers", column: "peer_id"
   add_foreign_key "studio_remote_renders", "studio_operations"
+  add_foreign_key "studio_render_results", "dymond_site_sites", column: "site_id", on_delete: :cascade
+  add_foreign_key "studio_render_results", "studio_operation_records", column: "operation_record_id", on_delete: :nullify
+  add_foreign_key "studio_render_results", "users", on_delete: :cascade
   add_foreign_key "studio_scene_renders", "studio_scenes"
   add_foreign_key "studio_scenes", "productions"
   add_foreign_key "studio_scenes", "studio_projects"

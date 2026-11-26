@@ -10,7 +10,17 @@ ActiveRecord::Schema.define do
   add_column :lightek_commerce_orders, :hosting_owner_id, :integer
   add_column :lightek_commerce_orders, :payment_reference, :string
   add_column :lightek_commerce_orders, :provisioning_state, :string
+  create_table(:lightek_commerce_order_items) do |t|
+    t.references :order
+    t.references :product
+    t.string :name
+    t.integer :quantity
+    t.integer :unit_price_cents
+    t.integer :line_total_cents
+    t.json :purchase_snapshot
+  end
 end
+require ROOT.join('app/models/lightek_commerce/order_item')
 module DymondSite
   class SiteTemplate < ApplicationRecord
     self.table_name = 'dymond_site_site_templates'
@@ -46,6 +56,7 @@ module LightekCommerce
   class Order
     belongs_to :hosting_owner, class_name: 'User', optional: true
     belongs_to :site, class_name: 'DymondSite::Site', optional: true
+    has_many :items, class_name: 'LightekCommerce::OrderItem'
   end
 end
 ActiveRecord::Base.connection.add_column(:lightek_commerce_orders, :site_id, :integer) unless ActiveRecord::Base.connection.column_exists?(:lightek_commerce_orders, :site_id)
@@ -83,6 +94,7 @@ module LightekCommerce
   end
   class StripeCheckout
     class Unavailable < StandardError; end
+    def self.start!(**) = raise('Replace Stripe boundary in this fixture')
   end
   class OrderPlacement
     class Invalid < StandardError; end
@@ -105,6 +117,7 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
   def setup
     [LightekExperiments::Outcome, LightekExperiments::Assignment, LightekExperiments::Experiment].each(&:delete_all)
     LightekPwa::PlatformOperator.delete_all
+    LightekCommerce::OrderItem.delete_all
     super
     DymondSite::Section.delete_all; DymondSite::Page.delete_all
     LightekCommerce::Product.delete_all; UserFeatureEntitlement.delete_all
@@ -320,6 +333,91 @@ class AgencyDemoChecks < EnterpriseOnboardingChecks
     assert_equal actor.id, order.hosting_owner_id
     assert_equal demo.public_id, order.demo_content['demo_id']
     assert_equal 'upgrading', demo.reload.status
+  end
+
+  def test_demo_upgrade_reuses_the_order_price_after_the_configured_package_changes
+    demo = make_demo
+    client = demo.client
+    client.update!(password: 'fixture-password', password_setup_required: false)
+    login(client)
+
+    get dashboard_demo_path(demo)
+    offer_key = css_select('input[name="offer_key"]').sole['value']
+    assert_select 'strong', text: 'Full instance'
+    assert_includes response.body, '$100.00 / Month'
+
+    order = LightekCommerce::Order.create!(customer_email: client.email_address, status: 'pending_payment')
+    order.items.create!(product: @product, name: @product.name, quantity: 1, unit_price_cents: 10000,
+      line_total_cents: 10000, purchase_snapshot: {'billing_interval' => 'month'})
+    checkout = ->(order:, **) do
+      assert_equal demo.reload.upgrade_order_id, order.id
+      Struct.new(:url).new('https://checkout.example.test/demo')
+    end
+
+    LightekCommerce::StripeCheckout.stub(:start!, checkout) do
+      LightekCommerce::InstallationCheckout.stub(:reserve!, order) do
+        post upgrade_dashboard_demo_path(demo), params: {checkout_key: SecureRandom.uuid, offer_key: offer_key}
+        assert_redirected_to 'https://checkout.example.test/demo'
+      end
+
+      replacement = @product.dup
+      replacement.update!(name: 'Replacement instance', price_cents: 19900, billing_interval: 'year')
+      @setting.update!(upgrade_product: replacement)
+      @product.update!(name: 'Renamed instance', published: false, price_cents: 12900)
+
+      get dashboard_demo_path(demo)
+      assert_select 'strong', text: 'Full instance'
+      assert_includes response.body, '$100.00 / Month'
+      assert_select 'form[action=?]', upgrade_dashboard_demo_path(demo), count: 1
+      assert_includes response.body, 'Resume checkout'
+      refute_includes response.body, 'Replacement instance'
+      assert_equal offer_key, css_select('input[name="offer_key"]').sole['value']
+
+      post upgrade_dashboard_demo_path(demo), params: {checkout_key: SecureRandom.uuid, offer_key: offer_key}
+      assert_redirected_to 'https://checkout.example.test/demo'
+      assert_equal order.id, demo.reload.upgrade_order_id
+    end
+  end
+
+  def test_demo_upgrade_hides_unpublished_packages_and_handles_stale_forms
+    demo = make_demo
+    client = demo.client
+    client.update!(password: 'fixture-password', password_setup_required: false)
+    login(client)
+    get dashboard_demo_path(demo)
+    offer_key = css_select('input[name="offer_key"]').sole['value']
+
+    @product.update!(published: false)
+    get dashboard_demo_path(demo)
+    assert_select 'form[action=?]', upgrade_dashboard_demo_path(demo), count: 0
+    assert_includes response.body, 'Ask your agency to configure a paid upgrade package.'
+
+    post upgrade_dashboard_demo_path(demo), params: {checkout_key: SecureRandom.uuid, offer_key: offer_key}
+    assert_redirected_to dashboard_demo_path(demo)
+    assert_includes flash[:alert], 'This upgrade package is unavailable'
+    assert_nil demo.reload.upgrade_order_id
+  end
+
+  def test_demo_upgrade_rejects_a_price_change_between_view_and_reservation
+    demo = make_demo
+    offer = LightekAgency::DemoUpgrade.offer_for(demo)
+    @product.update!(price_cents: 14900)
+    reserve = ->(**) do
+      order = LightekCommerce::Order.create!(customer_email: demo.client.email_address, status: 'pending_payment')
+      order.items.create!(product: @product, name: @product.name, quantity: 1, unit_price_cents: 14900,
+        line_total_cents: 14900, purchase_snapshot: {'billing_interval' => 'month'})
+      order
+    end
+
+    LightekCommerce::InstallationCheckout.stub(:reserve!, reserve) do
+      assert_no_difference('LightekCommerce::Order.count') do
+        error = assert_raises(LightekAgency::Demos::Invalid) do
+          LightekAgency::DemoUpgrade.reserve!(demo: demo, actor: demo.client, checkout_key: SecureRandom.uuid, expected_offer: offer.key)
+        end
+        assert_includes error.message, 'Your upgrade offer changed'
+      end
+    end
+    assert_nil demo.reload.upgrade_order_id
   end
   def test_demo_public_activation_remains_csrf_protected
     request = LightekAgency::DemoRequest.create!(agency: @employer, first_name: 'New', last_name: 'Client', email_address: 'csrf@example.test')

@@ -12,9 +12,7 @@ class AccountSetupsController < PasswordsController
     Rails.logger.warn("Installation mailbox setup enqueue failed (#{error.class.name}). Mail Studio can retry it.")
   end
   def user_for_token!
-    user = User.find_by_token_for!(:password_setup, params[:token])
-    raise ActiveSupport::MessageVerifier::InvalidSignature unless user.password_setup_required?
-    user
+    User.find_for_password_setup!(params[:token].to_s)
   end
 
   def prepare_password_form

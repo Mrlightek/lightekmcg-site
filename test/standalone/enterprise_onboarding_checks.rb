@@ -8,6 +8,10 @@ ActiveModel::SecurePassword.min_cost = true
 ActiveRecord::Schema.define do
   add_column :users, :password_digest, :string
   add_column :users, :last_name, :string
+  create_table(:account_setup_settings) do |t|
+    t.integer :link_minutes, default: 2880, null: false
+    t.timestamps
+  end
 end
 source = ROOT.join('db/migrate/20261114000000_add_first_use_password_setup.rb').read
 source = source.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
@@ -16,6 +20,7 @@ AddFirstUsePasswordSetup.new.migrate(:up)
 ActiveRecord::Base.connection.add_column :lightek_commerce_orders, :customer_email, :string
 LightekCommerce::Order.reset_column_information
 User.reset_column_information
+require ROOT.join('app/models/account_setup_setting')
 require ROOT.join('app/models/concerns/first_use_password')
 GlobalID.app = 'enterprise-fixture'
 class User
@@ -82,6 +87,7 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     @old_host = ENV['LIGHTEK_DEPLOYED_SITE_HOST']
     @old_release = ENV['LIGHTEK_RELEASE']
     ENV.delete('LIGHTEK_DEPLOYED_SITE_HOST')
+    AccountSetupSetting.delete_all
     ActionMailer::Base.deliveries.clear
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
     @controllers = [PasswordsController, AccountSetupsController]
@@ -110,7 +116,7 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
   end
   def csrf = Nokogiri::HTML(response.body).at_css('input[name="authenticity_token"]')['value']
   def open_setup(user)
-    @setup_token = user.generate_token_for(:password_setup)
+    @setup_token = user.password_setup_token
     get edit_account_setup_path(@setup_token)
     assert_response :success
     assert_includes response.body, 'no temporary or previous password is needed'
@@ -126,7 +132,7 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     assert_equal [client.email_address], mail.to
     assert_includes mail.text_part.decoded, '/account/setup/'
     refute_includes mail.to_s, 'unknown-bootstrap-password'
-    assert_includes mail.text_part.decoded, '20 minutes'
+    assert_includes mail.text_part.decoded, '48 hours'
     assert_raises(ArgumentError) { @employer.send_password_setup_invitation! }
   end
   def test_onboarding_client_chooses_first_password_then_mfa_is_still_required

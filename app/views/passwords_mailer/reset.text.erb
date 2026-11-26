@@ -2,6 +2,6 @@
 
 <%= @password_url %>
 
-This private link expires after 20 minutes and stops working after your password is saved. No previous or temporary password is needed for setup.
+This private link <%= "expires after #{@setup_link_lifetime} and " if @first_use %>stops working after your password is saved.<%= " No previous or temporary password is needed for setup." if @first_use %>
 
 Sign in with your saved password, then set up an authenticator if your account requires it. If this link expires, use Forgot password on the same website to request a new link.

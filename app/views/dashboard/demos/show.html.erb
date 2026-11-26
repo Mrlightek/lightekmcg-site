@@ -17,10 +17,11 @@
 <% end %>
 <section class="lp-card"><h2 data-tour-step="client-demo" data-tour-title="Review your upgrade" data-tour-body="If your agency configured an upgrade, review the plan here and continue to checkout when ready.">Your own instance</h2>
 <% if @order %><p>Upgrade: <%= @order.status.humanize %>. Your demo is removed after the paid instance passes verification.</p><%= link_to 'View installation', installation_path(@order), class: 'lp-button' %><% end %>
-<% if @demo.active? && current_user.id == @demo.client_id && @setting&.upgrade_product %>
-  <p><strong><%= @setting.upgrade_product.name %></strong> · <%= number_to_currency(@setting.upgrade_product.price_cents / 100.0) %> / <%= @setting.upgrade_product.billing_interval.humanize %></p>
+<% if @offer %>
+  <p><strong><%= @offer.name %></strong> · <%= number_to_currency(@offer.price_cents / 100.0) %> / <%= @offer.billing_interval.humanize %></p>
   <p>Continue to secure checkout to review the final price. Verified payment starts a separate instance with your admin account. Website pages and standard sections are copied from a snapshot taken at checkout. Built-in design settings are included. Custom Studio sections must be replaced with standard sections before checkout. Demo orders, financial history, credentials and uploaded media are not migrated.</p>
-  <%= button_to 'Upgrade to my own instance', upgrade_dashboard_demo_path(@demo), method: :post, params: {checkout_key: SecureRandom.uuid}, class: 'lp-button', data: {turbo: false} %>
-<% elsif !@order && @demo.active? %><p>Ask your agency to configure a paid upgrade package.</p><% end %>
+  <%= button_to(@order&.status == 'pending_payment' ? 'Resume checkout' : 'Upgrade to my own instance',
+    upgrade_dashboard_demo_path(@demo), method: :post, params: {checkout_key: SecureRandom.uuid, offer_key: @offer.key}, class: 'lp-button', data: {turbo: false}) %>
+<% elsif @demo.active? && (!@order || @order.status == 'canceled') %><p>Ask your agency to configure a paid upgrade package.</p><% end %>
 <p>At expiry, a worker removes the temporary workspace. After a successful upgrade, cleanup waits for the new instance to be verified. The client billing login remains available.</p>
 </section></main>

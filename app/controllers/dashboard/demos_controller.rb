@@ -29,20 +29,27 @@ class Dashboard::DemosController < ApplicationController
   end
   def show
     @demo = LightekAgency::Demos.scope(current_user).find_by!(public_id: params[:id])
-    @setting = LightekAgency::DemoSetting.find_by(agency_id: @demo.agency_id)
     @order = @demo.upgrade_order
+    @offer = LightekAgency::DemoUpgrade.offer_for(@demo) if @demo.active? && @demo.client_id == current_user.id
     @tour = LightekAgency::DemoTours.fetch(@demo.site&.manifest.to_h['agency_demo_tour'])
   end
   def upgrade
-    demo = LightekAgency::Demos.scope(current_user).find_by!(public_id: params[:id])
-    order = LightekAgency::DemoUpgrade.reserve!(demo: demo, actor: current_user, checkout_key: params.require(:checkout_key))
+    @demo = LightekAgency::Demos.scope(current_user).find_by!(public_id: params[:id])
+    order = LightekAgency::DemoUpgrade.reserve!(demo: @demo, actor: current_user, checkout_key: params.require(:checkout_key),
+      expected_offer: params[:offer_key].to_s)
     return redirect_to installation_path(order) if order.paid_at?
-    checkout = LightekCommerce::StripeCheckout.start!(order: order, success_url: installation_url(order), cancel_url: dashboard_demo_url(demo))
+    checkout = LightekCommerce::StripeCheckout.start!(order: order, success_url: installation_url(order), cancel_url: dashboard_demo_url(@demo))
     redirect_to checkout.url, allow_other_host: true, status: :see_other
   end
   private
   def invalid!(error)
-    redirect_to(current_user.role.in?(%w[white_label super_admin]) ? dashboard_demos_path : dashboard_client_home_path,
-      alert: error.message, status: :see_other)
+    path = if @demo&.client_id == current_user.id
+      dashboard_demo_path(@demo)
+    elsif current_user.role.in?(%w[white_label super_admin])
+      dashboard_demos_path
+    else
+      dashboard_client_home_path
+    end
+    redirect_to path, alert: error.message, status: :see_other
   end
 end

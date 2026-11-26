@@ -2,6 +2,7 @@ gem 'minitest', '~> 5.25'
 require 'minitest/autorun'
 require 'active_support/all'
 require 'action_mailer'
+require 'active_record'
 require 'action_controller'
 require 'action_controller/test_case'
 require 'socket'
@@ -10,6 +11,13 @@ require 'digest'
 require 'json'
 require 'logger'
 ROOT = File.expand_path('../..', __dir__)
+ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+class ApplicationRecord < ActiveRecord::Base
+  self.abstract_class = true
+end
+require ROOT+'/db/migrate/20261126140000_create_account_setup_settings'
+CreateAccountSetupSettings.new.migrate(:up)
+require ROOT+'/app/models/account_setup_setting'
 require ROOT+'/app/services/lightek_mail/transport'
 require ROOT+'/app/services/lightek_mail/smtp_delivery'
 require ROOT+'/app/mailers/application_mailer'
@@ -152,6 +160,7 @@ class MailTransportControllerTest < ActionController::TestCase
     @routes = ActionDispatch::Routing::RouteSet.new
     @routes.draw do
       get '/dashboard/mail-transport', to:'dashboard/mail_transport#show', as: :dashboard_mail_transport
+      patch '/dashboard/mail-transport/setup-link-expiry', to:'dashboard/mail_transport#update_setup_link_expiry'
       post '/dashboard/mail-transport/test', to:'dashboard/mail_transport#test_delivery'
       post '/dashboard/mail-transport/retire-gmail', to:'dashboard/mail_transport#retire_gmail'
     end
@@ -175,6 +184,23 @@ class MailTransportControllerTest < ActionController::TestCase
     assert_empty @messages
     assert_nil LightekVault::Service.disabled
   end
+  def test_operator_can_save_setup_link_expiry_and_invalid_values_are_rejected
+    AccountSetupSetting.delete_all
+    assert_equal 2880, AccountSetupSetting.link_minutes
+    patch :update_setup_link_expiry, params: {setup_link_minutes: '4320'}
+    assert_response :see_other
+    assert_equal 4320, AccountSetupSetting.link_minutes
+
+    patch :update_setup_link_expiry, params: {setup_link_minutes: '999999'}
+    assert_response :see_other
+    assert_equal 4320, AccountSetupSetting.link_minutes
+
+    @controller.current_user.role = 'white_label'
+    patch :update_setup_link_expiry, params: {setup_link_minutes: '60'}
+    assert_response :forbidden
+    assert_equal 4320, AccountSetupSetting.link_minutes
+  end
+
   def test_probe_recipient_is_bound_to_signed_in_operator_and_receipt_is_required
     post :test_delivery, params:{recipient:'someone-else@example.test'}
     assert_response :redirect

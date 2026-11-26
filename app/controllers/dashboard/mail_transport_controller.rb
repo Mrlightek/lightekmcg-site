@@ -3,9 +3,22 @@ class Dashboard::MailTransportController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action { head :forbidden unless current_user&.role == "super_admin" }
-  before_action :load_status
+  before_action :load_status, except: :update_setup_link_expiry
 
-  def show; end
+  def show
+    @setup_link_minutes = AccountSetupSetting.link_minutes
+  end
+
+  def update_setup_link_expiry
+    minutes = Integer(params[:setup_link_minutes].to_s, 10, exception: false)
+    unless AccountSetupSetting::LIFETIMES.key?(minutes)
+      return redirect_to dashboard_mail_transport_path, alert: "Choose an available setup link duration.", status: :see_other
+    end
+
+    setting = AccountSetupSetting.find_or_create_by!(id: 1)
+    setting.update!(link_minutes: minutes)
+    redirect_to dashboard_mail_transport_path, notice: "New account setup links expire after #{AccountSetupSetting::LIFETIMES.fetch(minutes)}.", status: :see_other
+  end
 
   def test_delivery
     raise ArgumentError, "Select Lightek SMTP delivery before running this check." unless lightek_smtp?

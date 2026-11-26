@@ -1,0 +1,10 @@
+effectcraft:prop.addKey:
+  typed_params:
+    time: {type: number, unit: s}
+    timeBase: {type: enum, values: [layer, comp]}
+  requires: [open_composition, timeline_playhead]
+  accepts: {layer: layer_id}
+effectcraft:comp.new:
+  returns: {comp: composition}
+effectcraft:layer.newSolid:
+  returns: {layer: layer_id}

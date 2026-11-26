@@ -1,0 +1,20 @@
+<%= turbo_frame_tag "validation_panel" do %>
+  <section class="macro-validation" aria-labelledby="macro-validation-heading">
+    <h2 id="macro-validation-heading">Validation</h2>
+    <% if local_assigns[:errors].present? %>
+      <ul class="macro-errors" role="alert">
+        <% errors.each do |error| %>
+          <li data-error-kind="<%= error.fetch(:kind) %>">
+            <% if error[:step_index] %>Step <%= error[:step_index] + 1 %> · <% end %>
+            <% if error[:step_operation_id] %><code><%= error[:step_operation_id] %></code> · <% end %>
+            <strong><%= error.fetch(:kind).to_s.humanize %></strong> · <%= error.fetch(:detail) %>
+          </li>
+        <% end %>
+      </ul>
+    <% elsif local_assigns[:message] || @record %>
+      <p class="macro-valid" role="status"><strong>Valid.</strong> <%= local_assigns[:message] || "Version #{@record.version}" %></p>
+    <% else %>
+      <p>Save the composition to check its steps and bindings.</p>
+    <% end %>
+  </section>
+<% end %>

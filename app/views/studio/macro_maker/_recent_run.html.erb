@@ -1,0 +1,11 @@
+<li id="macro_recent_run_<%= run.id %>">
+  <strong><%= run.status.capitalize %></strong> · v<%= run.version %>
+  <time datetime="<%= run.created_at.iso8601 %>"><%= l(run.created_at, format: :short) %></time>
+  <% if run.input_filename.present? %><p><%= run.input_filename %></p><% end %>
+  <%= render "studio/macro_maker/run_downloads", run: run %>
+  <% if run.failed? %>
+    <details><summary>Error details</summary>
+      <%= render "studio/macro_maker/run_failure", error: run.error_message.with_indifferent_access %>
+    </details>
+  <% end %>
+</li>

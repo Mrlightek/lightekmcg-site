@@ -1,0 +1,16 @@
+photocraft:select.lasso:
+  typed_params:
+    points: {type: polygon, unit: px}
+    polygonal: {type: boolean, default: false}
+    antiAlias: {type: boolean, default: true}
+    feather: {type: number, min: 0, default: 0, unit: px}
+    mode: {type: enum, values: [replace, add, subtract, intersect], default: replace}
+  requires: [active_selection]
+photocraft:layer.new.layer:
+  returns: {layer: layer_id}
+photocraft:layer.new.group:
+  returns: {layer: layer_id}
+photocraft:layer.select:
+  accepts: {layer: layer_id}
+photocraft:layer.setProps:
+  accepts: {layer: layer_id}

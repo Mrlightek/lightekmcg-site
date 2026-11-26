@@ -1,0 +1,13 @@
+<%= turbo_frame_tag "validation_panel" do %>
+  <section aria-labelledby="macro-run-result-heading">
+    <h2 id="macro-run-result-heading">Run result</h2>
+    <% if @errors.present? %>
+      <%= render "studio/macro_maker/run_errors", errors: @errors %>
+    <% elsif @result %>
+      <%= turbo_stream_from @result unless @result.terminal? %>
+      <%= render "studio/macro_maker/run_status", run: @result %>
+    <% else %>
+      <p>Results appear here after a run.</p>
+    <% end %>
+  </section>
+<% end %>

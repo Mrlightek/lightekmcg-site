@@ -19,7 +19,7 @@
         <% if @inquiry.errors.any? %>
           <div class="auth-field" role="alert"><ul><% @inquiry.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div>
         <% end %>
-        <%= form_with scope: :sales_submission, url: sales_inquiry_path, local: true, data: {turbo: false} do |f| %>
+        <%= form_with scope: :sales_submission, url: sales_inquiry_path(ref: @referral_code), local: true, data: {turbo: false} do |f| %>
           <% {name: ['Name', 'name'], email: ['Email', 'email'], company: ['Company (optional)', 'organization'], phone: ['Phone (optional)', 'tel']}.each do |field, (label, autocomplete)| %>
             <div class="auth-field">
               <%= f.label field, label %>

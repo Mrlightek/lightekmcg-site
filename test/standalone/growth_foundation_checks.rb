@@ -30,6 +30,7 @@ end
 # Only the storefront's view helpers and remote checkout are boundary fixtures.
 module LightekDesign::StudioHelper; end
 module DymondDash; module TemplateSchemaHelper; end; end
+require ROOT.join('app/services/gatekeeper/hosting/workspace_plans')
 require ROOT.join('app/controllers/commerce_controller')
 [GrowthLinksController, Dashboard::GrowthController, WebsiteTemplateInquiriesController, SalesInquiriesController, CommerceController].each do |controller|
   controller.prepend_view_path ROOT.join('app/views')

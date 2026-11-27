@@ -12,6 +12,10 @@
   ['accounts', 'Companies', dashboard_sales_path(site_id: @site.id, tab: 'accounts')],
   ['contacts', 'Contacts', dashboard_sales_path(site_id: @site.id, tab: 'contacts')]
 ]) %>
+<% tabs << ['materials', 'Sales materials', dashboard_sales_materials_path(site_id: @site.id)] %>
+<% if @site.tenant_type == 'User' && @site.tenant_id == current_user.id %>
+  <% tabs << ['partners', 'Referral partners', dashboard_sales_partners_path(site_id: @site.id)] %>
+<% end %>
 <% if manage_routing %>
   <% tabs << ['routing', 'Lead routing', dashboard_sales_path(site_id: @site.id, tab: 'routing')] %>
 <% end %>

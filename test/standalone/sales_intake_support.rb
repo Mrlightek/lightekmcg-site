@@ -64,3 +64,8 @@ module LightekAgency
 end
 
 require_relative 'sales_quote_support'
+
+require ROOT.join('db/migrate/20261127090000_create_lightek_sales_partners')
+CreateLightekSalesPartners.new.migrate(:up)
+WebsiteTemplateInquiry.reset_column_information
+%w[partner referral].each { |file| require ROOT.join("app/models/lightek_sales/#{file}") }

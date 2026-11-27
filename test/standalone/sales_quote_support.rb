@@ -18,7 +18,9 @@ ActiveRecord::Schema.define do
     t.datetime :paid_at; t.datetime :provisioned_at; t.datetime :fulfilled_at; t.string :fulfillment_reference; t.text :fulfillment_note
     t.boolean :stock_reserved, default: true; t.datetime :canceled_at
     t.datetime :deleted_at; t.string :provisioning_state
+    t.string :merchant_transfer_ref; t.bigint :merchant_transfer_amount_cents
   end
+  create_table(:lightek_commerce_refunds) { |t| t.references :order; t.string :status; t.integer :amount_cents; t.string :idempotency_key }
   create_table(:lightek_commerce_order_items) { |t| t.references :order; t.references :product; t.references :variant; t.string :name; t.integer :quantity; t.integer :unit_price_cents; t.integer :line_total_cents; t.json :purchase_snapshot, default: {} }
 end
 class ApplicationRecord
@@ -56,6 +58,7 @@ module LightekCommerce
 end
 require ROOT.join('app/models/lightek_commerce/order')
 require ROOT.join('app/models/lightek_commerce/order_item')
+require ROOT.join('app/models/lightek_commerce/refund')
 require ROOT.join('app/services/lightek_commerce/order_placement')
 require ROOT.join('db/migrate/20261115120100_add_sales_quotes')
 AddSalesQuotes.new.migrate(:up)

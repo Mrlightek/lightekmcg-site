@@ -155,3 +155,17 @@ Deployment requires `db:migrate`; the migration adds the CRM tables and enriches
 ## Campaign attribution
 
 [Growth Foundation](growth-foundation.md) now preserves tracked website inquiries through newly created leads, converted deals and quote orders. Campaign source remains distinct from routing source and marketing consent. Existing relationships are never retrospectively reassigned to a later campaign.
+
+## Sales materials and referral partners
+
+Open **Sales materials** for the [managed website sales kit](managed-website-sales-kit.md). It includes the offer, one-pager, landing page, pitch deck copy, outreach, campaign, demo script and paid-customer handoff. Confirm the offer, sample website and booking destination before publishing. Preserve draft claims and placeholders until the offer owner approves them.
+
+Use **Referral partners** as the website owner to register a genuinely independent referral business after agreeing to the terms in writing. Keep the signed agreement and the recipient's payment setup in the appropriate system and enter only the agreement reference in Lightek. Select a published package and enter the fixed USD amount owed on an eligible first order. The partner shares its link and customers submit their own inquiry. Registering a partner grants no CRM, employee, or payout permissions.
+
+1. Open **Inquiry inbox** and accept the inquiry. A new lead receives the partner's credit and the existing assigned follow-up. A duplicate inquiry does not reassign the lead or create another credit. Changing the submitted email during intake removes referral credit from the edited submission.
+2. Qualify the lead, convert it, issue a quote for one unit of the agreed package, and have the customer complete Commerce checkout using the referred email. The owner closes the deal and hands the resulting paid order to delivery.
+3. After fulfillment, release the merchant proceeds using the existing Commerce payout workflow. The ledger checks the first paid quote order, product and buyer, existing purchase history, refund status and the order's recorded net transfer. A transfer receipt alone does not establish that the funds landed in the merchant bank account.
+4. Once the proceeds clear, use the approved disbursement process to pay the partner. Confirm the completed payment and record its unique receipt in **Referral partners**. This action records the payment and does not initiate a bank transfer. The amount and credited partner remain attached to the lead. Refunds after payment retain the original receipt and flag the entry for review under the written agreement.
+5. Revoke a link to stop new partner attribution. Prior attributed inquiries and earned credits remain available for review.
+
+The referral plan is for introducers. Employee compensation or using the plan for a managed commission-only sales position requires a separate pay and classification review for the actual role and location.

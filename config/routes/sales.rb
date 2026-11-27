@@ -25,6 +25,11 @@ post '/dashboard/sales/tasks', to: 'dashboard/sales_tasks#schedule', as: :dashbo
 patch '/dashboard/sales/tasks/:id', to: 'dashboard/sales_tasks#change', as: :dashboard_sales_task
 get '/dashboard/sales/tasks/:id/calendar', to: 'dashboard/sales_tasks#calendar', as: :calendar_dashboard_sales_task
 get '/dashboard/sales', to: 'dashboard/sales#index', as: :dashboard_sales
+get '/dashboard/sales/materials', to: 'dashboard/sales_partners#materials', as: :dashboard_sales_materials
+get '/dashboard/sales/partners', to: 'dashboard/sales_partners#index', as: :dashboard_sales_partners
+post '/dashboard/sales/partners', to: 'dashboard/sales_partners#create'
+post '/dashboard/sales/partners/:id/revoke', to: 'dashboard/sales_partners#revoke', as: :revoke_dashboard_sales_partner
+post '/dashboard/sales/commissions/:id/receipt', to: 'dashboard/sales_partners#record_payout', as: :record_dashboard_sales_commission
 get '/dashboard/sales/:kind/new', to: 'dashboard/sales#new', as: :new_dashboard_sales_record
 post '/dashboard/sales/:kind', to: 'dashboard/sales#create', as: :dashboard_sales_records
 get '/dashboard/sales/:kind/:id', to: 'dashboard/sales#show', as: :dashboard_sales_record

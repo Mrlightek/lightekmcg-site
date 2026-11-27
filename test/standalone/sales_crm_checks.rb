@@ -121,7 +121,8 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
     LightekAgency::PackagePolicy.allowed = true
     LightekAgency::PackagePolicy.reserved = LightekAgency::PackagePolicy.released = 0
-    [LightekSales::Quote, LightekCommerce::OrderItem, LightekCommerce::Order, LightekCommerce::Product, LightekPeople::LifecycleCase, LightekSales::Task, LightekSales::IntakeEntry, LightekSales::IntakeRule, WebsiteTemplateInquiry, DymondSite::Section, DymondSite::Page].each(&:delete_all)
+    [LightekSales::Referral, LightekSales::IntakeEntry, WebsiteTemplateInquiry, LightekSales::Partner, LightekCommerce::Refund].each(&:delete_all)
+    [LightekSales::Quote, LightekCommerce::OrderItem, LightekCommerce::Order, LightekCommerce::Product, LightekPeople::LifecycleCase, LightekSales::Task, LightekSales::IntakeRule, DymondSite::Section, DymondSite::Page].each(&:delete_all)
     [LightekSales::Activity, LightekSales::RoutingRule, LightekSales::Lead, LightekSales::Opportunity,
      LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership].each(&:delete_all)
     if defined?(LightekGrowth::Visit) && LightekGrowth::Visit.table_exists?

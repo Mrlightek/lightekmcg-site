@@ -229,6 +229,10 @@ end
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_variants#create", as: :dashboard_commerce_variants
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
+  get "/dashboard/commerce/bank-deposits", to: "dashboard/commerce_payouts#bank_deposits", as: :dashboard_commerce_bank_deposits
+  get "/dashboard/commerce/bank-deposits/:payout_id", to: "dashboard/commerce_payouts#bank_deposit", as: :dashboard_commerce_bank_deposit
+  get "/dashboard/commerce/orders/:order_id/disputes", to: "dashboard/commerce_payouts#disputes", as: :dashboard_commerce_order_disputes
+  post "/dashboard/commerce/orders/:order_id/disputes/:dispute_id/respond", to: "dashboard/commerce_payouts#respond_to_dispute", as: :respond_dashboard_commerce_dispute
   get "/dashboard/commerce/payouts/:order_id/ledger", to: "dashboard/commerce_payouts#ledger", as: :dashboard_commerce_payout_ledger
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
   post "/dashboard/network/cron_jobs", to: "dashboard/network#create_cron_job", as: :dashboard_network_cron_jobs

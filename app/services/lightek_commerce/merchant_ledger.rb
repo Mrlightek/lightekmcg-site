@@ -36,6 +36,14 @@ module LightekCommerce
       record
     end
 
+    def self.dispute_payment_intent!(order, options)
+      unless order.paid_at? && order.payment_provider.in?(%w[stripe stripe_invoice])
+        raise Invalid, 'Verified local Commerce payment is required.'
+      end
+
+      verified_intent!(order, options)
+    end
+
     def self.processor_receipt!(order)
       unless order.paid_at? && order.payment_provider.in?(%w[stripe stripe_invoice])
         raise Invalid, 'Verified Commerce payment is required to reconcile processor fees.'

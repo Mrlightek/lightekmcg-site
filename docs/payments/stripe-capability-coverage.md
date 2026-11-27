@@ -17,7 +17,7 @@ Track additional operations per provider account, environment and Vault credenti
 
 An agency or client that owns a store can open **Commerce → Merchant payouts** for its own account, verify its payout connection, and release eligible fulfilled orders manually or on a schedule. A delegated manager cannot use this workflow to edit another person's bank details or release their orders. Embedded Connect onboarding and account management depend on the installed account and matching publishable key. Some browsers, requirements, and account configurations use the existing secure hosted fallback. Federated installations synchronize earnings with the central Lightek platform.
 
-Local storefront carts can opt into Lightek-hosted checkout with `LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT=true` and a same-platform publishable key in the established credential configuration. The provider's browser component collects payment details inside the storefront and can request payment-method authentication when required. The signed billing webhook remains authoritative for settlement and fulfillment. Federated carts and separate checkout entry points, including standalone quote checkout and dedicated package signup, use their existing payment presentation.
+Local storefront carts and accepted local quotes use embedded checkout by default when the same-platform publishable key is available. The provider's browser component collects payment details inside the storefront and can request payment-method authentication when required. The signed billing webhook remains authoritative for settlement and fulfillment. Federated carts and separate checkout entry points such as dedicated package signup use their existing payment presentation.
 
 The merchant payout calculation separates the configured processor reserve, Lightek platform fee, infrastructure reserve, and eligible upstream allocation. `LIGHTEK_COMMERCE_PLATFORM_FEE_BPS` defaults to zero when unset. Verify the deployed fee schedule, real processor costs, refund and dispute treatment, and signed settlement receipts before using these amounts in projections. Test paid and refunded orders for one agency and one agency-client merchant, including independent bank setup, order attribution, transfer or release, and bank arrival.
 
@@ -29,7 +29,7 @@ The intended pricing model preserves the merchant's listed merchandise price. Th
 
 The preview starts with a $2 Lightek network fee per transaction. It grosses up the pretax buyer amount for estimated processing and rounds up to the next multiple of $2, keeping an already even total. Recalculate estimated processing on that rounded buyer total. The remaining amount above the merchant price and the estimate is the Lightek network fee. At a $100 merchant price and an assumed 3% plus $0.30 processing schedule, the $106 buyer total leaves $3.48 in estimated processing and $2.52 in network revenue.
 
-The order ledger compares the original Stripe charge's recorded fee, processor net and balance status with the order, refunds, upstream allocations and merchant transfer. For buyer-fee orders it also shows the buyer charge less actual processor fees and any merchant transfer reversal. Connected-account bank deposit matching and federated processor evidence require separate coverage.
+The order ledger compares the original Stripe charge's recorded fee, processor net and balance status with the order, refunds, upstream allocations and merchant transfer. For buyer-fee orders it also shows the buyer charge less actual processor fees and any merchant transfer reversal. The local bank deposit workflow can link provider-matched connected-account entries to store orders. Federated processor evidence requires separate coverage.
 
 ### Collect buyer fees on eligible local storefronts
 
@@ -40,3 +40,10 @@ The catalog and cart show the all-in pretax price. A signed cart quote expires a
 Refund these orders inside Lightek. A full refund includes the checkout fee. If the merchant principal was already transferred, the refund queues a reversal with a stable provider key. An older uncertain transfer or reversal requires reconciliation before any replacement money movement. The ledger distinguishes a merchant release, a pending reversal and a recorded reversal.
 
 Validate all-in displays and the fee tax treatment for the pilot market. Test one fee-bearing order from published price through signed payment, merchant transfer, and full refund before enabling live mode. This is a tender-neutral buyer price. Card-only surcharge treatment has separate requirements.
+
+
+### Merchant bank deposits and disputes
+
+From **Commerce → Merchant payouts → Bank deposits**, a local store owner can view deposit status and open the provider's transaction list for reconciled automatic deposits. Download the current transaction page as CSV. Lightek links an entry to a local order only if its provider transfer matches that order's saved merchant transfer. Unmatched adjustments remain visible as provider entries. Deposit dates and statuses come from the provider.
+
+From a paid local order, **View payment disputes** shows the provider's status and response deadline. An authorized owner can review and submit a text response for a matching open dispute. File evidence, store-wide dispute alerts, funds recovery automation, federated bank deposit reconciliation, and live agency/client bank arrival acceptance remain open.

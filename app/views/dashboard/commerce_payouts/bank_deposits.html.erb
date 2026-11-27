@@ -1,0 +1,24 @@
+<%= stylesheet_link_tag 'reservations' %>
+<main class="lt-settings lr-admin">
+  <h1>Bank deposits</h1>
+  <p><%= link_to 'Merchant payouts', dashboard_commerce_payouts_path(site_id: @site.id) %></p>
+  <% if @payouts %>
+    <% if @payouts.data.empty? %><p>No bank deposits reported yet.</p><% end %>
+    <table>
+      <thead><tr><th>Arrival date</th><th>Amount</th><th>Status</th><th>Details</th></tr></thead>
+      <tbody>
+        <% @payouts.data.each do |payout| %>
+          <tr>
+            <td><%= l(Time.at(payout.arrival_date).to_date) if payout.arrival_date %></td>
+            <td><%= number_to_currency(payout.amount / 100.0) %> <%= payout.currency.upcase %></td>
+            <td><%= payout.status.humanize %></td>
+            <td><%= link_to 'View deposit', dashboard_commerce_bank_deposit_path(site_id: @site.id, payout_id: payout.id) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if @payouts.has_more && @payouts.data.any? %>
+      <%= link_to 'More deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id, after: @payouts.data.last.id) %>
+    <% end %>
+  <% end %>
+</main>

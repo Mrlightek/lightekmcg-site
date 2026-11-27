@@ -4,7 +4,7 @@
   <section class="auth-story">
     <div class="auth-story-copy">
       <h2><%= @site.name %></h2>
-      <%= link_to 'Back to the store', commerce_shop_path(site_id: @site.id), class: 'auth-link' %>
+      <%= link_to 'Back', @back_url || commerce_shop_path(site_id: @site.id), class: 'auth-link' %>
     </div>
   </section>
   <section class="auth-panel">

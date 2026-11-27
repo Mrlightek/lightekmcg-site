@@ -80,6 +80,9 @@
                     <% end %>
                   </section>
                 <% end %>
+                <% if @site.tenant == current_user && order.paid_at? && %w[stripe stripe_invoice].include?(order.payment_provider) %>
+                  <p><%= link_to 'View payment disputes', dashboard_commerce_order_disputes_path(site_id: @site.id, order_id: order.id) %></p>
+                <% end %>
                 <% if %w[paid fulfilled partially_refunded].include?(order.status) %>
                   <section class="dd-form-section">
                     <div class="dd-section-heading"><i class="ti ti-credit-card-refund" aria-hidden="true"></i><div><h3>Issue a refund</h3><p>Available to refund: <%= number_to_currency((order.total_cents - order.refunded_cents) / 100.0) %>.</p></div></div>

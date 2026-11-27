@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'csv'
 class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
   include LightekIdentity::SensitiveSession
   before_action :require_sensitive_session!
@@ -38,6 +39,55 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
     render :ledger, status: :unprocessable_entity
   end
 
+  def bank_deposits
+    load_merchant_site
+    @payouts = bank_deposit_service.list(after: params[:after])
+  rescue LightekCommerce::BankDeposits::Unavailable => error
+    flash.now[:alert] = error.message
+    render :bank_deposits, status: :unprocessable_entity
+  end
+
+  def bank_deposit
+    load_merchant_site
+    @deposit = bank_deposit_service.detail(id: params[:payout_id], after: params[:after])
+    respond_to do |format|
+      format.html
+      format.csv do
+        csv = CSV.generate do |output|
+          output << %w[payout_id transaction_id category order_id gross_cents fee_cents net_cents currency]
+          @deposit.fetch(:rows).each do |row|
+            category = row[:category].to_s
+            category = 'other' unless category.match?(/\A[a-z0-9_]+\z/)
+            output << [@deposit.fetch(:payout).id, row[:id], category, row[:order]&.id,
+              row[:gross_cents], row[:fee_cents], row[:net_cents], row[:currency]]
+          end
+        end
+        send_data csv, filename: "bank-deposit-#{@deposit.fetch(:payout).id}.csv", type: 'text/csv'
+      end
+    end
+  rescue LightekCommerce::BankDeposits::Unavailable => error
+    redirect_to dashboard_commerce_bank_deposits_path(site_id: @site.id), alert: error.message
+  end
+
+  def disputes
+    load_merchant_order
+    @disputes = dispute_service.list
+  rescue LightekCommerce::MerchantDisputes::Unavailable => error
+    flash.now[:alert] = error.message
+    render :disputes, status: :unprocessable_entity
+  end
+
+  def respond_to_dispute
+    load_merchant_order
+    dispute_service.respond!(id: params[:dispute_id], evidence: params[:merchant_dispute_evidence],
+      confirmed: params[:confirm_submission] == '1')
+    redirect_to dashboard_commerce_order_disputes_path(site_id: @site.id, order_id: @order.id),
+      notice: 'Response sent to the payment processor.', status: :see_other
+  rescue LightekCommerce::MerchantDisputes::Unavailable => error
+    redirect_to dashboard_commerce_order_disputes_path(site_id: @site.id, order_id: @order.id),
+      alert: error.message, status: :see_other
+  end
+
   def schedule
     site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
     raise ActiveRecord::RecordNotFound unless site.tenant == current_user
@@ -69,5 +119,26 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
       DymondBank::StripeService::StripeError,
       DymondBank::StripeService::ConfigurationError => e
     redirect_to dashboard_commerce_payouts_path(site_id: params[:site_id]), alert: "Earnings could not be released. Check payout verification and available funds, then retry."
+  end
+
+  private
+
+  def load_merchant_site
+    response.headers['Cache-Control'] = 'private, no-store'
+    @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    raise ActiveRecord::RecordNotFound unless @site.tenant == current_user
+  end
+
+  def load_merchant_order
+    load_merchant_site
+    @order = LightekCommerce::Order.visible.where(site: @site).find(params.require(:order_id))
+  end
+
+  def bank_deposit_service
+    LightekCommerce::BankDeposits.new(site: @site, actor: current_user)
+  end
+
+  def dispute_service
+    LightekCommerce::MerchantDisputes.new(order: @order, actor: current_user)
   end
 end

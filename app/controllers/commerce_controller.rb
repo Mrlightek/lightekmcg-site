@@ -89,12 +89,12 @@ class CommerceController < ApplicationController
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
-    embedded = ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] == 'true' && LightekCommerce::StripeCheckout.embedded_for?(order)
+    embedded = LightekCommerce::StripeCheckout.embedded_for?(order)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: completion_url(order, instance_cart), cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
     record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
     session.delete(cart_key)
-    if embedded
+    if checkout.url.blank?
       recent = session[:embedded_store_orders].to_h
       recent[order.id.to_s] = [@site.id, current_user.id, request.host, instance_cart]
       session[:embedded_store_orders] = recent.to_a.last(5).to_h

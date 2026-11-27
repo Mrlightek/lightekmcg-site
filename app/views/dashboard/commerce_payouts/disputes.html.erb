@@ -1,0 +1,23 @@
+<%= stylesheet_link_tag 'reservations' %>
+<main class="lt-settings lr-admin">
+  <h1>Payment disputes for order <%= @order.id %></h1>
+  <p><%= link_to 'Orders', dashboard_commerce_orders_path(site_id: @site.id) %></p>
+  <% if @disputes %>
+    <% if @disputes.empty? %><p>No disputes reported for this order.</p><% end %>
+    <% @disputes.each do |dispute| %>
+      <section class="lr-card">
+        <h2><%= dispute.reason.to_s.humanize %></h2>
+        <p><%= number_to_currency(dispute.amount / 100.0) %> · <%= dispute.status.humanize %></p>
+        <% due_by = dispute.evidence_details&.due_by %>
+        <% if due_by.to_i.positive? %><p>Response deadline <%= l(Time.at(due_by)) %></p><% end %>
+        <% if LightekCommerce::MerchantDisputes::RESPONDABLE.include?(dispute.status) && due_by.to_i > Time.current.to_i && dispute.evidence_details&.submission_count.to_i.zero? %>
+          <%= form_with url: respond_dashboard_commerce_dispute_path(site_id: @site.id, order_id: @order.id, dispute_id: dispute.id), class: 'lr-form' do |form| %>
+            <label>Evidence<%= form.text_area :merchant_dispute_evidence, required: true, maxlength: 20_000 %></label>
+            <label><%= check_box_tag :confirm_submission, '1', false, required: true, id: "confirm-#{dispute.id}" %> I reviewed this evidence and want to submit it now.</label>
+            <%= form.submit 'Submit response', class: 'lr-button' %>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+  <% end %>
+</main>

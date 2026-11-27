@@ -313,6 +313,42 @@ class LifecycleQuoteChecks < SalesCrmChecks
     get public_sales_quote_path(token: token_value)
     assert_response :not_found
   end
+  def test_workflow_embedded_quote_checkout_retains_the_signed_host_and_order
+    quote = issued
+    LightekSales::Quotes.accept!(quote: quote, name: 'Buyer', reference: 'Acceptance', actor: @owner)
+    token_value = quote.signed_id(purpose: 'sales_quote', expires_in: 1.day)
+    host! 'lightek.test'
+    csrf = token
+    gateway = LightekCommerce::StripeCheckout
+    checkout = OpenStruct.new(url: nil, client_secret: 'quote_fixture_secret')
+    path = embedded_public_sales_quote_path(token: token_value)
+    gateway.stub(:embedded_for?, true) do
+      gateway.stub(:start!, ->(**args) {
+        assert args[:embedded]
+        assert_equal quote.order_id, args[:order].id
+        checkout
+      }) do
+        post checkout_public_sales_quote_path(token: token_value), headers: {'X-CSRF-Token' => csrf}
+        assert_redirected_to path
+      end
+    end
+    gateway.stub(:resume!, ->(**args) {
+      assert args[:embedded]
+      assert_equal quote.order_id, args[:order].id
+      checkout
+    }) do
+      gateway.stub(:embedded_publishable_key, 'pk_test_fixture') do
+        get path
+        assert_response :success
+        assert_select '[data-embedded-checkout][data-checkout-secret="quote_fixture_secret"]'
+        assert_equal 'private, no-store', response.headers['Cache-Control']
+        host! 'foreign.test'
+        get path
+        assert_response :not_found
+      end
+    end
+  end
+
   def test_workflow_canceled_onboarding_cannot_activate_and_can_be_replaced
     person = employment(active: false)
     record = workflow.start!(kind: 'employee_onboarding', subject: person)

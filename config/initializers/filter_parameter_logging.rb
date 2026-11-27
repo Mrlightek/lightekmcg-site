@@ -47,3 +47,5 @@ Rails.application.config.filter_parameters += [:lpa_activation_code, :qr_png_bas
 Rails.application.config.filter_parameters += [:mail_discovery_query, :mail_matter_name, :drive_discovery_query, :chat_discovery_query]
 Rails.application.config.filter_parameters += [:package_base64]
 Rails.application.config.filter_parameters += [:record_values]
+
+Rails.application.config.filter_parameters += [:merchant_dispute_evidence]

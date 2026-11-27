@@ -18,6 +18,9 @@
 <% if payout_state %>
 <section class="lr-card"><span class="lr-eyebrow">YOUR PAYDAY</span><h2>Automatic earnings releases</h2><p>Choose when eligible fulfilled orders are released to your connected payout account. The default is every two weeks. Bank arrival depends on processing and your bank.</p><%= form_with url: dashboard_commerce_payout_schedule_path, method: :patch, class: 'lr-form' do %><%= hidden_field_tag :site_id, @site.id %><label>Release schedule<%= select_tag :cadence, options_for_select([['Every two weeks (14 days)', 'biweekly'], ['Every week (7 days)', 'weekly']], @payout_schedule.cadence) %></label><label><span><%= check_box_tag :enabled, '1', @payout_schedule.enabled? %> Enable automatic earnings releases</span></label><%= submit_tag 'Save payout schedule', class: 'lr-button' %><% end %><p>Next release: <strong><%= @payout_schedule.next_run_at.in_time_zone('America/New_York').strftime('%b %-d, %Y · %-I:%M %p %Z') %></strong></p><p>Pending refunds, incomplete onboarding, and unavailable funds delay release. Unpaid orders are never eligible.</p><% if @payout_schedule.last_error.present? %><p class="lr-alert" role="status">An earnings release needs review. Verify your payout account and available funds before retrying.</p><% end %><%= link_to 'Add or manage payout account ↗', dashboard_commerce_payout_account_path, class: 'lr-link' %></section>
 <% end %>
+<% if @site.tenant == current_user %>
+  <p><%= link_to 'Bank deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id) %></p>
+<% end %>
 <% if current_user.role == 'super_admin' %>
   <p><%= link_to 'Check Stripe access', dashboard_commerce_stripe_access_path %></p>
 <% end %>

@@ -5,7 +5,11 @@ module LightekCommerce
     EMBEDDED_MODE = 'embedded_page'
 
     def self.embedded_for?(order)
-      ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] == 'true' && !NetworkCheckout.connected?(order)
+      return false if ENV.fetch('LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT', 'true') == 'false' || NetworkCheckout.connected?(order)
+
+      embedded_publishable_key.present?
+    rescue Unavailable
+      false
     end
 
     def self.embedded_publishable_key
@@ -30,7 +34,7 @@ module LightekCommerce
 
         return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url)
       end
-      return resume!(order: order, embedded: embedded) if order.payment_reference.present?
+      return resume!(order: order, embedded: :either) if order.payment_reference.present?
 
       embedded_publishable_key if embedded
       begin
@@ -99,11 +103,10 @@ module LightekCommerce
       metadata = session.metadata.to_h.stringify_keys
       raise Unavailable, "Checkout does not match this order" unless session.id == order.payment_reference &&
         metadata["lightek_commerce_order_id"].to_s == order.id.to_s && metadata["lightek_site_id"].to_s == order.site_id.to_s
-      available = if embedded
-        session.ui_mode == EMBEDDED_MODE && session.client_secret.present? &&
+      available = embedded != true && session.url.present?
+      if !available && embedded
+        available = session.ui_mode == EMBEDDED_MODE && session.client_secret.present? &&
           metadata['lightek_host_key'] == order.payment_namespace && order.payment_namespace.present?
-      else
-        session.url.present?
       end
       raise Unavailable, "Checkout has completed or expired; wait for payment confirmation" unless session.status == "open" && available
       session

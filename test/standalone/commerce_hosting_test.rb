@@ -65,6 +65,7 @@ ActiveRecord::Schema.define do
     t.string :currency, default: "usd"; t.integer :total_cents, default: 0; t.integer :subtotal_cents, default: 0
     t.integer :tax_cents, default: 0; t.integer :shipping_cents, default: 0; t.integer :refunded_cents, default: 0
     t.string :merchant_transfer_ref; t.integer :merchant_transfer_amount_cents; t.boolean :stock_reserved, default: true; t.string :payment_namespace; t.string :payment_reference; t.string :payment_provider
+    t.datetime :deleted_at
     t.string :client_checkout_key
     t.datetime :merchant_transfer_requested_at, :merchant_transfer_completed_at
     t.text :merchant_transfer_error
@@ -142,6 +143,21 @@ end
 module Stripe
   class StripeError < StandardError; end
   class << self; attr_accessor :api_key; end
+  class Account
+    def self.retrieve(*) = raise("Unexpected connected account lookup")
+  end
+  class Payout
+    def self.list(*) = raise("Unexpected payout list")
+    def self.retrieve(*) = raise("Unexpected payout lookup")
+  end
+  class BalanceTransaction
+    def self.list(*) = raise("Unexpected balance read")
+  end
+  class Dispute
+    def self.list(*) = raise("Unexpected dispute list")
+    def self.retrieve(*) = raise("Unexpected dispute lookup")
+    def self.update(*) = raise("Unexpected dispute response")
+  end
   class PaymentIntent
     def self.retrieve(*) = raise("Unexpected processor payment intent")
   end
@@ -234,6 +250,9 @@ end
 require Rails.root.join('db/migrate/20261127140000_add_commerce_buyer_fee_snapshot')
 AddCommerceBuyerFeeSnapshot.new.migrate(:up)
 LightekCommerce::Order.reset_column_information
+require Rails.root.join('app/services/lightek_payments/payout_accounts')
+require Rails.root.join('app/services/lightek_commerce/bank_deposits')
+require Rails.root.join('app/services/lightek_commerce/merchant_disputes')
 require Rails.root.join('app/services/lightek_commerce/buyer_fees')
 class ApplicationJob < ActiveJob::Base; end unless defined?(ApplicationJob)
 require Rails.root.join('app/jobs/lightek_commerce/buyer_fee_reversal_job')
@@ -339,6 +358,89 @@ class CommerceHostingTest < Minitest::Test
       OpenStruct.new(id: "cs_1")
     }) { LightekCommerce::StripeCheckout.start!(order: order, success_url: "https://example.com", cancel_url: "https://example.com") }
   end
+  def test_embedded_checkout_is_the_default_with_matching_browser_credentials
+    order = order_for(product(billing_interval: 'one_time'))
+    prior = ENV.delete('LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT')
+    service = LightekCommerce::StripeCheckout
+    service.stub(:embedded_publishable_key, 'pk_test_fixture') { assert service.embedded_for?(order) }
+    service.stub(:embedded_publishable_key, -> { raise service::Unavailable }) { refute service.embedded_for?(order) }
+    LightekCommerce::NetworkCheckout.stub(:connected?, true) do
+      service.stub(:embedded_publishable_key, -> { flunk 'Federated checkouts do not use local credentials' }) do
+        refute service.embedded_for?(order)
+      end
+    end
+  ensure
+    ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] = prior
+  end
+
+  def test_merchant_bank_deposit_matches_only_the_selected_merchants_orders
+    %w[white_label client].each do |role|
+      owner = User.create!(role: role, email_address: "#{role}@example.test", stripe_connect_account_id: "acct_#{role}")
+      site = DymondSite::Site.create!(tenant: owner, host: "#{role}.example.com")
+      order = LightekCommerce::OrderPlacement.call(site: site, customer_email: 'buyer@example.test',
+        quantities: {product(site: site, billing_interval: 'one_time').id.to_s => 1})
+      order.update!(merchant_transfer_ref: "tr_#{role}")
+      assert_raises(ActiveRecord::RecordNotFound) { LightekCommerce::BankDeposits.new(site: site, actor: @operator) }
+
+      connected = OpenStruct.new(id: "acct_#{role}", metadata: {lightek_user_id: owner.id.to_s})
+      payout = OpenStruct.new(id: 'po_fixture', automatic: true, reconciliation_status: 'completed')
+      Stripe::Account.stub(:retrieve, connected) do
+        service = LightekCommerce::BankDeposits.new(site: site, actor: owner)
+        Stripe::Payout.stub(:retrieve, ->(id, options) {
+          assert_equal 'po_fixture', id
+          assert_equal "acct_#{role}", options[:stripe_account]
+          payout
+        }) do
+          Stripe::BalanceTransaction.stub(:list, ->(params, options) {
+            assert_equal 'po_fixture', params[:payout]
+            assert_equal "acct_#{role}", options[:stripe_account]
+            OpenStruct.new(has_more: true, data: [{id: 'txn_sale', amount: 2_500, fee: 0, net: 2_500,
+              currency: 'usd', reporting_category: 'transfer', source: {source_transfer: "tr_#{role}"}},
+              {id: 'txn_adjustment', amount: -100, fee: 0, net: -100, currency: 'usd',
+               reporting_category: 'adjustment', source: nil}])
+          }) do
+            detail = service.detail(id: payout.id)
+            assert_equal order.id, detail[:rows].first[:order].id
+            assert_nil detail[:rows].last[:order]
+            assert_equal(-100, detail[:rows].last[:net_cents])
+            assert_equal 'txn_adjustment', detail[:cursor]
+          end
+        end
+      end
+    end
+  end
+
+  def test_merchant_dispute_submission_requires_an_owned_open_dispute_and_confirmation
+    order = order_for(product(billing_interval: 'one_time'))
+    order.update!(status: 'paid', paid_at: Time.current, payment_provider: 'stripe', payment_reference: 'cs_dispute')
+    session = {id: 'cs_dispute', payment_status: 'paid', currency: 'usd', amount_total: 2_500,
+      payment_intent: 'pi_order', metadata: LightekCommerce::PaymentIdentity.metadata(order)}
+    due = OpenStruct.new(due_by: 2.days.from_now.to_i, submission_count: 0)
+    dispute = OpenStruct.new(id: 'dp_fixture', payment_intent: 'pi_order', currency: 'usd',
+      amount: 2_500, status: 'needs_response', evidence_details: due)
+    Stripe::Checkout::Session.stub(:retrieve, session) do
+      service = LightekCommerce::MerchantDisputes.new(order: order, actor: @operator)
+      assert_raises(LightekCommerce::MerchantDisputes::Unavailable) do
+        service.respond!(id: dispute.id, evidence: 'Delivered', confirmed: false)
+      end
+      Stripe::Dispute.stub(:retrieve, dispute) do
+        dispute.payment_intent = 'pi_unrelated'
+        assert_raises(ActiveRecord::RecordNotFound) { service.respond!(id: dispute.id, evidence: 'Delivered', confirmed: true) }
+        dispute.payment_intent = 'pi_order'
+        Stripe::Dispute.stub(:update, ->(id, payload, options) {
+          assert_equal dispute.id, id
+          assert_equal({evidence: {uncategorized_text: 'Delivered'}, submit: true}, payload)
+          assert options[:idempotency_key].include?(order.payment_namespace)
+          dispute
+        }) { service.respond!(id: dispute.id, evidence: 'Delivered', confirmed: true) }
+        due.submission_count = 1
+        assert_raises(LightekCommerce::MerchantDisputes::Unavailable) do
+          service.respond!(id: dispute.id, evidence: 'Delivered', confirmed: true)
+        end
+      end
+    end
+  end
+
   def test_embedded_checkout_uses_native_return_and_preserves_verified_settlement
     order = order_for(product(billing_interval: "one_time"))
     checkout = OpenStruct.new(id: "cs_embedded", status: "open", ui_mode: "embedded_page",

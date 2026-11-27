@@ -1,0 +1,35 @@
+<%= stylesheet_link_tag 'reservations' %>
+<% payout = @deposit.fetch(:payout) %>
+<main class="lt-settings lr-admin">
+  <h1>Bank deposit</h1>
+  <p><%= link_to 'Bank deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id) %></p>
+  <p><strong><%= number_to_currency(payout.amount / 100.0) %> <%= payout.currency.upcase %></strong> · <%= payout.status.humanize %></p>
+  <% if payout.arrival_date %><p>Provider-reported arrival date <%= l(Time.at(payout.arrival_date).to_date) %></p><% end %>
+  <% unless payout.automatic %>
+    <p>Transaction matching is available for automatic deposits. This deposit was initiated manually.</p>
+  <% else %>
+    <% if @deposit[:rows].empty? %><p>The provider has yet to report the transactions for this deposit.</p><% end %>
+    <p><%= link_to 'Export this page as CSV', dashboard_commerce_bank_deposit_path(site_id: @site.id, payout_id: payout.id, after: params[:after], format: :csv) %></p>
+    <table>
+      <thead><tr><th>Entry</th><th>Store order</th><th>Gross</th><th>Fee</th><th>Net</th></tr></thead>
+      <tbody>
+        <% @deposit[:rows].each do |row| %>
+          <tr>
+            <td><%= row[:category].to_s.humanize %></td>
+            <% if row[:order] %>
+              <td><%= link_to "##{row[:order].id}", dashboard_commerce_payout_ledger_path(site_id: @site.id, order_id: row[:order].id) %></td>
+            <% else %>
+              <td>Unmatched</td>
+            <% end %>
+            <% %i[gross_cents fee_cents net_cents].each do |key| %>
+              <td><%= number_to_currency(row[key].to_i / 100.0) %> <%= row[:currency].to_s.upcase %></td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if @deposit[:cursor] %>
+      <%= link_to 'More transactions', dashboard_commerce_bank_deposit_path(site_id: @site.id, payout_id: payout.id, after: @deposit[:cursor]) %>
+    <% end %>
+  <% end %>
+</main>

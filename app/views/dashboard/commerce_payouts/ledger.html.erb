@@ -48,10 +48,12 @@
   <% if @buyer_price %>
     <section class="lr-card">
       <h2>Buyer-inclusive pricing preview</h2>
-      <p>Illustrates a buyer price before tax and shipping. This preview leaves checkout and payout amounts as recorded.</p>
+      <p>Illustrates a buyer price rounded up to an even whole dollar before tax and shipping. This preview leaves checkout and payout amounts as recorded.</p>
       <dl>
         <dt>Merchant price</dt><dd><%= number_to_currency(@buyer_price[:merchant_cents] / 100.0) %></dd>
         <dt>Lightek network fee</dt><dd><%= number_to_currency(@buyer_price[:network_cents] / 100.0) %></dd>
+        <dt>Base network fee</dt><dd><%= number_to_currency(@buyer_price[:minimum_network_cents] / 100.0) %></dd>
+        <dt>Rounding added to network fee</dt><dd><%= number_to_currency(@buyer_price[:rounding_network_cents] / 100.0) %></dd>
         <dt>Estimated processing on the buyer total</dt><dd><%= number_to_currency(@buyer_price[:processor_reserve_cents] / 100.0) %></dd>
         <dt>Buyer price</dt><dd><%= number_to_currency(@buyer_price[:buyer_cents] / 100.0) %></dd>
       </dl>

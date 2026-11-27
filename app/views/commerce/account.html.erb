@@ -19,6 +19,9 @@
             <li>
               Order #<%= order.id %> · <%= l(order.paid_at.to_date) %> · <%= number_to_currency(order.total_cents / 100.0) %> · <%= order.status.humanize %>
               <%= link_to 'Payment receipt', commerce_account_path(site_id: @site.id, receipt_order_id: order.id) %>
+              <% if LightekCommerce::MerchandiseReturns.eligible_order?(order) && order.items.any?(&:physical_for_fulfillment?) %>
+                <%= link_to 'Returns', commerce_account_returns_path(site_id: @site.id, order_id: order.id) %>
+              <% end %>
               <% quote = order.shipping_quote %>
               <% shipment = quote&.shipment %>
               <% if quote && (shipment.nil? || shipment.status == 'ready') %>

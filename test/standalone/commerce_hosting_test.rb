@@ -2292,6 +2292,39 @@ class CommerceHostingTest < Minitest::Test
       changes.pluck(:merchandise_return_id, :stock_state, :variant_id)
   end
 
+  def test_customer_can_request_returns_only_for_owned_fulfilled_physical_orders_at_this_store
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 5)
+    order = order_for(item)
+    service = LightekCommerce::MerchandiseReturns
+    buyer = @operator
+    scope = {site: @site, buyer: buyer, id: order.id}
+    order.update!(storefront_buyer_id: buyer.id, status: 'paid', paid_at: Time.current)
+    assert_raises(ActiveRecord::RecordNotFound) { service.buyer_order!(**scope) }
+    order.update!(status: 'fulfilled', fulfilled_at: Time.current)
+    assert_equal order, service.buyer_order!(**scope)
+    foreign_site = DymondSite::Site.create!(tenant: buyer, host: 'return-scope-other.test')
+    assert_raises(ActiveRecord::RecordNotFound) { service.buyer_order!(**scope.merge(site: foreign_site)) }
+    other_buyer = Struct.new(:id).new(buyer.id + 1)
+    assert_raises(ActiveRecord::RecordNotFound) { service.buyer_order!(**scope.merge(buyer: other_buyer)) }
+
+    request = {item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size',
+      request_key: SecureRandom.uuid, buyer_request: true}
+    buyer_returns = service.new(order: order, actor: buyer)
+    assert_raises(ActiveRecord::RecordNotFound) do
+      buyer_returns.request!(**request.merge(item_id: order_for(item).items.sole.id))
+    end
+    record = buyer_returns.request!(**request)
+    assert_equal [order.id, buyer.id, 'requested'], [record.order_id, record.requested_by_id, record.status]
+    assert_equal record.id, buyer_returns.request!(**request).id
+    assert_raises(ActiveRecord::RecordNotFound) { service.new(order: order, actor: other_buyer).request!(**request) }
+
+    order.update!(storefront_buyer_id: nil)
+    assert_raises(ActiveRecord::RecordNotFound) { buyer_returns.request!(**request) }
+    digital_order = order_for(product(product_type: 'digital', billing_interval: 'one_time'))
+    digital_order.update!(storefront_buyer_id: buyer.id, status: 'fulfilled', fulfilled_at: Time.current, paid_at: Time.current)
+    assert_raises(ActiveRecord::RecordNotFound) { service.buyer_order!(**scope.merge(id: digital_order.id)) }
+  end
+
   def test_merchandise_returns_release_rejected_quantities_and_keep_untracked_items_out_of_stock
     item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: false, inventory_quantity: 0)
     order = order_for(item)

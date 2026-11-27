@@ -280,6 +280,8 @@ end
   post "/commerce/gift-cards", to: "commerce#buy_gift_card", as: :commerce_buy_gift_card
   post "/commerce/cart/discount", to: "commerce#apply_discount", as: :commerce_cart_discount
   get "/commerce/account", to: "commerce#account", as: :commerce_account
+  get "/commerce/account/orders/:order_id/returns", to: "commerce#account_returns", as: :commerce_account_returns
+  post "/commerce/account/orders/:order_id/returns", to: "commerce#request_account_return"
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"

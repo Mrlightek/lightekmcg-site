@@ -15,6 +15,21 @@ module LightekCommerce
         order.status.in?(%w[fulfilled partially_refunded refunded])
     end
 
+    def self.buyer_orders(site:, buyer:)
+      Order.receipt_eligible.where(site: site, storefront_buyer_id: buyer.id)
+    end
+
+    def self.buyer_order!(site:, buyer:, id:)
+      raise ActiveRecord::RecordNotFound unless id.to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+
+      order = buyer_orders(site: site, buyer: buyer).find(id)
+      unless eligible_order?(order) && order.items.includes(:product).any?(&:physical_for_fulfillment?)
+        raise ActiveRecord::RecordNotFound
+      end
+
+      order
+    end
+
     def self.restockable?(order, item)
       order.stock_reserved? && item.purchase_snapshot.to_h['track_inventory'] == true
     end
@@ -24,15 +39,20 @@ module LightekCommerce
       @actor = actor
     end
 
-    def request!(item_id:, quantity:, reason:, request_key:)
+    def request!(item_id:, quantity:, reason:, request_key:, buyer_request: false)
       unless request_key.to_s.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
         raise Invalid, 'Reload the order before requesting a return.'
       end
       unless quantity.to_s.match?(/\A[1-9][0-9]{0,9}\z/) && quantity.to_i <= InventoryAdjustment::MAX_QUANTITY
         raise Invalid, 'Enter a valid whole return quantity.'
       end
+      raise ActiveRecord::RecordNotFound unless item_id.to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+
       reason = reason.to_s.strip
       @order.with_lock do
+        if buyer_request && (@order.storefront_buyer_id != @actor.id || @order.deleted_at?)
+          raise ActiveRecord::RecordNotFound
+        end
         item = @order.items.find(item_id)
         unless self.class.eligible_order?(@order) && item.physical_for_fulfillment?
           raise Invalid, 'Returns are available for fulfilled physical items.'
@@ -40,7 +60,8 @@ module LightekCommerce
         units = quantity.to_i
         matching = returns.find_by(request_key: request_key)
         if matching
-          unless matching.order_item_id == item.id && matching.quantity == units && matching.reason == reason
+          unless matching.order_item_id == item.id && matching.quantity == units && matching.reason == reason &&
+              (!buyer_request || matching.requested_by_id == @actor.id)
             raise Invalid, 'This request changed. Reload the order and submit it again.'
           end
           next matching

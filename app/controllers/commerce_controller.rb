@@ -5,8 +5,10 @@ class CommerceController < ApplicationController
   helper DymondDash::TemplateSchemaHelper
   skip_authorization_check
   before_action :set_site
-  layout 'auth', only: %i[embedded_checkout account]
+  layout 'auth', only: %i[embedded_checkout account account_returns]
   rate_limit to: 20, within: 5.minutes, only: %i[checkout buy_gift_card gift_card_balance], if: -> { action_name != 'checkout' || params[:gift_code].present? }, by: -> { current_user&.id || request.remote_ip }
+  rate_limit to: 20, within: 5.minutes, only: :request_account_return, by: -> { current_user.id }
+
   def index
     if params[:payment_intent_client_secret].present?
       response.headers['Referrer-Policy'] = 'no-referrer'
@@ -133,7 +135,7 @@ class CommerceController < ApplicationController
   def account
     response.headers['Cache-Control'] = 'private, no-store'
     @appearance = LightekCommerce::StoreAppearance.read(@site)
-    orders = LightekCommerce::Order.receipt_eligible.where(site: @site, storefront_buyer_id: current_user.id)
+    orders = LightekCommerce::MerchandiseReturns.buyer_orders(site: @site, buyer: current_user)
     if params[:receipt_order_id].present?
       id = params[:receipt_order_id].to_s
       raise ActiveRecord::RecordNotFound unless id.match?(/\A[1-9][0-9]{0,17}\z/)
@@ -141,7 +143,28 @@ class CommerceController < ApplicationController
       @order = orders.includes(:items).find(id)
       return render :payment_receipt, formats: [:html], layout: false
     end
-    @orders = orders.includes(shipping_quote: :shipment).order(paid_at: :desc).limit(50)
+    @orders = orders.includes({items: :product}, shipping_quote: :shipment).order(paid_at: :desc).limit(50)
+  end
+
+  def account_returns
+    response.headers['Cache-Control'] = 'private, no-store'
+    @appearance = LightekCommerce::StoreAppearance.read(@site)
+    @order = buyer_return_order
+    @items = @order.items.includes(:product).select(&:physical_for_fulfillment?).index_by(&:id)
+    returns = LightekCommerce::MerchandiseReturn.where(order_id: @order.id)
+    @used = returns.counting_against_order.group(:order_item_id).sum(:quantity)
+    @returns = returns.order(id: :desc).limit(100)
+  end
+
+  def request_account_return
+    order = buyer_return_order
+    service = LightekCommerce::MerchandiseReturns.new(order: order, actor: current_user)
+    service.request!(item_id: params[:item_id], quantity: params[:quantity], reason: params[:reason],
+      request_key: params[:request_key], buyer_request: true)
+    redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id),
+      notice: 'Return request submitted.', status: :see_other
+  rescue LightekCommerce::MerchandiseReturns::Invalid => error
+    redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id), alert: error.message, status: :see_other
   end
 
   def gift_card_balance
@@ -411,6 +434,10 @@ class CommerceController < ApplicationController
 
     product = LightekCommerce::Product.where(site: @site).find_by(id: cart.keys.first)
     product if product && Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
+  end
+
+  def buyer_return_order
+    LightekCommerce::MerchandiseReturns.buyer_order!(site: @site, buyer: current_user, id: params[:order_id])
   end
 
   def set_site

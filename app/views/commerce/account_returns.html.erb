@@ -1,0 +1,41 @@
+<% content_for :title, "Returns for order ##{@order.id} · #{@site.name}" %>
+<main class="auth-shell">
+  <% accent = LightekCommerce::StoreAppearance.accent(@appearance) %>
+  <section class="auth-story"<%= tag.attributes(style: "background: #{accent}") if accent %>>
+    <div class="auth-story-copy">
+      <h2><%= @appearance['brand_name'] || @site.name %></h2>
+      <%= link_to 'Back to my orders', commerce_account_path(site_id: @site.id), class: 'auth-link' %>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1>Returns for order #<%= @order.id %></h1>
+      <% choices = @items.values.filter_map do |item|
+        remaining = item.quantity - @used.fetch(item.id, 0)
+        ["#{item.name} (#{remaining} available to return)", item.id] if remaining.positive?
+      end %>
+      <% if choices.empty? %>
+        <p>There are no more items available to return on this order.</p>
+      <% else %>
+        <%= form_with url: commerce_account_returns_path(order_id: @order.id, site_id: @site.id), method: :post do |form| %>
+          <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
+          <label>Item <%= form.select :item_id, choices, {include_blank: 'Choose an item'}, required: true %></label>
+          <label>Quantity <%= form.number_field :quantity, min: 1, value: 1, required: true %></label>
+          <label>Reason <%= form.text_area :reason, rows: 2, maxlength: 300, required: true %></label>
+          <%= form.submit 'Request return', class: 'auth-submit' %>
+        <% end %>
+      <% end %>
+      <% if @returns.any? %>
+        <h2>Return status</h2>
+        <ul>
+          <% @returns.each do |record| %>
+            <li>
+              <%= record.quantity %> × <%= @items[record.order_item_id]&.name || 'Order item' %>
+              · <%= record.status.humanize %> · <%= l(record.created_at.to_date) %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </section>
+</main>

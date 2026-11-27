@@ -77,7 +77,8 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
 
   def discount_params
     params.require(:discount).permit(:name, :code, :kind, :amount, :minimum_cents, :combinable,
-      :target_product_id, :target_collection_id, :starts_at, :ends_at, :usage_limit, :buyer_limit)
+      :target_product_id, :target_collection_id, :qualifying_product_id, :qualifying_collection_id,
+      :buy_quantity, :get_quantity, :applications_per_order, :reward_type, :starts_at, :ends_at, :usage_limit, :buyer_limit)
   end
 
   def redirect_to_store(message, error: false)

@@ -24,6 +24,7 @@ module LightekCommerce
     end
     before_destroy do
       Discount.where(target_collection: self).update_all(target_collection_id: nil, active: false, updated_at: Time.current)
+      Discount.where(qualifying_collection: self).update_all(qualifying_collection_id: nil, active: false, updated_at: Time.current)
     end
     validates :name, presence: true, length: {maximum: 160}
     validates :slug, presence: true, length: {maximum: 180}, uniqueness: {scope: :site_id},

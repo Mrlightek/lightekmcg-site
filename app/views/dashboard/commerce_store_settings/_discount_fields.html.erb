@@ -1,10 +1,20 @@
 <label>Name <%= form.text_field :name, required: true, maxlength: 100 %></label>
 <label>Code <%= form.text_field :code, maxlength: 40, placeholder: 'Leave blank for an automatic discount' %></label>
-<label>Type <%= form.select :kind, [['Percentage', 'percent'], ['Fixed amount (cents)', 'fixed']] %></label>
-<label>Amount <%= form.number_field :amount, min: 1, required: true %></label>
+<label>Type <%= form.select :kind, [['Percentage', 'percent'], ['Fixed amount (cents)', 'fixed'], ['Buy X Get Y', 'buy_x_get_y']] %></label>
+<label>Amount (percent or cents) <%= form.number_field :amount, min: 1, required: true %></label>
 <label>Minimum order amount (cents) <%= form.number_field :minimum_cents, min: 0, required: true %></label>
 <label>Applies to <%= form.select :target_product_id, options_from_collection_for_select(@discount_products, :id, :name, form.object.target_product_id), include_blank: 'Entire merchandise subtotal' %></label>
 <label>Or choose a collection <%= form.select :target_collection_id, options_from_collection_for_select(@discount_collections, :id, :name, form.object.target_collection_id), include_blank: 'No collection target' %></label>
+<details <%= 'open' if form.object.quantity_promotion? %>>
+  <summary>Buy X Get Y settings</summary>
+  <p>Select the reward product or collection above. For free items, use percentage and enter 100 in Amount. Buyers add both the qualifying and reward items to their cart.</p>
+  <label>Qualifying product <%= form.select :qualifying_product_id, options_from_collection_for_select(@discount_products, :id, :name, form.object.qualifying_product_id), include_blank: 'Same as reward' %></label>
+  <label>Or qualifying collection <%= form.select :qualifying_collection_id, options_from_collection_for_select(@discount_collections, :id, :name, form.object.qualifying_collection_id), include_blank: 'No qualifying collection' %></label>
+  <label>Quantity to buy <%= form.number_field :buy_quantity, min: 1, max: 5000 %></label>
+  <label>Quantity to discount <%= form.number_field :get_quantity, min: 1, max: 5000 %></label>
+  <label>Reward <%= form.select :reward_type, [['Percentage off each item', 'percent'], ['Cents off each item', 'fixed']] %></label>
+  <label>Maximum applications per order <%= form.number_field :applications_per_order, min: 1, max: 5000, placeholder: 'Unlimited' %></label>
+</details>
 <label><%= form.check_box :combinable %> Allow combining with other eligible discounts</label>
 <label>Start time (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, value: form.object.starts_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>
 <label>End time (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, value: form.object.ends_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>

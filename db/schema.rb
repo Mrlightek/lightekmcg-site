@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_181000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_182000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1783,6 +1783,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_181000) do
     t.integer "buyer_limit"
     t.index ["site_id", "code"], name: "index_lightek_commerce_discounts_on_site_id_and_code", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_discounts_on_site_id"
+    t.bigint "qualifying_product_id"
+    t.bigint "qualifying_collection_id"
+    t.integer "buy_quantity"
+    t.integer "get_quantity"
+    t.integer "applications_per_order"
+    t.string "reward_type"
   end
 
   create_table "lightek_commerce_dispute_cases", force: :cascade do |t|
@@ -7628,6 +7634,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_181000) do
   add_foreign_key "lightek_commerce_collections", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_discounts", column: "discount_id"
   add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_collections", column: "qualifying_collection_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_products", column: "qualifying_product_id"
   add_foreign_key "lightek_commerce_discounts", "lightek_commerce_collections", column: "target_collection_id"
   add_foreign_key "lightek_commerce_discounts", "lightek_commerce_products", column: "target_product_id"
   add_foreign_key "lightek_commerce_discounts", "dymond_site_sites", column: "site_id"

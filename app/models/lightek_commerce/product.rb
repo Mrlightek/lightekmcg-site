@@ -7,6 +7,7 @@ module LightekCommerce
 
     before_destroy do
       Discount.where(target_product: self).update_all(target_product_id: nil, active: false, updated_at: Time.current)
+      Discount.where(qualifying_product: self).update_all(qualifying_product_id: nil, active: false, updated_at: Time.current)
     end
     COMMUNICATIONS_SLUGS = { "lightek-internet" => "internet", "lightek-voice" => "voice" }.freeze
 

@@ -282,6 +282,9 @@ require Rails.root.join('db/migrate/20261127180000_extend_commerce_discount_rule
 ExtendCommerceDiscountRules.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127181000_create_commerce_collections')
 CreateCommerceCollections.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127182000_add_commerce_quantity_promotions')
+AddCommerceQuantityPromotions.new.migrate(:up)
+require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
 require Rails.root.join('app/models/lightek_commerce/discount')
 require Rails.root.join('app/models/lightek_commerce/discount_use')
 require Rails.root.join('app/models/lightek_commerce/collection')
@@ -1027,6 +1030,48 @@ class CommerceHostingTest < Minitest::Test
     assert_nil collection_rule.target_collection_id
   end
 
+  def test_buy_x_get_y_counts_distinct_units_and_rewards_the_least_expensive_items
+    product = product(billing_interval: 'one_time', price_cents: 2000)
+    blue = product.variants.create!(name: 'Blue', price_cents: 2000, inventory_quantity: 5)
+    red = product.variants.create!(name: 'Red', price_cents: 1000, inventory_quantity: 5)
+    blue_key = "#{product.id}:#{blue.id}"
+    red_key = "#{product.id}:#{red.id}"
+    rule = LightekCommerce::Discount.create!(site: @site, target_product: product, name: 'BOGO', code: 'BOGO',
+      kind: 'buy_x_get_y', amount: 100, reward_type: 'percent', buy_quantity: 1, get_quantity: 1)
+    inputs = {site: @site, products: [product], code: rule.code}
+    assert_raises(LightekCommerce::Discounts::Invalid) do
+      LightekCommerce::Discounts.quote(**inputs, quantities: {blue_key => 1})
+    end
+
+    quantities = {blue_key => 2, red_key => 2}
+    quote = LightekCommerce::Discounts.quote(**inputs, quantities: quantities)
+    assert_equal({blue_key => 0, red_key => 2000}, quote.line_savings)
+    rule.update!(applications_per_order: 1)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: @operator.email_address,
+      quantities: quantities, storefront: true, storefront_buyer: @operator, discount_code: rule.code, expected_discount_cents: 1000)
+    assert_equal 5000, order.total_cents
+    assert_equal [2000, 500], LightekCommerce::Discounts.processor_items(order).map { |line| line.dig(:price_data, :unit_amount) }
+    assert_equal 1000, LightekCommerce::DiscountUse.find_by!(order: order, discount: rule).amount_cents
+  end
+
+  def test_buy_x_get_y_combines_an_overlapping_qualifying_collection_with_order_discount
+    qualifier = product(name: 'Qualifying', billing_interval: 'one_time', price_cents: 1200)
+    reward = product(name: 'Reward', billing_interval: 'one_time', price_cents: 600)
+    collection = LightekCommerce::Collection.create!(site: @site, name: 'Qualified', product_ids: [qualifier.id, reward.id])
+    discounts = LightekCommerce::Discount
+    discounts.create!(site: @site, name: 'Reward', target_product: reward, qualifying_collection: collection,
+      kind: 'buy_x_get_y', reward_type: 'fixed', amount: 200, buy_quantity: 2, get_quantity: 1, combinable: true)
+    discounts.create!(site: @site, name: 'Order', code: 'ORDER', kind: 'percent', amount: 10, combinable: true)
+    inputs = {site: @site, products: [qualifier, reward], code: 'ORDER'}
+    below_minimum = LightekCommerce::Discounts.quote(**inputs, quantities: {qualifier.id.to_s => 1, reward.id.to_s => 1})
+    assert_equal [180], below_minimum.entries.map(&:last)
+
+    # One reward unit qualifies, and the other gets the discount.
+    quote = LightekCommerce::Discounts.quote(**inputs, quantities: {qualifier.id.to_s => 1, reward.id.to_s => 2})
+    assert_equal [200, 220], quote.entries.map(&:last)
+    assert_equal({qualifier.id.to_s => 120, reward.id.to_s => 300}, quote.line_savings)
+  end
+
   def test_discount_csv_import_is_scoped_and_atomic_and_exports_spreadsheet_safe_data
     service = LightekCommerce::DiscountCSV
     product = product(name: 'Sample', billing_interval: 'one_time', price_cents: 999)
@@ -1037,7 +1082,7 @@ class CommerceHostingTest < Minitest::Test
     missing_target = values.dup
     missing_target[0] = 'WRONG'
     missing_target[11] = 'does-not-exist'
-    headers = CSV.generate_line(service::HEADERS)
+    headers = CSV.generate_line(service::ORIGINAL_HEADERS)
     row = CSV.generate_line(values)
     failure = headers + row + CSV.generate_line(missing_target)
     assert_raises(service::Invalid) { service.import!(@site, failure) }

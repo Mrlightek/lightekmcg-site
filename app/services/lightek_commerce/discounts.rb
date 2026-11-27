@@ -38,7 +38,16 @@ module LightekCommerce
       candidates = scope.to_a.select do |rule|
         rule.scheduled_for?(now) && subtotal >= rule.minimum_cents && within_limits?(rule, buyer_id, lock)
       end
-      targets = candidates.to_h { |rule| [rule.id, target_lines(rule, grouped)] }
+      targets = candidates.to_h do |rule|
+        [rule.id, matching_lines(grouped, rule.target_product_id, rule.target_collection)]
+      end
+      rewards = {}
+      candidates.select(&:quantity_promotion?).each do |rule|
+        target = targets[rule.id] || []
+        qualifying = matching_lines(grouped, rule.qualifying_product_id, rule.qualifying_collection) || target
+        rewards[rule.id] = QuantityPromotion.savings(rule, lines, qualifying, target)
+        targets[rule.id] = rewards.fetch(rule.id).keys
+      end
       candidates.reject! { |rule| targets[rule.id] == [] }
       explicit, automatic = candidates.partition { |rule| rule.code.present? }
       unless explicit.map(&:code).sort == entered
@@ -50,11 +59,11 @@ module LightekCommerce
 
       winning = if explicit.none?
         sets = automatic.map { |rule| [rule] }
-        sets << compatible_rules([], automatic, prices, targets, subtotal)
-        sets.map { |rules| apply(rules, prices, targets, subtotal) }.max_by { |entries, _| entries.sum(&:last) }
+        sets << compatible_rules([], automatic, prices, targets, rewards, subtotal)
+        sets.map { |rules| apply(rules, prices, targets, rewards, subtotal) }.max_by { |entries, _| entries.sum(&:last) }
       else
-        rules = explicit.all?(&:combinable?) ? compatible_rules(explicit, automatic, prices, targets, subtotal) : explicit
-        apply(rules, prices, targets, subtotal)
+        rules = explicit.all?(&:combinable?) ? compatible_rules(explicit, automatic, prices, targets, rewards, subtotal) : explicit
+        apply(rules, prices, targets, rewards, subtotal)
       end
 
       entries, allocated = winning
@@ -111,23 +120,22 @@ module LightekCommerce
       uses.where(buyer_id: buyer_id).count < rule.buyer_limit
     end
 
-    def self.target_lines(rule, grouped)
-      if rule.target_collection_id
-        return [] unless rule.target_collection
-
-        ids = rule.target_collection.products.where(id: grouped.keys).pluck(:id)
+    def self.matching_lines(grouped, product_id, collection)
+      if collection
+        ids = collection.products.where(id: grouped.keys).pluck(:id)
         grouped.values_at(*ids).flatten.sort
-      elsif rule.target_product_id
-        grouped.fetch(rule.target_product_id, [])
+      elsif product_id
+        grouped.fetch(product_id, [])
       end
     end
 
-    def self.compatible_rules(explicit, automatic, prices, targets, subtotal)
+    def self.compatible_rules(explicit, automatic, prices, targets, rewards, subtotal)
       targeted, cart_offers = automatic.select(&:combinable?).partition { |rule| targets[rule.id] }
       used = explicit.flat_map { |rule| targets[rule.id] || [] }
       selected = targeted.sort_by do |rule|
         base = prices.values_at(*targets.fetch(rule.id)).sum
-        [-rule.savings(base, cart_subtotal: subtotal), rule.id]
+        savings = rewards[rule.id]&.values&.sum || rule.savings(base, cart_subtotal: subtotal)
+        [-savings, rule.id]
       end.select do |rule|
         keys = targets.fetch(rule.id)
         next false if used.intersect?(keys)
@@ -138,7 +146,7 @@ module LightekCommerce
       explicit + selected + cart_offers
     end
 
-    def self.apply(rules, prices, targets, subtotal)
+    def self.apply(rules, prices, targets, rewards, subtotal)
       products, orders = rules.partition { |rule| targets[rule.id] }
       remaining = prices.dup
       entries = []
@@ -148,10 +156,12 @@ module LightekCommerce
         available = target ? remaining.slice(*target) : remaining
         base = target ? available.values.sum : (order_base ||= remaining.values.sum)
         cap = [remaining.values.sum - CHECKOUT_MINIMUM_CENTS, available.values.sum].min
-        amount = [rule.savings(base, cart_subtotal: subtotal), cap].min
+        reward = rewards[rule.id]
+        savings = reward ? reward.values.sum : rule.savings(base, cart_subtotal: subtotal)
+        amount = [savings, cap].min
         next unless amount.positive?
 
-        allocate(amount, available).each { |key, cents| remaining[key] -= cents }
+        allocate(amount, reward || available).each { |key, cents| remaining[key] -= cents }
         entries << [rule, amount]
       end
       [entries, prices.to_h { |key, gross| [key, gross - remaining.fetch(key)] }]
@@ -174,6 +184,6 @@ module LightekCommerce
     def self.verifier
       Rails.application.message_verifier('commerce-discount-review-v1')
     end
-    private_class_method :line, :within_limits?, :target_lines, :compatible_rules, :apply, :allocate, :verifier
+    private_class_method :line, :within_limits?, :matching_lines, :compatible_rules, :apply, :allocate, :verifier
   end
 end

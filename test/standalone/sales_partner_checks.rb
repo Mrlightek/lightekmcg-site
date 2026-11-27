@@ -1,6 +1,9 @@
 # Run through the existing hosted form, CRM, catalog quotes and Commerce settlement.
 require_relative 'growth_foundation_checks'
 require ROOT.join('app/helpers/nevaeh_help_helper')
+require ROOT.join('app/services/lightek_sales/commission_disbursements')
+require ROOT.join('app/jobs/lightek_sales/commission_payout_reconciliation_job')
+require 'minitest/mock'
 require ROOT.join('app/controllers/dashboard/sales_partners_controller')
 Dashboard::SalesPartnersController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesPartnersController.layout false
@@ -13,6 +16,10 @@ class SalesPartnerChecks < GrowthFoundationChecks
     @product = offer
     @partner = LightekSales::Partner.create!(site: @site, product: @product, name: 'Local referral business',
       agreement_reference: 'signed-referral-1', commission_cents: 5_000)
+  end
+
+  def run
+    DymondBank::WorkforcePayouts.stub(:configured?, false) { super }
   end
 
   def native_inquiry(code: @partner.referral_code, host: @site.host, email: 'buyer@example.test')
@@ -132,5 +139,198 @@ class SalesPartnerChecks < GrowthFoundationChecks
     post revoke_path, headers: headers.merge('X-CSRF-Token' => token)
     assert_redirected_to path
     assert partner.reload.revoked_at?
+  end
+end
+
+class SalesPartnerDisbursementChecks < SalesPartnerChecks
+  def self.runnable_methods = instance_methods.grep(/^test_partner_disbursement_/).map(&:to_s)
+
+  class Provider
+    attr_accessor :result, :live, :debit, :fail_prepare, :lose_release_response
+    attr_reader :prepare_count, :release_count
+
+    def initialize
+      @prepare_count = @release_count = 0
+      @debit, @live = 5_100, true
+    end
+
+    def partner_sender = {sender_ref: 'fa_sales', live: live}
+
+    def partner_recipient!(reference:, email:)
+      return if reference == 'acct_partner' && email == 'partner@example.test'
+
+      raise DymondBank::WorkforcePayouts::Unavailable, 'Unverified recipient'
+    end
+
+    def prepare_partner_commission!(payout)
+      @prepare_count += 1
+      self.result ||= {
+        'id' => 'poi_commission', 'livemode' => live, 'metadata' => payout.provider_metadata,
+        'amount' => {'value' => payout.amount_cents, 'currency' => 'usd'},
+        'from' => {'financial_account' => payout.sender_ref, 'debited' => {'value' => debit, 'currency' => 'usd'}},
+        'to' => {'recipient' => payout.recipient_ref, 'credited' => {'value' => payout.amount_cents, 'currency' => 'usd'}},
+        'estimated_fees' => [], 'status' => 'requires_action',
+        'next_action' => {'type' => 'confirm', 'confirm' => {'reason' => 'manually_requested'}}
+      }
+      raise DymondBank::WorkforcePayouts::ProviderError, 'Response lost' if fail_prepare
+
+      result.deep_dup
+    end
+
+    def retrieve!(_reference) = result.deep_dup
+
+    def release_partner_commission!(_payout)
+      @release_count += 1
+      result['status'] = 'processing'
+      raise DymondBank::WorkforcePayouts::ProviderError, 'Response lost' if lose_release_response
+
+      retrieve!(nil)
+    end
+  end
+
+  def setup
+    super
+    @provider = Provider.new
+    @service = LightekSales::CommissionDisbursements.new(actor: @owner, site: @site, adapter: @provider)
+    @credit, @order = referred_order
+    settle(@order)
+    LightekCommerce::Fulfillment.complete!(order: @order, reference: 'FULFILLED')
+    @order.update!(merchant_transfer_ref: 'tr_sales', merchant_transfer_amount_cents: 20_000)
+  end
+
+  def link_recipient
+    @service.link_recipient!(partner: @partner, email: 'PARTNER@example.test', reference: 'acct_partner')
+  end
+
+  def prepare
+    @service.prepare!(referral: @credit, order_id: @order.id)
+    @credit.reload.commission_payout
+  end
+
+  def release(payout, proceeds_cleared: true, digest: payout.review_digest)
+    @service.release!(payout: payout, review_digest: digest, proceeds_cleared: proceeds_cleared)
+  end
+
+  def test_partner_disbursement_dashboard_release_and_posted_receipt
+    path = link_dashboard_sales_partner_recipient_path(site_id: @site.id, id: @partner.id)
+    recipient = {recipient: {email: 'partner@example.test', reference: 'acct_partner'}}
+    DymondBank::WorkforcePayouts.stub(:new, @provider) do
+      assert_raises(ActiveRecord::RecordNotFound) do
+        post path, params: recipient, headers: headers(@member).merge('X-CSRF-Token' => token(@member))
+      end
+      assert_raises(ActionController::InvalidAuthenticityToken) { post path, params: recipient, headers: headers }
+      post path, params: recipient, headers: headers.merge('X-CSRF-Token' => token)
+      assert_response :see_other
+      prepare_path = prepare_dashboard_sales_commission_path(site_id: @site.id, id: @credit.id)
+      2.times do
+        post prepare_path, params: {order_id: @order.id}, headers: headers.merge('X-CSRF-Token' => token)
+        assert_response :see_other
+      end
+      assert_equal 1, @provider.prepare_count
+      payout = @credit.reload.commission_payout
+      get dashboard_sales_partners_path(site_id: @site.id), headers: headers
+      assert_response :success
+      assert_includes response.body, 'Release commission'
+      assert_includes response.body, '$51.00'
+      refute_includes response.body, 'Record receipt'
+      release_path = release_dashboard_sales_commission_payout_path(site_id: @site.id, id: payout.id)
+      review = {review_digest: payout.review_digest, proceeds_cleared: '1'}
+      2.times do
+        post release_path, params: review, headers: headers.merge('X-CSRF-Token' => token)
+        assert_response :see_other
+      end
+      assert_equal 1, @provider.release_count
+      assert_equal 'processing', payout.reload.state
+      refute @credit.reload.paid_at?
+      @provider.result.merge!('status' => 'posted', 'outbound_status' => 'posted')
+      LightekSales::CommissionPayoutReconciliationJob.perform_now(payout.id)
+      assert_equal 'posted', payout.reload.state
+      assert_equal 'poi_commission', @credit.reload.payout_reference
+      @provider.result.merge!('outbound_status' => 'returned')
+      @service.refresh!(payout: payout)
+      assert_equal 'returned', payout.reload.state
+      assert_equal 'poi_commission', @credit.reload.payout_reference
+    end
+  end
+
+  def test_partner_disbursement_stale_quote_refunds_and_fee_overrun_block_release
+    assert_raises(LightekSales::CommissionDisbursements::Invalid) { prepare }
+    assert_nil @credit.reload.commission_payout
+    link_recipient
+    payout = prepare
+    assert_raises(LightekSales::CommissionDisbursements::Invalid) { release(payout, proceeds_cleared: false) }
+    old_digest = payout.review_digest
+    @provider.result['from']['debited']['value'] = 20_001
+    assert_equal :quote_changed, release(payout, digest: old_digest)
+    assert_raises(LightekSales::CommissionDisbursements::Invalid) { release(payout.reload) }
+    @provider.result['from']['debited']['value'] = 5_100
+    @service.refresh!(payout: payout)
+    @order.update!(status: 'partially_refunded', refunded_cents: 10)
+    assert_raises(LightekSales::CommissionDisbursements::Invalid) { release(payout.reload) }
+    assert_equal 0, @provider.release_count
+    assert_raises(ArgumentError) { @credit.record_payout!(actor: @owner, reference: 'alternate', expected_order_id: @order.id) }
+  end
+
+  def test_partner_disbursement_uncertain_attempt_requires_matching_provider_reconciliation
+    link_recipient
+    @provider.fail_prepare = true
+    assert_raises(DymondBank::WorkforcePayouts::ProviderError) { prepare }
+    payout = @credit.reload.commission_payout
+    refute payout.provider_ref?
+    payout.update_columns(created_at: 23.hours.ago)
+    assert_raises(LightekSales::CommissionDisbursements::Invalid) { prepare }
+    assert_equal 1, @provider.prepare_count
+
+    @provider.result['metadata']['referral_id'] = 'wrong'
+    assert_raises(LightekSales::CommissionDisbursements::Invalid) do
+      @service.refresh!(payout: payout, reference: 'poi_commission')
+    end
+    @provider.result['metadata'] = payout.provider_metadata
+    @service.refresh!(payout: payout, reference: 'poi_commission')
+    @provider.lose_release_response = true
+    assert_raises(DymondBank::WorkforcePayouts::ProviderError) { release(payout.reload) }
+    assert_equal 'confirming', payout.reload.state
+    assert payout.release_attempted_at?
+    release(payout)
+    assert_equal 1, @provider.release_count
+    assert_equal 'processing', payout.reload.state
+  end
+
+  def test_partner_disbursement_dymond_bank_request_uses_sender_recipient_and_stable_keys
+    link_recipient
+    payout = prepare
+    calls = []
+    adapter = Class.new(DymondBank::WorkforcePayouts) do
+      attr_accessor :calls
+
+      def request(method, path, body = nil, key: nil)
+        calls << [method, path, body, key]
+        {}
+      end
+    end.new(employer: @owner)
+    adapter.calls = calls
+    adapter.prepare_partner_commission!(payout)
+    adapter.release_partner_commission!(payout)
+    assert_equal :post, calls[0][0]
+    assert_equal '/v2/money_management/payout_intents', calls[0][1]
+    assert_equal({'financial_account' => 'fa_sales', 'currency' => 'usd'}, calls[0][2]['from'])
+    assert_equal 'acct_partner', calls[0][2].dig('to', 'recipient')
+    assert_equal({'value' => 5_000, 'currency' => 'usd'}, calls[0][2]['amount'])
+    assert_equal 'manual', calls[0][2]['confirmation_method']
+    assert_equal payout.provider_metadata, calls[0][2]['metadata']
+    assert_equal "sales-commission-#{payout.id}-prepare-v1", calls[0][3]
+    assert_equal [:post, '/v2/money_management/payout_intents/poi_commission/confirm', {},
+      "sales-commission-#{payout.id}-confirm-v1"], calls[1]
+  end
+
+  def test_partner_disbursement_sandbox_cannot_write_a_live_receipt
+    @provider.live = false
+    link_recipient
+    payout = prepare
+    release(payout)
+    @provider.result.merge!('status' => 'posted', 'outbound_status' => 'posted')
+    @service.refresh!(payout: payout)
+    assert_equal 'sandbox_posted', payout.reload.state
+    refute @credit.reload.paid_at?
   end
 end

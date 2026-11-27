@@ -69,3 +69,8 @@ require ROOT.join('db/migrate/20261127090000_create_lightek_sales_partners')
 CreateLightekSalesPartners.new.migrate(:up)
 WebsiteTemplateInquiry.reset_column_information
 %w[partner referral].each { |file| require ROOT.join("app/models/lightek_sales/#{file}") }
+
+require ROOT.join('db/migrate/20261127120000_create_lightek_sales_commission_payouts')
+CreateLightekSalesCommissionPayouts.new.migrate(:up)
+LightekSales::Partner.reset_column_information
+require ROOT.join('app/models/lightek_sales/commission_payout')

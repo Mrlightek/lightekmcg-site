@@ -67,12 +67,7 @@ class ApplicationController < Dashboard::SettingsHomeController
   def self.skip_authorization_check(*) = nil
 end
 require ROOT.join('app/controllers/sales_quotes_controller')
-module DymondBank
-  module WorkforcePayouts
-    class Unavailable < StandardError; end
-    class ProviderError < StandardError; end
-  end
-end
+require ROOT.join('app/services/dymond_bank/workforce_payouts')
 module LightekPeople
   module Payroll
     class Invalid < StandardError; end

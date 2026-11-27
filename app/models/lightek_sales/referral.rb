@@ -4,6 +4,7 @@ module LightekSales
   class Referral < ApplicationRecord
     self.table_name = 'lightek_sales_referrals'
 
+    has_one :commission_payout, dependent: :restrict_with_error
     belongs_to :partner
     belongs_to :lead
     belongs_to :order, class_name: 'LightekCommerce::Order', optional: true
@@ -54,6 +55,10 @@ module LightekSales
           return if payout_reference == reference && order_id.to_s == expected_order_id.to_s
 
           raise ArgumentError, 'This commission already has a payout receipt.'
+        end
+
+        if CommissionPayout.exists?(referral_id: id)
+          raise ArgumentError, 'A Dymond Bank payout is already tracked for this commission.'
         end
 
         candidate = first_paid_order

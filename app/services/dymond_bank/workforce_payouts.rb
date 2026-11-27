@@ -22,6 +22,11 @@ module DymondBank
       access.employer.with_lock do
         if configured?(access.employer)
           old = new(employer: access.employer).financial_account_ref
+          if old != account && defined?(LightekSales::CommissionPayout) && LightekSales::CommissionPayout.table_exists? &&
+              LightekSales::CommissionPayout.where(owner_id: access.employer.id, sender_ref: old)
+                .where.not(state: %w[posted sandbox_posted failed returned canceled]).exists?
+            raise Unavailable, 'Resolve open commission payouts before changing the sender account'
+          end
           if old != account && LightekPeople::PayoutDestination.joins(:employment).where(lightek_people_employments: {employer_id: access.employer.id}).exists?
             raise Unavailable, 'An employer with payout recipients cannot change sender accounts; rotate the key for the same sender instead'
           end
@@ -127,6 +132,37 @@ module DymondBank
       raise Unavailable, 'Sender account changed after approval' unless statement.pay_run.financial_account_ref == financial_account_ref
       request(:post, "/v2/money_management/payout_intents/#{identifier!(statement.provider_ref)}/confirm", {}, key: "workforce-confirm-#{statement.id}-v1")
     end
+    def partner_recipient!(reference:, email:)
+      raise Unavailable, 'Enter a Stripe recipient account ID' unless reference.to_s.match?(/\Aacct_[a-zA-Z0-9]{3,150}\z/)
+      result = request(:get, "/v2/core/accounts/#{identifier!(reference)}?include[0]=configuration.recipient")
+      capabilities = result.dig('configuration', 'recipient', 'capabilities')
+      unless result['id'] == reference && result['contact_email'].to_s.casecmp?(email) &&
+          capabilities&.dig('bank_accounts', 'ach', 'status') == 'active'
+        raise Unavailable, 'This recipient must use the partner email and have active ACH capability'
+      end
+    end
+
+    def partner_sender
+      {sender_ref: financial_account_ref,
+       live: with_credentials { |credentials| credentials.fetch('secret_key').start_with?('rk_live_') }}
+    end
+
+    def prepare_partner_commission!(payout)
+      request(:post, '/v2/money_management/payout_intents', {
+        'from' => {'financial_account' => payout.sender_ref, 'currency' => 'usd'},
+        'to' => {'recipient' => payout.recipient_ref, 'payout_method_options' => {'bank_account' => {'preferred_networks' => ['ach']}}},
+        'amount' => {'value' => payout.amount_cents, 'currency' => 'usd'},
+        'confirmation_method' => 'manual',
+        'description' => "Sales commission ##{payout.id}",
+        'metadata' => payout.provider_metadata
+      }, key: "sales-commission-#{payout.id}-prepare-v1")
+    end
+
+    def release_partner_commission!(payout)
+      request(:post, "/v2/money_management/payout_intents/#{identifier!(payout.provider_ref)}/confirm", {},
+        key: "sales-commission-#{payout.id}-confirm-v1")
+    end
+
     private
     def identifier!(value)
       raise ProviderError, 'Invalid provider reference' unless value.to_s.match?(/\A[a-zA-Z0-9_]{3,200}\z/)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_090000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4045,6 +4045,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_090000) do
     t.index ["site_id"], name: "index_lightek_sales_activities_on_site_id"
   end
 
+  create_table "lightek_sales_commission_payouts", force: :cascade do |t|
+    t.bigint "referral_id", null: false
+    t.bigint "order_id", null: false
+    t.bigint "owner_id", null: false
+    t.bigint "released_by_id"
+    t.bigint "amount_cents", null: false
+    t.string "sender_ref", null: false
+    t.string "recipient_ref", null: false
+    t.boolean "live", null: false
+    t.string "provider_ref"
+    t.string "state", default: "preparing", null: false
+    t.bigint "review_debit_cents"
+    t.string "review_digest"
+    t.datetime "release_attempted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_lightek_sales_commission_payouts_on_order_id", unique: true
+    t.index ["owner_id"], name: "index_lightek_sales_commission_payouts_on_owner_id"
+    t.index ["provider_ref"], name: "index_lightek_sales_commission_payouts_on_provider_ref", unique: true
+    t.index ["referral_id"], name: "index_lightek_sales_commission_payouts_on_referral_id", unique: true
+    t.index ["released_by_id"], name: "index_lightek_sales_commission_payouts_on_released_by_id"
+    t.check_constraint "amount_cents > 0", name: "sales_commission_payout_positive"
+  end
+
   create_table "lightek_sales_intake_entries", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "inquiry_id"
@@ -4153,6 +4177,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_090000) do
     t.datetime "revoked_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "payout_email"
+    t.string "payout_recipient_ref"
+    t.string "payout_sender_ref"
+    t.boolean "payout_live"
     t.index ["product_id"], name: "index_lightek_sales_partners_on_product_id"
     t.index ["referral_code"], name: "index_lightek_sales_partners_on_referral_code", unique: true
     t.index ["site_id"], name: "index_lightek_sales_partners_on_site_id"
@@ -7763,6 +7791,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_090000) do
   add_foreign_key "lightek_sales_accounts", "users", column: "owner_id"
   add_foreign_key "lightek_sales_activities", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_activities", "users", column: "actor_id"
+  add_foreign_key "lightek_sales_commission_payouts", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_sales_commission_payouts", "lightek_sales_referrals", column: "referral_id"
+  add_foreign_key "lightek_sales_commission_payouts", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_commission_payouts", "users", column: "released_by_id"
   add_foreign_key "lightek_sales_intake_entries", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_intake_entries", "lightek_sales_leads", column: "lead_id"
   add_foreign_key "lightek_sales_intake_entries", "users", column: "created_by_id"

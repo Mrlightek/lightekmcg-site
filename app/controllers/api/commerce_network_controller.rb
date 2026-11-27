@@ -30,6 +30,12 @@ class Api::CommerceNetworkController < Api::ReservationFederationController
     render json: {available_cents: cards.available_balance!(site: site, scope: scope, code: values.fetch('gift_code'))}
   end
 
+  def gift_liability
+    response.headers['Cache-Control'] = 'private, no-store'
+    balances = LightekCommerce::GiftLiability.for_peer(@peer, params.require(:gift_store_key))
+    render json: {balances: balances}
+  end
+
   def gift_confirm
     order = sale.order
     raise ActiveRecord::RecordNotFound unless order.gift_card_redemption?

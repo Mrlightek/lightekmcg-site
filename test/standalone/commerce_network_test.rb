@@ -44,6 +44,29 @@ class CommerceNetworkTest < CommerceHostingTest
     end
   end
 
+  def test_gift_liability_combines_local_history_and_platform_balances_as_separate_ledgers
+    with_gift_store do
+      funded_gift_card
+      service = LightekCommerce::GiftLiability
+      card = funded_gift_card
+      store_key = LightekCommerce::GiftCards.source_store_key(@site)
+      card.update!(store_scope: LightekCommerce::GiftCards.network_scope(peer, store_key))
+      platform = service.for_peer(peer, store_key)
+      federation = LightekReservations::Federation::Client
+      connection = Minitest::Mock.new
+      connection.expect(:request, {'balances' => platform}, ['commerce/gift-liability'],
+        method: :post, body: {gift_store_key: store_key})
+      federation.stub(:config, {'client_host' => @site.host}) do
+        federation.stub(:new, connection) do
+          reports = service.for_store(@site)
+          assert_equal 2500, reports.dig('Store ledger', 'test', 'outstanding_cents')
+          assert_equal 2500, reports.dig('Platform ledger', 'test', 'outstanding_cents')
+        end
+      end
+      connection.verify
+    end
+  end
+
   def test_network_gift_reference_is_saved_before_the_platform_applies_tender
     with_gift_store do
       order = gift_merchandise_order(3000)

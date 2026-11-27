@@ -285,6 +285,7 @@ CreateCommerceCollections.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127182000_add_commerce_quantity_promotions')
 AddCommerceQuantityPromotions.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
+require Rails.root.join('app/services/lightek_commerce/gift_liability')
 require Rails.root.join('app/models/lightek_commerce/discount')
 require Rails.root.join('app/models/lightek_commerce/discount_use')
 require Rails.root.join('app/models/lightek_commerce/collection')
@@ -1028,6 +1029,45 @@ class CommerceHostingTest < Minitest::Test
     collection.destroy!
     refute collection_rule.reload.active?
     assert_nil collection_rule.target_collection_id
+  end
+
+  def test_gift_card_liability_reconciles_available_reserved_refunded_and_voided_value
+    with_gift_store do
+      card = funded_gift_card
+      card.update!(available_cents: 1400, disputed_at: Time.current)
+      [{amount_cents: 500, state: 'held'}, {amount_cents: 600, state: 'captured'},
+        {amount_cents: 300, state: 'refunded'}, {amount_cents: 150, state: 'released'}].each do |entry|
+        LightekCommerce::GiftRedemption.create!(order: gift_merchandise_order(entry[:amount_cents]), gift_card: card,
+          cash_cents: 0, tax_calculation: 'fixture', **entry)
+      end
+      funded_gift_card.update!(available_cents: 0, revoked_at: Time.current)
+      funded_gift_card.update!(livemode: true)
+      service = LightekCommerce::GiftLiability
+      reports = service.for_store(@site)
+      totals = reports.fetch('Store ledger').fetch('test')
+      assert_equal [2, 5000, 2500, 1400, 500, 900, 300, 1900, 1900], totals.values_at(*service::FIELDS.keys)
+      assert_equal 2500, reports.dig('Store ledger', 'live', 'outstanding_cents')
+      assert_equal 1900, totals['face_cents'] - totals['voided_cents'] - totals['redeemed_cents'] + totals['restored_cents']
+      csv = service.summary_csv(reports, generated_at: Time.current)
+      assert_equal %w[live test], CSV.parse(csv, headers: true).map { |row| row['payment_mode'] }
+      refute_includes csv, card.display_code
+    end
+  end
+
+  def test_network_gift_card_liability_is_scoped_without_creating_merchant_accounts
+    with_gift_store do
+      key = 'a' * 64
+      peer = Struct.new(:id).new(99)
+      cards = LightekCommerce::GiftCards
+      service = LightekCommerce::GiftLiability
+      funded_gift_card.update!(store_scope: cards.network_scope(peer, key))
+      funded_gift_card.update!(store_scope: cards.network_scope(peer, 'b' * 64))
+      funded_gift_card.update!(store_scope: cards.network_scope(Struct.new(:id).new(100), key))
+      assert_equal 2500, service.for_peer(peer, key).dig('test', 'outstanding_cents')
+      assert_equal 0, service.for_peer(peer, 'c' * 64).dig('test', 'outstanding_cents')
+      assert_raises(ArgumentError) { service.for_peer(peer, 'not-a-scope') }
+      assert_equal 0, service.for_store(@site).dig('Store ledger', 'test', 'outstanding_cents')
+    end
   end
 
   def test_buy_x_get_y_counts_distinct_units_and_rewards_the_least_expensive_items

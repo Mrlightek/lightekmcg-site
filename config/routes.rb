@@ -222,6 +222,7 @@ end
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
   get "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#show", as: :dashboard_commerce_store_settings
   patch "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#update"
+  get "/dashboard/commerce/gift-cards/liability", to: "dashboard/commerce_store_settings#gift_liability", as: :dashboard_commerce_gift_liability
   patch "/dashboard/commerce/gift-cards", to: "dashboard/commerce_store_settings#update_gift_cards", as: :dashboard_commerce_gift_cards
   post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
   post "/dashboard/commerce/discounts/import", to: "dashboard/commerce_store_settings#import_discounts", as: :import_dashboard_commerce_store_discounts
@@ -650,6 +651,7 @@ post "/dashboard/shipping/:key/purchase", to: "dashboard/shipping#purchase", as:
 post "/dashboard/shipping/:key/refresh", to: "dashboard/shipping#refresh", as: :refresh_dashboard_shipping
 post "/dashboard/shipping/:key/cancel", to: "dashboard/shipping#cancel", as: :cancel_dashboard_shipping
 get "/dashboard/shipping/:key/label/:index", to: "dashboard/shipping#label", as: :label_dashboard_shipping
+post "/api/reservations/federation/commerce/gift-liability", to: "api/commerce_network#gift_liability"
 post "/api/reservations/federation/commerce/gift-balance", to: "api/commerce_network#gift_balance"
 post "/api/reservations/federation/commerce/checkouts", to: "api/commerce_network#checkout"
 get "/api/reservations/federation/commerce/orders/:key", to: "api/commerce_network#receipt"

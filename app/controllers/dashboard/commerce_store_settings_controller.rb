@@ -34,6 +34,21 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
     redirect_to_store(enabled ? 'Gift cards enabled.' : 'New gift card sales paused. Existing cards can still be redeemed.')
   end
 
+  def gift_liability
+    response.headers['Cache-Control'] = 'private, no-store'
+    @gift_balances = LightekCommerce::GiftLiability.for_store(@site)
+    @generated_at = Time.current
+    respond_to do |format|
+      format.html
+      format.csv do
+        send_data LightekCommerce::GiftLiability.summary_csv(@gift_balances, generated_at: @generated_at),
+          filename: 'gift-card-balances.csv', type: 'text/csv; charset=utf-8'
+      end
+    end
+  rescue LightekCommerce::GiftLiability::Unavailable => error
+    redirect_to_store(error.message, error: true)
+  end
+
   def create_discount
     LightekCommerce::Discount.create!(discount_params.merge(site: @site))
     redirect_to_store('Discount created.')

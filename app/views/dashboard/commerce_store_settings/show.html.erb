@@ -20,6 +20,7 @@
   <% if LightekCommerce::GiftCards.platform_enabled? || @site.manifest.to_h.key?('commerce_gift_cards') %>
     <section class="dd-panel">
       <h2>Gift cards</h2>
+      <%= link_to 'Gift card balance report', dashboard_commerce_gift_liability_path(site_id: @site.id) %>
       <p>Customers can buy gift cards in USD. Pausing sales keeps existing cards redeemable.</p>
       <% selling = @site.manifest.to_h['commerce_gift_cards'] == true %>
       <%= button_to selling ? 'Pause gift card sales' : 'Enable gift card sales',

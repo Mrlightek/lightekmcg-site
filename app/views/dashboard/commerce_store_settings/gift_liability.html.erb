@@ -1,0 +1,34 @@
+<% content_for :page_title, 'Gift card balances' %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <h1>Gift card balances</h1>
+    <%= link_to 'Store settings', dashboard_commerce_store_settings_path(site_id: @site.id) %>
+    <%= link_to 'Download CSV', dashboard_commerce_gift_liability_path(site_id: @site.id, format: :csv), class: 'dd-button' %>
+  </header>
+  <section class="dd-panel">
+    <p>Snapshot generated <%= l(@generated_at, format: :long) %>. Total outstanding includes unspent balances and amounts reserved by pending checkouts. Blocked or disputed balances are included in that total.</p>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Ledger</th><th scope="col">Mode</th>
+          <% LightekCommerce::GiftLiability::FIELDS.each_value do |label| %>
+            <th scope="col"><%= label %></th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% @gift_balances.each do |ledger, balances| %>
+          <% balances.each do |mode, amounts| %>
+            <tr>
+              <th scope="row"><%= ledger %></th>
+              <td><%= mode.capitalize %></td>
+              <% LightekCommerce::GiftLiability::FIELDS.each_key do |field| %>
+                <td><%= field == 'issued_count' ? amounts.fetch(field) : number_to_currency(amounts.fetch(field) / 100.0) %></td>
+              <% end %>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+</main>

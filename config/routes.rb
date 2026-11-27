@@ -67,6 +67,7 @@ Rails.application.routes.draw do
   end
   draw :release_assurance
   draw :reservations
+  draw :it_services_billing
   draw :broadcast_ad_exchange
   draw :broadcast_network
   draw :people

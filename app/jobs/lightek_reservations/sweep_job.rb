@@ -32,9 +32,10 @@ module LightekReservations
       Reservation.where(status: %w[confirmed checked_in]).where('ends_at < ?', Time.current).find_each do |reservation|
         unless reservation.server?
           reservation.update!(status: 'completed')
-          LightekCommerce::Fulfillment.complete!(order: reservation.order, reference: reservation.reference) if reservation.order&.status == 'paid'
+          Settlement.complete_appointment!(reservation)
         end
       end
+      ItServices::CompletedAppointmentSettlement.recover! if defined?(ItServices::CompletedAppointmentSettlement)
     end
   end
 end

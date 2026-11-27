@@ -64,13 +64,14 @@ module LightekCommerce
         end
         if session.mode == "subscription" && session.respond_to?(:invoice) && session.invoice.present?
           reference = session.invoice.respond_to?(:id) ? session.invoice.id : session.invoice
-          BillingInvoice.find_or_create_by!(processor_reference: reference) do |receipt|
+          receipt = BillingInvoice.find_or_create_by!(processor_reference: reference) do |receipt|
             receipt.subscription = order.commerce_subscription
             receipt.settlement_order = order
             receipt.amount_paid_cents = total
             receipt.currency = order.currency
             receipt.paid_at = order.paid_at
           end
+          ItServices::InvoiceCoverage.record_checkout!(receipt, order: order) if defined?(ItServices::InvoiceCoverage)
         end
         if order.shipping_quote && order.purpose != "shipping_label" && order.shipping_quote.broker_reference.blank?
           order.shipping_quote.update!(purchase_order: order)

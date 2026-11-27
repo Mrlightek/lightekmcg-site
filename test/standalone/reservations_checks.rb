@@ -116,6 +116,9 @@ module LightekCommerce
     has_many :variants, class_name: 'LightekCommerce::ProductVariant'
     belongs_to :source_hosting_package, class_name: 'HostingPackage', optional: true
     def effective_hosting_package = hosting_package || source_hosting_package
+    def communications_kind = nil
+    def full_communications_package? = false
+    def cellular_voice_bundle? = false
     has_one :hosting_package
   end
   class ProductVariant < ApplicationRecord

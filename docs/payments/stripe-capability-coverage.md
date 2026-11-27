@@ -25,7 +25,9 @@ A platform administrator with a verified session can open **Commerce → Merchan
 
 ## Buyer-inclusive pricing and merchant reconciliation
 
-The intended pricing model preserves the merchant's listed merchandise price. An applicable Lightek charge and estimated processor recovery are included in the full buyer price shown up front. The pricing preview in **Commerce → Merchant payouts → Order ledger** applies the estimate to the full pretax buyer amount, including the fees themselves. Tax, shipping, agency contracts and actual processor cost are separate. A mismatch between the estimated and actual processor cost must remain visible in the platform's reconciliation.
+The intended pricing model preserves the merchant's listed merchandise price. The Lightek network fee and estimated processor recovery are included in the full buyer price shown up front. The pricing preview in **Commerce → Merchant payouts → Order ledger** applies the estimate to the full pretax buyer amount, including the fees themselves. Tax, shipping, agency contracts and actual processor cost are separate. The network fee is the intended markup. Processor recovery covers the cost of the payment and is reconciled against Stripe's recorded fee. The variance belongs in Lightek's reconciliation while preserving the merchant principal under this pricing model.
+
+The buyer network fee supports a flat per-transaction amount through `LIGHTEK_COMMERCE_BUYER_NETWORK_FIXED_CENTS` and an optional percentage of the merchant price through `LIGHTEK_COMMERCE_BUYER_NETWORK_FEE_BPS`. Both default to zero and apply only to the buyer-price preview. The existing merchant fee setting does not feed the preview.
 
 The order ledger compares the original Stripe charge's recorded fee, processor net and balance status with the order, refunds, upstream allocations and merchant transfer. Connected-account bank deposit matching and federated processor evidence require separate coverage. Existing pricing, customer charges and payouts use their current settlement rules. The preview does not activate buyer-inclusive pricing or a card surcharge.
 

@@ -359,17 +359,25 @@ class CommerceHostingTest < Minitest::Test
 
   def test_buyer_price_covers_the_full_charge_without_reducing_the_merchant_principal
     quote = LightekCommerce::BuyerPrice.quote(merchant_cents: 10_000, processor_bps: 300,
-      processor_fixed_cents: 30, platform_bps: 100)
-    assert_equal({merchant_cents: 10_000, platform_cents: 100, processor_reserve_cents: 344, buyer_cents: 10_444}, quote)
+      processor_fixed_cents: 30, network_bps: 100, network_fixed_cents: 0)
+    assert_equal({merchant_cents: 10_000, network_cents: 100, processor_reserve_cents: 344, buyer_cents: 10_444}, quote)
     [1, 100, 2_500, 99_999].each do |principal|
       quote = LightekCommerce::BuyerPrice.quote(merchant_cents: principal, processor_bps: 290,
-        processor_fixed_cents: 30, platform_bps: 100)
+        processor_fixed_cents: 30, network_bps: 100, network_fixed_cents: 0)
       gross = quote.fetch(:buyer_cents)
       actual_estimate = (gross * 290 + 9999).div(10_000) + 30
-      assert_equal principal, gross - quote.fetch(:platform_cents) - actual_estimate
+      assert_equal principal, gross - quote.fetch(:network_cents) - actual_estimate
       smaller_estimate = ((gross - 1) * 290 + 9999).div(10_000) + 30
-      assert_operator gross - 1 - quote.fetch(:platform_cents) - smaller_estimate, :<, principal
+      assert_operator gross - 1 - quote.fetch(:network_cents) - smaller_estimate, :<, principal
     end
+    flat = LightekCommerce::BuyerPrice.quote(merchant_cents: 10_000, processor_bps: 300,
+      processor_fixed_cents: 30, network_bps: 0, network_fixed_cents: 100)
+    assert_equal({merchant_cents: 10_000, network_cents: 100, processor_reserve_cents: 344, buyer_cents: 10_444}, flat)
+
+    combined = LightekCommerce::BuyerPrice.quote(merchant_cents: 10_000, processor_bps: 300,
+      processor_fixed_cents: 30, network_bps: 100, network_fixed_cents: 50)
+    assert_equal({merchant_cents: 10_000, network_cents: 150, processor_reserve_cents: 345, buyer_cents: 10_495}, combined)
+    assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 100, network_fixed_cents: -1) }
     assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 0) }
     assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 100, processor_bps: 10_000) }
   end

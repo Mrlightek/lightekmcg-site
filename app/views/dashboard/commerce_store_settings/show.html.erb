@@ -27,6 +27,17 @@
         dashboard_commerce_gift_cards_path(site_id: @site.id), method: :patch, params: {enabled: selling ? '0' : '1'}, class: 'dd-button' %>
     </section>
   <% end %>
+  <section class="dd-panel" aria-labelledby="return-fee-settings">
+    <h2 id="return-fee-settings">Return fee rule</h2>
+    <p>Set a default fee for new returns on eligible Stripe orders. Review, change, or waive it when approving a return.</p>
+    <%= form_with scope: :return_fee_policy, url: dashboard_commerce_return_fee_policy_path(site_id: @site.id),
+      method: :patch, class: 'dd-form-stack' do |form| %>
+      <label>Rule <%= form.select :mode, LightekCommerce::ReturnFeePolicy::MODES, selected: @return_fee_policy['mode'] %></label>
+      <label>Fixed fee in cents <%= form.number_field :fixed_cents, value: @return_fee_policy['fixed_cents'], min: 1 %></label>
+      <label>Percentage of merchandise value after discounts <%= form.number_field :percent, value: @return_fee_policy['percent'], min: 1, max: 99 %></label>
+      <%= form.submit 'Save return fee rule', class: 'dd-button' %>
+    <% end %>
+  </section>
   <section class="dd-panel">
     <h2>Discounts</h2>
     <details>

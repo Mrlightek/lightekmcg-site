@@ -70,25 +70,32 @@ module LightekCommerce
         requested_units = returns.counting_against_order.where(order_item_id: item.id).sum(:quantity)
         raise Invalid, 'Return quantity exceeds the unreturned units on this item.' if units > item.quantity - requested_units
 
-        returns.create!(order_item: item, quantity: units, reason: reason, request_key: request_key,
+        record = returns.new(order_item: item, quantity: units, reason: reason, request_key: request_key,
           requested_by_id: @actor.id)
+        record.suggested_refund_fee_cents = ReturnFeePolicy.suggested_cents(site: @order.site, order: @order, item: item, record: record)
+        record.save!
+        record
       end
     rescue ActiveRecord::RecordInvalid => error
       raise Invalid, error.record.errors.full_messages.to_sentence
     end
 
     def approve!(id, refund_fee_cents: nil)
-      raw = refund_fee_cents.nil? || refund_fee_cents == '' ? '0' : refund_fee_cents.to_s
-      unless raw.match?(/\A(?:0|[1-9][0-9]{0,9})\z/) && raw.to_i <= InventoryAdjustment::MAX_QUANTITY
+      raw = refund_fee_cents.to_s
+      unless raw.empty? || (raw.match?(/\A(?:0|[1-9][0-9]{0,9})\z/) && raw.to_i <= InventoryAdjustment::MAX_QUANTITY)
         raise Invalid, 'Enter the return fee as a nonnegative whole number of cents.'
       end
-      fee = raw.to_i
 
       transition!(id, from: ['requested'], to: 'approved') do |record|
+        fee = raw.empty? ? record.suggested_refund_fee_cents : raw.to_i
         if fee.positive?
           item = @order.items.find(record.order_item_id)
           max = ReturnRefunds.maximum_fee_cents(@order, item, record)
-          raise Invalid, "This return can deduct a fee of up to #{max} cents." if fee > max
+          if raw.empty?
+            fee = [fee, max].min
+          elsif fee > max
+            raise Invalid, "This return can deduct a fee of up to #{max} cents."
+          end
         end
         {refund_fee_cents: fee}
       end

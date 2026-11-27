@@ -323,6 +323,8 @@ require Rails.root.join('db/migrate/20261127204000_create_commerce_return_labels
 CreateCommerceReturnLabels.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127205000_add_commerce_return_fee')
 AddCommerceReturnFee.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127206000_snapshot_commerce_return_fee_rule')
+SnapshotCommerceReturnFeeRule.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -332,6 +334,7 @@ require Rails.root.join('app/services/lightek_commerce/supplier_orders')
 require Rails.root.join('app/models/lightek_commerce/merchandise_return')
 require Rails.root.join('app/services/lightek_commerce/merchandise_returns')
 require Rails.root.join('app/services/lightek_commerce/return_refunds')
+require Rails.root.join('app/services/lightek_commerce/return_fee_policy')
 require Rails.root.join('app/models/lightek_commerce/return_label')
 require Rails.root.join('app/services/lightek_commerce/return_labels')
 require Rails.root.join('app/services/lightek_commerce/refund_settlement')
@@ -1500,6 +1503,37 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_store_return_fee_rules_snapshot_suggestions_and_allow_waivers
+    policy = LightekCommerce::ReturnFeePolicy
+    assert_equal({'mode' => 'none'}, policy.read(@site))
+    assert_raises(policy::Invalid) { policy.save!(@site, mode: 'percentage', percent: '100') }
+    policy.save!(@site, mode: 'percentage', percent: '25')
+    other = DymondSite::Site.create!(tenant: @operator, host: 'other-return-rule.test')
+    assert_equal 'none', policy.read(other).fetch('mode')
+
+    item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {item.id.to_s => 3})
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_fee_policy')
+    line = order.items.sole
+    line.update!(purchase_snapshot: line.purchase_snapshot.merge('merchandise_discount_cents' => 300))
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    request = -> { returns.request!(item_id: line.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid) }
+
+    first = request.call
+    assert_equal 175, first.suggested_refund_fee_cents
+    policy.save!(@site, mode: 'fixed', fixed_cents: '800')
+    second = request.call
+    assert_equal 699, second.suggested_refund_fee_cents
+    policy.save!(@site, mode: 'none')
+    third = request.call
+    assert_equal 0, third.suggested_refund_fee_cents
+    returns.approve!(first.id)
+    returns.approve!(second.id, refund_fee_cents: '0')
+    returns.approve!(third.id)
+    assert_equal [175, 0, 0], [first, second, third].map { |record| record.reload.refund_fee_cents }
+  end
+
   def test_return_fee_is_set_at_approval_and_deducted_from_the_linked_refund
     item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {item.id.to_s => 2})

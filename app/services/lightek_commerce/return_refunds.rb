@@ -18,7 +18,7 @@ module LightekCommerce
 
       # A partial return may receive an extra cent from rounding on receipt.
       # Cap the fee against the lower value before the receipt order is known.
-      floor = merchandise_total(item) * record.quantity / item.quantity
+      floor = minimum_merchandise_amount(item, record)
       [[floor, order.total_cents - order.refunded_cents].min - 1, 0].max
     end
 
@@ -34,6 +34,10 @@ module LightekCommerce
       cents = net * (preceding + record.quantity) / item.quantity - net * preceding / item.quantity
       cents -= record.refund_fee_cents
       cents if cents.positive? && cents <= order.total_cents - order.refunded_cents
+    end
+
+    def self.minimum_merchandise_amount(item, record)
+      [merchandise_total(item), 0].max * record.quantity / item.quantity
     end
 
     def self.merchandise_total(item)

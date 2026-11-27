@@ -6,6 +6,7 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
   def show
     @shipping_promotion = LightekCommerce::ShippingPromotion.settings(@site)
     @appearance = LightekCommerce::StoreAppearance.read(@site)
+    @return_fee_policy = LightekCommerce::ReturnFeePolicy.read(@site)
     @customer_segments = LightekCommerce::CustomerSegment.where(site: @site).order(:name, :id)
     @discount_products = LightekCommerce::Product.visible.where(site: @site)
     @discount_collections = LightekCommerce::Collection.where(site: @site).order(:name, :id)
@@ -31,6 +32,14 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
     LightekCommerce::ShippingPromotion.save!(@site, values)
     redirect_to_store('Free shipping settings saved.')
   rescue LightekCommerce::ShippingPromotion::Invalid, ActiveRecord::RecordInvalid => error
+    redirect_to_store(error.message, error: true)
+  end
+
+  def update_return_fee_policy
+    values = params.expect(return_fee_policy: %i[mode fixed_cents percent])
+    LightekCommerce::ReturnFeePolicy.save!(@site, values)
+    redirect_to_store('Return fee rule saved.')
+  rescue LightekCommerce::ReturnFeePolicy::Invalid, ActiveRecord::RecordInvalid => error
     redirect_to_store(error.message, error: true)
   end
 

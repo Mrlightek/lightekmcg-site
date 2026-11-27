@@ -62,9 +62,10 @@
                     <%= form_with url: change_path, method: :post do |form| %>
                       <%= hidden_field_tag :operation, 'approve', id: nil %>
                       <label>Return fee in cents (optional)
-                        <%= form.number_field :refund_fee_cents, id: nil, min: 0, max: max_fee, placeholder: '0' %>
+                        <%= form.number_field :refund_fee_cents, id: nil, min: 0, max: max_fee,
+                          value: [record.suggested_refund_fee_cents, max_fee].min %>
                       </label>
-                      <p>This fee is deducted from the return refund and shown to the customer.</p>
+                      <p>Enter 0 to waive the fee. The approved amount is shown to the customer and deducted from the refund.</p>
                       <%= form.submit 'Approve', class: 'dd-button' %>
                     <% end %>
                   <% else %>

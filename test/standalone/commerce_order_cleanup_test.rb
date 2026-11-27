@@ -148,6 +148,7 @@ require Rails.root.join("app/controllers/dashboard/settings_home_controller").to
 require Rails.root.join("app/controllers/dashboard/commerce_base_controller").to_s
 require Rails.root.join("app/controllers/dashboard/commerce_orders_controller").to_s
 require Rails.root.join("app/controllers/dashboard/commerce_returns_controller").to_s
+require Rails.root.join("app/controllers/dashboard/commerce_store_settings_controller").to_s
 require Rails.root.join("app/services/lightek_settings/website_identity").to_s
 Dashboard::CommerceOrdersController.prepend_view_path(Rails.root.join("app/views"))
 Dashboard::CommerceOrdersController.layout false
@@ -155,6 +156,7 @@ Dashboard::CommerceReturnsController.prepend_view_path(Rails.root.join("app/view
 Dashboard::CommerceReturnsController.layout false
 CLEANUP_ROUTES = ActionDispatch::Routing::RouteSet.new
 CLEANUP_ROUTES.draw do
+  instance_eval(File.readlines(Rails.root.join('config/routes.rb')).grep(%r{"/dashboard/commerce/(return-fee-policy|store-settings)"}).join)
   instance_eval(File.readlines(Rails.root.join('config/routes.rb')).grep(%r{"/dashboard/commerce/(returns|orders/:order_id/returns[^"]*)"}).join)
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   get "/dashboard/commerce/disputes", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_disputes
@@ -170,6 +172,7 @@ CLEANUP_ROUTES.draw do
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_variants
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_variant
 end
+Dashboard::CommerceStoreSettingsController.include(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceOrdersController.include(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceOrdersController.helper(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceReturnsController.include(CLEANUP_ROUTES.url_helpers)
@@ -186,6 +189,17 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
     @http.public_send(method, path, params: params, headers: {"X-Test-User" => actor&.id.to_s})
     @http.response
   end
+  def test_store_owner_can_save_a_return_fee_rule_from_settings
+    path = '/dashboard/commerce/return-fee-policy'
+    response = request(:patch, path, site_id: @site.id, return_fee_policy: {mode: 'fixed', fixed_cents: '250'})
+    assert_equal 303, response.status
+    assert_equal({'mode' => 'fixed', 'fixed_cents' => 250}, LightekCommerce::ReturnFeePolicy.read(@site.reload))
+    other = User.create!(role: 'super_admin', email_address: 'other-return-owner@example.test')
+    response = request(:patch, path, actor: other, site_id: @site.id, return_fee_policy: {mode: 'none'})
+    assert_equal 403, response.status
+    assert_equal 250, LightekCommerce::ReturnFeePolicy.read(@site.reload).fetch('fixed_cents')
+  end
+
   def test_merchants_set_and_view_a_return_fee_through_the_dashboard
     order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
     order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,

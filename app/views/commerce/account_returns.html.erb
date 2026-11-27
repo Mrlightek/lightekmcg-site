@@ -17,6 +17,13 @@
       <% if choices.empty? %>
         <p>There are no more items available to return on this order.</p>
       <% else %>
+        <% policy = LightekCommerce::ReturnFeePolicy.read(@site) if LightekCommerce::ReturnRefunds.supported?(@order) %>
+        <% case policy&.fetch('mode') %>
+        <% when 'fixed' %>
+          <p>The default return fee is <%= number_to_currency(policy.fetch('fixed_cents').to_i / 100.0) %>. The store confirms the fee at approval.</p>
+        <% when 'percentage' %>
+          <p>The default return fee is <%= policy.fetch('percent') %>% of the returned merchandise value after discounts. The store confirms the fee at approval.</p>
+        <% end %>
         <%= form_with url: commerce_account_returns_path(order_id: @order.id, site_id: @site.id), method: :post do |form| %>
           <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
           <label>Item <%= form.select :item_id, choices, {include_blank: 'Choose an item'}, required: true %></label>
@@ -32,6 +39,9 @@
             <li>
               <%= record.quantity %> × <%= @items[record.order_item_id]&.name || 'Order item' %>
               · <%= record.status.humanize %> · <%= l(record.created_at.to_date) %>
+              <% if record.status == 'requested' && record.suggested_refund_fee_cents.positive? %>
+                <div>Estimated return fee <%= number_to_currency(record.suggested_refund_fee_cents / 100.0) %>. The store confirms the fee at approval.</div>
+              <% end %>
               <% if record.refund_fee_cents.positive? && record.status.in?(%w[approved received]) %>
                 <div>Return fee <%= number_to_currency(record.refund_fee_cents / 100.0) %>, deducted from any linked refund.</div>
               <% end %>

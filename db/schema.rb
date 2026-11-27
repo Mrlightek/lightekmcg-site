@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_193000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_194000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1892,7 +1892,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_193000) do
     t.bigint "site_id", null: false
     t.bigint "product_id", null: false
     t.bigint "variant_id"
-    t.bigint "actor_id", null: false
+    t.bigint "actor_id"
     t.string "actor_name", null: false
     t.string "product_name", null: false
     t.string "variant_name"
@@ -1901,9 +1901,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_193000) do
     t.integer "after_quantity", null: false
     t.datetime "created_at", null: false
     t.string "source", default: "csv_import", null: false
+    t.bigint "order_id"
     t.index ["site_id", "id"], name: "idx_commerce_inventory_changes_site_history"
     t.check_constraint "before_quantity >= 0 AND after_quantity >= 0 AND before_quantity <> after_quantity", name: "commerce_inventory_change_counts"
-    t.check_constraint "source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])", name: "commerce_inventory_change_source"
+    t.check_constraint "(source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])) AND actor_id IS NOT NULL AND order_id IS NULL OR (source::text = ANY (ARRAY['checkout_reserved'::character varying, 'checkout_released'::character varying]::text[])) AND actor_id IS NULL AND order_id IS NOT NULL", name: "commerce_inventory_change_context"
   end
 
   create_table "lightek_commerce_order_items", force: :cascade do |t|

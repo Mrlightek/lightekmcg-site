@@ -8,14 +8,18 @@ module LightekCommerce
 
     scope :for_site, ->(site) { where(site_id: site.id) }
 
-    def self.record!(product:, actor:, before_quantity:, after_quantity:, source:, variant: nil, batch_key: SecureRandom.uuid)
+    def self.record!(product:, before_quantity:, after_quantity:, source:, actor: nil, order: nil, variant: nil, batch_key: SecureRandom.uuid)
       create!(site_id: product.site_id, product_id: product.id, variant_id: variant&.id,
-        actor_id: actor.id, actor_name: actor.full_name.presence || "Account ##{actor.id}",
+        actor_id: actor&.id, actor_name: actor ? (actor.full_name.presence || "Account ##{actor.id}") : 'System',
+        order_id: order&.id,
         product_name: product.name, variant_name: variant&.name, batch_key: batch_key,
         before_quantity: before_quantity, after_quantity: after_quantity, source: source)
     end
 
-    def source_label = source == 'product_editor' ? 'Product editor' : 'CSV upload'
+    SOURCE_LABELS = {'csv_import' => 'CSV upload', 'product_editor' => 'Product editor',
+      'checkout_reserved' => 'Checkout reservation', 'checkout_released' => 'Stock released'}.freeze
+
+    def source_label = SOURCE_LABELS.fetch(source)
 
     def readonly? = persisted?
   end

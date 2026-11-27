@@ -307,6 +307,8 @@ require Rails.root.join('db/migrate/20261127192000_create_commerce_inventory_adj
 CreateCommerceInventoryAdjustments.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127193000_add_source_to_commerce_inventory_changes')
 AddSourceToCommerceInventoryChanges.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127194000_record_order_inventory_changes')
+RecordOrderInventoryChanges.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
@@ -1939,6 +1941,38 @@ class CommerceHostingTest < Minitest::Test
     assert_raises(service::Invalid) { service.apply!(site: foreign, actor: @operator, data: template.to_csv) }
     assert_empty LightekCommerce::InventoryChange.for_site(foreign)
     assert_equal 2, LightekCommerce::InventoryChange.for_site(@site).count
+  end
+
+  def test_checkout_reserves_and_releases_inventory_with_one_history_entry_per_change
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 5)
+    parent = product(product_type: 'physical', billing_interval: 'one_time')
+    variant = parent.variants.create!(name: 'Blue', price_cents: 350, inventory_quantity: 3, active: true)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {item.id.to_s => 2, "#{parent.id}:#{variant.id}" => 1})
+    records = LightekCommerce::InventoryChange.for_site(@site).where(order_id: order.id).order(:id)
+    assert_equal [3, 2], [item.reload.inventory_quantity, variant.reload.inventory_quantity]
+    assert_equal [[item.id, nil, 5, 3], [parent.id, variant.id, 3, 2]],
+      records.pluck(:product_id, :variant_id, :before_quantity, :after_quantity)
+    assert_equal ['checkout_reserved'], records.pluck(:source).uniq
+    assert_equal ['System'], records.pluck(:actor_name).uniq
+    assert_equal [nil], records.pluck(:actor_id).uniq
+
+    2.times { LightekCommerce::OrderPlacement.cancel!(order) }
+    assert_equal [5, 3], [item.reload.inventory_quantity, variant.reload.inventory_quantity]
+    assert_equal [[item.id, nil, 3, 5], [parent.id, variant.id, 2, 3]],
+      records.where(source: 'checkout_released').pluck(:product_id, :variant_id, :before_quantity, :after_quantity)
+    assert_equal 4, records.count
+  end
+
+  def test_failed_checkout_rolls_back_stock_and_inventory_history
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 5)
+    sold_out = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 0)
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+        quantities: {item.id.to_s => 1, sold_out.id.to_s => 1})
+    end
+    assert_equal 5, item.reload.inventory_quantity
+    assert_empty LightekCommerce::InventoryChange.for_site(@site)
   end
 
   def test_product_editor_records_manual_changes_and_rejects_a_stale_editor

@@ -9,7 +9,7 @@
       <p>There are no stock adjustments in this view.</p>
     <% else %>
       <table>
-        <thead><tr><th scope="col">Time</th><th scope="col">Product</th><th scope="col">Before</th><th scope="col">After</th><th scope="col">Changed by</th><th scope="col">Source</th><th scope="col">Upload</th></tr></thead>
+        <thead><tr><th scope="col">Time</th><th scope="col">Product</th><th scope="col">Before</th><th scope="col">After</th><th scope="col">Changed by</th><th scope="col">Source</th><th scope="col">Reference</th></tr></thead>
         <tbody>
           <% @inventory_changes.each do |change| %>
             <tr>
@@ -22,6 +22,8 @@
               <td>
                 <% if change.source == 'csv_import' %>
                   <span title="<%= change.batch_key %>"><%= change.batch_key.first(8) %></span>
+                <% elsif change.order_id %>
+                  Order #<%= change.order_id %>
                 <% else %>—<% end %>
               </td>
             </tr>

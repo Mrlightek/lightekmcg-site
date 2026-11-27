@@ -116,13 +116,15 @@ module LightekCommerce
           if variant_id
             variant = ProductVariant.where(product: product, active: true).lock.find(variant_id)
             raise Invalid, "Insufficient inventory for #{product.name} / #{variant.name}" if variant.inventory_quantity < qty
-            variant.update!(inventory_quantity: variant.inventory_quantity - qty)
+            change_inventory!(order: order, product: product, variant: variant, delta: -qty, source: 'checkout_reserved')
             name = "#{product.name} / #{variant.name}"
             price = variant.price_cents
           else
             raise Invalid, "Please select a product option" if product.variants.where(active: true).exists?
             raise Invalid, "Insufficient inventory for #{product.name}" if product.track_inventory? && product.inventory_quantity < qty
-            product.update!(inventory_quantity: product.inventory_quantity - qty) if product.track_inventory?
+            if product.track_inventory?
+              change_inventory!(order: order, product: product, delta: -qty, source: 'checkout_reserved')
+            end
             name = product.name
             price = product.price_cents
             if buyer&.role == 'white_label' && (direct_package = product.hosting_package) && product.site.tenant&.role == 'super_admin'
@@ -226,15 +228,13 @@ module LightekCommerce
       order.with_lock do
         return order if order.status == "canceled"
         raise Invalid, "Only unpaid orders can release reserved stock" unless order.status == "pending_payment"
-        order.items.order(:product_id).each do |item|
-          next unless order.stock_reserved?
-          next if item.purchase_snapshot.to_h["track_inventory"] == false
-          if item.variant_id.present?
-            variant = ProductVariant.lock.find(item.variant_id)
-            variant.update!(inventory_quantity: variant.inventory_quantity + item.quantity)
-          else
-            product = Product.lock.find(item.product_id)
-            product.update!(inventory_quantity: product.inventory_quantity + item.quantity)
+        if order.stock_reserved?
+          items = order.items.order(:product_id, :id).reject { |item| item.purchase_snapshot.to_h['track_inventory'] == false }
+          products = Product.where(site_id: order.site_id).order(:id).lock.find(items.map(&:product_id).uniq).index_by(&:id)
+          items.each do |item|
+            product = products.fetch(item.product_id)
+            variant = item.variant_id && product.variants.lock.find(item.variant_id)
+            change_inventory!(order: order, product: product, variant: variant, delta: item.quantity, source: 'checkout_released')
           end
         end
         GiftCards.release_hold!(order) if order.gift_card_redemption? && order.payment_provider != 'network'
@@ -242,5 +242,15 @@ module LightekCommerce
       end
       order
     end
+
+    def self.change_inventory!(order:, product:, delta:, source:, variant: nil)
+      target = variant || product
+      before_quantity = target.inventory_quantity
+      after_quantity = before_quantity + delta
+      target.update!(inventory_quantity: after_quantity)
+      InventoryChange.record!(product: product, variant: variant, order: order, source: source,
+        before_quantity: before_quantity, after_quantity: after_quantity)
+    end
+    private_class_method :change_inventory!
   end
 end

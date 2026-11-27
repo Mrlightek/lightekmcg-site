@@ -246,6 +246,7 @@ end
   post "/commerce/shipping/quotes", to: "commerce_shipping_quotes#create", as: :commerce_shipping_quotes
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
+  draw :commerce_embedded_checkout
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"
@@ -587,6 +588,9 @@ get "gatekeeper/search",
       to: "dashboard/susu#index",
       as: :dashboard_susu
 
+get "/dashboard/commerce/stripe-access", to: "susu_payout_accounts#stripe_access", as: :dashboard_commerce_stripe_access
+post "/dashboard/commerce/stripe-access", to: "susu_payout_accounts#check_stripe_access"
+get "/dashboard/commerce/payout-account", to: "susu_payout_accounts#show", as: :dashboard_commerce_payout_account
 post "/dashboard/susu/payout-account/connect", to: "susu_payout_accounts#connect", as: :connect_dashboard_susu_payout_account
 get "/dashboard/susu/payout-account/refresh", to: "susu_payout_accounts#refresh", as: :refresh_dashboard_susu_payout_account
 get "/dashboard/susu/payout-account", to: "susu_payout_accounts#show", as: :dashboard_susu_payout_account

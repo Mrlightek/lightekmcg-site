@@ -54,6 +54,8 @@ require ROOT.join('app/services/lightek_compliance/sources')
 %w[accounting_import accounting_refresh jurisdiction_monitor].each { |f| require ROOT.join("app/jobs/#{f}_job") }
 [IdentitySecurityController,IdentityChallengesController,Dashboard::AccountingController,Dashboard::DirectoryController,Dashboard::ComplianceController,Dashboard::PeopleController].each { |klass| klass.layout false }
 EnterpriseHarness.routes.draw do
+  get '/dashboard/commerce/stripe-access', to: 'susu_payout_accounts#stripe_access', as: :dashboard_commerce_stripe_access
+  post '/dashboard/commerce/stripe-access', to: 'susu_payout_accounts#check_stripe_access'
   get '/dashboard/susu/payout-account', to: 'susu_payout_accounts#show', as: :dashboard_susu_payout_account
   post '/dashboard/susu/payout-account/session', to: 'susu_payout_accounts#account_session', as: :dashboard_payout_account_session
   get '/dashboard/susu/payout-account/status', to: 'susu_payout_accounts#connection_status', as: :dashboard_payout_account_status

@@ -323,6 +323,36 @@ class CommerceHostingTest < Minitest::Test
       OpenStruct.new(id: "cs_1")
     }) { LightekCommerce::StripeCheckout.start!(order: order, success_url: "https://example.com", cancel_url: "https://example.com") }
   end
+  def test_embedded_checkout_uses_native_return_and_preserves_verified_settlement
+    order = order_for(product(billing_interval: "one_time"))
+    checkout = OpenStruct.new(id: "cs_embedded", status: "open", ui_mode: "embedded_page",
+      client_secret: "fixture_secret", metadata: LightekCommerce::PaymentIdentity.metadata(order))
+    LightekCommerce::StripeCheckout.stub(:embedded_publishable_key, "pk_test_fixture") do
+      Stripe::Checkout::Session.stub(:create, ->(params, options) {
+        assert_equal "embedded_page", params[:ui_mode]
+        assert_equal "if_required", params[:redirect_on_completion]
+        assert_equal "https://shop.example.com/ok", params[:return_url]
+        refute params.key?(:success_url)
+        refute params.key?(:cancel_url)
+        assert_equal order.payment_namespace, params[:metadata][:lightek_host_key]
+        assert_equal LightekCommerce::PaymentIdentity.key(order, "checkout"), options[:idempotency_key]
+        checkout
+      }) do
+        assert_equal checkout, LightekCommerce::StripeCheckout.start!(order: order, embedded: true,
+          success_url: "https://shop.example.com/ok", cancel_url: "https://shop.example.com/shop")
+      end
+    end
+    assert_equal "cs_embedded", order.reload.payment_reference
+    refute order.paid_at?
+    Stripe::Checkout::Session.stub(:retrieve, checkout) do
+      assert_equal checkout, LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
+      checkout.metadata = checkout.metadata.merge(lightek_host_key: "wrong-installation")
+      assert_raises(LightekCommerce::StripeCheckout::Unavailable) do
+        LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
+      end
+    end
+  end
+
   def test_processor_subscription_must_match_order_namespace_price_and_interval
     order = order_for(product)
     assert_raises(LightekCommerce::StripeEvents::Rejected) { register(order, remote_subscription(order, metadata: {})) }

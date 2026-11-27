@@ -68,6 +68,9 @@ module LightekCommerce
   class StripeCheckout
     class Unavailable < StandardError; end
     def self.start!(**) = raise('Unexpected live checkout')
+    def self.embedded_for?(*) = false
+    def self.resume!(**) = raise('Unexpected live checkout')
+    def self.embedded_publishable_key = raise('Unexpected publishable key lookup')
   end
 end
 LightekSales::Quote.signed_id_verifier = ActiveSupport::MessageVerifier.new('quote-fixture-only-' * 8)

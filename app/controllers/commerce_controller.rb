@@ -5,6 +5,7 @@ class CommerceController < ApplicationController
   helper DymondDash::TemplateSchemaHelper
   skip_authorization_check
   before_action :set_site
+  layout 'auth', only: :embedded_checkout
   def index
     if params[:order_id].present?
       order = LightekCommerce::Order.where(site: @site).find_by(id: params[:order_id])
@@ -79,18 +80,49 @@ class CommerceController < ApplicationController
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote,
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
+    embedded = ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] == 'true' && LightekCommerce::StripeCheckout.embedded_for?(order)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
-      success_url: instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id),
-      cancel_url: commerce_shop_url(site_id: @site.id))
+      success_url: completion_url(order, instance_cart), cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
     record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
     session.delete(cart_key)
-    redirect_to checkout.url, allow_other_host: true
+    if embedded
+      recent = session[:embedded_store_orders].to_h
+      recent[order.id.to_s] = [@site.id, current_user.id, request.host, instance_cart]
+      session[:embedded_store_orders] = recent.to_a.last(5).to_h
+      redirect_to commerce_embedded_checkout_path(site_id: @site.id, order_id: order.id), status: :see_other
+    else
+      redirect_to checkout.url, allow_other_host: true
+    end
   rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable, ActiveRecord::RecordInvalid => e
     # A session was never handed to the customer; release the reserved stock.
     LightekCommerce::OrderPlacement.cancel!(order) if order&.persisted? && order.reload.payment_reference.blank? && order.status == "pending_payment"
     redirect_to commerce_shop_path(site_id: @site.id), alert: e.message
   end
+  def embedded_checkout
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    context = session[:embedded_store_orders].to_h[params[:order_id].to_s]
+    unless context && context.first(3) == [@site.id, current_user.id, request.host]
+      raise ActiveRecord::RecordNotFound
+    end
+
+    order = LightekCommerce::Order.visible.where(site: @site).find(params[:order_id])
+    @completion_url = completion_url(order, context.last)
+    return redirect_to @completion_url if order.paid_at?
+
+    @checkout = LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
+    @publishable_key = LightekCommerce::StripeCheckout.embedded_publishable_key
+    render :embedded_checkout
+  rescue LightekCommerce::StripeCheckout::Unavailable => error
+    redirect_to commerce_shop_path(site_id: @site.id), alert: error.message
+  end
+
   private
+
+  def completion_url(order, instance_cart)
+    instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id)
+  end
+
   def checkout_selection
     return [cart, nil] unless workspace_in_cart
 

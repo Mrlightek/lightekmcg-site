@@ -2,11 +2,23 @@
 module LightekCommerce
   class StripeCheckout
     class Unavailable < StandardError; end
-    def self.start!(order:, success_url:, cancel_url:)
-      order.with_lock { start_locked!(order: order, success_url: success_url, cancel_url: cancel_url) }
+    EMBEDDED_MODE = 'embedded_page'
+
+    def self.embedded_for?(order)
+      ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] == 'true' && !NetworkCheckout.connected?(order)
     end
 
-    def self.start_locked!(order:, success_url:, cancel_url:)
+    def self.embedded_publishable_key
+      LightekPayments::PayoutAccounts.publishable_key(LightekPayments::PayoutAccounts.options)
+    rescue LightekPayments::PayoutAccounts::Unavailable
+      raise Unavailable, 'Embedded checkout needs a matching platform publishable key.'
+    end
+
+    def self.start!(order:, success_url:, cancel_url:, embedded: false)
+      order.with_lock { start_locked!(order: order, success_url: success_url, cancel_url: cancel_url, embedded: embedded) }
+    end
+
+    def self.start_locked!(order:, success_url:, cancel_url:, embedded:)
       LightekAgency::Demos.ensure_live_site!(order.site, error: Unavailable) if defined?(LightekAgency::Demos)
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment"
       if order.items.any? { |item| item.product.full_communications_package? } &&
@@ -14,7 +26,9 @@ module LightekCommerce
         raise Unavailable, "This package must complete setup before payment."
       end
       return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url) if NetworkCheckout.connected?(order)
-      return resume!(order: order) if order.payment_reference.present?
+      return resume!(order: order, embedded: embedded) if order.payment_reference.present?
+
+      embedded_publishable_key if embedded
       begin
         InstanceReadiness.check!(order: order)
       rescue InstanceReadiness::Unavailable => e
@@ -22,7 +36,7 @@ module LightekCommerce
       end
       key = DymondBank::StripeCredentials.secret_key
       raise Unavailable, "Payments are not configured" if key.blank?
-      Stripe.api_key = key
+      options = {api_key: key}
       if order.shipping_quote
         stripe_test = key.match?(/\A(?:sk|rk)_test_/)
         raise Unavailable, "Shipping and payments must use the same test or production mode" unless order.shipping_quote.sandbox? == stripe_test
@@ -46,7 +60,7 @@ module LightekCommerce
         # A saved, order-specific shipping address keeps the accepted rate and
         # Stripe Tax destination aligned without a second editable address form.
         record = Stripe::Customer.create({email: order.customer_email, shipping: shipping, metadata: PaymentIdentity.metadata(order)},
-          {idempotency_key: PaymentIdentity.key(order, "shipping-customer")})
+          options.merge(idempotency_key: PaymentIdentity.key(order, "shipping-customer")))
         customer = {customer: record.id}
       end
       session = Stripe::Checkout::Session.create({
@@ -59,10 +73,10 @@ module LightekCommerce
         automatic_tax: {enabled: true},
         **shipping_parameters(order),
         billing_address_collection: "required",
-        success_url: success_url,
-        cancel_url: cancel_url,
+        **(embedded ? {ui_mode: EMBEDDED_MODE, return_url: success_url, redirect_on_completion: 'if_required'} :
+          {success_url: success_url, cancel_url: cancel_url}),
         expires_at: 30.minutes.from_now.to_i
-      }, {idempotency_key: PaymentIdentity.key(order, 'checkout')})
+      }, options.merge(idempotency_key: PaymentIdentity.key(order, 'checkout')))
       order.update!(payment_provider: "stripe", payment_reference: session.id)
       session
     rescue ::Stripe::StripeError => e
@@ -70,14 +84,19 @@ module LightekCommerce
     end
     private_class_method :start_locked!
 
-    def self.resume!(order:)
+    def self.resume!(order:, embedded: false)
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment" && order.payment_provider == "stripe"
-      Stripe.api_key = DymondBank::StripeCredentials.secret_key
-      session = Stripe::Checkout::Session.retrieve(order.payment_reference)
+      session = Stripe::Checkout::Session.retrieve(order.payment_reference, api_key: DymondBank::StripeCredentials.secret_key)
       metadata = session.metadata.to_h.stringify_keys
       raise Unavailable, "Checkout does not match this order" unless session.id == order.payment_reference &&
         metadata["lightek_commerce_order_id"].to_s == order.id.to_s && metadata["lightek_site_id"].to_s == order.site_id.to_s
-      raise Unavailable, "Checkout has completed or expired; wait for payment confirmation" unless session.status == "open" && session.url.present?
+      available = if embedded
+        session.ui_mode == EMBEDDED_MODE && session.client_secret.present? &&
+          metadata['lightek_host_key'] == order.payment_namespace && order.payment_namespace.present?
+      else
+        session.url.present?
+      end
+      raise Unavailable, "Checkout has completed or expired; wait for payment confirmation" unless session.status == "open" && available
       session
     rescue ::Stripe::StripeError
       raise Unavailable, "Existing checkout is temporarily unavailable"

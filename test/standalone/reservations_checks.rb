@@ -129,7 +129,13 @@ module LightekCommerce
   class PaidInstanceProvisioningJob < ApplicationJob; end
   class FulfillmentNotificationJob < ApplicationJob; end
 end
-%w[hosting_package lightek_commerce/network_sale lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/quote lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
+require ROOT.join('db/migrate/20261127192000_create_commerce_inventory_adjustments')
+CreateCommerceInventoryAdjustments.new.migrate(:up)
+require ROOT.join('db/migrate/20261127193000_add_source_to_commerce_inventory_changes')
+AddSourceToCommerceInventoryChanges.new.migrate(:up)
+require ROOT.join('db/migrate/20261127194000_record_order_inventory_changes')
+RecordOrderInventoryChanges.new.migrate(:up)
+%w[hosting_package lightek_commerce/inventory_change lightek_commerce/network_sale lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/quote lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
   lightek_reservations/resource lightek_reservations/reservation lightek_reservations/blackout
   lightek_reservations/change lightek_reservations/peer lightek_reservations/intent lightek_commerce/payout_schedule].each { |file| require ROOT.join('app/models', file).to_s }
 %w[lightek_commerce/revenue_sharing lightek_commerce/subscription_events lightek_commerce/processor_payment lightek_commerce/network_checkout lightek_shipping/quotes lightek_reservations/availability lightek_reservations/booking lightek_reservations/package_changes

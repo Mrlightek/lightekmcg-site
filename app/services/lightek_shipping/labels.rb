@@ -5,8 +5,7 @@ module LightekShipping
     def self.issue!(quote:)
       raise ArgumentError, "Remote labels are purchased through the shipping network" if quote.broker_reference.present?
       order = quote.purchase_order
-      raise ArgumentError, "Confirmed shipping payment is required" unless order&.paid_at? && %w[paid fulfilled].include?(order.status) &&
-        ((order.purpose == "shipping_label" && order.subtotal_cents >= quote.platform_price_cents) || (order.shipping_quote_id == quote.id && order.shipping_cents >= quote.platform_price_cents))
+      raise ArgumentError, "Confirmed shipping payment is required" unless order&.paid_at? && %w[paid fulfilled].include?(order.status) && funded?(order, quote)
       shipment = nil
       quote.with_lock { shipment = Shipment.find_or_create_by!(quote: quote) }
       shipment.with_lock do
@@ -41,6 +40,19 @@ module LightekShipping
       shipment&.update!(status: "review", error_message: "Carrier confirmation needs review (#{error.class}); do not purchase another label for this quote.") if shipment&.status == "submitting"
       raise
     end
+    def self.funded?(order, quote)
+      return order.subtotal_cents >= quote.platform_price_cents if order.purpose == 'shipping_label'
+      return false unless order.shipping_quote_id == quote.id
+      return true if order.shipping_cents >= quote.platform_price_cents
+      return false unless order.shipping_discount_amount.positive? && order.shipping_cents == order.quoted_shipping_charge_cents
+
+      LightekCommerce::MerchantPayouts.fee_quote(order)
+      true
+    rescue LightekCommerce::MerchantPayouts::Invalid, LightekCommerce::RevenueSharing::Invalid
+      false
+    end
+    private_class_method :funded?
+
     def self.refresh!(quote:)
       if quote.broker_reference.present?
         data = LightekReservations::Federation::Client.new(quote.site).request("shipping/quotes/#{quote.broker_reference}/status")

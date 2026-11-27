@@ -30,10 +30,14 @@ module LightekCommerce
       if order.respond_to?(:buyer_fee_breakdown) && (fee = order.buyer_fee_breakdown).present?
         raise Invalid, "Buyer fee settlement does not match the order" unless merchandise == fee.fetch('merchant_cents')
 
-        shipping_margin = order.shipping_quote ? order.shipping_quote.customer_price_cents - order.shipping_quote.platform_price_cents : 0
+        shipping_margin = shipping_margin_for(order)
+        net = merchandise + shipping_margin
+        if order.try(:shipping_discount_amount).to_i.positive? && net.negative?
+          raise Invalid, 'The sale does not cover the promoted delivery cost'
+        end
         return {gross_cents: gross, processor_reserve_cents: fee.fetch('processor_reserve_cents'),
           platform_fee_cents: fee.fetch('network_cents'), infrastructure_reserve_cents: 0,
-          upstream_share_cents: 0, net_cents: merchandise + shipping_margin}
+          upstream_share_cents: 0, net_cents: net}
       end
       processor_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FEE_BPS", "300"))
       processor_fixed = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FIXED_CENTS", "30"))
@@ -41,8 +45,8 @@ module LightekCommerce
       raise Invalid, "Fee settings out of range" unless (0..2500).cover?(processor_bps) && (0..2500).cover?(platform_bps) && (0..2000).cover?(processor_fixed)
       processor_reserve = (gross * processor_bps + 9999) / 10_000 + processor_fixed
       platform_fee = (gross * platform_bps + 9999) / 10_000
-      reservation = order.respond_to?(:id) ? LightekReservations::Reservation.find_by(order_id: order.id) : nil
-      change = order.respond_to?(:id) ? LightekReservations::Change.find_by(order_id: order.id) : nil
+      reservation = order.try(:id).present? ? LightekReservations::Reservation.find_by(order_id: order.id) : nil
+      change = order.try(:id).present? ? LightekReservations::Change.find_by(order_id: order.id) : nil
       hosting = order.respond_to?(:items) ? order.items.first&.purchase_snapshot.to_h.fetch("hosting", {}).to_h : {}
       hosting_reserve = hosting.fetch("platform_charge_cents", hosting.fetch("monthly_cost_ceiling_cents", 0)).to_i
       infrastructure = [reservation&.server? ? reservation.package_snapshot.fetch('cost_floor_cents', 0).to_i : 0, hosting_reserve].max
@@ -58,12 +62,23 @@ module LightekCommerce
         end
       end
       upstream = order.respond_to?(:revenue_share_snapshot) ? RevenueSharing.total_cents(order) : 0
-      shipping_margin = order.respond_to?(:shipping_quote) && order.shipping_quote ? order.shipping_quote.customer_price_cents - order.shipping_quote.platform_price_cents : 0
-      available = [merchandise + shipping_margin - processor_reserve - platform_fee - infrastructure, 0].max
+      shipping_margin = shipping_margin_for(order)
+      remainder = merchandise + shipping_margin - processor_reserve - platform_fee - infrastructure
+      if order.try(:shipping_discount_amount).to_i.positive? && remainder.negative?
+        raise Invalid, 'The sale does not cover the promoted delivery cost'
+      end
+      available = [remainder, 0].max
       raise Invalid, "Revenue shares exceed the sale's available proceeds" if upstream > available
       {gross_cents: gross, infrastructure_reserve_cents: infrastructure, processor_reserve_cents: processor_reserve,
         platform_fee_cents: platform_fee, upstream_share_cents: upstream, net_cents: available - upstream}
     end
+
+    def self.shipping_margin_for(order)
+      return 0 unless order.try(:shipping_quote)
+
+      order.shipping_quote.customer_price_cents - order.try(:shipping_discount_amount).to_i - order.shipping_quote.platform_price_cents
+    end
+    private_class_method :shipping_margin_for
 
     def self.ineligible_reason(order, quote: nil)
       return 'Gift-card funds are held until redeemed for merchandise' if order.gift_card_purchase?

@@ -288,6 +288,9 @@ require Rails.root.join('db/migrate/20261127183000_index_commerce_gift_card_stor
 IndexCommerceGiftCardStoreScope.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127184000_create_commerce_customer_segments')
 CreateCommerceCustomerSegments.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127185000_record_merchant_funded_shipping_discounts')
+RecordMerchantFundedShippingDiscounts.new.migrate(:up)
+require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
 require Rails.root.join('app/services/lightek_commerce/gift_liability')
@@ -303,6 +306,7 @@ require Rails.root.join('app/services/lightek_commerce/bank_deposits')
 require Rails.root.join('app/services/lightek_commerce/merchant_disputes')
 require Rails.root.join('app/services/lightek_commerce/buyer_fees')
 class ApplicationJob < ActiveJob::Base; end unless defined?(ApplicationJob)
+require Rails.root.join('app/jobs/lightek_shipping/label_job')
 require Rails.root.join('app/jobs/lightek_commerce/buyer_fee_reversal_job')
 require Rails.root.join('db/migrate/20261127150000_create_lightek_commerce_dispute_cases')
 CreateLightekCommerceDisputeCases.new.migrate(:up)
@@ -1820,6 +1824,92 @@ class CommerceHostingTest < Minitest::Test
       end
     end
   end
+  def test_automatic_free_shipping_preserves_paid_address_label_and_merchant_proceeds
+    item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 5000)
+    quantities = {item.id.to_s => 1}
+    quote = shipping_quote(cart_fingerprint: LightekShipping::Quotes.fingerprint(@site, quantities))
+    promotion = LightekCommerce::ShippingPromotion
+    promotion.save!(@site, {'enabled' => '1', 'minimum_cents' => '4000', 'maximum_rate_cents' => '1500'})
+    verifier = ActiveSupport::MessageVerifier.new('fixture-shipping-review')
+    order = nil
+    promotion.stub(:verifier, verifier) do
+      savings = promotion.savings(site: @site, quote: quote, subtotal: 5000, buyer_fee: {}, merchandise_discount: nil)
+      assert_equal 1400, savings
+      refute_equal savings, promotion.savings(site: @site, quote: quote, subtotal: 3000, buyer_fee: {}, merchandise_discount: nil)
+      token = promotion.signed_review(@site, quote, savings)
+      inputs = {site: @site, customer_email: @operator.email_address, quantities: quantities,
+        shipping_quote: quote, storefront: true, storefront_buyer: @operator}
+      assert_raises(LightekCommerce::OrderPlacement::Invalid) { LightekCommerce::OrderPlacement.call(**inputs) }
+      assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+        LightekCommerce::OrderPlacement.call(**inputs, shipping_review_token: 'stale')
+      end
+      order = LightekCommerce::OrderPlacement.call(**inputs, shipping_review_token: token)
+      assert_equal order.id, LightekCommerce::OrderPlacement.call(**inputs, shipping_review_token: token).id
+    end
+    assert_equal [5000, 0, 1400], [order.total_cents, order.shipping_cents, order.shipping_discount_amount]
+    assert_raises(ArgumentError) do
+      LightekShipping::Purchases.start!(quote: quote, email: @operator.email_address, return_url: 'https://example.com')
+    end
+
+    DymondBank::StripeCredentials.stub(:secret_key, 'sk_test_fake') do
+      Stripe::Customer.stub(:create, ->(values, _) {
+        assert_equal '10001', values.dig(:shipping, :address, :postal_code)
+        OpenStruct.new(id: 'cus_delivery')
+      }) do
+        Stripe::Checkout::Session.stub(:create, ->(values, _) {
+          assert_equal [5000], values[:line_items].map { |line| line.dig(:price_data, :unit_amount) }
+          OpenStruct.new(id: 'cs_free_shipping')
+        }) { LightekCommerce::StripeCheckout.start!(order: order, success_url: 'https://example.com', cancel_url: 'https://example.com') }
+      end
+    end
+
+    session = OpenStruct.new(id: 'cs_free_shipping', metadata: LightekCommerce::PaymentIdentity.metadata(order),
+      mode: 'payment', payment_status: 'paid', currency: 'usd', amount_subtotal: 5000, amount_total: 5000,
+      total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 1))
+    event = OpenStruct.new(type: 'checkout.session.completed', data: OpenStruct.new(object: session))
+    assert_raises(LightekCommerce::StripeEvents::Rejected) { LightekCommerce::StripeEvents.process!(event) }
+    session.total_details.amount_shipping = 0
+    LightekShipping::LabelJob.stub(:perform_later, ->(id) { assert_equal order.id, id }) do
+      LightekCommerce::StripeEvents.process!(event)
+    end
+    assert_equal 'paid', order.reload.status
+    assert_equal order.id, quote.reload.purchase_order_id
+    assert_equal 3620, LightekCommerce::MerchantPayouts.fee_quote(order).fetch(:net_cents)
+    LightekShipping::Account.create!(provider: 'fedex', credential_slug: 'carrier', enabled: true)
+    carrier = Minitest::Mock.new
+    carrier.expect(:ship, {'output' => {'transactionShipments' => [{
+      'masterTrackingNumber' => '123456789012',
+      'pieceResponses' => [{'packageDocuments' => [{'contentType' => 'LABEL',
+        'encodedLabel' => Base64.strict_encode64('%PDF-1.7 fake label')}]}]
+    }]}}, [Hash], reference: String)
+    DymondBank::StripeCredentials.stub(:secret_key, 'sk_test_fake') do
+      LightekShipping::Fedex.stub(:new, carrier) do
+        assert_equal 'ready', LightekShipping::Labels.issue!(quote: quote).status
+      end
+    end
+    carrier.verify
+    assert_equal 'fulfilled', order.reload.status
+  end
+
+  def test_free_shipping_rate_cap_merchandise_combinations_and_insufficient_earnings
+    promotion = LightekCommerce::ShippingPromotion
+    promotion.save!(@site, {'enabled' => '1', 'minimum_cents' => '0', 'maximum_rate_cents' => '1500'})
+    quote = shipping_quote
+    inputs = {site: @site, quote: quote, buyer_fee: {}, merchandise_discount: nil}
+    assert_equal 0, promotion.savings(**inputs, subtotal: 1220)
+    assert_equal 1400, promotion.savings(**inputs, subtotal: 2000)
+    assert_equal 0, promotion.savings(**inputs.merge(quote: shipping_quote(customer_price_cents: 1600)), subtotal: 5000)
+    rule = LightekCommerce::Discount.new(name: 'Locked offer', combinable: false)
+    merchandise = LightekCommerce::Discounts::Quote.new(entries: [[rule, 100]])
+    assert_equal 0, promotion.savings(**inputs.merge(merchandise_discount: merchandise), subtotal: 5000)
+    rule.combinable = true
+    assert_equal 1400, promotion.savings(**inputs.merge(merchandise_discount: merchandise), subtotal: 5000)
+    promotion.save!(@site, {'enabled' => '1', 'minimum_cents' => '0', 'maximum_rate_cents' => '1500', 'code' => 'ship-free'})
+    assert promotion.valid_code?(@site, 'SHIP-FREE')
+    assert_equal 0, promotion.savings(**inputs, subtotal: 5000)
+    assert_equal 1400, promotion.savings(**inputs, subtotal: 5000, code: 'ship-free')
+  end
+
   def test_sandbox_shipping_cannot_be_charged_using_live_stripe_keys
     order = order_for(product)
     order.update!(shipping_quote: shipping_quote)

@@ -74,8 +74,11 @@ module LightekCommerce
       customer = {customer_email: order.customer_email}
       if order.shipping_quote && order.purpose != "shipping_label"
         raise Unavailable, "Shipping quote has expired" if order.shipping_quote.expires_at <= Time.current
-        line_items << {price_data: {currency: order.currency, unit_amount: order.shipping_quote.customer_price_cents,
-          product_data: {name: "#{order.shipping_quote.service_name} shipping", tax_code: "txcd_92010001"}}, quantity: 1}
+        shipping_charge = order.quoted_shipping_charge_cents
+        if shipping_charge.positive?
+          line_items << {price_data: {currency: order.currency, unit_amount: shipping_charge,
+            product_data: {name: "#{order.shipping_quote.service_name} shipping", tax_code: "txcd_92010001"}}, quantity: 1}
+        end
         party = order.shipping_quote.shipment_payload.fetch("recipients").sole
         address = party.fetch("address")
         shipping = {name: party.fetch("contact").fetch("personName"), phone: party.fetch("contact").fetch("phoneNumber"),

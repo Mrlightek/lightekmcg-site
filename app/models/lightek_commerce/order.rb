@@ -5,7 +5,7 @@ module LightekCommerce
     include GrowthAttributed
     before_validation(on: :create) { self.payment_namespace ||= PaymentIdentity.namespace(site) if site }
     self.table_name = "lightek_commerce_orders"
-    attr_readonly :buyer_fee_snapshot, :discount_cents, :discount_name
+    attr_readonly :buyer_fee_snapshot, :discount_cents, :discount_name, :shipping_discount_cents
 
     def storefront_buyer_attributes
       has_attribute?(:storefront_buyer_id) ? {storefront_buyer_id: storefront_buyer_id} : {}
@@ -20,6 +20,9 @@ module LightekCommerce
     def transfer_reversal_required? = buyer_fee_cents.positive? || gift_card_redemption?
 
     def discount_amount = has_attribute?(:discount_cents) ? self[:discount_cents].to_i : 0
+    def shipping_discount_amount = has_attribute?(:shipping_discount_cents) ? self[:shipping_discount_cents].to_i : 0
+    def quoted_shipping_charge_cents = shipping_quote&.customer_price_cents.to_i - shipping_discount_amount
+
     after_update_commit :queue_buyer_fee_reversal, if: -> { saved_change_to_status? && status == 'refunded' }
 
     def queue_buyer_fee_reversal

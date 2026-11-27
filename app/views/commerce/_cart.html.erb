@@ -37,6 +37,17 @@
 <% Array(@discount_codes).each do |code| %>
   <%= button_to "Remove #{code}", commerce_cart_discount_path(site_id: @site.id), method: :post, params: {remove_discount: code} %>
 <% end %>
+<% if @shipping_code_enabled %>
+  <% if @shipping_code_applied %>
+    <p>Shipping code applied. Free shipping appears on eligible delivery options.</p>
+    <%= button_to 'Remove shipping code', commerce_cart_discount_path(site_id: @site.id), method: :post, params: {remove_shipping_code: '1'} %>
+  <% else %>
+    <%= form_with url: commerce_cart_discount_path(site_id: @site.id), method: :post do %>
+      <label>Shipping code <%= text_field_tag :shipping_discount_code, nil, maxlength: 40, required: true %></label>
+      <%= submit_tag 'Apply shipping code' %>
+    <% end %>
+  <% end %>
+<% end %>
 <% if @discount_error %><p role="alert"><%= @discount_error %></p><% end %>
 <% if @discount %>
   <ul aria-label="Applied discounts">
@@ -47,7 +58,14 @@
 <% end %>
 <% if @buyer_fee_cart %>
 <p><strong><%= number_to_currency((@discounted_buyer_price || @buyer_fee_cart.fetch('buyer_cents')) / 100.0) %><%= "/#{@buyer_fee_interval}" unless @buyer_fee_interval == 'one_time' %></strong> before tax · Includes Lightek checkout fees<%= ' · Shipping shown separately' if @cart.keys.any? { |key| @products.any? { |product| product.id.to_s == key.split(':').first && product.product_type == 'physical' } } %></p>
-<% end %><%= form_with url: commerce_checkout_path(site_id: @site.id), method: :post do |f| %><%= hidden_field_tag :expected_discount_cents, @discount_cents.to_i %><%= hidden_field_tag :discount_review_token, @discount_review_token if @discount_review_token %><%= hidden_field_tag :buyer_fee_token, @buyer_fee_token if @buyer_fee_token %><% Array(@shipping_quotes).each do |quote| %><label><%= radio_button_tag :shipping_quote_key, quote.public_key, false, required: true %> <%= quote.service_name %> · <%= number_to_currency(quote.customer_price_cents / 100.0) %><%= " · TEST" if quote.sandbox? %></label><% end %><%= email_field_tag :customer_email, nil, placeholder: "Email", required: true %><% if @gift_cards_redeemable %>
+<% end %><%= form_with url: commerce_checkout_path(site_id: @site.id), method: :post do |f| %><%= hidden_field_tag :expected_discount_cents, @discount_cents.to_i %><%= hidden_field_tag :discount_review_token, @discount_review_token if @discount_review_token %><%= hidden_field_tag :buyer_fee_token, @buyer_fee_token if @buyer_fee_token %><% Array(@shipping_quotes).each do |quote| %>
+  <% review = @shipping_promotions&.fetch(quote.id, nil) %>
+  <% if review %><%= hidden_field_tag "shipping_reviews[#{quote.public_key}]", review, id: nil %><% end %>
+  <label>
+    <%= radio_button_tag :shipping_quote_key, quote.public_key, false, required: true %>
+    <%= quote.service_name %> · <%= review ? 'Free shipping' : number_to_currency(quote.customer_price_cents / 100.0) %><%= ' · TEST' if quote.sandbox? %>
+  </label>
+<% end %><%= email_field_tag :customer_email, nil, placeholder: "Email", required: true %><% if @gift_cards_redeemable %>
   <details>
     <summary>Use a gift card</summary>
     <label>Gift card code <%= password_field_tag :gift_code, nil, maxlength: 40, autocomplete: 'off' %></label>

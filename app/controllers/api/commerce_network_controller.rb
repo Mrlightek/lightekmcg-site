@@ -4,11 +4,13 @@ class Api::CommerceNetworkController < Api::ReservationFederationController
     DymondBank::StripeService::ConfigurationError, with: ->(error) { render json: {error: error.message}, status: :unprocessable_entity }
   rescue_from Stripe::StripeError, DymondBank::StripeService::StripeError, with: ->(_) { render json: {error: 'Payment processing is temporarily unavailable. Retry or contact support.'}, status: :unprocessable_entity }
   def checkout
-    values = params.require(:checkout).permit(:source_key, :customer_email, :store_name, :return_url, :shipping_quote_key, :shipping_price_cents, :buyer_price_cents, :discount_cents, :gift_order_purpose, :gift_store_key,
+    values = params.require(:checkout).permit(:source_key, :customer_email, :store_name, :return_url, :shipping_quote_key, :shipping_price_cents, :shipping_discount_cents, :buyer_price_cents, :discount_cents, :gift_order_purpose, :gift_store_key,
       merchant_chain: %i[subject email first_name last_name role upstream_share_bps], items: %i[name quantity unit_price_cents product_type billing_interval merchandise_discount_cents]).to_h
     sale = LightekCommerce::NetworkGateway.reserve!(peer: @peer, attributes: values)
     if sale.order.gift_card_purchase? || sale.order.gift_card_redemption?
-      return render json: {key: sale.public_key, gift_ready: true, buyer_fee_cents: sale.order.buyer_fee_cents}
+      result = {key: sale.public_key, gift_ready: true, buyer_fee_cents: sale.order.buyer_fee_cents}
+      result[:shipping_discount_cents] = sale.order.shipping_discount_amount if sale.order.shipping_discount_amount.positive?
+      return render json: result
     end
     render json: LightekCommerce::NetworkGateway.checkout!(sale, embedded: params.dig(:checkout, :embedded) == true)
   end

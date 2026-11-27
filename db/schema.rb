@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_184000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_185000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1959,6 +1959,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_184000) do
     t.bigint "storefront_buyer_id"
     t.string "gift_store_scope"
     t.integer "gift_applied_cents", default: 0, null: false
+    t.integer "shipping_discount_cents", default: 0, null: false
     t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_store_buyer"
     t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_storefront_buyer"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
@@ -1976,6 +1977,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_184000) do
     t.index ["site_id"], name: "index_lightek_commerce_orders_on_site_id"
     t.check_constraint "refunded_cents >= 0 AND refunded_cents <= total_cents", name: "commerce_refunded_amount_valid"
     t.check_constraint "subtotal_cents >= 0 AND shipping_cents >= 0 AND tax_cents >= 0 AND total_cents >= 0", name: "commerce_order_amounts_valid"
+    t.check_constraint "shipping_discount_cents >= 0", name: "commerce_shipping_discount_nonnegative"
   end
 
   create_table "lightek_commerce_product_variants", force: :cascade do |t|

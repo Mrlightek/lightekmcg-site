@@ -4,6 +4,7 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
   before_action :load_store
 
   def show
+    @shipping_promotion = LightekCommerce::ShippingPromotion.settings(@site)
     @appearance = LightekCommerce::StoreAppearance.read(@site)
     @customer_segments = LightekCommerce::CustomerSegment.where(site: @site).order(:name, :id)
     @discount_products = LightekCommerce::Product.visible.where(site: @site)
@@ -22,6 +23,14 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
     LightekCommerce::StoreAppearance.save!(@site, appearance)
     redirect_to_store('Checkout and account settings saved.')
   rescue LightekCommerce::StoreAppearance::Invalid, ActiveRecord::RecordInvalid => error
+    redirect_to_store(error.message, error: true)
+  end
+
+  def update_shipping_promotion
+    values = params.require(:shipping_promotion).permit(:enabled, :minimum_cents, :maximum_rate_cents, :code)
+    LightekCommerce::ShippingPromotion.save!(@site, values)
+    redirect_to_store('Free shipping settings saved.')
+  rescue LightekCommerce::ShippingPromotion::Invalid, ActiveRecord::RecordInvalid => error
     redirect_to_store(error.message, error: true)
   end
 

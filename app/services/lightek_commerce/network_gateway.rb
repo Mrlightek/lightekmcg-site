@@ -19,6 +19,9 @@ module LightekCommerce
       if attrs.key?('discount_cents')
         stable['discount_cents'] = Integer(attrs['discount_cents'].to_s, 10)
       end
+      if attrs.key?('shipping_discount_cents')
+        stable['shipping_discount_cents'] = Integer(attrs['shipping_discount_cents'].to_s, 10)
+      end
       peer.with_lock do
         sale = NetworkSale.find_by(peer: peer, source_key: key)
         if sale
@@ -66,25 +69,38 @@ module LightekCommerce
         source_quote = nil
         quote = nil
         shipping = 0
+        shipping_discount = stable.fetch('shipping_discount_cents', 0)
+        if attrs["shipping_quote_key"].blank? && shipping_discount != 0
+          raise ArgumentError, 'A shipping discount requires a carrier quote'
+        end
         if attrs["shipping_quote_key"].present?
           source_quote = LightekShipping::Quote.where(site: peer.site).find_by!(public_key: attrs["shipping_quote_key"])
+          source_quote.lock!
           raise ArgumentError, "Shipping quote has expired" if source_quote.expires_at <= Time.current
+          raise ArgumentError, "This shipping quote already has a label order" if source_quote.purchase_order_id.present?
           shipping = Integer(attrs.fetch("shipping_price_cents"))
           raise ArgumentError, "Shipping price is below the platform rate" if shipping < source_quote.platform_price_cents || shipping > 10_000_000
+          unless shipping_discount.zero? || (!recurring && shipping_discount == shipping && rows.any? { |row| row["product_type"] == "physical" })
+            raise ArgumentError, 'Invalid shipping discount'
+          end
+          if NetworkSale.exists?(peer: peer, source_shipping_quote: source_quote)
+            raise ArgumentError, 'This shipping quote already has a checkout'
+          end
           quote = source_quote.dup
           quote.assign_attributes(site: site, public_key: SecureRandom.uuid, customer_price_cents: shipping, purchase_order_id: nil)
           quote.save!
         end
         fee = buyer_fee_snapshot(peer: peer, merchant: merchant, subtotal: subtotal, buyer_price_cents: stable['buyer_price_cents'])
         order = Order.new(site: site, customer_email: attrs.fetch("customer_email"), subtotal_cents: subtotal,
-          shipping_cents: shipping, stock_reserved: false, shipping_quote: quote)
+          shipping_cents: shipping - shipping_discount, stock_reserved: false, shipping_quote: quote)
+        order.shipping_discount_cents = shipping_discount if shipping_discount.positive?
         if gift_purpose
           order.purpose = gift_purpose
           order.gift_store_scope = GiftCards.network_scope(peer, stable.fetch('gift_store_key'))
         end
         order.discount_cents = discount if discount.positive?
         order.buyer_fee_snapshot = fee if fee.present?
-        order.total_cents = subtotal + shipping + order.buyer_fee_cents
+        order.total_cents = subtotal + order.shipping_cents + order.buyer_fee_cents
         order.save!
         rows.each do |row|
           product = Product.create!(site: site, slug: "network-#{SecureRandom.hex(12)}", name: row.fetch("name").to_s.first(160),
@@ -121,6 +137,7 @@ module LightekCommerce
     def self.checkout!(sale, embedded: false)
       order = sale.order
       result = {key: sale.public_key, buyer_fee_cents: order.buyer_fee_cents}
+      result[:shipping_discount_cents] = order.shipping_discount_amount if order.shipping_discount_amount.positive?
       return result.merge(url: sale.return_url) if order.paid_at?
 
       checkout = StripeCheckout.start!(order: order, success_url: sale.return_url, cancel_url: sale.return_url,

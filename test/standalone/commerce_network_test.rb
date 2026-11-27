@@ -104,6 +104,26 @@ class CommerceNetworkTest < CommerceHostingTest
     assert_raises(ArgumentError) { reserve(payload.merge('discount_cents' => 250)) }
   end
 
+  def test_network_free_shipping_retains_the_original_carrier_rate_and_rejects_unfunded_sales
+    quote = shipping_quote
+    rows = attributes.fetch('items')
+    rows.first['product_type'] = 'physical'
+    payload = attributes.merge('items' => rows, 'shipping_quote_key' => quote.public_key,
+      'shipping_price_cents' => 1400, 'shipping_discount_cents' => 1400)
+    underfunded = payload.merge('items' => [rows.first.merge('unit_price_cents' => 200)])
+    assert_raises(LightekCommerce::MerchantPayouts::Invalid) { reserve(underfunded) }
+    assert_raises(ArgumentError) { reserve(payload.merge('shipping_discount_cents' => 1399)) }
+    assert_raises(ArgumentError) { reserve(payload.except('shipping_quote_key')) }
+
+    sale = reserve(payload)
+    assert_equal [2500, 0, 1400], [sale.order.total_cents, sale.order.shipping_cents, sale.order.shipping_discount_amount]
+    assert_equal 1200, sale.order.shipping_quote.platform_price_cents
+    assert_equal 1400, sale.order.shipping_quote.customer_price_cents
+    assert_equal sale.id, reserve(payload).id
+    assert_raises(ArgumentError) { reserve(payload.merge('shipping_discount_cents' => 0)) }
+    assert_raises(ArgumentError) { reserve(payload.merge('source_key' => 'b' * 64)) }
+  end
+
   def test_network_preserves_product_discount_allocation_for_tax
     items = [
       attributes.fetch('items').sole.merge('merchandise_discount_cents' => 251),

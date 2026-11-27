@@ -29,6 +29,18 @@
   <% end %>
   <section class="dd-panel">
     <h2>Discounts</h2>
+    <details>
+      <summary>Free shipping</summary>
+      <p>Eligible orders use merchandise proceeds to cover delivery. Free shipping combines only with combinable merchandise discounts. The minimum uses the merchandise total after combinable discounts.</p>
+      <%= form_with scope: :shipping_promotion, url: dashboard_commerce_shipping_promotion_path(site_id: @site.id),
+        method: :patch, class: 'dd-form-stack' do |form| %>
+        <label><%= form.check_box :enabled, checked: @shipping_promotion['enabled'] %> Offer free shipping</label>
+        <label>Shipping code <%= form.text_field :code, value: @shipping_promotion['code'], maxlength: 40, placeholder: 'Leave blank for automatic free shipping' %></label>
+        <label>Minimum merchandise total (cents) <%= form.number_field :minimum_cents, value: @shipping_promotion.fetch('minimum_cents', 5000), min: 0, required: true %></label>
+        <label>Maximum delivery rate (cents) <%= form.number_field :maximum_rate_cents, value: @shipping_promotion.fetch('maximum_rate_cents', 1500), min: 1, required: true %></label>
+        <%= form.submit 'Save free shipping', class: 'dd-button' %>
+      <% end %>
+    </details>
     <%= render "customer_segments" %>
     <details>
       <summary>Bulk discount codes</summary>

@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, discount_review_token: nil, storefront_buyer: nil, gift_redemption: false)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, discount_review_token: nil, shipping_review_token: nil, shipping_discount_code: nil, storefront_buyer: nil, gift_redemption: false)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -34,9 +34,10 @@ module LightekCommerce
           raise Invalid, "Choose one Workspace plan"
         end
         normalized_email = customer_email.to_s.strip.downcase
-        reviewed_key = if storefront && storefront_buyer && discount_review_token.present?
-          Digest::SHA256.hexdigest([discount_review_token, storefront_buyer.id, gift_redemption,
-            shipping_quote&.id, requested.transform_values(&:to_i).sort].to_json)
+        reviewed_key = if storefront && storefront_buyer && (discount_review_token.present? || shipping_review_token.present?)
+          identity = [discount_review_token, storefront_buyer.id, gift_redemption, shipping_quote&.id, requested.transform_values(&:to_i).sort]
+          identity << shipping_review_token if shipping_review_token.present?
+          Digest::SHA256.hexdigest(identity.to_json)
         end
         if reviewed_key
           existing = Order.find_by(site: site, customer_email: normalized_email, client_checkout_key: reviewed_key)
@@ -61,7 +62,20 @@ module LightekCommerce
         if fee_snapshot.present? && savings.to_i.positive?
           fee_snapshot = BuyerFees.quote_amount(fee_snapshot.fetch('merchant_cents') - savings)
         end
+        shipping_discount = 0
+        if storefront && shipping_quote
+          if ShippingPromotion.settings(site)['enabled'] == true && products.any? { |product| product.product_type == 'physical' } &&
+              products.all? { |product| BuyerFees.eligible?(product) && product.billing_interval == 'one_time' }
+            _, merchandise = BuyerFees.cart_price(products: products, requested: requested, lock: true, price_only: true)
+            shipping_discount = ShippingPromotion.savings(site: site, quote: shipping_quote, subtotal: merchandise - savings,
+              buyer_fee: fee_snapshot, merchandise_discount: discount, code: shipping_discount_code)
+          end
+          unless ShippingPromotion.valid_review?(site, shipping_quote, shipping_discount, shipping_review_token)
+            raise Invalid, 'The delivery price changed. Review the shipping options before continuing.'
+          end
+        end
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: normalized_email)
+        order.shipping_discount_cents = shipping_discount if shipping_discount.positive?
         order.client_checkout_key = reviewed_key if reviewed_key
         order.purpose = GiftCards::REDEMPTION if gift_redemption
         order.storefront_buyer_id = storefront_buyer.id if storefront && storefront_buyer
@@ -81,7 +95,8 @@ module LightekCommerce
             next existing if existing
           end
         end
-        if shipping_quote && Order.where(shipping_quote: shipping_quote).where.not(purpose: "shipping_label").exists?
+        if shipping_quote && (shipping_quote.purchase_order_id.present? ||
+            Order.where(shipping_quote: shipping_quote).where("purpose IS NULL OR purpose <> ?", "shipping_label").exists?)
           raise Invalid, "This shipping quote already has a checkout"
         end
         order.growth_visit = growth_visit if growth_visit
@@ -185,10 +200,10 @@ module LightekCommerce
         if fee_snapshot.present? && (order.revenue_share_snapshot.present? || fee_snapshot.fetch('merchant_cents') != subtotal)
           raise Invalid, 'This sale is no longer eligible for buyer-paid fees. Review the cart.'
         end
-        shipping_cents = shipping_quote&.customer_price_cents.to_i
+        shipping_cents = order.quoted_shipping_charge_cents
         order.update!(subtotal_cents: subtotal, shipping_cents: shipping_cents,
           total_cents: subtotal + shipping_cents + order.buyer_fee_cents)
-        if order.revenue_share_snapshot.present?
+        if order.revenue_share_snapshot.present? || shipping_discount.positive?
           MerchantPayouts.fee_quote(order, gross_cents: (order.total_cents * 125 + 99) / 100)
         end
         ReservationExpiryJob.set(wait: 30.minutes).perform_later(order.id)

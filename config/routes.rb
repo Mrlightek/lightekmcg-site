@@ -227,6 +227,7 @@ end
   post "/dashboard/commerce/customer-segments", to: "dashboard/commerce_store_settings#save_segment", as: :dashboard_commerce_customer_segments
   patch "/dashboard/commerce/customer-segments/:id", to: "dashboard/commerce_store_settings#save_segment", as: :dashboard_commerce_customer_segment
   delete "/dashboard/commerce/customer-segments/:id", to: "dashboard/commerce_store_settings#delete_segment"
+  patch "/dashboard/commerce/shipping-promotion", to: "dashboard/commerce_store_settings#update_shipping_promotion", as: :dashboard_commerce_shipping_promotion
   post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
   post "/dashboard/commerce/discounts/import", to: "dashboard/commerce_store_settings#import_discounts", as: :import_dashboard_commerce_store_discounts
   get "/dashboard/commerce/discounts/export", to: "dashboard/commerce_store_settings#export_discounts", as: :export_dashboard_commerce_store_discounts

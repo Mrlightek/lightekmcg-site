@@ -66,10 +66,11 @@ module LightekCommerce
           next
         end
         raise Rejected, "Paid checkout for canceled order requires manual recovery" unless order.status == "pending_payment"
-        quoted_shipping = order.shipping_quote && order.purpose != "shipping_label" ? order.shipping_quote.customer_price_cents : 0
+        shipping_selected = order.shipping_quote && order.purpose != "shipping_label"
+        quoted_shipping = shipping_selected ? order.quoted_shipping_charge_cents : 0
         subtotal = session.amount_subtotal.to_i - quoted_shipping
         tax = session.total_details.amount_tax.to_i
-        raise Rejected, "Unexpected extra shipping charge" if quoted_shipping.positive? && session.total_details.amount_shipping.to_i != 0
+        raise Rejected, "Unexpected extra shipping charge" if shipping_selected && session.total_details.amount_shipping.to_i != 0
         shipping = session.total_details.amount_shipping.to_i + quoted_shipping
         total = session.amount_total.to_i
         raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents + order.buyer_fee_cents

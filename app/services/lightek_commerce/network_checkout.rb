@@ -30,6 +30,7 @@ module LightekCommerce
         raise StripeCheckout::Unavailable, "Shipping quote is not connected to the network" if order.shipping_quote.broker_reference.blank?
         attributes[:shipping_quote_key] = order.shipping_quote.broker_reference
         attributes[:shipping_price_cents] = order.shipping_quote.customer_price_cents
+        attributes[:shipping_discount_cents] = order.shipping_discount_amount if order.shipping_discount_amount.positive?
       end
       attributes[:buyer_price_cents] = order.buyer_fee_breakdown.fetch('buyer_cents') if order.buyer_fee_cents.positive?
       attributes[:discount_cents] = order.discount_amount if order.discount_amount.positive?
@@ -44,6 +45,7 @@ module LightekCommerce
         raise StripeCheckout::Unavailable, 'The checkout could not confirm the price shown in your cart.'
       end
 
+      confirm_shipping_price!(order, result)
       reference = result.fetch("key")
       url = result['url']
       if url.present?
@@ -58,10 +60,18 @@ module LightekCommerce
     rescue LightekReservations::Federation::Client::Unavailable, ArgumentError => error
       raise StripeCheckout::Unavailable, error.message
     end
+    def self.confirm_shipping_price!(order, result)
+      if order.shipping_discount_amount.positive? && result['shipping_discount_cents'] != order.shipping_discount_amount
+        raise StripeCheckout::Unavailable, 'The payment platform could not confirm the shipping discount.'
+      end
+    end
+    private_class_method :confirm_shipping_price!
+
     def self.start_gift!(order, attributes, host:, embedded:, code:, address:)
       order.with_lock do
         if order.network_reference.blank?
           result = client(order).request('commerce/checkouts', method: :post, body: {checkout: attributes})
+          confirm_shipping_price!(order, result)
           reference = result.fetch('key')
           unless result['gift_ready'] == true && reference.to_s.match?(/\A[0-9a-f-]{36}\z/) &&
               result['buyer_fee_cents'] == order.buyer_fee_cents
@@ -127,6 +137,10 @@ module LightekCommerce
       receipt = client(root).request("commerce/orders/#{root.network_reference}").deep_stringify_keys
       root.with_lock do
         raise StripeCheckout::Unavailable, "Network receipt does not match the reserved merchandise" unless receipt.fetch("subtotal_cents") == root.subtotal_cents
+        if root.shipping_discount_amount.positive? && (receipt['shipping_cents'] != root.quoted_shipping_charge_cents ||
+            receipt['total_cents'] != root.subtotal_cents + root.buyer_fee_cents + receipt.fetch('tax_cents') + receipt.fetch('shipping_cents'))
+          raise StripeCheckout::Unavailable, 'Network receipt does not match the reviewed shipping price.'
+        end
         if root.buyer_fee_cents.positive? && (receipt['buyer_fee_cents'] != root.buyer_fee_cents ||
             receipt['total_cents'] != root.subtotal_cents + root.buyer_fee_cents + receipt.fetch('tax_cents') + receipt.fetch('shipping_cents'))
           raise StripeCheckout::Unavailable, 'Network receipt does not match the confirmed buyer price.'

@@ -29,6 +29,7 @@ class CommerceController < ApplicationController
     keys = Array(session["lightek_shipping_quotes_#{@site.id}"]).first(10)
     @shipping_quotes = LightekShipping::Quote.where(site: @site, public_key: keys).where("expires_at > ?", Time.current)
       .where(cart_fingerprint: LightekShipping::Quotes.fingerprint(@site, @cart))
+    show_shipping_promotions
     @collections = LightekCommerce::Collection.published.where(site: @site).order(:name, :id)
     if params[:collection].present?
       @collection = @collections.find_by!(slug: params[:collection])
@@ -97,6 +98,20 @@ class CommerceController < ApplicationController
     redirect_to commerce_shop_path(site_id: @site.id), notice: "Cart updated."
   end
   def apply_discount
+    if params[:remove_shipping_code].present?
+      session.delete(shipping_discount_key)
+      return redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), status: :see_other
+    end
+    if params.key?(:shipping_discount_code)
+      code = LightekCommerce::Discount.normalize(params[:shipping_discount_code])
+      unless LightekCommerce::ShippingPromotion.valid_code?(@site, code)
+        raise LightekCommerce::Discounts::Invalid, 'That shipping code is unavailable for this store.'
+      end
+
+      session[shipping_discount_key] = code
+      return redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), status: :see_other
+    end
+
     entered = LightekCommerce::Discounts.codes(session[discount_key])
     if params[:remove_discount].present?
       entered.delete(LightekCommerce::Discount.normalize(params[:remove_discount]))
@@ -171,10 +186,13 @@ class CommerceController < ApplicationController
     gift_code = params[:gift_code].to_s.strip.presence
     gift_address = params[:gift_address]
     address = gift_address.is_a?(ActionController::Parameters) ? gift_address.permit(:line1, :city, :state, :postal_code, :country).to_h : {}
+    shipping_reviews = params[:shipping_reviews]
+    shipping_review = shipping_reviews[quote.public_key] if quote && shipping_reviews.is_a?(ActionController::Parameters)
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
       gift_redemption: gift_code.present?, storefront_buyer: current_user, discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
-      discount_review_token: params[:discount_review_token],
+      discount_review_token: params[:discount_review_token], shipping_review_token: shipping_review,
+      shipping_discount_code: session[shipping_discount_key],
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
     checkout = if gift_code && LightekCommerce::NetworkCheckout.connected?(order)
@@ -188,6 +206,7 @@ class CommerceController < ApplicationController
     record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
     session.delete(cart_key)
     session.delete(discount_key)
+    session.delete(shipping_discount_key)
     redirect_to_payment(checkout, order, instance_cart)
   rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable,
     LightekCommerce::BuyerFees::Invalid, LightekCommerce::GiftCheckout::Invalid, ActiveRecord::RecordInvalid => e
@@ -304,6 +323,34 @@ class CommerceController < ApplicationController
     end
   rescue LightekCommerce::Discounts::Invalid, LightekCommerce::BuyerFees::Invalid => error
     @discount_error = error.message
+  end
+
+  def shipping_discount_key = "lightek_commerce_shipping_promotion_#{@site.id}"
+
+  def show_shipping_promotions
+    @shipping_promotions = {}
+    service = LightekCommerce::ShippingPromotion
+    config = service.settings(@site)
+    return unless config['enabled'] == true
+
+    @shipping_code_enabled = config['code'].present?
+    code = session[shipping_discount_key]
+    @shipping_code_applied = service.valid_code?(@site, code)
+    return unless @shipping_quotes.any?
+
+    items = @products.select { |product| @cart.keys.any? { |key| key.split(':').first == product.id.to_s } }
+    return unless items.any? { |product| product.product_type == 'physical' } &&
+      items.all? { |product| LightekCommerce::BuyerFees.eligible?(product) && product.billing_interval == 'one_time' }
+
+    _, subtotal = LightekCommerce::BuyerFees.cart_price(products: items, requested: @cart, price_only: true)
+    subtotal -= @discount_cents.to_i
+    fee = @buyer_fee_cart ? LightekCommerce::BuyerFees.quote_amount(subtotal) : {}
+    @shipping_quotes.each do |quote|
+      savings = service.savings(site: @site, quote: quote, subtotal: subtotal, buyer_fee: fee, merchandise_discount: @discount, code: code)
+      @shipping_promotions[quote.id] = service.signed_review(@site, quote, savings) if savings.positive?
+    end
+  rescue LightekCommerce::BuyerFees::Invalid
+    @shipping_promotions = {}
   end
 
   def show_buyer_fee_prices

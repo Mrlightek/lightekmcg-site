@@ -4,7 +4,7 @@ class Dashboard::SalesPartnersController < Dashboard::SalesController
   skip_before_action :set_kind
   before_action :require_site_owner!, except: :materials
   include LightekIdentity::SensitiveSession
-  before_action :require_sensitive_session!, only: %i[link_recipient prepare_commission release_commission refresh_commission]
+  before_action :require_sensitive_session!, only: %i[link_recipient invite_payout_setup verify_payout_sender prepare_commission release_commission refresh_commission]
   helper NevaehHelpHelper
 
   rescue_from ActiveRecord::RecordInvalid do |error|
@@ -51,6 +51,31 @@ class Dashboard::SalesPartnersController < Dashboard::SalesController
       partner.update!(revoked_at: Time.current) unless partner.revoked_at?
     end
     redirect_to dashboard_sales_partners_path(site_id: @site.id), notice: 'Referral link revoked.', status: :see_other
+  end
+
+  def invite_payout_setup
+    email = params.require(:recipient).permit(:email).fetch(:email).to_s.strip.downcase
+    partner = @site.with_lock do
+      require_site_owner!
+      record = partners.active.find(params[:id])
+      if record.payout_setup_started_at? || record.payout_recipient_ref?
+        raise ArgumentError, 'Payout setup has already started for this partner.'
+      end
+      unless email.match?(URI::MailTo::EMAIL_REGEXP)
+        raise ArgumentError, 'Enter the email address the partner uses to sign in.'
+      end
+
+      record.update!(payout_email: email, payout_invited_by: current_user)
+      record
+    end
+    SalesPartnerPayoutMailer.setup(partner.id, email, current_user.id).deliver_later
+    payout_redirect('Payout invitation queued for delivery.')
+  end
+
+  def verify_payout_sender
+    adapter = DymondBank::WorkforcePayouts.new(employer: current_user)
+    adapter.verify_sender!
+    payout_redirect('Dymond Bank verified access to the configured payout sender.')
   end
 
   def link_recipient

@@ -1,0 +1,29 @@
+<% content_for :title, 'Set up commission payouts' %>
+<main class="auth-shell">
+  <section class="auth-story">
+    <%= render 'authentication/brand' %>
+    <div class="auth-story-copy"><h2>Partner payouts</h2></div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1>Set up commission payouts</h1>
+      <p class="auth-intro"><%= @partner.name %></p>
+      <% if @ready %>
+        <p role="status">Your bank account is ready to receive commission payouts.</p>
+      <% else %>
+        <p class="auth-intro">Enter or verify your bank details in the secure payout form. You’ll return here to check your status.</p>
+        <%= form_with url: sales_partner_payout_setup_path(id: @partner.id), data: {turbo: false} do |form| %>
+          <% unless @partner.payout_user_id? %>
+            <%= hidden_field_tag :setup_token, @token %>
+            <div class="auth-field">
+              <%= form.label :entity_type, 'Who will receive the payment?' %>
+              <%= form.select :entity_type, [['An individual', 'individual'], ['A business', 'company']],
+                {prompt: 'Choose a recipient type'}, required: true, class: 'auth-input auth-input-plain' %>
+            </div>
+          <% end %>
+          <%= form.submit 'Set up payouts', class: 'auth-submit' %>
+        <% end %>
+      <% end %>
+    </div>
+  </section>
+</main>

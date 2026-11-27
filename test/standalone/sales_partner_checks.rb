@@ -334,3 +334,115 @@ class SalesPartnerDisbursementChecks < SalesPartnerChecks
     refute @credit.reload.paid_at?
   end
 end
+
+require ROOT.join('app/services/lightek_sales/partner_payout_onboarding')
+require ROOT.join('app/controllers/sales_partner_payouts_controller')
+SalesPartnerPayoutsController.prepend_view_path ROOT.join('app/views')
+SalesPartnerPayoutsController.layout false
+class SalesPartnerPayoutsController
+  skip_before_action :require_settings_operator!
+  helper_method :authentication_branding
+  def authentication_branding = OpenStruct.new(name: 'Lightek Test', logo_url: nil, platform?: true)
+end
+class Current < ActiveSupport::CurrentAttributes
+  attribute :session
+end unless defined?(Current)
+
+class SalesPartnerOnboardingChecks < SalesPartnerChecks
+  def self.runnable_methods = instance_methods.grep(/^test_partner_onboarding_/).map(&:to_s)
+
+  class Provider
+    attr_accessor :active, :timeout, :sender
+    attr_reader :created, :linked
+
+    def initialize
+      @created, @linked = [], []
+      @sender = 'fa_commission'
+    end
+
+    def partner_sender = {sender_ref: sender, live: false}
+
+    def create_partner_recipient!(partner)
+      @created << [partner.payout_email, partner.payout_entity_type, partner.referral_code]
+      raise DymondBank::WorkforcePayouts::ProviderError, 'Provider timeout' if timeout
+
+      'acct_payoutrecipient'
+    end
+
+    def partner_recipient!(reference:, email:)
+      unless active && reference == 'acct_payoutrecipient' && email == 'sales@example.test'
+        raise DymondBank::WorkforcePayouts::Unavailable, 'Recipient is pending'
+      end
+    end
+
+    def partner_onboarding_link!(**args)
+      @linked << args
+      'https://connect.stripe.com/setup/fixture'
+    end
+  end
+
+  def setup
+    super
+    LightekSales::Partner.generated_token_verifier ||= ActiveSupport::MessageVerifier.new('test-only-signing-secret')
+    @partner.update!(payout_email: @member.email_address, payout_invited_by: @owner)
+    @invite = @partner.generate_token_for(:payout_setup)
+    @provider = Provider.new
+  end
+
+  def onboarding(actor: @member, invite: @invite)
+    LightekSales::PartnerPayoutOnboarding.new(actor: actor, partner: @partner.reload, token: invite, adapter: @provider)
+  end
+
+  def start(service = onboarding, entity_type: 'company')
+    service.start!(return_url: 'https://lightek.test/payouts', refresh_url: 'https://lightek.test/payouts',
+      entity_type: entity_type)
+  end
+
+  def test_partner_onboarding_http_creates_links_and_reports_active
+    host! @site.host
+    https!
+    path = sales_partner_payout_setup_path(id: @partner.id)
+    DymondBank::WorkforcePayouts.stub(:new, @provider) do
+      assert_raises(ActiveRecord::RecordNotFound) do
+        get sales_partner_payout_setup_path(id: @partner.id, setup_token: @invite), headers: headers(@other)
+      end
+      get sales_partner_payout_setup_path(id: @partner.id, setup_token: @invite), headers: headers(@member)
+      assert_response :success
+      assert_equal 'no-referrer', response.headers['Referrer-Policy']
+      assert_select 'h1', 'Set up commission payouts'
+      assert_raises(ActionController::InvalidAuthenticityToken) do
+        post path, params: {setup_token: @invite, entity_type: 'company'}, headers: headers(@member)
+      end
+      post path, params: {setup_token: @invite, entity_type: 'company'},
+        headers: headers(@member).merge('X-CSRF-Token' => token(@member))
+      assert_redirected_to 'https://connect.stripe.com/setup/fixture'
+      assert_equal @member.id, @partner.reload.payout_user_id
+      assert_equal 'acct_payoutrecipient', @partner.payout_recipient_ref
+      assert_equal @site.host, URI.parse(@provider.linked.last.fetch(:return_url)).host
+      refute_includes @provider.linked.last.fetch(:return_url), @invite
+
+      post path, headers: headers(@member).merge('X-CSRF-Token' => token(@member))
+      assert_redirected_to 'https://connect.stripe.com/setup/fixture'
+      assert_equal 1, @provider.created.length
+      @provider.active = true
+      get path, headers: headers(@member)
+      assert_response :success
+      assert_select '[role="status"]', /ready to receive/
+    end
+  end
+
+  def test_partner_onboarding_first_attempt_is_durable_and_replays_same_recipient
+    @provider.timeout = true
+    assert_raises(DymondBank::WorkforcePayouts::ProviderError) { start }
+    assert @partner.reload.payout_setup_started_at?
+    assert_equal @member.id, @partner.payout_user_id
+    refute @partner.payout_recipient_ref?
+    @provider.timeout = false
+    assert_equal 'https://connect.stripe.com/setup/fixture', start(onboarding(invite: nil), entity_type: 'individual')
+    assert_equal [@provider.created.first] * 2, @provider.created
+    @provider.sender = 'fa_wrong_sender'
+    assert_raises(LightekSales::PartnerPayoutOnboarding::Invalid) { start(onboarding(invite: nil)) }
+    @partner.update!(revoked_at: Time.current)
+    assert_raises(ActiveRecord::RecordNotFound) { start(onboarding(invite: nil)) }
+  end
+end

@@ -29,6 +29,10 @@ get '/dashboard/sales/materials', to: 'dashboard/sales_partners#materials', as: 
 get '/dashboard/sales/partners', to: 'dashboard/sales_partners#index', as: :dashboard_sales_partners
 post '/dashboard/sales/partners', to: 'dashboard/sales_partners#create'
 post '/dashboard/sales/partners/:id/revoke', to: 'dashboard/sales_partners#revoke', as: :revoke_dashboard_sales_partner
+get '/sales/partner-payouts/:id', to: 'sales_partner_payouts#show', as: :sales_partner_payout_setup
+post '/sales/partner-payouts/:id', to: 'sales_partner_payouts#create'
+post '/dashboard/sales/partners/:id/payout-invitation', to: 'dashboard/sales_partners#invite_payout_setup', as: :invite_dashboard_sales_partner_payout
+post '/dashboard/sales/partners/payout-sender/verify', to: 'dashboard/sales_partners#verify_payout_sender', as: :verify_dashboard_sales_payout_sender
 post '/dashboard/sales/partners/:id/recipient', to: 'dashboard/sales_partners#link_recipient', as: :link_dashboard_sales_partner_recipient
 post '/dashboard/sales/commissions/:id/prepare', to: 'dashboard/sales_partners#prepare_commission', as: :prepare_dashboard_sales_commission
 post '/dashboard/sales/commission-payouts/:id/release', to: 'dashboard/sales_partners#release_commission', as: :release_dashboard_sales_commission_payout

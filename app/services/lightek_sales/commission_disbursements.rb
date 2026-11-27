@@ -24,6 +24,8 @@ module LightekSales
         @site.with_lock do
           authorize!
           partner = Partner.where(site: @site).find(partner.id)
+          raise Invalid, 'This partner is using Lightek payout setup.' if partner.payout_setup_started_at?
+
           sender = @adapter.partner_sender
           @adapter.partner_recipient!(reference: reference, email: email)
           partner.update!(payout_email: email, payout_recipient_ref: reference,

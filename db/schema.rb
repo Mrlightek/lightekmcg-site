@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4181,6 +4181,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_120000) do
     t.string "payout_recipient_ref"
     t.string "payout_sender_ref"
     t.boolean "payout_live"
+    t.bigint "payout_user_id"
+    t.bigint "payout_invited_by_id"
+    t.string "payout_entity_type"
+    t.datetime "payout_setup_started_at"
+    t.index ["payout_invited_by_id"], name: "index_lightek_sales_partners_on_payout_invited_by_id"
+    t.index ["payout_user_id"], name: "index_lightek_sales_partners_on_payout_user_id"
     t.index ["product_id"], name: "index_lightek_sales_partners_on_product_id"
     t.index ["referral_code"], name: "index_lightek_sales_partners_on_referral_code", unique: true
     t.index ["site_id"], name: "index_lightek_sales_partners_on_site_id"
@@ -7812,6 +7818,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_120000) do
   add_foreign_key "lightek_sales_opportunities", "users", column: "owner_id"
   add_foreign_key "lightek_sales_partners", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_partners", "lightek_commerce_products", column: "product_id"
+  add_foreign_key "lightek_sales_partners", "users", column: "payout_invited_by_id"
+  add_foreign_key "lightek_sales_partners", "users", column: "payout_user_id"
   add_foreign_key "lightek_sales_prospecting_cadences", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_quotes", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_quotes", "lightek_commerce_orders", column: "order_id"

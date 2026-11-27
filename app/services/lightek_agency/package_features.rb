@@ -1,7 +1,7 @@
 require 'uri'
 module LightekAgency
   class PackageFeatures
-    PUBLIC_BASELINE = %w[sessions passwords account_setups identity_security identity_challenges identity_onboarding identity_sso installations dashboard/installations dashboard/client_home dashboard/account_settings dashboard/settings_home dashboard/appearance_colors supports commerce_stripe_webhooks api/reservation_federation api/commerce_network api/connect_instance gatekeeper/callbacks gatekeeper/fleet_health].freeze
+    PUBLIC_BASELINE = %w[sales_partner_payouts sessions passwords account_setups identity_security identity_challenges identity_onboarding identity_sso installations dashboard/installations dashboard/client_home dashboard/account_settings dashboard/settings_home dashboard/appearance_colors supports commerce_stripe_webhooks api/reservation_federation api/commerce_network api/connect_instance gatekeeper/callbacks gatekeeper/fleet_health].freeze
     PREFIXES = {
       'studio' => %w[dymond_studio dashboard/media_studio dashboard/studio_ api/studio],
       'live' => %w[dashboard/live_broadcasts], 'rooms' => %w[dashboard/rooms dashboard/session_media session_rooms],

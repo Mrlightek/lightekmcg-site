@@ -63,6 +63,124 @@ class CommerceNetworkTest < CommerceHostingTest
     assert_equal "receipt-1", order.network_reference
     assert_equal 2500, captured.sole.last.dig(:body, :checkout, :items).sole[:unit_price_cents]
   end
+  def test_agency_and_client_store_keep_their_own_principal_on_buyer_fee_sales
+    saved_hosts = ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS']
+    saved_tax = ENV['LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE']
+    ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'] = @site.host
+    ENV['LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE'] = 'txcd_10000000'
+
+    values = attributes
+    values['buyer_price_cents'] = 10_600
+    values['items'].sole['unit_price_cents'] = 10_000
+    values['merchant_chain'].last['upstream_share_bps'] = 0
+    agency_sale = reserve(values)
+    assert_equal agency_sale.id, reserve(values).id
+    values['source_key'] = 'b' * 64
+    values['merchant_chain'] << {'subject' => 'client', 'email' => 'merchant@example.com',
+      'role' => 'client', 'upstream_share_bps' => 0}
+    client_sale = reserve(values)
+    assert_equal agency_sale.order.site.tenant, client_sale.order.site.tenant.agency
+    refute_equal agency_sale.order.site_id, client_sale.order.site_id
+
+    [agency_sale, client_sale].each do |sale|
+      order = sale.order
+      assert_equal 10_600, order.total_cents
+      assert_equal 600, order.buyer_fee_cents
+      assert_equal 10_000, LightekCommerce::MerchantPayouts.fee_quote(order)[:net_cents]
+      Stripe::Checkout::Session.stub(:create, ->(params, _) {
+        assert_equal [10_000, 600], params[:line_items].map { |item| item[:price_data][:unit_amount] }
+        OpenStruct.new(id: "cs_#{sale.id}", url: 'https://checkout.stripe.com/c/test')
+      }) do
+        receipt = LightekCommerce::NetworkGateway.checkout!(sale)
+        assert_equal 600, receipt[:buyer_fee_cents]
+      end
+    end
+
+    values['buyer_price_cents'] = 10_800
+    assert_raises(ArgumentError) { reserve(values) }
+    values['source_key'] = 'c' * 64
+    assert_raises(LightekCommerce::BuyerFees::Invalid) { reserve(values) }
+    values['buyer_price_cents'] = 10_600
+    values['merchant_chain'].last['upstream_share_bps'] = 500
+    assert_raises(LightekCommerce::BuyerFees::Invalid) { reserve(values) }
+    values['merchant_chain'].last['upstream_share_bps'] = 0
+    ENV.delete('LIGHTEK_COMMERCE_BUYER_FEE_HOSTS')
+    assert_raises(LightekCommerce::BuyerFees::Invalid) { reserve(values) }
+    assert_equal 2, LightekCommerce::NetworkSale.count
+  ensure
+    ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'] = saved_hosts
+    ENV['LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE'] = saved_tax
+  end
+
+  def test_federated_embedded_checkout_uses_the_central_payment_session
+    sale = reserve
+    checkout = OpenStruct.new(id: 'cs_embedded_network', ui_mode: 'embedded_page', status: 'open',
+      client_secret: 'cs_embedded_network_secret_example', metadata: LightekCommerce::PaymentIdentity.metadata(sale.order))
+    stripe_checkout = LightekCommerce::StripeCheckout
+    gateway = LightekCommerce::NetworkGateway
+    stripe_checkout.stub(:embedded_publishable_key, 'pk_test_platform') do
+      Stripe::Checkout::Session.stub(:create, ->(params, _) {
+        assert_equal 'embedded_page', params[:ui_mode]
+        assert_equal sale.return_url, params[:return_url]
+        refute params.key?(:success_url)
+        checkout
+      }) do
+        assert_equal({key: sale.public_key, buyer_fee_cents: 0, embedded: true}, gateway.checkout!(sale, embedded: true))
+      end
+
+      local = order_for(product(billing_interval: 'one_time'))
+      calls = []
+      bridge = Object.new
+      bridge.define_singleton_method(:request) do |path, **options|
+        calls << [path, options]
+        if path == 'commerce/checkouts'
+          {key: sale.public_key, embedded: true}.stringify_keys
+        else
+          gateway.embedded_session!(sale).stringify_keys
+        end
+      end
+      LightekReservations::Federation::Client.stub(:config, {'client_host' => @site.host}) do
+        LightekCommerce::NetworkCheckout.stub(:client, bridge) do
+          assert stripe_checkout.embedded_for?(local, network: true)
+          assert_nil LightekCommerce::NetworkCheckout.start!(order: local, embedded: true).url
+          assert_equal true, calls.first.last.dig(:body, :checkout, :embedded)
+          Stripe::Checkout::Session.stub(:retrieve, checkout) do
+            session, public_key = LightekCommerce::NetworkCheckout.embedded_session!(local)
+            assert_equal checkout.client_secret, session.client_secret
+            assert_equal 'pk_test_platform', public_key
+          end
+          assert_equal ["commerce/orders/#{sale.public_key}/embedded-checkout", {method: :post}], calls.last
+        end
+      end
+    end
+  end
+
+  def test_store_requires_the_confirmed_fee_in_the_network_checkout_and_receipt
+    quote = LightekCommerce::BuyerPrice.quote(merchant_cents: 2500).stringify_keys
+    order = LightekCommerce::Order.create!(site: @site, customer_email: 'buyer@example.com',
+      subtotal_cents: 2500, total_cents: quote.fetch('buyer_cents'), buyer_fee_snapshot: quote)
+    item = product(billing_interval: 'one_time')
+    order.items.create!(product: item, name: item.name, quantity: 1, unit_price_cents: 2500, line_total_cents: 2500)
+    checkout = {'key' => SecureRandom.uuid, 'url' => 'https://checkout.stripe.com/c/test'}
+    receipt = network_receipt.except('subscription', 'invoices')
+    bridge = Object.new
+    bridge.define_singleton_method(:request) { |path, **| path == 'commerce/checkouts' ? checkout : receipt }
+
+    LightekReservations::Federation::Client.stub(:config, {'client_host' => @site.host}) do
+      LightekCommerce::NetworkCheckout.stub(:client, bridge) do
+        assert_raises(LightekCommerce::StripeCheckout::Unavailable) { LightekCommerce::NetworkCheckout.start!(order: order) }
+        assert_nil order.reload.network_reference
+        checkout['buyer_fee_cents'] = order.buyer_fee_cents
+        LightekCommerce::NetworkCheckout.start!(order: order)
+
+        assert_raises(LightekCommerce::StripeCheckout::Unavailable) { LightekCommerce::NetworkCheckout.synchronize!(order) }
+        refute order.reload.paid_at?
+        receipt.merge!('buyer_fee_cents' => order.buyer_fee_cents, 'tax_cents' => 100, 'total_cents' => order.total_cents + 100)
+        assert LightekCommerce::NetworkCheckout.synchronize!(order).paid_at?
+      end
+    end
+  end
+
   def test_client_rejects_an_untrusted_checkout_redirect
     order = order_for(product)
     fake = Object.new

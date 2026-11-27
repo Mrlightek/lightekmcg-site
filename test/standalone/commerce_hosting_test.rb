@@ -367,6 +367,9 @@ class CommerceHostingTest < Minitest::Test
     LightekCommerce::NetworkCheckout.stub(:connected?, true) do
       service.stub(:embedded_publishable_key, -> { flunk 'Federated checkouts do not use local credentials' }) do
         refute service.embedded_for?(order)
+        assert service.embedded_for?(order, network: true)
+        ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] = 'false'
+        refute service.embedded_for?(order, network: true)
       end
     end
   ensure

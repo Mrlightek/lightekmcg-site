@@ -34,6 +34,8 @@ class CommerceController < ApplicationController
     end
   rescue LightekCommerce::BuyerFees::Invalid => error
     render plain: error.message, status: :service_unavailable
+  rescue LightekCommerce::StripeCheckout::Unavailable, LightekReservations::Federation::Client::Unavailable
+    redirect_to commerce_shop_path(site_id: @site.id), alert: "Your payment status could not be confirmed. Check your receipt before trying again."
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
@@ -89,7 +91,7 @@ class CommerceController < ApplicationController
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
-    embedded = LightekCommerce::StripeCheckout.embedded_for?(order)
+    embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: completion_url(order, instance_cart), cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
     record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
@@ -120,8 +122,12 @@ class CommerceController < ApplicationController
     @completion_url = completion_url(order, context.last)
     return redirect_to @completion_url if order.paid_at?
 
-    @checkout = LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
-    @publishable_key = LightekCommerce::StripeCheckout.embedded_publishable_key
+    if order.payment_provider == 'network'
+      @checkout, @publishable_key = LightekCommerce::NetworkCheckout.embedded_session!(order)
+    else
+      @checkout = LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
+      @publishable_key = LightekCommerce::StripeCheckout.embedded_publishable_key
+    end
     render :embedded_checkout
   rescue LightekCommerce::StripeCheckout::Unavailable => error
     redirect_to commerce_shop_path(site_id: @site.id), alert: error.message

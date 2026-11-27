@@ -3,7 +3,7 @@ require "digest"
 module LightekCommerce
   class NetworkCheckout
     def self.connected?(order)
-      LightekReservations::Federation::Client.config(order.site).present? &&
+      LightekReservations::Federation::Client.config(order.site).present? && order.network_sale.nil? &&
         order.purpose.to_s.in?(["", "purchase"]) && order.items.none? { |item| item.product.product_type == "lightek_instance" }
     end
     def self.chain(site, merchant: site.tenant)
@@ -16,7 +16,7 @@ module LightekCommerce
       users.reverse.map { |user| {"subject" => "user-#{user.id}", "email" => user.email_address, "first_name" => user.first_name,
         "last_name" => user.last_name, "role" => user.role, "upstream_share_bps" => user.upstream_share_bps} }
     end
-    def self.start!(order:, **)
+    def self.start!(order:, embedded: false)
       config = LightekReservations::Federation::Client.config(order.site)
       host = config["client_host"].presence || ENV["LIGHTEK_DEPLOYED_SITE_HOST"].presence || order.site.host
       return_url = "https://#{host}/commerce/shop?#{URI.encode_www_form(site_id: order.site_id, order_id: order.id)}"
@@ -30,15 +30,46 @@ module LightekCommerce
         attributes[:shipping_quote_key] = order.shipping_quote.broker_reference
         attributes[:shipping_price_cents] = order.shipping_quote.customer_price_cents
       end
+      attributes[:buyer_price_cents] = order.buyer_fee_breakdown.fetch('buyer_cents') if order.buyer_fee_cents.positive?
+      attributes[:embedded] = true if embedded
       result = client(order).request("commerce/checkouts", method: :post, body: {checkout: attributes})
-      uri = URI.parse(result.fetch("url"))
-      raise StripeCheckout::Unavailable, "Invalid network checkout destination" unless uri.is_a?(URI::HTTPS) && !uri.userinfo &&
-        uri.port == 443 && (uri.host == "checkout.stripe.com" || uri.host == host)
-      order.update!(payment_provider: "network", payment_reference: result.fetch("key"), network_reference: result.fetch("key"))
-      OpenStruct.new(id: result.fetch("key"), url: uri.to_s)
+      if order.buyer_fee_cents.positive? && result['buyer_fee_cents'] != order.buyer_fee_cents
+        raise StripeCheckout::Unavailable, 'The checkout could not confirm the price shown in your cart.'
+      end
+
+      reference = result.fetch("key")
+      url = result['url']
+      if url.present?
+        uri = URI.parse(url)
+        raise StripeCheckout::Unavailable, "Invalid network checkout destination" unless uri.is_a?(URI::HTTPS) && !uri.userinfo &&
+          uri.port == 443 && (uri.host == "checkout.stripe.com" || uri.host == host)
+      elsif !embedded || result['embedded'] != true || !reference.to_s.match?(/\A[a-f0-9-]{36}\z/)
+        raise StripeCheckout::Unavailable, 'Network checkout did not confirm a payment session.'
+      end
+      order.update!(payment_provider: "network", payment_reference: reference, network_reference: reference)
+      OpenStruct.new(id: reference, url: uri&.to_s)
     rescue LightekReservations::Federation::Client::Unavailable, ArgumentError => error
       raise StripeCheckout::Unavailable, error.message
     end
+    def self.embedded_session!(order)
+      reference = order.network_reference.to_s
+      unless order.payment_provider == 'network' && reference.match?(/\A[a-f0-9-]{36}\z/)
+        raise StripeCheckout::Unavailable, 'This order does not have an embedded payment session.'
+      end
+
+      result = client(order).request("commerce/orders/#{reference}/embedded-checkout", method: :post)
+      secret = result['client_secret']
+      key = result['publishable_key']
+      unless result['key'] == reference && secret.is_a?(String) && secret.start_with?('cs_') &&
+          key.is_a?(String) && key.match?(/\Apk_(?:live|test)_/)
+        raise StripeCheckout::Unavailable, 'The embedded payment session could not be verified.'
+      end
+
+      [OpenStruct.new(client_secret: secret), key]
+    rescue LightekReservations::Federation::Client::Unavailable => error
+      raise StripeCheckout::Unavailable, error.message
+    end
+
     def self.client(order) = LightekReservations::Federation::Client.new(order.site)
     def self.action!(order:, action:, attributes: {})
       values = attributes.merge(invoice_reference: order.network_invoice_reference)
@@ -52,6 +83,10 @@ module LightekCommerce
       receipt = client(root).request("commerce/orders/#{root.network_reference}").deep_stringify_keys
       root.with_lock do
         raise StripeCheckout::Unavailable, "Network receipt does not match the reserved merchandise" unless receipt.fetch("subtotal_cents") == root.subtotal_cents
+        if root.buyer_fee_cents.positive? && (receipt['buyer_fee_cents'] != root.buyer_fee_cents ||
+            receipt['total_cents'] != root.subtotal_cents + root.buyer_fee_cents + receipt.fetch('tax_cents'))
+          raise StripeCheckout::Unavailable, 'Network receipt does not match the confirmed buyer price.'
+        end
         apply_order!(root, receipt)
         if (data = receipt["subscription"])
           subscription = root.commerce_subscription || Subscription.new(order: root)

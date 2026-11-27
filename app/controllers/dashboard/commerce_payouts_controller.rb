@@ -41,8 +41,14 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
 
   def bank_deposits
     load_merchant_site
+    if LightekReservations::Federation::Client.config(@site)
+      client = LightekReservations::Federation::Client.new(@site)
+      receipt = client.synchronize_payouts!(merchant: current_user)
+      return redirect_to client.commerce_finance_url(site_id: receipt['ledger_site_id']), allow_other_host: true
+    end
+
     @payouts = bank_deposit_service.list(after: params[:after])
-  rescue LightekCommerce::BankDeposits::Unavailable => error
+  rescue LightekCommerce::BankDeposits::Unavailable, LightekReservations::Federation::Client::Unavailable => error
     flash.now[:alert] = error.message
     render :bank_deposits, status: :unprocessable_entity
   end
@@ -71,8 +77,21 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
 
   def disputes
     load_merchant_order
+    if @order.payment_provider == 'network'
+      client = LightekCommerce::NetworkCheckout.client(@order)
+      links = client.request("commerce/orders/#{@order.network_reference}")
+      if @order.network_invoice_reference.present?
+        invoice = Array(links['invoices']).find { |row| row['reference'] == @order.network_invoice_reference }
+        links = invoice&.fetch('order') || {}
+      end
+      raise ActiveRecord::RecordNotFound unless links['ledger_order_id'].present?
+
+      return redirect_to client.commerce_finance_url(site_id: links['ledger_site_id'],
+        order_id: links['ledger_order_id']), allow_other_host: true
+    end
+
     @disputes = dispute_service.list
-  rescue LightekCommerce::MerchantDisputes::Unavailable => error
+  rescue LightekCommerce::MerchantDisputes::Unavailable, LightekReservations::Federation::Client::Unavailable => error
     flash.now[:alert] = error.message
     render :disputes, status: :unprocessable_entity
   end

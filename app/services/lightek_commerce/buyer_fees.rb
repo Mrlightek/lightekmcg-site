@@ -1,15 +1,18 @@
 # frozen_string_literal: true
 
 module LightekCommerce
-  # The first checkout scope is one local, unbundled digital product or service,
+  # The checkout scope is one unbundled digital product or service,
   # with no shipping, variants, subscription, infrastructure, or upstream shares.
   class BuyerFees
     class Invalid < StandardError; end
 
     def self.enabled?(site)
-      ENV.fetch('LIGHTEK_COMMERCE_BUYER_FEE_HOSTS', '').split(',').map { |host| host.strip.downcase }.include?(site.host.to_s.downcase) &&
-        site.tenant_type == 'User' && !LightekReservations::Federation::Client.config(site).present? &&
+      approved_host?(site.host) && site.tenant_type == 'User' &&
         RevenueSharing.snapshot_for(site.tenant).blank?
+    end
+
+    def self.approved_host?(host)
+      ENV.fetch('LIGHTEK_COMMERCE_BUYER_FEE_HOSTS', '').split(',').map { |entry| entry.strip.downcase }.include?(host.to_s.downcase)
     end
 
     def self.eligible?(product)
@@ -19,10 +22,14 @@ module LightekCommerce
     end
 
     def self.quote_for(product)
+      quote_amount(product.price_cents)
+    end
+
+    def self.quote_amount(merchant_cents)
       tax_code = ENV['LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE'].to_s
       raise Invalid, 'This checkout is waiting for fee tax configuration.' unless tax_code.match?(/\Atxcd_\d{8}\z/)
 
-      BuyerPrice.quote(merchant_cents: product.price_cents).stringify_keys.merge('tax_code' => tax_code)
+      BuyerPrice.quote(merchant_cents: merchant_cents).stringify_keys.merge('tax_code' => tax_code)
     rescue ArgumentError
       raise Invalid, 'This checkout is waiting for valid fee settings.'
     end

@@ -635,6 +635,7 @@ post "/dashboard/shipping/:key/cancel", to: "dashboard/shipping#cancel", as: :ca
 get "/dashboard/shipping/:key/label/:index", to: "dashboard/shipping#label", as: :label_dashboard_shipping
 post "/api/reservations/federation/commerce/checkouts", to: "api/commerce_network#checkout"
 get "/api/reservations/federation/commerce/orders/:key", to: "api/commerce_network#receipt"
+post "/api/reservations/federation/commerce/orders/:key/embedded-checkout", to: "api/commerce_network#embedded_checkout"
 post "/api/reservations/federation/commerce/orders/:key/fulfill", to: "api/commerce_network#fulfill"
 post "/api/reservations/federation/commerce/orders/:key/refund", to: "api/commerce_network#refund"
 post "/api/reservations/federation/commerce/orders/:key/payout", to: "api/commerce_network#payout"

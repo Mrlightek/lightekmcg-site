@@ -4,8 +4,10 @@ module LightekCommerce
     class Unavailable < StandardError; end
     EMBEDDED_MODE = 'embedded_page'
 
-    def self.embedded_for?(order)
-      return false if ENV.fetch('LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT', 'true') == 'false' || NetworkCheckout.connected?(order)
+    def self.embedded_for?(order, network: false)
+      return false if ENV.fetch('LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT', 'true') == 'false'
+
+      return network if NetworkCheckout.connected?(order)
 
       embedded_publishable_key.present?
     rescue Unavailable
@@ -30,9 +32,11 @@ module LightekCommerce
         raise Unavailable, "This package must complete setup before payment."
       end
       if NetworkCheckout.connected?(order)
-        raise Unavailable, 'This order requires its original local checkout.' if order.buyer_fee_cents.positive?
+        if order.payment_reference.present? && order.payment_provider != 'network'
+          return resume!(order: order, embedded: :either)
+        end
 
-        return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url)
+        return NetworkCheckout.start!(order: order, embedded: embedded)
       end
       return resume!(order: order, embedded: :either) if order.payment_reference.present?
 

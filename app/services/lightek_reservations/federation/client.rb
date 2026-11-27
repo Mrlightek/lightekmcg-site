@@ -23,7 +23,7 @@ module LightekReservations
       end
       def request(path, body: nil, method: :get)
         installation_operation = path.match?(%r{\Ainstallation/(?:team/(?:list|create|show|accept|disconnect|member|post)|office/(?:list|show|create|update|history|live|sync|restore)|mail/(?:provision|inbox|read|send)|voice/(?:status|checkout|device|cellular_activation))\z})
-        raise Unavailable, 'Invalid reservation operation' unless installation_operation || path.match?(%r{\Abroadcast/(?:channels/[0-9a-f]{32}|programs(?:/[0-9a-f]{32}/(?:accept|status|withdraw))?)\z}) || path.match?(%r{\Aads/(?:catalog|sales|offers/[a-f0-9-]{36}|placements/[a-f0-9-]{36})\z}) || path.match?(%r{\Astudio/cpu(?:/[0-9a-f]{48}(?:/(?:resume|cancel))?)?\z}) || path.match?(%r{\A(?:pwa/publications|pwa/member-session|pwa/youtube(?:/[0-9a-f-]{36})?|connect/(?:redeem|validate)|commerce/checkouts|commerce/connect|commerce/summary|commerce/orders/[a-f0-9-]{36}(?:/(?:fulfill|refund|payout|cancel-subscription))?|shipping/quotes(?:/[a-f0-9-]{36}/(?:purchase|status|cancel|labels/[0-9]+))?|catalog|offers|intents|reservations/[a-zA-Z0-9_-]{1,64}|payouts)\z})
+        raise Unavailable, 'Invalid reservation operation' unless installation_operation || path.match?(%r{\Abroadcast/(?:channels/[0-9a-f]{32}|programs(?:/[0-9a-f]{32}/(?:accept|status|withdraw))?)\z}) || path.match?(%r{\Aads/(?:catalog|sales|offers/[a-f0-9-]{36}|placements/[a-f0-9-]{36})\z}) || path.match?(%r{\Astudio/cpu(?:/[0-9a-f]{48}(?:/(?:resume|cancel))?)?\z}) || path.match?(%r{\A(?:pwa/publications|pwa/member-session|pwa/youtube(?:/[0-9a-f-]{36})?|connect/(?:redeem|validate)|commerce/checkouts|commerce/connect|commerce/summary|commerce/orders/[a-f0-9-]{36}(?:/(?:fulfill|refund|payout|cancel-subscription|embedded-checkout))?|shipping/quotes(?:/[a-f0-9-]{36}/(?:purchase|status|cancel|labels/[0-9]+))?|catalog|offers|intents|reservations/[a-zA-Z0-9_-]{1,64}|payouts)\z})
         secret = LightekVault::Service.checkout!(slug: @config.fetch('credential_slug'), consumer: CONSUMER,
           purpose: 'reservation_federation', requested_by: 'reservation-network')
         uri = @origin.dup; uri.path = "/api/reservations/federation/#{path}"
@@ -150,6 +150,17 @@ module LightekReservations
         end
         data
       end
+      def commerce_finance_url(site_id:, order_id: nil)
+        unless site_id.to_s.match?(/\A[1-9]\d*\z/) && (order_id.nil? || order_id.to_s.match?(/\A[1-9]\d*\z/))
+          raise Unavailable, 'The payment record could not be located.'
+        end
+
+        uri = @origin.dup
+        uri.path = order_id ? "/dashboard/commerce/orders/#{order_id}/disputes" : '/dashboard/commerce/bank-deposits'
+        uri.query = URI.encode_www_form(site_id: site_id)
+        uri.to_s
+      end
+
       def checkout(attributes)
         data = request('intents', body: attributes, method: :post)
         # Remote responses cannot redirect users to a third-party origin.

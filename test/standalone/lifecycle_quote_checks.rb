@@ -1,5 +1,6 @@
 gem "minitest", "~>5.0"
 require 'minitest/mock'
+require 'ostruct'
 require_relative 'sales_intake_checks'
 require ROOT.join('db/migrate/20261113160000_create_lightek_people_and_payroll')
 CreateLightekPeopleAndPayroll.new.migrate(:up)

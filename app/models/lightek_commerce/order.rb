@@ -9,7 +9,7 @@ module LightekCommerce
     after_update_commit :queue_buyer_fee_reversal, if: -> { saved_change_to_status? && status == 'refunded' }
 
     def queue_buyer_fee_reversal
-      return unless buyer_fee_cents.positive? && merchant_transfer_ref.present? && defined?(BuyerFeeReversalJob)
+      return unless payment_provider != "network" && buyer_fee_cents.positive? && merchant_transfer_ref.present? && defined?(BuyerFeeReversalJob)
 
       BuyerFeeReversalJob.perform_later(id)
     rescue StandardError => error

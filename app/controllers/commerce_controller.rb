@@ -160,7 +160,8 @@ class CommerceController < ApplicationController
 
   def buy_gift_card
     order = LightekCommerce::GiftCards.purchase!(site: @site, buyer: current_user,
-      customer_email: current_user.email_address, denomination: params[:denomination])
+      customer_email: current_user.email_address, denomination: params[:denomination],
+      recipient_email: params[:gift_recipient_email], delivery_date: params[:gift_delivery_date])
     embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
     checkout = if LightekCommerce::NetworkCheckout.connected?(order)
       LightekCommerce::NetworkCheckout.start!(order: order, embedded: embedded)

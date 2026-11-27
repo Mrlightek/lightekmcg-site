@@ -67,6 +67,22 @@ class CommerceNetworkTest < CommerceHostingTest
     end
   end
 
+  def test_network_gift_purchase_preserves_recipient_and_scheduled_time_on_replay
+    with_gift_store do
+      scheduled = 2.days.from_now.utc.iso8601
+      payload = attributes.merge('gift_order_purpose' => 'gift_card_purchase', 'gift_store_key' => 'f' * 64,
+        'gift_recipient_email' => 'recipient@example.test', 'gift_deliver_at' => scheduled,
+        'items' => [{'name' => 'Gift card', 'quantity' => 1, 'unit_price_cents' => 2500, 'product_type' => 'digital',
+          'billing_interval' => 'one_time'}])
+      order = reserve(payload).order
+      assert order.managed_gift_delivery?
+      assert_equal 'recipient@example.test', order.gift_recipient_email
+      assert_equal scheduled, order.gift_deliver_at.utc.iso8601
+      assert_equal order.id, reserve(payload).order.id
+      assert_raises(ArgumentError) { reserve(payload.merge('gift_recipient_email' => 'different@example.test')) }
+    end
+  end
+
   def test_network_gift_reference_is_saved_before_the_platform_applies_tender
     with_gift_store do
       order = gift_merchandise_order(3000)

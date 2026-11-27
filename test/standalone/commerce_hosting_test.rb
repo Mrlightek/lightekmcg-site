@@ -290,6 +290,9 @@ require Rails.root.join('db/migrate/20261127184000_create_commerce_customer_segm
 CreateCommerceCustomerSegments.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127185000_record_merchant_funded_shipping_discounts')
 RecordMerchantFundedShippingDiscounts.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127190000_add_commerce_gift_card_delivery')
+AddCommerceGiftCardDelivery.new.migrate(:up)
+require Rails.root.join('app/services/lightek_commerce/gift_delivery')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -307,6 +310,12 @@ require Rails.root.join('app/services/lightek_commerce/merchant_disputes')
 require Rails.root.join('app/services/lightek_commerce/buyer_fees')
 class ApplicationJob < ActiveJob::Base; end unless defined?(ApplicationJob)
 require Rails.root.join('app/jobs/lightek_shipping/label_job')
+require Rails.root.join('app/jobs/lightek_commerce/gift_delivery_job')
+module LightekCommerce
+  class OrderMailer
+    def self.gift_delivered(*) = raise('Unexpected gift delivery')
+  end
+end
 require Rails.root.join('app/jobs/lightek_commerce/buyer_fee_reversal_job')
 require Rails.root.join('db/migrate/20261127150000_create_lightek_commerce_dispute_cases')
 CreateLightekCommerceDisputeCases.new.migrate(:up)
@@ -1067,6 +1076,56 @@ class CommerceHostingTest < Minitest::Test
     assert_raises(discounts::Invalid) { discounts.quote(**inputs, buyer_id: nil) }
     partial.update!(status: 'refunded', refunded_cents: 2200)
     assert_raises(discounts::Invalid) { discounts.quote(**inputs, buyer_id: @operator.id) }
+  end
+
+  def test_scheduled_gift_card_delivery_waits_for_funding_and_delivers_once
+    with_gift_store do
+      Time.use_zone('Eastern Time (US & Canada)') do
+        cards = LightekCommerce::GiftCards
+        receiver = 'Recipient@example.test'
+        inputs = {site: @site, buyer: @operator, customer_email: @operator.email_address, denomination: 2500,
+          recipient_email: receiver}
+        assert_raises(cards::Invalid) { cards.purchase!(**inputs, delivery_date: Date.current.prev_day.iso8601) }
+        assert_raises(cards::Invalid) { cards.purchase!(**inputs.merge(recipient_email: 'not-an-email')) }
+        order = cards.purchase!(**inputs, delivery_date: (Date.current + 2).iso8601)
+        assert_equal receiver, order.gift_recipient_email
+        assert_equal 9, order.gift_deliver_at.in_time_zone.hour
+        job = LightekCommerce::GiftDeliveryJob.new
+        job.perform(order.id)
+        refute order.reload.gift_delivered_at?
+
+        order.update!(status: 'fulfilled', paid_at: Time.current)
+        LightekCommerce::GiftCard.issue!(order, livemode: false)
+        job.perform(order.id)
+        refute order.reload.gift_delivered_at?
+
+        message = Minitest::Mock.new
+        message.expect(:deliver_now, true)
+        LightekCommerce::OrderMailer.stub(:gift_delivered, ->(id) {
+          assert_equal order.id, id
+          message
+        }) do
+          Time.stub(:current, order.gift_deliver_at + 1.second) do
+            job.perform(order.id)
+            job.perform(order.id)
+          end
+        end
+        message.verify
+        assert order.reload.gift_delivered_at?
+      end
+    end
+  end
+
+  def test_scheduled_gift_card_delivery_excludes_revoked_cards
+    with_gift_store do
+      order = LightekCommerce::GiftCards.purchase!(site: @site, buyer: @operator, customer_email: @operator.email_address,
+        denomination: 2500, recipient_email: 'recipient@example.test')
+      order.update!(status: 'fulfilled', paid_at: Time.current)
+      card = LightekCommerce::GiftCard.issue!(order, livemode: false)
+      card.update!(revoked_at: Time.current, available_cents: 0)
+      LightekCommerce::GiftDeliveryJob.new.perform(card.purchase_order_id)
+      refute card.purchase_order.reload.gift_delivered_at?
+    end
   end
 
   def test_gift_card_liability_reconciles_available_reserved_refunded_and_voided_value

@@ -10,7 +10,7 @@ module LightekCommerce
       key = attrs.fetch("source_key")
       raise ArgumentError, "Invalid checkout identity" unless key.match?(/\A[a-f0-9]{64}\z/)
       return_url = return_url!(peer, attrs.fetch("return_url"))
-      stable = attrs.slice("customer_email", "items", "shipping_quote_key", "shipping_price_cents", "gift_order_purpose", "gift_store_key")
+      stable = attrs.slice("customer_email", "items", "shipping_quote_key", "shipping_price_cents", "gift_order_purpose", "gift_store_key", "gift_recipient_email", "gift_deliver_at")
       # Rails parameters preserve this value as a number for JSON requests.
       # Normalize equivalent numeric input before enforcing replay equality.
       if attrs.key?('buyer_price_cents')
@@ -66,6 +66,12 @@ module LightekCommerce
             raise ArgumentError, 'Invalid gift card purchase.'
           end
         end
+        delivery = {}
+        if stable.key?('gift_recipient_email') || stable.key?('gift_deliver_at')
+          raise ArgumentError, 'Gift delivery requires a gift card purchase' unless gift_purpose == GiftCards::PURCHASE
+
+          delivery = GiftDelivery.network_attributes(stable['gift_recipient_email'], stable['gift_deliver_at'])
+        end
         source_quote = nil
         quote = nil
         shipping = 0
@@ -92,7 +98,7 @@ module LightekCommerce
         end
         fee = buyer_fee_snapshot(peer: peer, merchant: merchant, subtotal: subtotal, buyer_price_cents: stable['buyer_price_cents'])
         order = Order.new(site: site, customer_email: attrs.fetch("customer_email"), subtotal_cents: subtotal,
-          shipping_cents: shipping - shipping_discount, stock_reserved: false, shipping_quote: quote)
+          shipping_cents: shipping - shipping_discount, stock_reserved: false, shipping_quote: quote, **delivery)
         order.shipping_discount_cents = shipping_discount if shipping_discount.positive?
         if gift_purpose
           order.purpose = gift_purpose

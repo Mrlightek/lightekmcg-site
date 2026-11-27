@@ -50,7 +50,8 @@ module LightekCommerce
         raise Rejected, "Checkout billing mode mismatch" unless session.mode == (interval == "one_time" ? "payment" : "subscription")
         SubscriptionEvents.register!(order: order, session: session) if session.mode == "subscription"
         if %w[paid fulfilled partially_refunded refunded].include?(order.status)
-          if order.gift_card_purchase? && order.status == 'fulfilled' && order.confirmation_sent_at.blank?
+          if order.gift_card_purchase? && order.status == 'fulfilled' &&
+              (!order.confirmation_sent_at? || (order.managed_gift_delivery? && !order.gift_delivered_at?))
             OrderConfirmationJob.perform_later(order.id)
           end
           LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport) && %w[paid fulfilled].include?(order.status)

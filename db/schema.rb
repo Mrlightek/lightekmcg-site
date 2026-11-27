@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_185000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1960,6 +1960,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_185000) do
     t.string "gift_store_scope"
     t.integer "gift_applied_cents", default: 0, null: false
     t.integer "shipping_discount_cents", default: 0, null: false
+    t.string "gift_recipient_email"
+    t.datetime "gift_deliver_at"
+    t.datetime "gift_delivered_at"
     t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_store_buyer"
     t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_storefront_buyer"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"

@@ -5,11 +5,13 @@ module LightekCommerce
     include GrowthAttributed
     before_validation(on: :create) { self.payment_namespace ||= PaymentIdentity.namespace(site) if site }
     self.table_name = "lightek_commerce_orders"
-    attr_readonly :buyer_fee_snapshot, :discount_cents, :discount_name, :shipping_discount_cents
+    attr_readonly :buyer_fee_snapshot, :discount_cents, :discount_name, :shipping_discount_cents, :gift_recipient_email, :gift_deliver_at
 
     def storefront_buyer_attributes
       has_attribute?(:storefront_buyer_id) ? {storefront_buyer_id: storefront_buyer_id} : {}
     end
+
+    def managed_gift_delivery? = has_attribute?(:gift_recipient_email) && gift_recipient_email.present?
 
     def gift_card_purchase? = purpose == 'gift_card_purchase'
     def gift_card_redemption? = purpose == 'gift_card_redemption'

@@ -37,6 +37,10 @@ module LightekCommerce
       if order.gift_card_purchase? || order.gift_card_redemption?
         attributes[:gift_order_purpose] = order.purpose
         attributes[:gift_store_key] = GiftCards.source_store_key(order.site)
+        if order.managed_gift_delivery?
+          attributes[:gift_recipient_email] = order.gift_recipient_email
+          attributes[:gift_deliver_at] = order.gift_deliver_at.utc.iso8601 if order.gift_deliver_at
+        end
         return start_gift!(order, attributes, host: host, embedded: embedded, code: gift_code, address: gift_address)
       end
       attributes[:embedded] = true if embedded
@@ -74,7 +78,8 @@ module LightekCommerce
           confirm_shipping_price!(order, result)
           reference = result.fetch('key')
           unless result['gift_ready'] == true && reference.to_s.match?(/\A[0-9a-f-]{36}\z/) &&
-              result['buyer_fee_cents'] == order.buyer_fee_cents
+              result['buyer_fee_cents'] == order.buyer_fee_cents &&
+              (!order.managed_gift_delivery? || result['gift_delivery_ready'] == true)
             raise StripeCheckout::Unavailable, 'The payment platform could not confirm the gift order.'
           end
           order.update!(payment_provider: 'network', payment_reference: reference, network_reference: reference)

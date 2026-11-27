@@ -35,12 +35,17 @@ module LightekCommerce
       "peer-#{peer.id}-#{key}"
     end
 
-    def self.purchase!(site:, buyer:, customer_email:, denomination:)
+    def self.purchase!(site:, buyer:, customer_email:, denomination:, recipient_email: nil, delivery_date: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, 'Gift card purchases are unavailable for this store.' unless enabled?(site)
       amount = Integer(denomination.to_s, 10)
       raise Invalid, 'Choose a listed gift card amount.' unless DENOMINATIONS.include?(amount)
 
+      delivery = if recipient_email.present? || delivery_date.present?
+        GiftDelivery.attributes(customer_email: customer_email, recipient_email: recipient_email, delivery_date: delivery_date)
+      else
+        {}
+      end
       site.with_lock do
         product = Product.find_or_create_by!(site: site, slug: "store-gift-card-#{amount}") do |item|
           item.assign_attributes(name: "Gift card ($#{amount / 100})", price_cents: amount, product_type: 'digital',
@@ -52,7 +57,7 @@ module LightekCommerce
         end
 
         order = Order.new(site: site, customer_email: customer_email.to_s.strip.downcase, purpose: PURCHASE,
-          stock_reserved: false, storefront_buyer_id: buyer.id, subtotal_cents: amount, total_cents: amount)
+          stock_reserved: false, storefront_buyer_id: buyer.id, subtotal_cents: amount, total_cents: amount, **delivery)
         order.save!
         order.items.create!(product: product, name: "Gift card ($#{amount / 100})", quantity: 1, unit_price_cents: amount,
           line_total_cents: amount, purchase_snapshot: {'billing_interval' => 'one_time', 'product_type' => 'digital'})

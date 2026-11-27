@@ -27,6 +27,13 @@ module LightekCommerce
     def self.fee_quote(order, gross_cents: nil)
       gross = gross_cents || order.total_cents.to_i
       merchandise = order.respond_to?(:subtotal_cents) ? order.subtotal_cents.to_i : gross
+      if order.respond_to?(:buyer_fee_breakdown) && (fee = order.buyer_fee_breakdown).present?
+        raise Invalid, "Buyer fee settlement does not match the order" unless merchandise == fee.fetch('merchant_cents')
+
+        return {gross_cents: gross, processor_reserve_cents: fee.fetch('processor_reserve_cents'),
+          platform_fee_cents: fee.fetch('network_cents'), infrastructure_reserve_cents: 0,
+          upstream_share_cents: 0, net_cents: merchandise}
+      end
       processor_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FEE_BPS", "300"))
       processor_fixed = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FIXED_CENTS", "30"))
       platform_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PLATFORM_FEE_BPS", "0"))
@@ -87,21 +94,22 @@ module LightekCommerce
         return order
       end
 
+      buyer_fee_order = order.buyer_fee_breakdown.present?
+      reserve_buyer_fee_release!(order, merchant) if buyer_fee_order
+
       transfer_error = nil
       order.with_lock do
-        raise Invalid, "Order does not belong to your store" unless
-          LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
+        authorize_release!(order, merchant)
         return order if order.merchant_transfer_ref.present?
-        reason = ineligible_reason(order)
-        raise Invalid, reason if reason
-        raise Invalid, "Platform funds have not been reconciled for earnings release" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
-        raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?
         DymondBank::StripeService.sync_connect_status!(merchant)
         raise Invalid, "Complete payout account verification before requesting funds" unless merchant.stripe_connect_ready?
         RevenueSharing.record!(order)
         quote = fee_quote(order)
         raise Invalid, "Net transfer amount is zero" unless quote[:net_cents].positive?
-        order.update!(merchant_transfer_requested_at: Time.current, merchant_transfer_error: nil)
+        if buyer_fee_order && order.buyer_fee_transfer_destination != merchant.stripe_connect_account_id
+          raise Invalid, 'The payout account changed. Reconcile the original earnings release.'
+        end
+        order.update!(merchant_transfer_requested_at: Time.current, merchant_transfer_error: nil) unless buyer_fee_order
         begin
           transfer = DymondBank::StripeService.create_transfer(
             amount_cents: quote.fetch(:net_cents),
@@ -123,5 +131,36 @@ module LightekCommerce
       raise transfer_error if transfer_error
       order
     end
+
+    def self.reserve_buyer_fee_release!(order, merchant)
+      order.with_lock do
+        authorize_release!(order, merchant)
+        return if order.merchant_transfer_ref.present?
+
+        merchant.reload
+        if order.merchant_transfer_requested_at
+          if order.merchant_transfer_requested_at < 22.hours.ago || order.buyer_fee_transfer_destination != merchant.stripe_connect_account_id
+            raise Invalid, 'Reconcile the previous transfer attempt before releasing these earnings.'
+          end
+        else
+          raise Invalid, 'Complete payout account setup before requesting funds.' if merchant.stripe_connect_account_id.blank?
+
+          order.update!(merchant_transfer_requested_at: Time.current,
+            buyer_fee_transfer_destination: merchant.stripe_connect_account_id, merchant_transfer_error: nil)
+        end
+      end
+    end
+
+    def self.authorize_release!(order, merchant)
+      raise Invalid, "Order does not belong to your store" unless
+        LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
+      return if order.merchant_transfer_ref.present?
+
+      reason = ineligible_reason(order)
+      raise Invalid, reason if reason
+      raise Invalid, "Platform funds have not been reconciled for earnings release" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
+      raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?
+    end
+    private_class_method :authorize_release!, :reserve_buyer_fee_release!
   end
 end

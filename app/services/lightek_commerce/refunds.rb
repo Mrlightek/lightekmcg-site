@@ -24,6 +24,14 @@ module LightekCommerce
         pending = order.refunds.where(status: "pending").exists?
         raise Invalid, "Resolve the pending refund before another request" if pending
         raise Invalid, "Invalid refund amount" unless amount_cents.positive? && amount_cents <= order.total_cents - order.refunded_cents
+        if order.buyer_fee_cents.positive?
+          if amount_cents != order.total_cents - order.refunded_cents
+            raise Invalid, "Buyer-fee orders require a full refund, including the checkout fee."
+          end
+          if order.merchant_transfer_requested_at? && !order.merchant_transfer_ref?
+            raise Invalid, 'Reconcile the pending earnings release before refunding this order.'
+          end
+        end
         raise Invalid, "Stripe checkout missing" unless %w[stripe stripe_invoice].include?(order.payment_provider) && order.payment_reference.present?
         key = DymondBank::StripeCredentials.secret_key
         raise Invalid, "Stripe is not configured" if key.blank?

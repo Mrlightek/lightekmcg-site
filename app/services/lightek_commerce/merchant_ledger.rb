@@ -12,18 +12,26 @@ module LightekCommerce
 
       record = {
         gross_cents: order.total_cents, merchandise_cents: order.subtotal_cents,
+        buyer_checkout_fee_cents: order.buyer_fee_cents.presence, buyer_fee_refunded: order.buyer_fee_cents.positive? && order.status == 'refunded',
         taxes_cents: order.tax_cents, shipping_cents: order.shipping_cents,
         refunded_cents: order.refunded_cents, merchant_transfer_cents: order.merchant_transfer_amount_cents,
         merchant_transfer_ref: order.merchant_transfer_ref, merchant_transfer_at: order.merchant_transfer_completed_at,
         agency_shares_cents: order.revenue_allocations.sum(:amount_cents),
         agency_reversed_cents: order.revenue_allocations.sum(:reversed_cents)
       }
+      if record[:buyer_fee_refunded] && order.merchant_transfer_ref.present?
+        record[:buyer_fee_reversal_ref] = order.buyer_fee_reversal_ref
+        record[:buyer_fee_reversal_pending] = order.buyer_fee_reversal_ref.blank?
+      end
       return record if order.payment_provider == 'network'
 
       quote = MerchantPayouts.fee_quote(order)
       record.merge!(quote.slice(:processor_reserve_cents, :platform_fee_cents, :infrastructure_reserve_cents))
       if processor
         record.merge!(processor_receipt!(order))
+        if order.buyer_fee_cents.positive?
+          record[:platform_after_processing_cents] = order.buyer_fee_cents - record.fetch(:processor_actual_cents) unless record[:buyer_fee_refunded]
+        end
       end
       record
     end

@@ -8,7 +8,7 @@
       <h2>Order and earnings</h2>
       <dl>
         <% {
-          merchandise_cents: 'Merchandise', shipping_cents: 'Shipping', taxes_cents: 'Tax',
+          merchandise_cents: 'Merchandise', shipping_cents: 'Shipping', taxes_cents: 'Tax', buyer_checkout_fee_cents: 'Buyer checkout fee',
           gross_cents: 'Buyer paid or quoted', refunded_cents: 'Refunds recorded on order',
           processor_reserve_cents: 'Estimated processor reserve', platform_fee_cents: 'Estimated Lightek fee',
           infrastructure_reserve_cents: 'Estimated infrastructure reserve', agency_shares_cents: 'Recorded upstream shares',
@@ -20,6 +20,11 @@
           <% end %>
         <% end %>
       </dl>
+      <% if @ledger[:buyer_fee_reversal_ref] %>
+        <p>Merchant refund reversal <%= @ledger[:buyer_fee_reversal_ref] %></p>
+      <% elsif @ledger[:buyer_fee_reversal_pending] %>
+        <p>Merchant refund reversal is awaiting reconciliation.</p>
+      <% end %>
       <% if @ledger[:merchant_transfer_ref] %>
         <p>Transfer <%= @ledger[:merchant_transfer_ref] %> · <%= l(@ledger[:merchant_transfer_at].to_date) if @ledger[:merchant_transfer_at] %></p>
         <p>This is the release to the payout account. Bank deposit reconciliation is pending.</p>
@@ -32,6 +37,9 @@
         <% if @ledger.key?(:processor_actual_cents) %>
           <dl>
             <dt>Actual original fee</dt><dd><%= number_to_currency(@ledger[:processor_actual_cents] / 100.0) %></dd>
+            <% if @ledger.key?(:platform_after_processing_cents) %>
+              <dt>Buyer fee less actual processing</dt><dd><%= number_to_currency(@ledger[:platform_after_processing_cents] / 100.0) %></dd>
+            <% end %>
             <dt>Original processor net</dt><dd><%= number_to_currency(@ledger[:processor_net_cents] / 100.0) %></dd>
             <dt>Processor balance</dt><dd><%= @ledger[:processor_funds_state].capitalize %></dd>
             <% if @ledger[:processor_refunded_cents] %>

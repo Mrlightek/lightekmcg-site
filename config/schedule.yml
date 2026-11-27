@@ -210,3 +210,9 @@ release_assurance:
   class: "ReleaseAssurance::SweepJob"
   queue: release_assurance
   active_job: true
+
+lightek_buyer_fee_refund_reconciliation:
+  cron: "*/15 * * * *"
+  class: "LightekCommerce::BuyerFeeReversalJob"
+  queue: default
+  active_job: true

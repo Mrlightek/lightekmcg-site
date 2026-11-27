@@ -13,6 +13,7 @@ class CommerceController < ApplicationController
     end
     @products = LightekCommerce::Product.visible.where(site: @site)
     @cart = cart
+    show_buyer_fee_prices
     keys = Array(session["lightek_shipping_quotes_#{@site.id}"]).first(10)
     @shipping_quotes = LightekShipping::Quote.where(site: @site, public_key: keys).where("expires_at > ?", Time.current)
       .where(cart_fingerprint: LightekShipping::Quotes.fingerprint(@site, @cart))
@@ -31,6 +32,8 @@ class CommerceController < ApplicationController
       @page = Struct.new(:title,:theme,:sections).new("Shop",nil,[])
       render "commerce/index", layout: "lightek_design/website"
     end
+  rescue LightekCommerce::BuyerFees::Invalid => error
+    render plain: error.message, status: :service_unavailable
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
@@ -39,6 +42,12 @@ class CommerceController < ApplicationController
     end
 
     quantity = Integer(params.fetch(:quantity, 1).to_s, 10)
+    if ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].present? && LightekCommerce::BuyerFees.enabled?(@site)
+      buyer_fee_product = LightekCommerce::BuyerFees.eligible?(product)
+      if (buyer_fee_product && (quantity != 1 || cart.any?)) || fee_item_in_cart?
+        return redirect_to commerce_shop_path(site_id: @site.id), alert: 'Purchase this item on its own, one at a time.'
+      end
+    end
     seat_range = Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
     return select_workspace(product, quantity, seat_range) if seat_range
 
@@ -78,7 +87,7 @@ class CommerceController < ApplicationController
     end
     quantities, workspace_seats = checkout_selection
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
-      workspace_seats: workspace_seats, shipping_quote: quote,
+      workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     embedded = ENV['LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'] == 'true' && LightekCommerce::StripeCheckout.embedded_for?(order)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
@@ -93,7 +102,8 @@ class CommerceController < ApplicationController
     else
       redirect_to checkout.url, allow_other_host: true
     end
-  rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable, ActiveRecord::RecordInvalid => e
+  rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable,
+    LightekCommerce::BuyerFees::Invalid, ActiveRecord::RecordInvalid => e
     # A session was never handed to the customer; release the reserved stock.
     LightekCommerce::OrderPlacement.cancel!(order) if order&.persisted? && order.reload.payment_reference.blank? && order.status == "pending_payment"
     redirect_to commerce_shop_path(site_id: @site.id), alert: e.message
@@ -118,6 +128,32 @@ class CommerceController < ApplicationController
   end
 
   private
+
+  def show_buyer_fee_prices
+    return if ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].blank? || !LightekCommerce::BuyerFees.enabled?(@site)
+
+    @buyer_fee_prices = {}
+    @products.each do |product|
+      next unless LightekCommerce::BuyerFees.eligible?(product)
+
+      @buyer_fee_prices[product.id] = LightekCommerce::BuyerFees.quote_for(product)
+    end
+    selected = cart.keys.filter_map { |key| @buyer_fee_prices[key.split(':').first.to_i] }
+    return if selected.empty?
+
+    key, quantity = cart.first
+    if cart.size != 1 || key.include?(':') || quantity.to_i != 1
+      @buyer_fee_cart_invalid = true
+      return
+    end
+    @buyer_fee_cart = selected.first
+    @buyer_fee_token = LightekCommerce::BuyerFees.sign(@site, @products.find { |product| product.id == key.to_i }, @buyer_fee_cart)
+  end
+
+  def fee_item_in_cart?
+    LightekCommerce::Product.visible.where(site: @site, id: cart.keys.map { |key| key.split(':').first })
+      .any? { |product| LightekCommerce::BuyerFees.eligible?(product) }
+  end
 
   def completion_url(order, instance_cart)
     instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id)

@@ -5,6 +5,26 @@ module LightekCommerce
     include GrowthAttributed
     before_validation(on: :create) { self.payment_namespace ||= PaymentIdentity.namespace(site) if site }
     self.table_name = "lightek_commerce_orders"
+    attr_readonly :buyer_fee_snapshot
+    after_update_commit :queue_buyer_fee_reversal, if: -> { saved_change_to_status? && status == 'refunded' }
+
+    def queue_buyer_fee_reversal
+      return unless buyer_fee_cents.positive? && merchant_transfer_ref.present? && defined?(BuyerFeeReversalJob)
+
+      BuyerFeeReversalJob.perform_later(id)
+    rescue StandardError => error
+      Rails.logger.warn("Buyer fee refund reconciliation enqueue failed for order #{id}: #{error.class}")
+    end
+    private :queue_buyer_fee_reversal
+
+    def buyer_fee_breakdown
+      has_attribute?(:buyer_fee_snapshot) ? buyer_fee_snapshot.to_h : {}
+    end
+
+    def buyer_fee_cents
+      buyer_fee_breakdown.fetch('network_cents', 0) + buyer_fee_breakdown.fetch('processor_reserve_cents', 0)
+    end
+
     scope :visible, -> { where(deleted_at: nil) }
 
     def removable?

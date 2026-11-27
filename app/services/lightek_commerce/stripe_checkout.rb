@@ -25,7 +25,11 @@ module LightekCommerce
           !(defined?(LightekCommunications::FullPackage) && LightekCommunications::FullPackage.exists?(order_id: order.id))
         raise Unavailable, "This package must complete setup before payment."
       end
-      return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url) if NetworkCheckout.connected?(order)
+      if NetworkCheckout.connected?(order)
+        raise Unavailable, 'This order requires its original local checkout.' if order.buyer_fee_cents.positive?
+
+        return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url)
+      end
       return resume!(order: order, embedded: embedded) if order.payment_reference.present?
 
       embedded_publishable_key if embedded
@@ -48,6 +52,11 @@ module LightekCommerce
         {price_data: {currency: order.currency, unit_amount: item.unit_price_cents,
           product_data: {name: item.name}, **(recurring ? {recurring: {interval: interval}} : {})}, quantity: item.quantity}
       }
+      if order.buyer_fee_cents.positive?
+        line_items << {price_data: {currency: order.currency, unit_amount: order.buyer_fee_cents,
+          product_data: {name: 'Lightek checkout fee', tax_code: order.buyer_fee_breakdown.fetch('tax_code')},
+          tax_behavior: 'exclusive'}, quantity: 1}
+      end
       customer = {customer_email: order.customer_email}
       if order.shipping_quote && order.purpose != "shipping_label"
         raise Unavailable, "Shipping quote has expired" if order.shipping_quote.expires_at <= Time.current

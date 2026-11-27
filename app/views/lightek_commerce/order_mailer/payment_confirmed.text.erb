@@ -6,7 +6,8 @@ Items:
 <% end %>
 
 Subtotal: <%= number_to_currency(@order.subtotal_cents / 100.0) %>
-Shipping: <%= number_to_currency(@order.shipping_cents / 100.0) %>
+<% if @order.buyer_fee_cents.positive? %>Lightek checkout fee: <%= number_to_currency(@order.buyer_fee_cents / 100.0) %>
+<% end %>Shipping: <%= number_to_currency(@order.shipping_cents / 100.0) %>
 Tax: <%= number_to_currency(@order.tax_cents / 100.0) %>
 Total: <%= number_to_currency(@order.total_cents / 100.0) %>
 

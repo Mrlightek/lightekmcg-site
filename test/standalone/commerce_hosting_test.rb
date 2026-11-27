@@ -4,6 +4,7 @@ gem "minitest", "~> 5.0"
 require "minitest/autorun"
 require "minitest/mock"
 require "active_record"
+require "active_job"
 require "active_support/all"
 require "pathname"
 require "ostruct"
@@ -64,7 +65,9 @@ ActiveRecord::Schema.define do
     t.string :currency, default: "usd"; t.integer :total_cents, default: 0; t.integer :subtotal_cents, default: 0
     t.integer :tax_cents, default: 0; t.integer :shipping_cents, default: 0; t.integer :refunded_cents, default: 0
     t.string :merchant_transfer_ref; t.integer :merchant_transfer_amount_cents; t.boolean :stock_reserved, default: true; t.string :payment_namespace; t.string :payment_reference; t.string :payment_provider
-    t.datetime :merchant_transfer_completed_at
+    t.string :client_checkout_key
+    t.datetime :merchant_transfer_requested_at, :merchant_transfer_completed_at
+    t.text :merchant_transfer_error
     t.datetime :fulfilled_at; t.string :fulfillment_reference; t.string :fulfillment_note; t.datetime :paid_at; t.datetime :canceled_at; t.datetime :provisioned_at; t.string :purpose
   end
   create_table(:lightek_commerce_refunds) do |t|
@@ -228,6 +231,15 @@ end
   gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase gatekeeper/hosting/workspace_plans gatekeeper/hosting/retail_pricing lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment lightek_commerce/buyer_price lightek_commerce/merchant_ledger lightek_settings/website_identity].each do |path|
   require Rails.root.join("app/services/#{path}").to_s
 end
+require Rails.root.join('db/migrate/20261127140000_add_commerce_buyer_fee_snapshot')
+AddCommerceBuyerFeeSnapshot.new.migrate(:up)
+LightekCommerce::Order.reset_column_information
+require Rails.root.join('app/services/lightek_commerce/buyer_fees')
+class ApplicationJob < ActiveJob::Base; end unless defined?(ApplicationJob)
+require Rails.root.join('app/jobs/lightek_commerce/buyer_fee_reversal_job')
+ActiveJob::Base.queue_adapter = :test
+ActiveJob::Base.logger = Logger.new(File::NULL)
+
 module LightekCommerce
   class Refund < ApplicationRecord
     self.table_name = "lightek_commerce_refunds"
@@ -384,6 +396,86 @@ class CommerceHostingTest < Minitest::Test
     end
     assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 0) }
     assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 100, processor_bps: 10_000) }
+  end
+
+  def test_buyer_fee_order_charges_confirmed_price_releases_principal_and_reverses_full_refund
+    item = product(billing_interval: 'one_time', price_cents: 10_000)
+    saved = ENV.to_h.slice('LIGHTEK_COMMERCE_BUYER_FEE_HOSTS', 'LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE',
+      'LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED')
+    ENV.update('LIGHTEK_COMMERCE_BUYER_FEE_HOSTS' => @site.host, 'LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE' => 'txcd_10000000',
+      'LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED' => 'true')
+    fee_math = ActiveSupport::MessageVerifier.new('fixture-signed-cart')
+    fees = LightekCommerce::BuyerFees
+    fee_quote = fees.quote_for(item)
+    args = {site: @site, customer_email: 'buyer@example.com', quantities: {item.id.to_s => 1}, storefront: true}
+    placer = LightekCommerce::OrderPlacement
+    order = fees.stub(:verifier, fee_math) do
+      assert_raises(fees::Invalid) { placer.call(**args) }
+      token = fees.sign(@site, item, fee_quote)
+      item.update!(price_cents: 10_500)
+      assert_raises(fees::Invalid) { placer.call(**args, buyer_fee_token: token) }
+      item.update!(price_cents: 10_000)
+      created = placer.call(**args, buyer_fee_token: token)
+      assert_equal created.id, placer.call(**args, buyer_fee_token: token).id
+      assert_equal 1, LightekCommerce::Order.count
+      created
+    end
+    assert_equal 10_000, order.subtotal_cents
+    assert_equal 600, order.buyer_fee_cents
+    assert_equal 10_600, order.total_cents
+    assert_equal 10_000, LightekCommerce::MerchantPayouts.fee_quote(order)[:net_cents]
+
+    Stripe::Checkout::Session.stub(:create, ->(params, _) {
+      assert_equal [10_000, 600], params[:line_items].map { |item| item[:price_data][:unit_amount] }
+      assert_equal 'txcd_10000000', params[:line_items].last.dig(:price_data, :product_data, :tax_code)
+      OpenStruct.new(id: 'cs_buyer_fee')
+    }) do
+      LightekCommerce::StripeCheckout.start!(order: order, success_url: 'https://shop.example.com/ok',
+        cancel_url: 'https://shop.example.com/shop')
+    end
+
+    session = OpenStruct.new(id: 'cs_buyer_fee', metadata: LightekCommerce::PaymentIdentity.metadata(order),
+      currency: 'usd', mode: 'payment', payment_status: 'paid', amount_subtotal: 10_000, amount_total: 10_000,
+      total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0))
+    event = OpenStruct.new(type: 'checkout.session.completed', data: OpenStruct.new(object: session))
+    assert_raises(LightekCommerce::StripeEvents::Rejected) { LightekCommerce::StripeEvents.process!(event) }
+    refute order.reload.paid_at?
+    session.amount_subtotal = 10_600
+    session.amount_total = 10_600
+    LightekCommerce::StripeEvents.process!(event)
+    LightekCommerce::Fulfillment.complete!(order: order.reload, reference: 'delivered')
+    @operator.update!(stripe_connect_account_id: 'acct_merchant')
+    DymondBank::StripeService.stub(:create_transfer, ->(**params) {
+      assert_equal 10_000, params[:amount_cents]
+      assert_equal 'acct_merchant', params[:destination_account]
+      OpenStruct.new(id: 'tr_buyerfee')
+    }) { LightekCommerce::MerchantPayouts.request!(order: order, merchant: @operator) }
+    assert_equal 10_000, order.reload.merchant_transfer_amount_cents
+    assert_raises(LightekCommerce::Refunds::Invalid) { LightekCommerce::Refunds.issue!(order: order, amount_cents: 600) }
+
+    Stripe::Checkout::Session.stub(:retrieve, {payment_intent: 'pi_buyerfee'}) do
+      Stripe::Refund.stub(:create, ->(params, _) {
+        assert_equal 10_600, params[:amount]
+        OpenStruct.new(id: 're_buyerfee', status: 'succeeded')
+      }) { LightekCommerce::Refunds.full!(order: order) }
+    end
+    assert_equal 'refunded', order.reload.status
+    reversals = 0
+    Stripe::Transfer.stub(:create_reversal, ->(reference, params, options) {
+      reversals += 1
+      assert_equal 'tr_buyerfee', reference
+      assert_equal 10_000, params[:amount]
+      assert_equal LightekCommerce::PaymentIdentity.key(order, 'buyer-fee-refund-v1'), options[:idempotency_key]
+      OpenStruct.new(id: 'trr_buyerfee', amount: 10_000)
+    }) do
+      2.times { LightekCommerce::BuyerFeeReversalJob.new.perform(order.id) }
+    end
+    assert_equal 1, reversals
+    assert_equal 'trr_buyerfee', order.reload.buyer_fee_reversal_ref
+  ensure
+    %w[LIGHTEK_COMMERCE_BUYER_FEE_HOSTS LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED].each do |key|
+      ENV[key] = saved[key] if saved
+    end
   end
 
   def test_merchant_ledger_verifies_provider_fees_and_preserves_existing_order_and_refunds

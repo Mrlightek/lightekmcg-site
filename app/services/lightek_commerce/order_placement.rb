@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -29,7 +29,19 @@ module LightekCommerce
           !defined?(Gatekeeper::Hosting::WorkspacePlans))
           raise Invalid, "Choose one Workspace plan"
         end
+        fee_snapshot = if storefront && (buyer_fee_token.present? || ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].present?)
+          BuyerFees.snapshot_for(site: site, products: products, requested: requested.transform_values(&:to_i),
+            token: buyer_fee_token, shipping_quote: shipping_quote)
+        else
+          {}
+        end
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
+        if fee_snapshot.present?
+          order.buyer_fee_snapshot = fee_snapshot
+          order.client_checkout_key = Digest::SHA256.hexdigest(buyer_fee_token)
+          existing = Order.find_by(site: site, customer_email: order.customer_email, client_checkout_key: order.client_checkout_key)
+          next existing if existing
+        end
         order.growth_visit = growth_visit if growth_visit
         order.save!
         recurring = products.select { |product| product.billing_interval != "one_time" }
@@ -122,7 +134,12 @@ module LightekCommerce
             name: name, quantity: qty, unit_price_cents: price, line_total_cents: line_total)
         end
         # No guessed tax or shipping: add those only through a configured quote provider.
-        order.update!(subtotal_cents: subtotal, shipping_cents: shipping_quote&.customer_price_cents.to_i, total_cents: subtotal + shipping_quote&.customer_price_cents.to_i)
+        if fee_snapshot.present? && (order.revenue_share_snapshot.present? || fee_snapshot.fetch('merchant_cents') != subtotal)
+          raise Invalid, 'This sale is no longer eligible for buyer-paid fees. Review the cart.'
+        end
+        shipping_cents = shipping_quote&.customer_price_cents.to_i
+        order.update!(subtotal_cents: subtotal, shipping_cents: shipping_cents,
+          total_cents: subtotal + shipping_cents + order.buyer_fee_cents)
         if order.revenue_share_snapshot.present?
           MerchantPayouts.fee_quote(order, gross_cents: (order.total_cents * 125 + 99) / 100)
         end

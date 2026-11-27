@@ -56,7 +56,7 @@ module LightekCommerce
         raise Rejected, "Unexpected extra shipping charge" if quoted_shipping.positive? && session.total_details.amount_shipping.to_i != 0
         shipping = session.total_details.amount_shipping.to_i + quoted_shipping
         total = session.amount_total.to_i
-        raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents
+        raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents + order.buyer_fee_cents
         raise Rejected, "Mismatched totals" unless subtotal + tax + shipping == total && total >= subtotal
         order.update!(status: "paid", paid_at: Time.current, tax_cents: tax, shipping_cents: shipping, total_cents: total)
         if session.mode == 'subscription' && order.commerce_subscription

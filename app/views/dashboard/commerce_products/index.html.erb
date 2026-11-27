@@ -1,4 +1,5 @@
 <main class="lt-settings">
+  <%= link_to 'Inventory', dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), class: 'dd-button' %>
   <% if @site.tenant == current_user %>
     <%= link_to 'Collections', dashboard_commerce_collections_path(site_id: @site.id), class: 'dd-button' %>
     <%= link_to 'Store settings', dashboard_commerce_store_settings_path(site_id: @site.id), class: 'dd-button' %>

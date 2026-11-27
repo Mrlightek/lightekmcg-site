@@ -6,6 +6,8 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   before_action :set_product, only: %i[edit update destroy]
   before_action :redirect_workspace_management, only: %i[edit update destroy]
   def index
+    return inventory if params[:inventory] == '1'
+
     @products = LightekCommerce::Product.where(site: @site).order(:position, :id)
   end
   def preview_industry
@@ -58,6 +60,25 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product removed."
   end
   private
+  def inventory
+    @filters = params.permit(*LightekCommerce::InventoryReport::FILTERS)
+    @inventory_report = LightekCommerce::InventoryReport.new(site: @site, filters: @filters)
+    response.headers['Cache-Control'] = 'private, no-store'
+    respond_to do |format|
+      format.html do
+        @inventory_rows = @inventory_report.rows(limit: 151)
+        @more_inventory = @inventory_rows.length > 150
+        @inventory_rows = @inventory_rows.first(150)
+        render :inventory
+      end
+      format.csv do
+        send_data @inventory_report.csv, filename: "inventory-#{Date.current.iso8601}.csv", type: 'text/csv; charset=utf-8'
+      end
+    end
+  rescue LightekCommerce::InventoryReport::Invalid => error
+    redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), alert: error.message, status: :see_other
+  end
+
   def redirect_workspace_management
     return unless @product.hosting_package && Gatekeeper::Hosting::WorkspacePlans.workspace?(@product)
 

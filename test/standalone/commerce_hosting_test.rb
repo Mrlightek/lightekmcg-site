@@ -60,7 +60,7 @@ ActiveRecord::Schema.define do
     t.integer :subscription_plan_id; t.string :image_url; t.string :short_description; t.string :sku; t.integer :position
   end
   create_table(:lightek_commerce_product_variants) do |t|
-    t.references :product; t.string :name; t.boolean :active, default: true; t.integer :price_cents; t.integer :inventory_quantity
+    t.references :product; t.string :name; t.string :sku; t.boolean :active, default: true; t.integer :price_cents; t.integer :inventory_quantity
   end
   create_table(:lightek_commerce_orders) do |t|
     t.references :site; t.string :status, default: "pending_payment"; t.string :customer_email
@@ -299,6 +299,7 @@ AddProviderToShippingQuotes.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/order_report')
 require Rails.root.join('app/services/lightek_commerce/order_timeline')
 require Rails.root.join('app/services/lightek_commerce/packing_slips')
+require Rails.root.join('app/services/lightek_commerce/inventory_report')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1895,6 +1896,28 @@ class CommerceHostingTest < Minitest::Test
         assert_raises(ArgumentError) { LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup.merge(close: '08:00')) }
       end
     end
+  end
+
+  def test_inventory_report_mirrors_sellable_stock_and_scopes_csv_to_the_store
+    simple = product(name: 'Low stock', sku: 'A%1', inventory_quantity: 3, track_inventory: true)
+    variable = product(name: 'Variants', inventory_quantity: 0, track_inventory: false)
+    variant = variable.variants.create!(name: '=Special', sku: '+CSV', price_cents: 350, inventory_quantity: 0, active: true)
+    variable.variants.create!(name: 'Disabled', price_cents: 350, inventory_quantity: 0, active: false)
+    draft = product(name: 'Draft', inventory_quantity: 0, published: false, track_inventory: true)
+    product(name: 'Untracked', inventory_quantity: 0, track_inventory: false)
+    other_store = DymondSite::Site.create!(tenant: @operator, host: 'inventory-other.test')
+    product(site: other_store, name: 'Foreign', inventory_quantity: 0, track_inventory: true)
+    report = LightekCommerce::InventoryReport
+    rows = report.new(site: @site, filters: {threshold: '3'}).rows(limit: 10)
+    assert_equal [[variable.id, variant.id, 0], [simple.id, nil, 3]],
+      rows.map { |row| row.values_at('product_id', 'variant_id', 'inventory_quantity') }
+    drafts = report.new(site: @site, filters: {stock: 'out', include_drafts: '1'})
+    assert_equal [variable.id, draft.id], drafts.rows(limit: 10).map { |row| row['product_id'] }
+    assert_equal [simple.id], report.new(site: @site, filters: {lookup: 'A%1'}).rows(limit: 10).map { |row| row['product_id'] }
+    assert_empty report.new(site: @site, filters: {lookup: '%no_'}).rows(limit: 10)
+    row = CSV.parse(drafts.csv, headers: true).first
+    assert_equal ["'=Special", "'+CSV", '0', 'Published'], row.values_at('variant_name', 'sku', 'available_quantity', 'publication')
+    assert_raises(report::Invalid) { report.new(site: @site, filters: {threshold: '-1'}) }
   end
 
   def test_bulk_packing_slips_scope_every_order_and_keep_selected_order

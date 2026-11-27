@@ -40,6 +40,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   end
   def create
     return import_inventory if params[:inventory_import] == '1'
+    return move_inventory if params[:inventory_move] == '1'
 
     authorize_instance_product!
     @product = LightekCommerce::Product.new(product_params.except(:remove_photo_ids).merge(site: @site))
@@ -63,8 +64,14 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     redirect_to edit_dashboard_commerce_product_path(@product, site_id: @site.id), alert: error.message, status: :see_other
   end
   def destroy
-    @product.destroy!
-    redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product removed."
+    destination = dashboard_commerce_products_path(site_id: @site.id)
+    @product.with_lock do
+      if LightekCommerce::InventoryStockStates.allocated?(@product)
+        return redirect_to destination, alert: 'Clear incoming, unavailable and damaged stock before removing this product.'
+      end
+      @product.destroy!
+    end
+    redirect_to destination, notice: "Product removed."
   end
   private
   def inventory
@@ -102,6 +109,17 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     @inventory_changes = @inventory_changes.first(100)
     response.headers['Cache-Control'] = 'private, no-store'
     render :inventory_history, formats: [:html]
+  end
+
+  def move_inventory
+    filters = params.permit(*LightekCommerce::InventoryReport::FILTERS).to_h
+    destination = dashboard_commerce_products_path(filters.merge(site_id: @site.id, inventory: '1'))
+    movement = params.expect(inventory_movement: %i[product_id variant_id movement quantity version])
+    LightekCommerce::InventoryStockStates.move!(site: @site, actor: current_user, product_id: movement[:product_id],
+      variant_id: movement[:variant_id], movement: movement[:movement], quantity: movement[:quantity], version: movement[:version])
+    redirect_to destination, notice: 'Stock movement recorded.', status: :see_other
+  rescue LightekCommerce::InventoryStockStates::Invalid => error
+    redirect_to destination, alert: error.message, status: :see_other
   end
 
   def import_inventory

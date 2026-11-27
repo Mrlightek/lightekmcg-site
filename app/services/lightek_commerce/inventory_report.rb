@@ -10,7 +10,7 @@ module LightekCommerce
     STOCK_OPTIONS = [['Low or out of stock', 'attention'], ['Low stock', 'low'],
       ['Out of stock', 'out'], ['All tracked inventory', 'all']].freeze
     MAX_EXPORT_ROWS = 10_000
-    COLUMNS = %w[product_id variant_id product_name variant_name sku available_quantity publication reserved_quantity committed_quantity].freeze
+    COLUMNS = %w[product_id variant_id product_name variant_name sku available_quantity publication reserved_quantity committed_quantity incoming_quantity unavailable_quantity damaged_quantity].freeze
 
     attr_reader :stock, :threshold, :lookup
 
@@ -40,12 +40,16 @@ module LightekCommerce
       catalog = adjustable ? @products.where.not(product_type: 'lightek_instance') : @products
       active = ProductVariant.where(active: true)
       products = catalog.where(track_inventory: true).where.not(id: active.select(:product_id))
-        .select('id AS product_id, NULL AS variant_id, name AS product_name, NULL AS variant_name, sku, inventory_quantity, published, updated_at AS inventory_updated_at')
+        .select('id AS product_id, NULL AS variant_id, name AS product_name, NULL AS variant_name, sku, ' \
+          'inventory_quantity, published, updated_at AS inventory_updated_at, product_type, ' \
+          'incoming_quantity, unavailable_quantity, damaged_quantity')
       variants = active.joins(:product).merge(catalog).select(
         'lightek_commerce_products.id AS product_id, lightek_commerce_product_variants.id AS variant_id, ' \
         'lightek_commerce_products.name AS product_name, lightek_commerce_product_variants.name AS variant_name, ' \
         'lightek_commerce_product_variants.sku AS sku, lightek_commerce_product_variants.inventory_quantity AS inventory_quantity, ' \
-        'lightek_commerce_products.published AS published, lightek_commerce_product_variants.updated_at AS inventory_updated_at'
+        'lightek_commerce_products.published AS published, lightek_commerce_product_variants.updated_at AS inventory_updated_at, ' \
+        'lightek_commerce_products.product_type, lightek_commerce_product_variants.incoming_quantity, ' \
+        'lightek_commerce_product_variants.unavailable_quantity, lightek_commerce_product_variants.damaged_quantity'
       )
       relation = Product.unscoped.from("(#{products.to_sql} UNION ALL #{variants.to_sql}) AS stock_rows")
         .select('stock_rows.*')
@@ -76,7 +80,8 @@ module LightekCommerce
         results.each do |row|
           output << [row['product_id'], row['variant_id'], safe_text(row['product_name']), safe_text(row['variant_name']),
             safe_text(row['sku']), row['inventory_quantity'], publication(row),
-            row['reserved_quantity'], row['committed_quantity']]
+            row['reserved_quantity'], row['committed_quantity'], row['incoming_quantity'],
+            row['unavailable_quantity'], row['damaged_quantity']]
         end
       end
     end

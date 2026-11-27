@@ -311,8 +311,11 @@ require Rails.root.join('db/migrate/20261127194000_record_order_inventory_change
 RecordOrderInventoryChanges.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127195000_add_reason_to_commerce_inventory_changes')
 AddReasonToCommerceInventoryChanges.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127200000_add_commerce_inventory_stock_states')
+AddCommerceInventoryStockStates.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
+require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -2104,6 +2107,72 @@ class CommerceHostingTest < Minitest::Test
     assert_equal [[simple.id, 6, 1, 0], [parent.id, 6, 0, 0]], quantities.call
     LightekCommerce::OrderPlacement.cancel!(pending)
     assert_equal [[parent.id, 6, 0, 0], [simple.id, 7, 0, 0]], quantities.call
+  end
+
+  def test_inventory_stock_movements_keep_unsellable_units_out_of_checkout
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 5)
+    service = LightekCommerce::InventoryStockStates
+    adjustments = LightekCommerce::InventoryAdjustment
+    inputs = {site: @site, actor: @operator, product_id: item.id, variant_id: nil}
+    move = ->(operation, quantity) do
+      service.move!(**inputs, movement: operation, quantity: quantity, version: adjustments.snapshot_version(item.reload.updated_at))
+    end
+    original_version = adjustments.snapshot_version(item.updated_at)
+    move.call('expect', 4)
+    assert_raises(service::Invalid) { service.move!(**inputs, movement: 'expect', quantity: 4, version: original_version) }
+    move.call('receive', 3)
+    assert_equal [8, 1], [item.reload.inventory_quantity, item.incoming_quantity]
+    move.call('hold', 5)
+    move.call('damage_held', 2)
+    move.call('damage', 1)
+    assert_equal [2, 1, 3, 3], item.reload.attributes.values_at('inventory_quantity', 'incoming_quantity', 'unavailable_quantity', 'damaged_quantity')
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {item.id.to_s => 3})
+    end
+    assert_raises(service::Invalid) { move.call('receive', 2) }
+    assert_raises(service::Invalid) { move.call('release', 0) }
+    assert_raises(LightekCommerce::InventoryAdjustment::Invalid) do
+      adjustments.update_product!(product: item, actor: @operator, attributes: {track_inventory: false})
+    end
+
+    report = LightekCommerce::InventoryReport.new(site: @site, filters: {stock: 'all'})
+    row = CSV.parse(report.csv, headers: true).first
+    assert_equal %w[2 1 3 3], row.values_at('available_quantity', 'incoming_quantity', 'unavailable_quantity', 'damaged_quantity')
+    history = LightekCommerce::InventoryChange.for_site(@site).where(source: 'stock_state_adjustment').order(:id)
+    assert_equal 9, history.size
+    receive = history.second
+    assert_equal [['incoming', 4, 1], ['available', 5, 8]],
+      history.where(batch_key: receive.batch_key).pluck(:stock_state, :before_quantity, :after_quantity)
+    assert_equal [@operator.id], history.pluck(:actor_id).uniq
+
+    move.call('release', 3)
+    move.call('restore', 1)
+    move.call('write_off', 2)
+    move.call('cancel', 1)
+    assert_equal [6, 0, 0, 0], item.reload.attributes.values_at('inventory_quantity', 'incoming_quantity', 'unavailable_quantity', 'damaged_quantity')
+  end
+
+  def test_inventory_stock_movements_scope_options_and_roll_back_failed_history
+    item = product
+    variant = item.variants.create!(name: 'Blue', price_cents: 350, inventory_quantity: 5, active: true)
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'foreign-stock-states.test')
+    service = LightekCommerce::InventoryStockStates
+    version = LightekCommerce::InventoryAdjustment.snapshot_version(variant.updated_at)
+    inputs = {site: @site, actor: @operator, product_id: item.id, variant_id: variant.id,
+      movement: 'hold', quantity: '2', version: version}
+    assert_raises(ActiveRecord::RecordNotFound) { service.move!(**inputs.merge(site: foreign)) }
+    assert_raises(ActiveRecord::RecordNotFound) { service.move!(**inputs.merge(product_id: product.id)) }
+    entries = LightekCommerce::InventoryChange.for_site(@site)
+    model = LightekCommerce::InventoryChange
+    record = model.method(:record!)
+    model.stub(:record!, ->(**attrs) { attrs[:stock_state] == 'unavailable' ? raise(ActiveRecord::RecordInvalid.new(model.new)) : record.call(**attrs) }) do
+      assert_raises(service::Invalid) { service.move!(**inputs) }
+    end
+    assert_empty entries
+    assert_equal [5, 0], variant.reload.attributes.values_at('inventory_quantity', 'unavailable_quantity')
+    service.move!(**inputs)
+    assert_equal [3, 2], variant.reload.attributes.values_at('inventory_quantity', 'unavailable_quantity')
+    assert_equal [variant.id], entries.pluck(:variant_id).uniq
   end
 
   def test_bulk_packing_slips_scope_every_order_and_keep_selected_order

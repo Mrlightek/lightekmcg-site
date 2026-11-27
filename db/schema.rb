@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_195000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1903,10 +1903,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_195000) do
     t.string "source", default: "csv_import", null: false
     t.bigint "order_id"
     t.string "reason"
+    t.string "stock_state", default: "available", null: false
     t.index ["site_id", "id"], name: "idx_commerce_inventory_changes_site_history"
     t.check_constraint "before_quantity >= 0 AND after_quantity >= 0 AND before_quantity <> after_quantity", name: "commerce_inventory_change_counts"
-    t.check_constraint "(source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])) AND actor_id IS NOT NULL AND order_id IS NULL OR (source::text = ANY (ARRAY['checkout_reserved'::character varying, 'checkout_released'::character varying]::text[])) AND actor_id IS NULL AND order_id IS NOT NULL", name: "commerce_inventory_change_context"
+    t.check_constraint "(source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying, 'stock_state_adjustment'::character varying]::text[])) AND actor_id IS NOT NULL AND order_id IS NULL OR (source::text = ANY (ARRAY['checkout_reserved'::character varying, 'checkout_released'::character varying]::text[])) AND actor_id IS NULL AND order_id IS NOT NULL", name: "commerce_inventory_change_context"
     t.check_constraint "reason IS NULL OR (source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])) AND (reason::text = ANY (ARRAY['count'::character varying, 'received'::character varying, 'returned'::character varying, 'damaged'::character varying, 'lost'::character varying, 'correction'::character varying]::text[]))", name: "commerce_inventory_change_reason"
+    t.check_constraint "stock_state::text = 'available'::text OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['incoming'::character varying, 'unavailable'::character varying, 'damaged'::character varying]::text[]))", name: "commerce_inventory_change_stock_state"
   end
 
   create_table "lightek_commerce_order_items", force: :cascade do |t|
@@ -2013,8 +2015,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_195000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "incoming_quantity", default: 0, null: false
+    t.integer "unavailable_quantity", default: 0, null: false
+    t.integer "damaged_quantity", default: 0, null: false
     t.index ["product_id", "sku"], name: "index_commerce_variants_product_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["product_id"], name: "index_lightek_commerce_product_variants_on_product_id"
+    t.check_constraint "incoming_quantity >= 0 AND unavailable_quantity >= 0 AND damaged_quantity >= 0", name: "commerce_stock_states_nonnegative"
   end
 
   create_table "lightek_commerce_products", force: :cascade do |t|
@@ -2044,6 +2050,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_195000) do
     t.integer "shipping_height_in"
     t.bigint "source_hosting_package_id"
     t.jsonb "package_policy", default: {}, null: false
+    t.integer "incoming_quantity", default: 0, null: false
+    t.integer "unavailable_quantity", default: 0, null: false
+    t.integer "damaged_quantity", default: 0, null: false
     t.index ["site_id", "sku"], name: "idx_commerce_site_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["site_id", "slug"], name: "index_lightek_commerce_products_on_site_id_and_slug", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_products_on_site_id"
@@ -2052,6 +2061,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_195000) do
     t.check_constraint "compare_at_cents IS NULL OR compare_at_cents >= 0", name: "commerce_compare_price_valid"
     t.check_constraint "inventory_quantity >= 0", name: "commerce_inventory_nonnegative"
     t.check_constraint "price_cents >= 0", name: "commerce_price_nonnegative"
+    t.check_constraint "incoming_quantity >= 0 AND unavailable_quantity >= 0 AND damaged_quantity >= 0", name: "commerce_stock_states_nonnegative"
   end
 
   create_table "lightek_commerce_refunds", force: :cascade do |t|

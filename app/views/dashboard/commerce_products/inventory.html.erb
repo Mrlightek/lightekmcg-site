@@ -42,7 +42,7 @@
       <p>No tracked inventory matches these filters.</p>
     <% else %>
       <table>
-        <thead><tr><th scope="col">Product</th><th scope="col">Variant</th><th scope="col">SKU</th><th scope="col">Available</th><th scope="col">Reserved</th><th scope="col">Committed</th><th scope="col">Publication</th></tr></thead>
+        <thead><tr><th scope="col">Product</th><th scope="col">Variant</th><th scope="col">SKU</th><th scope="col">Available</th><th scope="col">Reserved</th><th scope="col">Committed</th><th scope="col">Incoming</th><th scope="col">Unavailable</th><th scope="col">Damaged</th><th scope="col">Publication</th><th scope="col">Actions</th></tr></thead>
         <tbody>
           <% @inventory_rows.each do |row| %>
             <tr>
@@ -52,7 +52,31 @@
               <td><%= row['inventory_quantity'] %></td>
               <td><%= row['reserved_quantity'] %></td>
               <td><%= row['committed_quantity'] %></td>
+              <td><%= row['incoming_quantity'] %></td>
+              <td><%= row['unavailable_quantity'] %></td>
+              <td><%= row['damaged_quantity'] %></td>
               <td><%= @inventory_report.publication(row) %></td>
+              <td>
+                <% if row['product_type'] != 'lightek_instance' %>
+                  <details>
+                    <summary>Move stock</summary>
+                    <% stock_form_id = "stock-#{row['product_id']}-#{row['variant_id'] || 'product'}" %>
+                    <%= form_with scope: :inventory_movement, url: dashboard_commerce_products_path(@filters.to_h.merge(site_id: @site.id)),
+                      method: :post, namespace: stock_form_id, class: 'dd-form-stack' do |form| %>
+                      <%= hidden_field_tag :inventory_move, '1', id: nil %>
+                      <%= form.hidden_field :product_id, value: row['product_id'] %>
+                      <%= form.hidden_field :variant_id, value: row['variant_id'] %>
+                      <%= form.hidden_field :version, value: LightekCommerce::InventoryAdjustment.snapshot_version(row['inventory_updated_at']) %>
+                      <label>Movement
+                        <%= form.select :movement, LightekCommerce::InventoryStockStates::MOVEMENTS.map { |key, (label, *)| [label, key] },
+                          {include_blank: 'Choose a movement'}, required: true %>
+                      </label>
+                      <label>Quantity <%= form.number_field :quantity, min: 1, max: LightekCommerce::InventoryAdjustment::MAX_QUANTITY, required: true %></label>
+                      <%= form.submit 'Move units', class: 'dd-button dd-btn-primary' %>
+                    <% end %>
+                  </details>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>

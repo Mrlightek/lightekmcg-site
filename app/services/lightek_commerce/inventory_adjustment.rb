@@ -71,6 +71,14 @@ module LightekCommerce
         before_tracking = product.track_inventory?
         current_version = snapshot_version(product.updated_at)
         product.assign_attributes(attributes)
+        becoming_installation = product.will_save_change_to_product_type? && product.product_type == 'lightek_instance'
+        disabling_tracking = before_tracking && !product.track_inventory?
+        if (disabling_tracking || becoming_installation) && InventoryStockStates.allocated?(product)
+          raise Invalid, 'Clear incoming, unavailable and damaged product stock before changing inventory tracking.'
+        end
+        if becoming_installation && product.variants.any? { |variant| InventoryStockStates.allocated?(variant) }
+          raise Invalid, 'Clear incoming, unavailable and damaged option stock before changing the product type.'
+        end
         changed_quantity = product.will_save_change_to_inventory_quantity?
         if changed_quantity && version.present? && current_version != version
           raise Invalid, 'Stock changed since you opened this product. Review the current count and try again.'

@@ -29,6 +29,7 @@
   <% end %>
   <section class="dd-panel">
     <h2>Discounts</h2>
+    <%= render "customer_segments" %>
     <details>
       <summary>Bulk discount codes</summary>
       <p>Use the exported headings to import up to 500 new codes at once. Existing codes are rejected.</p>
@@ -44,7 +45,7 @@
     <% end %>
     <% if @discounts.any? %>
       <table>
-        <thead><tr><th>Name</th><th>Method</th><th>Amount</th><th>Status</th><th>Reserved</th><th>Settled</th><th>Savings on settled orders</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Method</th><th>Amount</th><th>Eligible customers</th><th>Status</th><th>Reserved</th><th>Settled</th><th>Savings on settled orders</th><th>Actions</th></tr></thead>
         <tbody>
           <% @discounts.each do |discount| %>
             <tr>
@@ -57,6 +58,7 @@
                   <%= discount.kind == 'percent' ? "#{discount.amount}%" : number_to_currency(discount.amount / 100.0) %>
                 <% end %>
               </td>
+              <td><%= discount.customer_segment&.name || 'All customers' %></td>
               <td>
                 <% if !discount.active? %>Inactive
                 <% elsif discount.scheduled_for?(Time.current) %>Active

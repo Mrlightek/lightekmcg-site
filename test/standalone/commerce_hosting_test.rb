@@ -284,6 +284,11 @@ require Rails.root.join('db/migrate/20261127181000_create_commerce_collections')
 CreateCommerceCollections.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127182000_add_commerce_quantity_promotions')
 AddCommerceQuantityPromotions.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127183000_index_commerce_gift_card_store_scope')
+IndexCommerceGiftCardStoreScope.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127184000_create_commerce_customer_segments')
+CreateCommerceCustomerSegments.new.migrate(:up)
+require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
 require Rails.root.join('app/services/lightek_commerce/gift_liability')
 require Rails.root.join('app/models/lightek_commerce/discount')
@@ -1029,6 +1034,35 @@ class CommerceHostingTest < Minitest::Test
     collection.destroy!
     refute collection_rule.reload.active?
     assert_nil collection_rule.target_collection_id
+  end
+
+  def test_discount_segments_use_only_the_signed_in_buyers_settled_store_history
+    item = product(billing_interval: 'one_time', price_cents: 2000)
+    other_site = DymondSite::Site.create!(tenant: @operator, host: 'segment-other.test')
+    segment = LightekCommerce::CustomerSegment.create!(site: @site, name: 'Repeat buyers', minimum_orders: 2,
+      minimum_net_spend_cents: 3000)
+    intro = LightekCommerce::CustomerSegment.create!(site: @site, name: 'First purchase', maximum_orders: 0)
+    assert intro.includes_history?([0, 0])
+    refute intro.includes_history?([1, 500])
+    rules = LightekCommerce::Discount
+    rule = rules.create!(site: @site, customer_segment: segment, name: 'Loyalty discount', code: 'LOYALTY',
+      kind: 'fixed', amount: 200)
+    refute rules.new(site: other_site, customer_segment: segment, name: 'Cross store', kind: 'fixed', amount: 200).valid?
+    refute segment.destroy
+    claim = {customer_email: @operator.email_address, storefront_buyer_id: @operator.id, subtotal_cents: 2200, total_cents: 2200}
+    order = LightekCommerce::Order
+    order.create!(**claim, site: other_site, paid_at: Time.current, status: 'fulfilled')
+    order.create!(**claim, site: @site, paid_at: Time.current, status: 'fulfilled', purpose: 'gift_card_purchase')
+    order.create!(**claim, site: @site, status: 'pending_payment')
+    order.create!(**claim, site: @site, paid_at: Time.current, status: 'fulfilled')
+    inputs = {site: @site, products: [item], quantities: {item.id.to_s => 1}, code: rule.code}
+    discounts = LightekCommerce::Discounts
+    assert_raises(discounts::Invalid) { discounts.quote(**inputs, buyer_id: @operator.id) }
+    partial = order.create!(**claim, site: @site, paid_at: Time.current, status: 'partially_refunded', refunded_cents: 900)
+    assert_equal 200, discounts.quote(**inputs, buyer_id: @operator.id).total
+    assert_raises(discounts::Invalid) { discounts.quote(**inputs, buyer_id: nil) }
+    partial.update!(status: 'refunded', refunded_cents: 2200)
+    assert_raises(discounts::Invalid) { discounts.quote(**inputs, buyer_id: @operator.id) }
   end
 
   def test_gift_card_liability_reconciles_available_reserved_refunded_and_voided_value

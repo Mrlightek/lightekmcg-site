@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_183000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_184000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1754,6 +1754,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_183000) do
     t.index ["site_id", "slug"], name: "idx_commerce_collections_site_slug", unique: true
   end
 
+  create_table "lightek_commerce_customer_segments", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.integer "minimum_orders"
+    t.integer "maximum_orders"
+    t.bigint "minimum_net_spend_cents"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "slug"], name: "idx_commerce_customer_segments_site_slug", unique: true
+  end
+
   create_table "lightek_commerce_discount_uses", force: :cascade do |t|
     t.bigint "discount_id", null: false
     t.bigint "order_id", null: false
@@ -1781,14 +1793,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_183000) do
     t.datetime "ends_at"
     t.integer "usage_limit"
     t.integer "buyer_limit"
-    t.index ["site_id", "code"], name: "index_lightek_commerce_discounts_on_site_id_and_code", unique: true
-    t.index ["site_id"], name: "index_lightek_commerce_discounts_on_site_id"
     t.bigint "qualifying_product_id"
     t.bigint "qualifying_collection_id"
     t.integer "buy_quantity"
     t.integer "get_quantity"
     t.integer "applications_per_order"
     t.string "reward_type"
+    t.bigint "customer_segment_id"
+    t.index ["customer_segment_id"], name: "idx_commerce_discounts_segment"
+    t.index ["site_id", "code"], name: "index_lightek_commerce_discounts_on_site_id_and_code", unique: true
+    t.index ["site_id"], name: "index_lightek_commerce_discounts_on_site_id"
   end
 
   create_table "lightek_commerce_dispute_cases", force: :cascade do |t|
@@ -1945,6 +1959,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_183000) do
     t.bigint "storefront_buyer_id"
     t.string "gift_store_scope"
     t.integer "gift_applied_cents", default: 0, null: false
+    t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_store_buyer"
     t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_storefront_buyer"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
@@ -7633,8 +7648,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_183000) do
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
   add_foreign_key "lightek_commerce_collections", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_customer_segments", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_discounts", column: "discount_id"
   add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_customer_segments", column: "customer_segment_id"
   add_foreign_key "lightek_commerce_discounts", "lightek_commerce_collections", column: "qualifying_collection_id"
   add_foreign_key "lightek_commerce_discounts", "lightek_commerce_products", column: "qualifying_product_id"
   add_foreign_key "lightek_commerce_discounts", "lightek_commerce_collections", column: "target_collection_id"

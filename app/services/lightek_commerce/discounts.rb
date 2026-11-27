@@ -35,8 +35,11 @@ module LightekCommerce
       scope = Discount.where(site: site, active: true, code: [nil, *entered]).order(:id)
       scope = scope.lock if lock
       now = Time.current
-      candidates = scope.to_a.select do |rule|
-        rule.scheduled_for?(now) && subtotal >= rule.minimum_cents && within_limits?(rule, buyer_id, lock)
+      candidates = scope.includes(:customer_segment).to_a
+      history = CustomerSegment.history_for(site, buyer_id) if candidates.any?(&:customer_segment_id)
+      candidates.select! do |rule|
+        audience = rule.customer_segment_id.nil? || rule.customer_segment&.includes_history?(history)
+        audience && rule.scheduled_for?(now) && subtotal >= rule.minimum_cents && within_limits?(rule, buyer_id, lock)
       end
       targets = candidates.to_h do |rule|
         [rule.id, matching_lines(grouped, rule.target_product_id, rule.target_collection)]

@@ -7,7 +7,8 @@ module LightekCommerce
     class Invalid < StandardError; end
 
     ORIGINAL_HEADERS = %w[code name kind amount minimum_cents active combinable starts_at ends_at usage_limit buyer_limit product collection].freeze
-    HEADERS = (ORIGINAL_HEADERS + %w[qualifying_product qualifying_collection buy_quantity get_quantity reward_type applications_per_order]).freeze
+    QUANTITY_HEADERS = (ORIGINAL_HEADERS + %w[qualifying_product qualifying_collection buy_quantity get_quantity reward_type applications_per_order]).freeze
+    HEADERS = (QUANTITY_HEADERS + %w[customer_segment]).freeze
     MAX_ROWS = 500
     MAX_BYTES = 256.kilobytes
 
@@ -15,7 +16,7 @@ module LightekCommerce
       raise Invalid, 'Choose a UTF-8 CSV file up to 256 KB.' if content.bytesize > MAX_BYTES || !content.valid_encoding?
 
       records = CSV.parse(content.delete_prefix("\uFEFF"), headers: true, skip_blanks: true)
-      raise Invalid, 'Use the column headings from the exported CSV.' unless [HEADERS, ORIGINAL_HEADERS].include?(records.headers)
+      raise Invalid, 'Use the column headings from the exported CSV.' unless [HEADERS, QUANTITY_HEADERS, ORIGINAL_HEADERS].include?(records.headers)
       raise Invalid, "Include 1 to #{MAX_ROWS} codes per file." unless records.size.between?(1, MAX_ROWS)
 
       Discount.transaction do
@@ -37,12 +38,12 @@ module LightekCommerce
     def self.export(site)
       CSV.generate do |csv|
         csv << HEADERS
-        Discount.where(site: site).where.not(code: nil).includes(:target_product, :target_collection, :qualifying_product, :qualifying_collection).find_each do |rule|
+        Discount.where(site: site).where.not(code: nil).includes(:target_product, :target_collection, :qualifying_product, :qualifying_collection, :customer_segment).find_each do |rule|
           csv << [safe_cell(rule.code), safe_cell(rule.name), rule.kind, rule.amount, rule.minimum_cents,
             rule.active?, rule.combinable?, rule.starts_at&.utc&.iso8601, rule.ends_at&.utc&.iso8601,
             rule.usage_limit, rule.buyer_limit, safe_cell(rule.target_product&.slug), safe_cell(rule.target_collection&.slug),
             safe_cell(rule.qualifying_product&.slug), safe_cell(rule.qualifying_collection&.slug),
-            rule.buy_quantity, rule.get_quantity, rule.reward_type, rule.applications_per_order]
+            rule.buy_quantity, rule.get_quantity, rule.reward_type, rule.applications_per_order, safe_cell(rule.customer_segment&.slug)]
         end
       end
     end
@@ -59,6 +60,7 @@ module LightekCommerce
         usage_limit: integer(values, 'usage_limit'), buyer_limit: integer(values, 'buyer_limit'),
         active: boolean(values, 'active', default: false), combinable: boolean(values, 'combinable', default: false),
         starts_at: timestamp(values, 'starts_at'), ends_at: timestamp(values, 'ends_at'),
+        customer_segment: target(CustomerSegment, site, plain_cell(values['customer_segment'])),
         qualifying_product: target(Product, site, plain_cell(values['qualifying_product'])),
         qualifying_collection: target(Collection, site, plain_cell(values['qualifying_collection'])),
         buy_quantity: integer(values, 'buy_quantity'), get_quantity: integer(values, 'get_quantity'),

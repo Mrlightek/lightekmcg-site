@@ -8,6 +8,7 @@ module LightekCommerce
     belongs_to :target_collection, class_name: 'LightekCommerce::Collection', optional: true
     belongs_to :qualifying_product, class_name: 'LightekCommerce::Product', optional: true
     belongs_to :qualifying_collection, class_name: 'LightekCommerce::Collection', optional: true
+    belongs_to :customer_segment, class_name: 'LightekCommerce::CustomerSegment', optional: true
     before_validation { self.code = self.class.normalize(code) }
     validates :name, presence: true, length: {maximum: 100}
     validates :code, format: {with: /\A[A-Z0-9_-]{1,40}\z/}, uniqueness: {scope: :site_id}, allow_nil: true
@@ -39,6 +40,9 @@ module LightekCommerce
       end
       if quantity_promotion? && target_product_id.nil? && target_collection_id.nil?
         errors.add(:base, 'Select a reward product or collection for Buy X Get Y')
+      end
+      if customer_segment_id && customer_segment&.site_id != site_id
+        errors.add(:customer_segment, 'must belong to this store')
       end
       if starts_at && ends_at && ends_at <= starts_at
         errors.add(:ends_at, 'must follow the start time')

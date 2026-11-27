@@ -5,9 +5,10 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
 
   def show
     @appearance = LightekCommerce::StoreAppearance.read(@site)
+    @customer_segments = LightekCommerce::CustomerSegment.where(site: @site).order(:name, :id)
     @discount_products = LightekCommerce::Product.visible.where(site: @site)
     @discount_collections = LightekCommerce::Collection.where(site: @site).order(:name, :id)
-    @discounts = LightekCommerce::Discount.where(site: @site).includes(:target_product, :target_collection).order(:id)
+    @discounts = LightekCommerce::Discount.where(site: @site).includes(:target_product, :target_collection, :customer_segment).order(:id)
     uses = LightekCommerce::DiscountUse.counted.where(discount: @discounts.except(:order))
     pending = uses.where(lightek_commerce_orders: {status: 'pending_payment'})
     settled = uses.where.not(lightek_commerce_orders: {status: 'pending_payment'})
@@ -47,6 +48,26 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
     end
   rescue LightekCommerce::GiftLiability::Unavailable => error
     redirect_to_store(error.message, error: true)
+  end
+
+  def save_segment
+    segments = LightekCommerce::CustomerSegment.where(site: @site)
+    segment = request.patch? ? segments.find(params[:id]) : segments.new
+    segment.update!(params.require(:segment).permit(:name, :minimum_orders, :maximum_orders, :minimum_net_spend_cents))
+    redirect_to_store('Customer segment saved.')
+  rescue ActiveRecord::RecordInvalid => error
+    redirect_to_store(error.record.errors.full_messages.to_sentence, error: true)
+  rescue ActiveRecord::RecordNotUnique
+    redirect_to_store('A customer segment with this name already exists.', error: true)
+  end
+
+  def delete_segment
+    segment = LightekCommerce::CustomerSegment.where(site: @site).find(params[:id])
+    if segment.destroy
+      redirect_to_store('Customer segment deleted.')
+    else
+      redirect_to_store('Remove this segment from its discounts before deleting it.', error: true)
+    end
   end
 
   def create_discount
@@ -93,7 +114,7 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
   def discount_params
     params.require(:discount).permit(:name, :code, :kind, :amount, :minimum_cents, :combinable,
       :target_product_id, :target_collection_id, :qualifying_product_id, :qualifying_collection_id,
-      :buy_quantity, :get_quantity, :applications_per_order, :reward_type, :starts_at, :ends_at, :usage_limit, :buyer_limit)
+      :buy_quantity, :get_quantity, :applications_per_order, :reward_type, :customer_segment_id, :starts_at, :ends_at, :usage_limit, :buyer_limit)
   end
 
   def redirect_to_store(message, error: false)

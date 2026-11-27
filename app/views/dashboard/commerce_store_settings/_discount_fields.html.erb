@@ -18,5 +18,6 @@
 <label><%= form.check_box :combinable %> Allow combining with other eligible discounts</label>
 <label>Start time (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, value: form.object.starts_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>
 <label>End time (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, value: form.object.ends_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>
+<label>Eligible customers <%= form.collection_select :customer_segment_id, @customer_segments, :id, :name, include_blank: 'All customers' %></label>
 <label>Total uses <%= form.number_field :usage_limit, min: 1, placeholder: 'Unlimited' %></label>
 <label>Uses per signed-in buyer <%= form.number_field :buyer_limit, min: 1, placeholder: 'Unlimited' %></label>

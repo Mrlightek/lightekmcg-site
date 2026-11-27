@@ -11,6 +11,7 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
 
   def index
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    return payment_receipt if params[:receipt_order_id].present?
     return packing_slip if params[:print_order_id].present?
 
     @filters = params.permit(*LightekCommerce::OrderReport::FILTERS)
@@ -62,17 +63,27 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
 
   private
 
-  def packing_slip
-    order_id = params[:print_order_id].to_s
-    raise ActiveRecord::RecordNotFound unless order_id.match?(/\A[1-9][0-9]{0,17}\z/)
+  def payment_receipt
+    @order = paid_document_order(params[:receipt_order_id]).includes(:items).take!
+    response.headers['Cache-Control'] = 'private, no-store'
+    render 'commerce/payment_receipt', formats: [:html], layout: false
+  end
 
-    @order = LightekCommerce::Order.visible.where(site: @site, status: %w[paid fulfilled partially_refunded])
-      .where.not(paid_at: nil).includes(:shipping_quote, items: :product).find(order_id)
+  def packing_slip
+    @order = paid_document_order(params[:print_order_id]).where.not(status: 'refunded')
+      .includes(:shipping_quote, items: :product).take!
     @packages = @order.items.select { |item| item.physical_for_fulfillment? }
     raise ActiveRecord::RecordNotFound if @packages.empty?
 
     @recipient = @order.shipping_quote&.shipment_payload.to_h.fetch('recipients', []).first
     response.headers['Cache-Control'] = 'private, no-store'
     render :packing_slip, formats: [:html], layout: false
+  end
+
+  def paid_document_order(value)
+    id = value.to_s
+    raise ActiveRecord::RecordNotFound unless id.match?(/\A[1-9][0-9]{0,17}\z/)
+
+    LightekCommerce::Order.receipt_eligible.where(site: @site, id: id)
   end
 end

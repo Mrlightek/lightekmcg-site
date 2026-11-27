@@ -133,8 +133,15 @@ class CommerceController < ApplicationController
   def account
     response.headers['Cache-Control'] = 'private, no-store'
     @appearance = LightekCommerce::StoreAppearance.read(@site)
-    @orders = LightekCommerce::Order.visible.where(site: @site, storefront_buyer_id: current_user.id)
-      .where.not(paid_at: nil).includes(shipping_quote: :shipment).order(paid_at: :desc).limit(50)
+    orders = LightekCommerce::Order.receipt_eligible.where(site: @site, storefront_buyer_id: current_user.id)
+    if params[:receipt_order_id].present?
+      id = params[:receipt_order_id].to_s
+      raise ActiveRecord::RecordNotFound unless id.match?(/\A[1-9][0-9]{0,17}\z/)
+
+      @order = orders.includes(:items).find(id)
+      return render :payment_receipt, formats: [:html], layout: false
+    end
+    @orders = orders.includes(shipping_quote: :shipment).order(paid_at: :desc).limit(50)
   end
 
   def gift_card_balance

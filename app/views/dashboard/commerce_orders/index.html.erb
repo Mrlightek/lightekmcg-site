@@ -75,6 +75,10 @@
               <summary><span><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Manage order</span><span class="dd-disclosure-hint">Details & actions <i class="ti ti-chevron-down" aria-hidden="true"></i></span></summary>
               <div class="dd-order-attribution"><%= render "dashboard/growth/attribution", record: order %></div>
               <div class="dd-order-panels">
+                <%= render 'timeline', order: order %>
+                <% if order.paid_at? && %w[paid fulfilled partially_refunded refunded].include?(order.status) %>
+                  <%= link_to 'Payment receipt', dashboard_commerce_orders_path(site_id: @site.id, receipt_order_id: order.id), class: 'dd-button' %>
+                <% end %>
                 <% if order.paid_at? && %w[paid fulfilled partially_refunded].include?(order.status) && order.items.any?(&:physical_for_fulfillment?) %>
                   <%= link_to 'Packing slip', dashboard_commerce_orders_path(site_id: @site.id, print_order_id: order.id), class: 'dd-button' %>
                 <% end %>

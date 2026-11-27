@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment receipt · Order #<%= @order.id %></title>
+</head>
+<body>
+  <main>
+    <h1>Payment receipt</h1>
+    <p><%= @site.name %> · Order #<%= @order.id %></p>
+    <p>Paid <%= l(@order.paid_at.in_time_zone, format: :long) %> · <%= @order.customer_email %></p>
+    <table>
+      <thead>
+        <tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Line price before discounts</th></tr>
+      </thead>
+      <tbody>
+        <% @order.items.each do |item| %>
+          <tr>
+            <td><%= item.name %></td><td><%= item.quantity %></td>
+            <td><%= number_to_currency(item.line_total_cents / 100.0) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <dl>
+      <% if @order.discount_amount.positive? %>
+        <dt>Merchandise discount</dt><dd><%= number_to_currency(@order.discount_amount / 100.0) %></dd>
+      <% end %>
+      <dt>Merchandise subtotal</dt><dd><%= number_to_currency(@order.subtotal_cents / 100.0) %></dd>
+      <dt>Shipping</dt><dd><%= number_to_currency(@order.shipping_cents / 100.0) %></dd>
+      <% if @order.shipping_discount_amount.positive? %>
+        <dt>Shipping discount already applied</dt><dd><%= number_to_currency(@order.shipping_discount_amount / 100.0) %></dd>
+      <% end %>
+      <% if @order.buyer_fee_cents.positive? %>
+        <dt>Checkout fee</dt><dd><%= number_to_currency(@order.buyer_fee_cents / 100.0) %></dd>
+      <% end %>
+      <dt>Tax</dt><dd><%= number_to_currency(@order.tax_cents / 100.0) %></dd>
+      <dt>Total paid (<%= @order.currency.upcase %>)</dt><dd><%= number_to_currency(@order.total_cents / 100.0) %></dd>
+      <% if @order.gift_applied.positive? %>
+        <dt>Paid with gift card</dt><dd><%= number_to_currency(@order.gift_applied / 100.0) %></dd>
+        <dt>Paid by card</dt><dd><%= number_to_currency(@order.cash_paid_cents / 100.0) %></dd>
+      <% end %>
+      <% if @order.refunded_cents.positive? %>
+        <dt>Refunded</dt><dd><%= number_to_currency(@order.refunded_cents / 100.0) %></dd>
+        <dt>Net paid</dt><dd><%= number_to_currency((@order.total_cents - @order.refunded_cents) / 100.0) %></dd>
+      <% end %>
+    </dl>
+  </main>
+</body>
+</html>

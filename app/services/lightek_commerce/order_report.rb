@@ -40,7 +40,7 @@ module LightekCommerce
     end
 
     def recent
-      @orders.includes(items: :product).order(created_at: :desc, id: :desc).limit(150)
+      @orders.includes(:refunds, items: :product).order(created_at: :desc, id: :desc).limit(150)
     end
 
     def csv(kind)

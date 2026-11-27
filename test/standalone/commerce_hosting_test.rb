@@ -71,7 +71,7 @@ ActiveRecord::Schema.define do
     t.timestamps
     t.datetime :merchant_transfer_requested_at, :merchant_transfer_completed_at
     t.text :merchant_transfer_error
-    t.datetime :confirmation_sent_at
+    t.datetime :confirmation_sent_at, :fulfillment_notification_sent_at
     t.datetime :fulfilled_at; t.string :fulfillment_reference; t.string :fulfillment_note; t.datetime :paid_at; t.datetime :canceled_at; t.datetime :provisioned_at; t.string :purpose
   end
   create_table(:lightek_commerce_refunds) do |t|
@@ -297,6 +297,7 @@ require Rails.root.join('app/services/lightek_commerce/gift_delivery')
 require Rails.root.join('db/migrate/20261127191000_add_provider_to_shipping_quotes')
 AddProviderToShippingQuotes.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/order_report')
+require Rails.root.join('app/services/lightek_commerce/order_timeline')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1893,6 +1894,25 @@ class CommerceHostingTest < Minitest::Test
         assert_raises(ArgumentError) { LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup.merge(close: '08:00')) }
       end
     end
+  end
+
+  def test_order_timeline_orders_lifecycle_and_keeps_pending_refunds_distinct
+    order = order_for(product)
+    start = 1.day.ago
+    order.update!(created_at: start, status: 'partially_refunded', paid_at: start + 1.minute,
+      fulfilled_at: start + 3.minutes, confirmation_sent_at: start + 2.minutes)
+    order.refunds.create!(amount_cents: 100, idempotency_key: 'timeline-success', status: 'succeeded',
+      created_at: start + 4.minutes, updated_at: start + 5.minutes)
+    order.refunds.create!(amount_cents: 250, idempotency_key: 'timeline-pending', status: 'pending',
+      created_at: start + 6.minutes)
+
+    events = LightekCommerce::OrderTimeline.for(order)
+    assert_equal ['Order placed', 'Payment confirmed', 'Payment receipt sent', 'Order fulfilled',
+      'Refund requested', 'Refund recorded as successful', 'Refund requested'], events.map(&:label)
+    assert_equal [100, 100, 250], events.last(3).map(&:amount_cents)
+    assert_equal [order.id], LightekCommerce::Order.receipt_eligible.pluck(:id)
+    order.update!(deleted_at: Time.current)
+    assert_empty LightekCommerce::Order.receipt_eligible
   end
 
   def test_order_report_filters_store_and_creation_dates_and_exports_safe_rows

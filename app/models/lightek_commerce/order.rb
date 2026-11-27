@@ -45,6 +45,7 @@ module LightekCommerce
     end
 
     scope :visible, -> { where(deleted_at: nil) }
+    scope :receipt_eligible, -> { visible.where(status: %w[paid fulfilled partially_refunded refunded]).where.not(paid_at: nil) }
 
     def removable?
       %w[pending_payment canceled].include?(status) && !paid_at? && !provisioned_at? && gatekeeper_application_launch_id.nil?

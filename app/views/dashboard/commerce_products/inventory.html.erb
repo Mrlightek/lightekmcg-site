@@ -36,12 +36,13 @@
   </section>
 
   <section class="dd-panel" aria-label="Tracked stock">
+    <p>Reserved stock is held for unpaid orders. Committed stock is held for paid orders awaiting fulfillment.</p>
     <% if @more_inventory %><p>Showing the first 150 matches. Narrow the filters or export the list.</p><% end %>
     <% if @inventory_rows.empty? %>
       <p>No tracked inventory matches these filters.</p>
     <% else %>
       <table>
-        <thead><tr><th scope="col">Product</th><th scope="col">Variant</th><th scope="col">SKU</th><th scope="col">Available</th><th scope="col">Publication</th></tr></thead>
+        <thead><tr><th scope="col">Product</th><th scope="col">Variant</th><th scope="col">SKU</th><th scope="col">Available</th><th scope="col">Reserved</th><th scope="col">Committed</th><th scope="col">Publication</th></tr></thead>
         <tbody>
           <% @inventory_rows.each do |row| %>
             <tr>
@@ -49,6 +50,8 @@
               <td><%= row['variant_name'].presence || '—' %></td>
               <td><%= row['sku'].presence || '—' %></td>
               <td><%= row['inventory_quantity'] %></td>
+              <td><%= row['reserved_quantity'] %></td>
+              <td><%= row['committed_quantity'] %></td>
               <td><%= @inventory_report.publication(row) %></td>
             </tr>
           <% end %>

@@ -2071,6 +2071,41 @@ class CommerceHostingTest < Minitest::Test
     assert_raises(report::Invalid) { report.new(site: @site, filters: {threshold: '-1'}) }
   end
 
+  def test_inventory_report_separates_reservations_from_paid_unfulfilled_stock
+    simple = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 10)
+    parent = product(product_type: 'physical', billing_interval: 'one_time')
+    variant = parent.variants.create!(name: 'Blue', price_cents: 350, inventory_quantity: 8, active: true)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {simple.id.to_s => 3, "#{parent.id}:#{variant.id}" => 2})
+    pending = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {simple.id.to_s => 1})
+
+    foreign_site = DymondSite::Site.create!(tenant: @operator, host: 'inventory-orders-other.test')
+    [[foreign_site, true, true], [@site, false, true], [@site, true, false], [@site, true, nil]].each do |site, reserved, tracked|
+      unrelated = LightekCommerce::Order.create!(site: site, customer_email: 'buyer@example.test', status: 'paid',
+        stock_reserved: reserved, paid_at: Time.current)
+      unrelated.items.create!(product: simple, name: simple.name, quantity: 9, unit_price_cents: 100, line_total_cents: 900,
+        purchase_snapshot: tracked.nil? ? {} : {'track_inventory' => tracked})
+    end
+
+    report = LightekCommerce::InventoryReport.new(site: @site, filters: {stock: 'all'})
+    quantities = -> { report.rows(limit: 10).map { |row| row.values_at('product_id', 'inventory_quantity', 'reserved_quantity', 'committed_quantity') } }
+    assert_equal [[simple.id, 6, 4, 0], [parent.id, 6, 2, 0]], quantities.call
+
+    order.update!(status: 'paid', paid_at: Time.current)
+    assert_equal [[simple.id, 6, 1, 3], [parent.id, 6, 0, 2]], quantities.call
+    csv = CSV.parse(report.csv, headers: true)
+    assert_equal %w[6 1 3], csv.first.values_at('available_quantity', 'reserved_quantity', 'committed_quantity')
+    assert_equal LightekCommerce::InventoryAdjustment::COLUMNS, CSV.parse(report.adjustment_csv, headers: true).headers
+
+    order.update!(status: 'partially_refunded')
+    assert_equal [[simple.id, 6, 1, 3], [parent.id, 6, 0, 2]], quantities.call
+    order.update!(fulfilled_at: Time.current)
+    assert_equal [[simple.id, 6, 1, 0], [parent.id, 6, 0, 0]], quantities.call
+    LightekCommerce::OrderPlacement.cancel!(pending)
+    assert_equal [[parent.id, 6, 0, 0], [simple.id, 7, 0, 0]], quantities.call
+  end
+
   def test_bulk_packing_slips_scope_every_order_and_keep_selected_order
     physical = product(product_type: 'physical', billing_interval: 'one_time')
     digital = product(product_type: 'digital', billing_interval: 'one_time')

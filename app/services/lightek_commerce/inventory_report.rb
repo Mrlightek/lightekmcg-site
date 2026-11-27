@@ -10,7 +10,7 @@ module LightekCommerce
     STOCK_OPTIONS = [['Low or out of stock', 'attention'], ['Low stock', 'low'],
       ['Out of stock', 'out'], ['All tracked inventory', 'all']].freeze
     MAX_EXPORT_ROWS = 10_000
-    COLUMNS = %w[product_id variant_id product_name variant_name sku available_quantity publication].freeze
+    COLUMNS = %w[product_id variant_id product_name variant_name sku available_quantity publication reserved_quantity committed_quantity].freeze
 
     attr_reader :stock, :threshold, :lookup
 
@@ -29,6 +29,7 @@ module LightekCommerce
       raise Invalid, 'Search using 120 characters or fewer.' if @lookup.length > 120
 
       @include_drafts = filters[:include_drafts] == '1'
+      @site = site
       @products = Product.where(site: site)
       @products = @products.where(published: true) unless include_drafts?
     end
@@ -59,7 +60,10 @@ module LightekCommerce
         relation = relation.where("LOWER(product_name) LIKE :value ESCAPE '!' OR " \
           "LOWER(variant_name) LIKE :value ESCAPE '!' OR LOWER(sku) LIKE :value ESCAPE '!'", value: pattern)
       end
-      sql = relation.order(Arel.sql('inventory_quantity ASC, product_id ASC, variant_id ASC')).limit(limit).to_sql
+      order = Arel.sql('inventory_quantity ASC, product_id ASC, variant_id ASC')
+      relation = relation.order(order).limit(limit)
+      sql = adjustable ? relation.to_sql : with_order_quantities(relation)
+        .order(Arel.sql('visible_stock.inventory_quantity ASC, visible_stock.product_id ASC, visible_stock.variant_id ASC')).to_sql
       Product.with_connection { |connection| connection.select_all(sql).to_a }
     end
 
@@ -71,7 +75,8 @@ module LightekCommerce
         output << COLUMNS
         results.each do |row|
           output << [row['product_id'], row['variant_id'], safe_text(row['product_name']), safe_text(row['variant_name']),
-            safe_text(row['sku']), row['inventory_quantity'], publication(row)]
+            safe_text(row['sku']), row['inventory_quantity'], publication(row),
+            row['reserved_quantity'], row['committed_quantity']]
         end
       end
     end
@@ -96,6 +101,29 @@ module LightekCommerce
     end
 
     private
+
+    def with_order_quantities(stock_rows)
+      # A tracked-item snapshot records whether checkout deducted these units, even if the product settings later changed.
+      open_orders = Order.visible.where(site: @site, stock_reserved: true, fulfilled_at: nil,
+        status: %w[pending_payment paid partially_refunded])
+      items = OrderItem.joins(:order).merge(open_orders)
+        .where("CAST(lightek_commerce_order_items.purchase_snapshot ->> 'track_inventory' AS text) IN ('true', '1')")
+        .group('lightek_commerce_order_items.product_id', 'lightek_commerce_order_items.variant_id')
+        .select(<<~SQL)
+          lightek_commerce_order_items.product_id, lightek_commerce_order_items.variant_id,
+          SUM(CASE WHEN lightek_commerce_orders.status = 'pending_payment' THEN lightek_commerce_order_items.quantity ELSE 0 END) AS reserved_quantity,
+          SUM(CASE WHEN lightek_commerce_orders.status IN ('paid', 'partially_refunded') THEN lightek_commerce_order_items.quantity ELSE 0 END) AS committed_quantity
+        SQL
+
+      Product.unscoped.from("(#{stock_rows.to_sql}) AS visible_stock")
+        .joins(<<~SQL)
+          LEFT JOIN (#{items.to_sql}) AS order_stock ON order_stock.product_id = visible_stock.product_id
+            AND (order_stock.variant_id = visible_stock.variant_id OR
+              (order_stock.variant_id IS NULL AND visible_stock.variant_id IS NULL))
+        SQL
+        .select('visible_stock.*, COALESCE(order_stock.reserved_quantity, 0) AS reserved_quantity, ' \
+          'COALESCE(order_stock.committed_quantity, 0) AS committed_quantity')
+    end
 
     def safe_text(value)
       value.to_s.match?(/\A(?:[[:space:]]*[=+@-]|[\t\r\n])/) ? "'#{value}" : value

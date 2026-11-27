@@ -74,3 +74,7 @@ require ROOT.join('db/migrate/20261127120000_create_lightek_sales_commission_pay
 CreateLightekSalesCommissionPayouts.new.migrate(:up)
 LightekSales::Partner.reset_column_information
 require ROOT.join('app/models/lightek_sales/commission_payout')
+
+require ROOT.join('db/migrate/20261127130000_add_sales_partner_payout_onboarding')
+AddSalesPartnerPayoutOnboarding.new.migrate(:up)
+LightekSales::Partner.reset_column_information

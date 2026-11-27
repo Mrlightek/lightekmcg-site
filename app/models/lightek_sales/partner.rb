@@ -6,6 +6,14 @@ module LightekSales
 
     belongs_to :site, class_name: 'DymondSite::Site'
     belongs_to :product, class_name: 'LightekCommerce::Product'
+    belongs_to :payout_user, class_name: 'User', optional: true
+    belongs_to :payout_invited_by, class_name: 'User', optional: true
+    validates :payout_email, format: {with: URI::MailTo::EMAIL_REGEXP}, length: {maximum: 254}, allow_nil: true
+
+    generates_token_for :payout_setup, expires_in: 2.days do
+      [payout_email, payout_invited_by_id, payout_user_id, revoked_at&.to_i]
+    end
+
     has_many :referrals, class_name: 'LightekSales::Referral', dependent: :restrict_with_error
 
     scope :active, -> { where(revoked_at: nil) }

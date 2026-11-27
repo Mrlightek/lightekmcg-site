@@ -87,11 +87,7 @@ module DymondBank
         end
         refresh_destination!(destination) if existing_recipient
         use_case = destination.capability_status == 'active' ? 'account_update' : 'account_onboarding'
-        link = request(:post, '/v2/core/account_links', {'account'=>destination.recipient_ref,
-          'use_case'=>{'type'=>use_case, use_case=>{'configurations'=>['recipient'], 'return_url'=>return_url, 'refresh_url'=>refresh_url}}})
-        uri = URI.parse(link.fetch('url'))
-        raise ProviderError, 'Invalid hosted onboarding URL' unless uri.scheme == 'https' && %w[accounts.stripe.com connect.stripe.com].include?(uri.host) && !uri.userinfo
-        uri.to_s
+        recipient_account_link!(destination.recipient_ref, use_case, return_url, refresh_url)
       end
     end
     def refresh_destination!(destination)
@@ -132,6 +128,25 @@ module DymondBank
       raise Unavailable, 'Sender account changed after approval' unless statement.pay_run.financial_account_ref == financial_account_ref
       request(:post, "/v2/money_management/payout_intents/#{identifier!(statement.provider_ref)}/confirm", {}, key: "workforce-confirm-#{statement.id}-v1")
     end
+    def create_partner_recipient!(partner)
+      result = request(:post, '/v2/core/accounts', {
+        'contact_email' => partner.payout_email, 'display_name' => partner.name,
+        'identity' => {'country' => 'us', 'entity_type' => partner.payout_entity_type},
+        'configuration' => {'recipient' => {'capabilities' => {'bank_accounts' => {'ach' => {'requested' => true}}}}},
+        'include' => ['configuration.recipient']
+      }, key: "sales-partner-recipient-#{partner.referral_code}-v1")
+      unless result['id'].to_s.match?(/\Aacct_[a-zA-Z0-9]{3,150}\z/) &&
+          result['contact_email'].to_s.casecmp?(partner.payout_email)
+        raise ProviderError, 'The provider recipient does not match this partner'
+      end
+
+      result.fetch('id')
+    end
+
+    def partner_onboarding_link!(reference:, return_url:, refresh_url:)
+      recipient_account_link!(reference, 'account_onboarding', return_url, refresh_url)
+    end
+
     def partner_recipient!(reference:, email:)
       raise Unavailable, 'Enter a Stripe recipient account ID' unless reference.to_s.match?(/\Aacct_[a-zA-Z0-9]{3,150}\z/)
       result = request(:get, "/v2/core/accounts/#{identifier!(reference)}?include[0]=configuration.recipient")
@@ -164,6 +179,21 @@ module DymondBank
     end
 
     private
+    def recipient_account_link!(reference, use_case, return_url, refresh_url)
+      link = request(:post, '/v2/core/account_links', {'account' => identifier!(reference),
+        'use_case' => {'type' => use_case, use_case => {'configurations' => ['recipient'],
+          'return_url' => return_url, 'refresh_url' => refresh_url}}})
+      uri = URI.parse(link.fetch('url'))
+      unless uri.scheme == 'https' && %w[accounts.stripe.com connect.stripe.com].include?(uri.host) &&
+          !uri.userinfo && uri.port == 443
+        raise ProviderError, 'Invalid hosted onboarding URL'
+      end
+
+      uri.to_s
+    rescue URI::InvalidURIError, KeyError
+      raise ProviderError, 'Invalid hosted onboarding URL'
+    end
+
     def identifier!(value)
       raise ProviderError, 'Invalid provider reference' unless value.to_s.match?(/\A[a-zA-Z0-9_]{3,200}\z/)
       value.to_s

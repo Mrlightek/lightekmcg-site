@@ -313,9 +313,14 @@ require Rails.root.join('db/migrate/20261127195000_add_reason_to_commerce_invent
 AddReasonToCommerceInventoryChanges.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127200000_add_commerce_inventory_stock_states')
 AddCommerceInventoryStockStates.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127201000_create_commerce_supplier_orders')
+CreateCommerceSupplierOrders.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
+require Rails.root.join('app/models/lightek_commerce/supplier_order')
+require Rails.root.join('app/models/lightek_commerce/supplier_order_line')
+require Rails.root.join('app/services/lightek_commerce/supplier_orders')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -2173,6 +2178,75 @@ class CommerceHostingTest < Minitest::Test
     service.move!(**inputs)
     assert_equal [3, 2], variant.reload.attributes.values_at('inventory_quantity', 'unavailable_quantity')
     assert_equal [variant.id], entries.pluck(:variant_id).uniq
+  end
+
+  def test_supplier_orders_receive_partial_shipments_and_reconcile_received_cost
+    simple = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 2)
+    parent = product(product_type: 'physical', billing_interval: 'one_time')
+    variant = parent.variants.create!(name: 'Small', price_cents: 500, inventory_quantity: 1, active: true)
+    order = LightekCommerce::SupplierOrder.create!(site: @site, supplier: 'Example Supply')
+    buyer = LightekCommerce::SupplierOrders.new(order: order, actor: @operator)
+    invalid = LightekCommerce::SupplierOrders::Invalid
+    assert_raises(invalid) { buyer.place! }
+
+    buyer.save_line!(item_key: simple.id.to_s, quantity: 4, unit_cost: 125)
+    buyer.save_line!(item_key: "#{parent.id}:#{variant.id}", quantity: 3, unit_cost: 210)
+    assert_equal [0, 0], [simple.reload.incoming_quantity, variant.reload.incoming_quantity]
+    buyer.place!
+    assert_equal 'ordered', order.reload.status
+    assert_equal [4, 4, 2], simple.reload.attributes.values_at('incoming_quantity', 'supplier_incoming_quantity', 'inventory_quantity')
+    assert_equal [3, 3, 1], variant.reload.attributes.values_at('incoming_quantity', 'supplier_incoming_quantity', 'inventory_quantity')
+
+    stock = LightekCommerce::InventoryStockStates
+    version = LightekCommerce::InventoryAdjustment.snapshot_version(simple.updated_at)
+    assert_raises(stock::Invalid) do
+      stock.move!(site: @site, actor: @operator, product_id: simple.id, variant_id: nil, movement: 'receive', quantity: 1, version: version)
+    end
+
+    small_line = order.lines.find_by!(variant_id: variant.id)
+    buyer.receive!(line_id: small_line.id, quantity: 2, expected_received: 0)
+    assert_equal [1, 1, 3], variant.reload.attributes.values_at('incoming_quantity', 'supplier_incoming_quantity', 'inventory_quantity')
+    assert_raises(invalid) { buyer.receive!(line_id: small_line.id, quantity: 1, expected_received: 0) }
+    assert_raises(invalid) { buyer.receive!(line_id: small_line.id, quantity: 2, expected_received: 2) }
+    buyer.receive!(line_id: small_line.id, quantity: 1, expected_received: 2)
+
+    simple_line = order.lines.find_by!(product_id: simple.id)
+    buyer.receive!(line_id: simple_line.id, quantity: 4, expected_received: 0)
+    assert_equal 'received', order.reload.status
+    assert_equal [0, 0, 6], simple.reload.attributes.values_at('incoming_quantity', 'supplier_incoming_quantity', 'inventory_quantity')
+    buyer.reconcile_invoice!(reference: 'INV-193', subtotal: 1200)
+    assert_equal [1130, 1200, 'INV-193'], [order.received_subtotal_cents, order.reload.invoice_subtotal_cents, order.invoice_reference]
+
+    movements = LightekCommerce::InventoryChange.for_site(@site).where(supplier_order_id: order.id)
+    assert_equal 8, movements.count
+    assert_equal %w[available incoming], movements.distinct.order(:stock_state).pluck(:stock_state)
+  end
+
+  def test_supplier_order_cancellation_preserves_manual_incoming_and_received_units
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true,
+      inventory_quantity: 3, incoming_quantity: 4)
+    service = LightekCommerce::SupplierOrders
+    order = LightekCommerce::SupplierOrder.create!(site: @site, supplier: 'Example Supply')
+    buyer = service.new(order: order, actor: @operator)
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'po-other.test')
+    outsider = service.new(order: LightekCommerce::SupplierOrder.create!(site: foreign, supplier: 'Other Supply'), actor: @operator)
+    assert_raises(service::Invalid) { outsider.save_line!(item_key: item.id.to_s, quantity: 5, unit_cost: 25) }
+    buyer.save_line!(item_key: item.id.to_s, quantity: 5, unit_cost: 25)
+
+    model = LightekCommerce::InventoryChange
+    model.stub(:record!, ->(**) { raise ActiveRecord::RecordInvalid.new(model.new) }) do
+      assert_raises(service::Invalid) { buyer.place! }
+    end
+    assert_equal 'draft', order.reload.status
+    assert_equal [4, 0], item.reload.attributes.values_at('incoming_quantity', 'supplier_incoming_quantity')
+    buyer.place!
+    buyer.receive!(line_id: order.lines.sole.id, quantity: 3, expected_received: 0)
+    buyer.cancel!
+    assert_equal 'canceled', order.reload.status
+    assert_equal [4, 0, 6], item.reload.attributes.values_at('incoming_quantity', 'supplier_incoming_quantity', 'inventory_quantity')
+    assert_raises(service::Invalid) { buyer.cancel! }
+    buyer.reconcile_invoice!(reference: 'INV-4', subtotal: 75)
+    assert_equal order.received_subtotal_cents, order.reload.invoice_subtotal_cents
   end
 
   def test_bulk_packing_slips_scope_every_order_and_keep_selected_order

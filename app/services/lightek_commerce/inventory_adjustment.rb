@@ -71,6 +71,10 @@ module LightekCommerce
         before_tracking = product.track_inventory?
         current_version = snapshot_version(product.updated_at)
         product.assign_attributes(attributes)
+        if product.will_save_change_to_product_type? && product.product_type != 'physical' &&
+            (product.supplier_incoming_quantity.positive? || product.variants.where('supplier_incoming_quantity > 0').exists?)
+          raise Invalid, 'Receive or cancel open supplier stock before changing the product type.'
+        end
         becoming_installation = product.will_save_change_to_product_type? && product.product_type == 'lightek_instance'
         disabling_tracking = before_tracking && !product.track_inventory?
         if (disabling_tracking || becoming_installation) && InventoryStockStates.allocated?(product)

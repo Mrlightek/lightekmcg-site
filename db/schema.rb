@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_201000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1904,11 +1904,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
     t.bigint "order_id"
     t.string "reason"
     t.string "stock_state", default: "available", null: false
+    t.bigint "supplier_order_id"
     t.index ["site_id", "id"], name: "idx_commerce_inventory_changes_site_history"
     t.check_constraint "before_quantity >= 0 AND after_quantity >= 0 AND before_quantity <> after_quantity", name: "commerce_inventory_change_counts"
     t.check_constraint "(source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying, 'stock_state_adjustment'::character varying]::text[])) AND actor_id IS NOT NULL AND order_id IS NULL OR (source::text = ANY (ARRAY['checkout_reserved'::character varying, 'checkout_released'::character varying]::text[])) AND actor_id IS NULL AND order_id IS NOT NULL", name: "commerce_inventory_change_context"
     t.check_constraint "reason IS NULL OR (source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])) AND (reason::text = ANY (ARRAY['count'::character varying, 'received'::character varying, 'returned'::character varying, 'damaged'::character varying, 'lost'::character varying, 'correction'::character varying]::text[]))", name: "commerce_inventory_change_reason"
     t.check_constraint "stock_state::text = 'available'::text OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['incoming'::character varying, 'unavailable'::character varying, 'damaged'::character varying]::text[]))", name: "commerce_inventory_change_stock_state"
+    t.check_constraint "supplier_order_id IS NULL OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['available'::character varying, 'incoming'::character varying]::text[]))", name: "commerce_inventory_change_supplier"
   end
 
   create_table "lightek_commerce_order_items", force: :cascade do |t|
@@ -2018,9 +2020,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
     t.integer "incoming_quantity", default: 0, null: false
     t.integer "unavailable_quantity", default: 0, null: false
     t.integer "damaged_quantity", default: 0, null: false
+    t.integer "supplier_incoming_quantity", default: 0, null: false
     t.index ["product_id", "sku"], name: "index_commerce_variants_product_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["product_id"], name: "index_lightek_commerce_product_variants_on_product_id"
     t.check_constraint "incoming_quantity >= 0 AND unavailable_quantity >= 0 AND damaged_quantity >= 0", name: "commerce_stock_states_nonnegative"
+    t.check_constraint "supplier_incoming_quantity >= 0 AND supplier_incoming_quantity <= incoming_quantity", name: "commerce_supplier_incoming_valid"
   end
 
   create_table "lightek_commerce_products", force: :cascade do |t|
@@ -2053,6 +2057,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
     t.integer "incoming_quantity", default: 0, null: false
     t.integer "unavailable_quantity", default: 0, null: false
     t.integer "damaged_quantity", default: 0, null: false
+    t.integer "supplier_incoming_quantity", default: 0, null: false
     t.index ["site_id", "sku"], name: "idx_commerce_site_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["site_id", "slug"], name: "index_lightek_commerce_products_on_site_id_and_slug", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_products_on_site_id"
@@ -2062,6 +2067,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
     t.check_constraint "inventory_quantity >= 0", name: "commerce_inventory_nonnegative"
     t.check_constraint "price_cents >= 0", name: "commerce_price_nonnegative"
     t.check_constraint "incoming_quantity >= 0 AND unavailable_quantity >= 0 AND damaged_quantity >= 0", name: "commerce_stock_states_nonnegative"
+    t.check_constraint "supplier_incoming_quantity >= 0 AND supplier_incoming_quantity <= incoming_quantity", name: "commerce_supplier_incoming_valid"
   end
 
   create_table "lightek_commerce_refunds", force: :cascade do |t|
@@ -2115,6 +2121,33 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
     t.index ["bank_subscription_id"], name: "idx_commerce_bank_subscription"
     t.index ["order_id"], name: "index_lightek_commerce_subscriptions_on_order_id", unique: true
     t.index ["processor_reference"], name: "index_lightek_commerce_subscriptions_on_processor_reference", unique: true
+  end
+
+  create_table "lightek_commerce_supplier_order_lines", force: :cascade do |t|
+    t.bigint "supplier_order_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "variant_id"
+    t.string "item_name", null: false
+    t.integer "ordered_quantity", null: false
+    t.integer "received_quantity", default: 0, null: false
+    t.bigint "unit_cost_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["supplier_order_id"], name: "idx_supplier_order_lines"
+    t.check_constraint "ordered_quantity > 0 AND received_quantity >= 0 AND received_quantity <= ordered_quantity AND unit_cost_cents >= 0", name: "commerce_supplier_line_amounts"
+  end
+
+  create_table "lightek_commerce_supplier_orders", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "supplier", limit: 160, null: false
+    t.string "status", default: "draft", null: false
+    t.date "expected_on"
+    t.string "invoice_reference", limit: 160
+    t.bigint "invoice_subtotal_cents"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "id"], name: "idx_supplier_orders_by_store"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'ordered'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])", name: "commerce_supplier_order_status"
   end
 
   create_table "lightek_communications_service_events", force: :cascade do |t|
@@ -7715,6 +7748,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_200000) do
   add_foreign_key "lightek_commerce_orders", "users", column: "hosting_owner_id"
   add_foreign_key "lightek_commerce_product_variants", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_commerce_products", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_supplier_order_lines", "lightek_commerce_supplier_orders", column: "supplier_order_id"
   add_foreign_key "lightek_commerce_products", "hosting_packages", column: "source_hosting_package_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "lightek_commerce_orders", column: "order_id"

@@ -36,8 +36,9 @@ module LightekCommerce
 
     def include_drafts? = @include_drafts
 
-    def rows(limit:, adjustable: false)
+    def rows(limit:, adjustable: false, physical_only: false)
       catalog = adjustable ? @products.where.not(product_type: 'lightek_instance') : @products
+      catalog = catalog.where(product_type: 'physical') if physical_only
       active = ProductVariant.where(active: true)
       products = catalog.where(track_inventory: true).where.not(id: active.select(:product_id))
         .select('id AS product_id, NULL AS variant_id, name AS product_name, NULL AS variant_name, sku, ' \

@@ -233,6 +233,10 @@ end
   get "/dashboard/commerce/discounts/export", to: "dashboard/commerce_store_settings#export_discounts", as: :export_dashboard_commerce_store_discounts
   patch "/dashboard/commerce/discounts/:id", to: "dashboard/commerce_store_settings#update_discount", as: :dashboard_commerce_store_discount
   resources :dashboard_commerce_collections, path: "/dashboard/commerce/collections", controller: "dashboard/commerce_collections", except: :show
+  resources :dashboard_commerce_supplier_orders, path: "/dashboard/commerce/supplier_orders",
+    controller: "dashboard/commerce_supplier_orders", only: %i[index create show] do
+    post :change, on: :member
+  end
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund

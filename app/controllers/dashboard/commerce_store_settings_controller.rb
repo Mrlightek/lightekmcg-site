@@ -6,7 +6,8 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
   def show
     @appearance = LightekCommerce::StoreAppearance.read(@site)
     @discount_products = LightekCommerce::Product.visible.where(site: @site)
-    @discounts = LightekCommerce::Discount.where(site: @site).includes(:target_product).order(:id)
+    @discount_collections = LightekCommerce::Collection.where(site: @site).order(:name, :id)
+    @discounts = LightekCommerce::Discount.where(site: @site).includes(:target_product, :target_collection).order(:id)
     uses = LightekCommerce::DiscountUse.counted.where(discount: @discounts.except(:order))
     pending = uses.where(lightek_commerce_orders: {status: 'pending_payment'})
     settled = uses.where.not(lightek_commerce_orders: {status: 'pending_payment'})
@@ -57,7 +58,7 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
 
   def discount_params
     params.require(:discount).permit(:name, :code, :kind, :amount, :minimum_cents, :combinable,
-      :target_product_id, :starts_at, :ends_at, :usage_limit, :buyer_limit)
+      :target_product_id, :target_collection_id, :starts_at, :ends_at, :usage_limit, :buyer_limit)
   end
 
   def redirect_to_store(message, error: false)

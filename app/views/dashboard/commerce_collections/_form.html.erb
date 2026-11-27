@@ -1,0 +1,50 @@
+<% content_for :page_title, title %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <h1><%= title %></h1>
+    <%= link_to 'Collections', dashboard_commerce_collections_path(site_id: @site.id) %>
+  </header>
+  <section class="dd-panel">
+    <% if @collection.errors.any? %>
+      <ul role="alert"><% @collection.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+    <% end %>
+    <%= form_with model: @collection, scope: :collection, url: url, class: 'dd-form-stack' do |form| %>
+      <%= form.label :name %>
+      <%= form.text_field :name, required: true, maxlength: 160 %>
+      <%= form.label :slug, 'URL handle' %>
+      <%= form.text_field :slug, maxlength: 180, placeholder: 'Generated from the name if blank' %>
+      <%= form.label :description %>
+      <%= form.text_area :description, maxlength: 2000 %>
+      <%= form.label :source, 'Product selection' %>
+      <%= form.select :source, [['Choose products manually', 'manual'], ['Match product rules', 'rules']] %>
+      <fieldset>
+        <legend>Manual selection</legend>
+        <%= form.label :product_ids, 'Products' %>
+        <%= form.collection_select :product_ids, @products, :id, :name, {}, multiple: true, size: 8 %>
+      </fieldset>
+      <fieldset>
+        <legend>Rule-based selection</legend>
+        <%= form.label :matching, 'Include products matching' %>
+        <%= form.select :matching, [['All rules', 'all'], ['Any rule', 'any']] %>
+        <p>Use cents for prices. Product types are physical, digital, service, or lightek_instance. Enter true or false for featured.</p>
+        <% fields = [['Name', 'name'], ['Product type', 'product_type'], ['Price', 'price_cents'], ['Inventory', 'inventory_quantity'], ['Featured', 'featured']] %>
+        <% operators = [['Is', 'is'], ['Contains', 'contains'], ['At least', 'at_least'], ['At most', 'at_most']] %>
+        <% LightekCommerce::Collection::MAX_CONDITIONS.times do |index| %>
+          <% condition = @collection.conditions[index].to_h %>
+          <div>
+            <% prefix = "collection[conditions][#{index}]" %>
+            <label>Field <%= select_tag "#{prefix}[field]", options_for_select(fields, condition['field']), include_blank: true %></label>
+            <label>Operator <%= select_tag "#{prefix}[operator]", options_for_select(operators, condition['operator']) %></label>
+            <label>Value <%= text_field_tag "#{prefix}[value]", condition['value'], maxlength: 160 %></label>
+          </div>
+        <% end %>
+      </fieldset>
+      <label><%= form.check_box :published %> Publish in the storefront</label>
+      <%= form.submit 'Save collection', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+    <% if @collection.persisted? %>
+      <%= button_to 'Delete collection', url, method: :delete, class: 'dd-button',
+        form: {data: {turbo_confirm: 'Delete this collection?'}} %>
+    <% end %>
+  </section>
+</main>

@@ -74,7 +74,8 @@ module LightekCommerce
         errors.add(:price_cents, "must preserve the hosting package's monthly retail margin")
       end
     end
-    validates :product_type, inclusion: {in: %w[physical digital service lightek_instance]}
+    PRODUCT_TYPES = %w[physical digital service lightek_instance].freeze
+    validates :product_type, inclusion: {in: PRODUCT_TYPES}
     validates :image_url, format: {with: /\Ahttps:\/\//}, allow_blank: true
     validates :short_description, length: {maximum: 300}
     validates :sku, uniqueness: {scope: :site_id}, allow_blank: true

@@ -4,6 +4,7 @@
 <label>Amount <%= form.number_field :amount, min: 1, required: true %></label>
 <label>Minimum order amount (cents) <%= form.number_field :minimum_cents, min: 0, required: true %></label>
 <label>Applies to <%= form.select :target_product_id, options_from_collection_for_select(@discount_products, :id, :name, form.object.target_product_id), include_blank: 'Entire merchandise subtotal' %></label>
+<label>Or choose a collection <%= form.select :target_collection_id, options_from_collection_for_select(@discount_collections, :id, :name, form.object.target_collection_id), include_blank: 'No collection target' %></label>
 <label><%= form.check_box :combinable %> Allow combining with other eligible discounts</label>
 <label>Start time (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, value: form.object.starts_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>
 <label>End time (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, value: form.object.ends_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>

@@ -5,6 +5,7 @@ module LightekCommerce
     self.table_name = 'lightek_commerce_discounts'
     belongs_to :site, class_name: 'DymondSite::Site'
     belongs_to :target_product, class_name: 'LightekCommerce::Product', optional: true
+    belongs_to :target_collection, class_name: 'LightekCommerce::Collection', optional: true
     before_validation { self.code = self.class.normalize(code) }
     validates :name, presence: true, length: {maximum: 100}
     validates :code, format: {with: /\A[A-Z0-9_-]{1,40}\z/}, uniqueness: {scope: :site_id}, allow_nil: true
@@ -17,6 +18,9 @@ module LightekCommerce
     validate do
       if target_product_id && target_product&.site_id != site_id
         errors.add(:target_product, 'must belong to this store')
+      end
+      if target_collection_id && (target_product_id || target_collection&.site_id != site_id)
+        errors.add(:target_collection, 'must be from this store and selected without a product target')
       end
       if starts_at && ends_at && ends_at <= starts_at
         errors.add(:ends_at, 'must follow the start time')

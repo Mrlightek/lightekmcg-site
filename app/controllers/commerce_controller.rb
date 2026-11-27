@@ -29,6 +29,16 @@ class CommerceController < ApplicationController
     keys = Array(session["lightek_shipping_quotes_#{@site.id}"]).first(10)
     @shipping_quotes = LightekShipping::Quote.where(site: @site, public_key: keys).where("expires_at > ?", Time.current)
       .where(cart_fingerprint: LightekShipping::Quotes.fingerprint(@site, @cart))
+    @collections = LightekCommerce::Collection.published.where(site: @site).order(:name, :id)
+    if params[:collection].present?
+      @collection = @collections.find_by!(slug: params[:collection])
+      @collection_products = @products.where(id: @collection.products.select(:id)).includes(:variants, photos_attachments: :blob)
+      if LightekDesign::Catalog.active?(@site)
+        @page = Struct.new(:title, :theme, :sections).new(@collection.name, nil, [])
+        return render 'commerce/collection', layout: 'lightek_design/website'
+      end
+      return render 'commerce/collection'
+    end
     page_id = @site.manifest.to_h["lightek_commerce_starter_page_id"]
     @page = @site.pages.find_by(id: page_id, published: true) if page_id
     design_key = @site.manifest.to_h["lightek_commerce_design_key"]

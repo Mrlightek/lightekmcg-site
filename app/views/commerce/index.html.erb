@@ -1,4 +1,4 @@
-<main class="lt-commerce"><h1><%= @site.name %> · Shop</h1><div class="lt-commerce-grid"><% @products.each do |product| %>
+<main class="lt-commerce"><h1><%= @site.name %> · Shop</h1><%= render "commerce/collections_nav" %><div class="lt-commerce-grid"><% @products.each do |product| %>
 <% if product.product_type == "lightek_instance" %>
   <%= render "commerce/product_card", product: product %>
   <% next %>

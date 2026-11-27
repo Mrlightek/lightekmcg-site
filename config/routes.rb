@@ -225,6 +225,7 @@ end
   patch "/dashboard/commerce/gift-cards", to: "dashboard/commerce_store_settings#update_gift_cards", as: :dashboard_commerce_gift_cards
   post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
   patch "/dashboard/commerce/discounts/:id", to: "dashboard/commerce_store_settings#update_discount", as: :dashboard_commerce_store_discount
+  resources :dashboard_commerce_collections, path: "/dashboard/commerce/collections", controller: "dashboard/commerce_collections", except: :show
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund

@@ -280,8 +280,11 @@ CreateCommerceGiftCards.new.migrate(:up)
 %w[gift_cards gift_checkout gift_refunds].each { |name| require Rails.root.join("app/services/lightek_commerce/#{name}") }
 require Rails.root.join('db/migrate/20261127180000_extend_commerce_discount_rules')
 ExtendCommerceDiscountRules.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127181000_create_commerce_collections')
+CreateCommerceCollections.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/discount')
 require Rails.root.join('app/models/lightek_commerce/discount_use')
+require Rails.root.join('app/models/lightek_commerce/collection')
 require Rails.root.join('app/services/lightek_commerce/discounts')
 require Rails.root.join('app/services/lightek_commerce/store_appearance')
 LightekCommerce::Order.reset_column_information
@@ -979,6 +982,48 @@ class CommerceHostingTest < Minitest::Test
     assert_equal 367, allocations.fetch(other.id)
     assert_equal [100, 450, 500], LightekCommerce::DiscountUse.where(order: order).pluck(:amount_cents).sort
     assert_equal [1317, 2633], LightekCommerce::Discounts.processor_items(order).map { |line| line.dig(:price_data, :unit_amount) }
+  end
+
+  def test_manual_and_rule_based_collections_are_scoped_and_update_with_the_catalog
+    low = product(name: 'Trial Class', billing_interval: 'one_time', price_cents: 100)
+    high = product(name: 'Private Class', billing_interval: 'one_time', price_cents: 2000)
+    foreign_site = DymondSite::Site.create!(tenant: @operator, host: 'foreign-collections.test')
+    outsider = product(site: foreign_site, name: 'Foreign Class', billing_interval: 'one_time', price_cents: 2100)
+    manual = LightekCommerce::Collection.create!(site: @site, name: 'New Products', product_ids: [high.id])
+    assert_equal 'new-products', manual.slug
+    assert_equal [high.id], manual.products.pluck(:id)
+    refute manual.update(product_ids: [high.id, outsider.id])
+    refute manual.published?
+    assert_empty LightekCommerce::Collection.published.where(site: @site)
+    collection = LightekCommerce::Collection.create!(site: @site, name: 'Classes', source: 'rules', published: true,
+      conditions: [{'field' => 'name', 'operator' => 'contains', 'value' => 'CLASS'},
+        {'field' => 'price_cents', 'operator' => 'at_least', 'value' => '500'}])
+    assert_equal [high.id], collection.products.pluck(:id)
+    collection.update!(matching: 'any')
+    assert_equal [low.id, high.id], collection.products.order(:id).pluck(:id)
+    collection.update!(matching: 'all')
+    low.update!(price_cents: 600)
+    high.update!(published: false)
+    assert_equal [low.id], collection.products.merge(LightekCommerce::Product.visible).pluck(:id)
+  end
+
+  def test_collection_discount_applies_only_to_matching_lines_and_rejects_shared_targets
+    target = product(billing_interval: 'one_time', price_cents: 2000)
+    other = product(billing_interval: 'one_time', price_cents: 2500)
+    collection = LightekCommerce::Collection.create!(site: @site, name: 'Limited selection', product_ids: [target.id])
+    rules = LightekCommerce::Discount
+    collection_rule = rules.create!(site: @site, target_collection: collection, name: 'Selection', code: 'GROUP',
+      kind: 'percent', amount: 10, combinable: true)
+    rules.create!(site: @site, target_product: target, name: 'Same item', code: 'ITEM', kind: 'fixed', amount: 50, combinable: true)
+    inputs = {site: @site, products: [target, other], quantities: {target.id.to_s => 1, other.id.to_s => 1}}
+    quote = LightekCommerce::Discounts.quote(**inputs, code: 'GROUP')
+    assert_equal({target.id.to_s => 200, other.id.to_s => 0}, quote.line_savings)
+    assert_raises(LightekCommerce::Discounts::Invalid) do
+      LightekCommerce::Discounts.quote(**inputs, code: %w[ITEM GROUP])
+    end
+    collection.destroy!
+    refute collection_rule.reload.active?
+    assert_nil collection_rule.target_collection_id
   end
 
   def test_discount_review_rejects_repriced_carts_and_retries_a_reserved_discount

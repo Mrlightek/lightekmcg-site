@@ -38,7 +38,7 @@
         <tbody>
           <% @discounts.each do |discount| %>
             <tr>
-              <td><%= discount.name %><% if discount.target_product %> · <%= discount.target_product.name %><% end %><% if discount.combinable? %> · Combinable<% end %></td><td><%= discount.code || 'Automatic' %></td>
+              <td><%= discount.name %><% if discount.target_product %> · <%= discount.target_product.name %><% elsif discount.target_collection %> · <%= discount.target_collection.name %><% end %><% if discount.combinable? %> · Combinable<% end %></td><td><%= discount.code || 'Automatic' %></td>
               <td><%= discount.kind == 'percent' ? "#{discount.amount}%" : number_to_currency(discount.amount / 100.0) %></td>
               <td>
                 <% if !discount.active? %>Inactive

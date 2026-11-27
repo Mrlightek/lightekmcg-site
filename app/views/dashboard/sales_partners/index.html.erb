@@ -15,7 +15,10 @@
   </section>
 
   <section class="sales-panel">
-    <h2>Partner links</h2>
+    <h2>Partner links and ACH recipients</h2>
+    <% unless @sender_configured %>
+      <p>Configure your Dymond Bank payout sender in <%= link_to 'People & Access', dashboard_people_path(tab: 'payroll', employer_id: current_user.id) %> to send commissions.</p>
+    <% end %>
     <% if @partners.empty? %><p>No referral partners yet.</p><% end %>
     <% @partners.each do |partner| %>
       <article>
@@ -32,13 +35,23 @@
           <p>The website’s sales inquiry form is unavailable.</p>
           <%= button_to 'Revoke link', revoke_dashboard_sales_partner_path(site_id: @site.id, id: partner.id), class: 'sales-button secondary' %>
         <% end %>
+        <% if partner.payout_recipient_ref? %>
+          <p>Linked ACH recipient for <%= partner.payout_email %><%= ' · Sandbox' unless partner.payout_live %></p>
+        <% end %>
+        <% if @sender_configured %>
+          <%= form_with scope: :recipient, url: link_dashboard_sales_partner_recipient_path(site_id: @site.id, id: partner.id), class: 'sales-filters' do |form| %>
+            <label>Partner email<%= form.email_field :email, value: partner.payout_email, required: true, maxlength: 254, id: "recipient-email-#{partner.id}" %></label>
+            <label>Verified Stripe recipient ID<%= form.text_field :reference, required: true, maxlength: 155, id: "recipient-id-#{partner.id}" %></label>
+            <%= form.submit 'Verify and link recipient', class: 'sales-button secondary' %>
+          <% end %>
+        <% end %>
       </article>
     <% end %>
   </section>
 
   <section class="sales-panel">
     <h2>Commission ledger</h2>
-    <p>Showing the latest 100 credited referrals. Record a receipt after the merchant proceeds clear and the partner payment completes.</p>
+    <p>Showing the latest 100 credited referrals. Prepare and review the total debit before releasing an eligible commission through Dymond Bank.</p>
     <% if @referrals.empty? %><p>No credited referrals yet.</p><% end %>
     <% @referrals.each do |referral| %>
       <% order = referral.first_paid_order %>
@@ -55,7 +68,13 @@
         <p><strong><%= status %></strong> · <%= number_to_currency(referral.commission_cents / 100.0) %></p>
         <% if referral.paid_at? %>
           <p>Receipt <%= referral.payout_reference %> · <%= l(referral.paid_at.to_date) %></p>
+        <% end %>
+        <% if (payout = referral.commission_payout) %>
+          <%= render 'payout', payout: payout, eligible: status == 'Ready to record' %>
         <% elsif status == 'Ready to record' %>
+          <% if @sender_configured && referral.partner.payout_recipient_ref? %>
+            <%= button_to 'Prepare Dymond Bank payout', prepare_dashboard_sales_commission_path(site_id: @site.id, id: referral.id), params: {order_id: order.id}, class: 'sales-button' %>
+          <% end %>
           <%= form_with scope: :receipt, url: record_dashboard_sales_commission_path(site_id: @site.id, id: referral.id), class: 'sales-filters' do |form| %>
             <%= form.hidden_field :order_id, value: order.id, id: "commission-order-#{referral.id}" %>
             <label>Payment receipt reference<%= form.text_field :reference, required: true, maxlength: 160, id: "commission-reference-#{referral.id}" %></label>

@@ -1,0 +1,29 @@
+<p>
+  Dymond Bank · <strong><%= payout.state.humanize %></strong>
+  <% if payout.provider_ref? %> · <%= payout.provider_ref %><% end %>
+  <% unless payout.live %> · Sandbox<% end %>
+</p>
+<% if payout.state.in?(%w[review confirming]) && payout.review_debit_cents? %>
+  <p>Commission <%= number_to_currency(payout.amount_cents / 100.0) %>
+    · Estimated fees <%= number_to_currency((payout.review_debit_cents - payout.amount_cents) / 100.0) %>
+    · Total debit <%= number_to_currency(payout.review_debit_cents / 100.0) %></p>
+  <% if eligible %>
+    <%= form_with url: release_dashboard_sales_commission_payout_path(site_id: @site.id, id: payout.id), class: 'sales-filters' do |form| %>
+      <%= hidden_field_tag :review_digest, payout.review_digest, id: "commission-review-#{payout.id}" %>
+      <label><%= check_box_tag :proceeds_cleared, '1', false, required: true, id: "commission-cleared-#{payout.id}" %>
+        This order’s proceeds cleared and funded the payout account. I approve the total debit shown.</label>
+      <%= form.submit 'Release commission', class: 'sales-button' %>
+    <% end %>
+  <% end %>
+<% end %>
+<% if payout.provider_ref? %>
+  <%= button_to 'Refresh Dymond Bank status', refresh_dashboard_sales_commission_payout_path(site_id: @site.id, id: payout.id), class: 'sales-button secondary' %>
+<% else %>
+  <% if eligible %>
+    <%= button_to 'Retry payout preparation', prepare_dashboard_sales_commission_path(site_id: @site.id, id: payout.referral_id), params: {order_id: payout.order_id}, class: 'sales-button secondary' %>
+  <% end %>
+  <%= form_with url: refresh_dashboard_sales_commission_payout_path(site_id: @site.id, id: payout.id), class: 'sales-filters' do |form| %>
+    <label>Original Stripe payout intent ID<%= form.text_field :provider_ref, required: true, maxlength: 154, id: "commission-intent-#{payout.id}" %></label>
+    <%= form.submit 'Reconcile existing payout', class: 'sales-button secondary' %>
+  <% end %>
+<% end %>

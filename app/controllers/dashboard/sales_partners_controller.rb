@@ -3,12 +3,15 @@
 class Dashboard::SalesPartnersController < Dashboard::SalesController
   skip_before_action :set_kind
   before_action :require_site_owner!, except: :materials
+  include LightekIdentity::SensitiveSession
+  before_action :require_sensitive_session!, only: %i[link_recipient prepare_commission release_commission refresh_commission]
   helper NevaehHelpHelper
 
   rescue_from ActiveRecord::RecordInvalid do |error|
     redirect_to dashboard_sales_partners_path(site_id: @site.id), alert: error.record.errors.full_messages.to_sentence
   end
-  rescue_from ArgumentError do |error|
+  rescue_from ArgumentError, LightekSales::CommissionDisbursements::Invalid,
+    DymondBank::WorkforcePayouts::Unavailable, DymondBank::WorkforcePayouts::ProviderError do |error|
     redirect_to dashboard_sales_partners_path(site_id: @site.id), alert: error.message
   end
 
@@ -20,8 +23,9 @@ class Dashboard::SalesPartnersController < Dashboard::SalesController
   def index
     @tab = 'partners'
     @products = products.order(:name)
+    @sender_configured = DymondBank::WorkforcePayouts.configured?(current_user)
     @partners = partners.includes(:product).order(:revoked_at, :name)
-    @referrals = LightekSales::Referral.where(partner: partners).includes(:partner, lead: :opportunity)
+    @referrals = referrals.includes(:partner, :commission_payout, lead: :opportunity)
       .order(id: :desc).limit(100)
   end
 
@@ -49,6 +53,36 @@ class Dashboard::SalesPartnersController < Dashboard::SalesController
     redirect_to dashboard_sales_partners_path(site_id: @site.id), notice: 'Referral link revoked.', status: :see_other
   end
 
+  def link_recipient
+    fields = params.require(:recipient).permit(:email, :reference)
+    disbursements.link_recipient!(partner: partners.find(params[:id]), email: fields[:email], reference: fields[:reference])
+    payout_redirect('Verified ACH recipient linked.')
+  end
+
+  def prepare_commission
+    disbursements.prepare!(referral: referrals.find(params[:id]), order_id: params[:order_id])
+    payout_redirect('Dymond Bank payout updated.')
+  end
+
+  def release_commission
+    payout = find_commission_payout
+    outcome = disbursements.release!(payout: payout, review_digest: params[:review_digest],
+      proceeds_cleared: params[:proceeds_cleared] == '1')
+    if outcome == :quote_changed
+      return redirect_to dashboard_sales_partners_path(site_id: @site.id),
+        alert: 'The provider quote changed. Review the updated debit before releasing the commission.', status: :see_other
+    end
+
+    payout_redirect('Dymond Bank release reviewed. The ledger reflects the provider status.')
+  ensure
+    queue_reconciliation(payout) if payout
+  end
+
+  def refresh_commission
+    disbursements.refresh!(payout: find_commission_payout, reference: params[:provider_ref])
+    payout_redirect('Dymond Bank payout status refreshed.')
+  end
+
   def record_payout
     fields = params.require(:receipt).permit(:confirmed, :reference, :order_id)
     unless fields[:confirmed] == '1'
@@ -57,13 +91,37 @@ class Dashboard::SalesPartnersController < Dashboard::SalesController
 
     @site.with_lock do
       require_site_owner!
-      referral = LightekSales::Referral.where(partner: partners).find(params[:id])
+      referral = referrals.find(params[:id])
       referral.record_payout!(actor: current_user, reference: fields[:reference], expected_order_id: fields[:order_id])
     end
     redirect_to dashboard_sales_partners_path(site_id: @site.id), notice: 'Commission payment receipt recorded.', status: :see_other
   end
 
   private
+
+  def referrals
+    LightekSales::Referral.where(partner: partners)
+  end
+
+  def find_commission_payout
+    LightekSales::CommissionPayout.where(referral: referrals, owner: current_user).find(params[:id])
+  end
+
+  def disbursements
+    LightekSales::CommissionDisbursements.new(actor: current_user, site: @site)
+  end
+
+  def queue_reconciliation(payout)
+    return unless payout.reload.state.in?(%w[confirming processing])
+
+    LightekSales::CommissionPayoutReconciliationJob.set(wait: 5.minutes).perform_later(payout.id)
+  rescue StandardError => error
+    Rails.logger.warn("Sales commission reconciliation enqueue failed for payout #{payout.id}: #{error.class}")
+  end
+
+  def payout_redirect(notice)
+    redirect_to dashboard_sales_partners_path(site_id: @site.id), notice: notice, status: :see_other
+  end
 
   def products
     LightekCommerce::Product.where(site: @site, published: true, product_type: %w[service digital lightek_instance])

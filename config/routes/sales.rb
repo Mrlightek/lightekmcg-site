@@ -29,6 +29,10 @@ get '/dashboard/sales/materials', to: 'dashboard/sales_partners#materials', as: 
 get '/dashboard/sales/partners', to: 'dashboard/sales_partners#index', as: :dashboard_sales_partners
 post '/dashboard/sales/partners', to: 'dashboard/sales_partners#create'
 post '/dashboard/sales/partners/:id/revoke', to: 'dashboard/sales_partners#revoke', as: :revoke_dashboard_sales_partner
+post '/dashboard/sales/partners/:id/recipient', to: 'dashboard/sales_partners#link_recipient', as: :link_dashboard_sales_partner_recipient
+post '/dashboard/sales/commissions/:id/prepare', to: 'dashboard/sales_partners#prepare_commission', as: :prepare_dashboard_sales_commission
+post '/dashboard/sales/commission-payouts/:id/release', to: 'dashboard/sales_partners#release_commission', as: :release_dashboard_sales_commission_payout
+post '/dashboard/sales/commission-payouts/:id/refresh', to: 'dashboard/sales_partners#refresh_commission', as: :refresh_dashboard_sales_commission_payout
 post '/dashboard/sales/commissions/:id/receipt', to: 'dashboard/sales_partners#record_payout', as: :record_dashboard_sales_commission
 get '/dashboard/sales/:kind/new', to: 'dashboard/sales#new', as: :new_dashboard_sales_record
 post '/dashboard/sales/:kind', to: 'dashboard/sales#create', as: :dashboard_sales_records

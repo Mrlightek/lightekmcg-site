@@ -49,7 +49,7 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     id = params[:return_id]
     notice = case params[:operation]
     when 'approve'
-      service.approve!(id)
+      service.approve!(id, refund_fee_cents: params[:refund_fee_cents])
       'Return approved.'
     when 'reject'
       service.reject!(id)

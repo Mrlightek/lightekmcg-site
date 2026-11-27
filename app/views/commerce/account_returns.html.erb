@@ -32,6 +32,9 @@
             <li>
               <%= record.quantity %> × <%= @items[record.order_item_id]&.name || 'Order item' %>
               · <%= record.status.humanize %> · <%= l(record.created_at.to_date) %>
+              <% if record.refund_fee_cents.positive? && record.status.in?(%w[approved received]) %>
+                <div>Return fee <%= number_to_currency(record.refund_fee_cents / 100.0) %>, deducted from any linked refund.</div>
+              <% end %>
               <% if (label = @return_labels[record.id]) %>
                 <div>
                   <%= link_to 'Download return label', commerce_account_return_label_path(order_id: @order.id,

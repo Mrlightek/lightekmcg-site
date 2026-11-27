@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_204000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_205000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1871,8 +1871,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_204000) do
     t.datetime "received_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "refund_fee_cents", default: 0, null: false
     t.index ["order_id", "request_key"], name: "idx_commerce_merchandise_return_request", unique: true
     t.index ["order_item_id", "status"], name: "idx_commerce_merchandise_return_item"
+    t.check_constraint "refund_fee_cents >= 0 AND (refund_fee_cents = 0 OR (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])))", name: "commerce_merchandise_return_fee"
     t.check_constraint "quantity > 0 AND (status::text = ANY (ARRAY['requested'::character varying, 'approved'::character varying, 'rejected'::character varying, 'received'::character varying, 'canceled'::character varying]::text[]))", name: "commerce_merchandise_return_valid"
     t.check_constraint "status::text = 'received'::text AND disposition IS NOT NULL AND (disposition::text = ANY (ARRAY['available'::character varying, 'damaged'::character varying, 'discarded'::character varying]::text[])) AND received_at IS NOT NULL OR status::text <> 'received'::text AND disposition IS NULL AND received_at IS NULL", name: "commerce_merchandise_return_receipt"
   end

@@ -77,7 +77,22 @@ module LightekCommerce
       raise Invalid, error.record.errors.full_messages.to_sentence
     end
 
-    def approve!(id) = transition!(id, from: ['requested'], to: 'approved')
+    def approve!(id, refund_fee_cents: nil)
+      raw = refund_fee_cents.nil? || refund_fee_cents == '' ? '0' : refund_fee_cents.to_s
+      unless raw.match?(/\A(?:0|[1-9][0-9]{0,9})\z/) && raw.to_i <= InventoryAdjustment::MAX_QUANTITY
+        raise Invalid, 'Enter the return fee as a nonnegative whole number of cents.'
+      end
+      fee = raw.to_i
+
+      transition!(id, from: ['requested'], to: 'approved') do |record|
+        if fee.positive?
+          item = @order.items.find(record.order_item_id)
+          max = ReturnRefunds.maximum_fee_cents(@order, item, record)
+          raise Invalid, "This return can deduct a fee of up to #{max} cents." if fee > max
+        end
+        {refund_fee_cents: fee}
+      end
+    end
     def reject!(id) = transition!(id, from: ['requested'], to: 'rejected')
     def cancel!(id) = transition!(id, from: %w[requested approved], to: 'canceled')
 

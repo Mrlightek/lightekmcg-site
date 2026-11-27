@@ -321,6 +321,8 @@ require Rails.root.join('db/migrate/20261127203000_link_commerce_refunds_to_retu
 LinkCommerceRefundsToReturns.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127204000_create_commerce_return_labels')
 CreateCommerceReturnLabels.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127205000_add_commerce_return_fee')
+AddCommerceReturnFee.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -1498,6 +1500,46 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_return_fee_is_set_at_approval_and_deducted_from_the_linked_refund
+    item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {item.id.to_s => 2})
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_return_fee')
+    line = order.items.sole
+    line.update!(purchase_snapshot: line.purchase_snapshot.merge('merchandise_discount_cents' => 199))
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: line.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    assert_equal 0, record.refund_fee_cents
+    assert_equal 699, LightekCommerce::ReturnRefunds.maximum_fee_cents(order, line, record)
+    %w[-1 0.99 700].each do |invalid|
+      assert_raises(LightekCommerce::MerchandiseReturns::Invalid) { returns.approve!(record.id, refund_fee_cents: invalid) }
+    end
+
+    order.update!(payment_provider: 'network')
+    assert_raises(LightekCommerce::MerchandiseReturns::Invalid) { returns.approve!(record.id, refund_fee_cents: 1) }
+    assert_equal 'requested', record.reload.status
+    order.update!(payment_provider: 'stripe')
+    returns.approve!(record.id, refund_fee_cents: 125)
+    assert_equal [125, 'approved'], record.reload.attributes.values_at('refund_fee_cents', 'status')
+    assert_raises(LightekCommerce::MerchandiseReturns::Invalid) { returns.approve!(record.id, refund_fee_cents: 1) }
+    assert_empty order.refunds
+
+    returns.receive!(record.id, disposition: 'discarded')
+    assert_equal 575, LightekCommerce::ReturnRefunds.amount_for(order, line, record.reload)
+    refunds = LightekCommerce::Refunds
+    assert_raises(refunds::Invalid) { refunds.issue!(order: order, amount_cents: 700, merchandise_return_id: record.id) }
+    LightekCommerce::ProcessorPayment.stub(:intent!, 'pi_return_fee') do
+      Stripe::Refund.stub(:create, ->(details, _) {
+        assert_equal 575, details.fetch(:amount)
+        OpenStruct.new(id: 're_return_fee', status: 'succeeded')
+      }) do
+        result = refunds.issue!(order: order, amount_cents: 575, merchandise_return_id: record.id)
+        assert_equal [record.id, 575, 'succeeded'], result.attributes.values_at('merchandise_return_id', 'amount_cents', 'status')
+      end
+    end
+    assert_equal 575, order.reload.refunded_cents
+  end
+
   def test_received_return_refund_uses_discounted_merchandise_and_reconciles_signed_event_once
     item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {item.id.to_s => 2})

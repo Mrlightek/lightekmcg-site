@@ -43,6 +43,9 @@
               <td><%= record.reason %></td>
               <td>
                 <%= record.status.humanize %>
+                <% if record.refund_fee_cents.positive? && record.status.in?(%w[approved received]) %>
+                  <p>Return fee <%= number_to_currency(record.refund_fee_cents / 100.0) %></p>
+                <% end %>
                 <% if record.received_at? %>
                   <p><%= LightekCommerce::MerchandiseReturns::DISPOSITIONS.fetch(record.disposition) %></p>
                   <time datetime="<%= record.received_at.iso8601 %>"><%= l(record.received_at, format: :short) %></time>
@@ -54,7 +57,19 @@
                   <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
                 <% end %>
                 <% if record.status == 'requested' %>
-                  <%= button_to 'Approve', change_path, params: {operation: 'approve'}, class: 'dd-button' %>
+                  <% max_fee = LightekCommerce::ReturnRefunds.maximum_fee_cents(@order, item, record) %>
+                  <% if max_fee.positive? %>
+                    <%= form_with url: change_path, method: :post do |form| %>
+                      <%= hidden_field_tag :operation, 'approve', id: nil %>
+                      <label>Return fee in cents (optional)
+                        <%= form.number_field :refund_fee_cents, id: nil, min: 0, max: max_fee, placeholder: '0' %>
+                      </label>
+                      <p>This fee is deducted from the return refund and shown to the customer.</p>
+                      <%= form.submit 'Approve', class: 'dd-button' %>
+                    <% end %>
+                  <% else %>
+                    <%= button_to 'Approve', change_path, params: {operation: 'approve'}, class: 'dd-button' %>
+                  <% end %>
                   <%= button_to 'Reject', change_path, params: {operation: 'reject'}, class: 'dd-button' %>
                 <% elsif record.status == 'approved' %>
                   <details>

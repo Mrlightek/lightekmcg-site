@@ -186,6 +186,20 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
     @http.public_send(method, path, params: params, headers: {"X-Test-User" => actor&.id.to_s})
     @http.response
   end
+  def test_merchants_set_and_view_a_return_fee_through_the_dashboard
+    order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_dashboard_return_fee')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    base = "/dashboard/commerce/orders/#{order.id}/returns"
+    assert_includes request(:get, base, site_id: @site.id).body, 'Return fee in cents'
+    response = request(:post, "#{base}/#{record.id}", site_id: @site.id, operation: 'approve', refund_fee_cents: '125')
+    assert_equal 303, response.status
+    assert_equal ['approved', 125], record.reload.attributes.values_at('status', 'refund_fee_cents')
+    assert_includes request(:get, base, site_id: @site.id).body, 'Return fee $1.25'
+  end
+
   def test_private_return_label_upload_download_and_revocation
     order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
     order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)

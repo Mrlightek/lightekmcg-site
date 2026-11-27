@@ -147,11 +147,15 @@ module Dashboard; end
 require Rails.root.join("app/controllers/dashboard/settings_home_controller").to_s
 require Rails.root.join("app/controllers/dashboard/commerce_base_controller").to_s
 require Rails.root.join("app/controllers/dashboard/commerce_orders_controller").to_s
+require Rails.root.join("app/controllers/dashboard/commerce_returns_controller").to_s
 require Rails.root.join("app/services/lightek_settings/website_identity").to_s
 Dashboard::CommerceOrdersController.prepend_view_path(Rails.root.join("app/views"))
 Dashboard::CommerceOrdersController.layout false
+Dashboard::CommerceReturnsController.prepend_view_path(Rails.root.join("app/views"))
+Dashboard::CommerceReturnsController.layout false
 CLEANUP_ROUTES = ActionDispatch::Routing::RouteSet.new
 CLEANUP_ROUTES.draw do
+  instance_eval(File.readlines(Rails.root.join('config/routes.rb')).grep(%r{"/dashboard/commerce/(returns|orders/:order_id/returns[^"]*)"}).join)
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   get "/dashboard/commerce/disputes", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_disputes
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"
@@ -168,6 +172,8 @@ CLEANUP_ROUTES.draw do
 end
 Dashboard::CommerceOrdersController.include(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceOrdersController.helper(CLEANUP_ROUTES.url_helpers)
+Dashboard::CommerceReturnsController.include(CLEANUP_ROUTES.url_helpers)
+Dashboard::CommerceReturnsController.helper(CLEANUP_ROUTES.url_helpers)
 CLEANUP_APP = Rack::Builder.new do
   use ActionDispatch::Flash
   run CLEANUP_ROUTES
@@ -180,6 +186,22 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
     @http.public_send(method, path, params: params, headers: {"X-Test-User" => actor&.id.to_s})
     @http.response
   end
+  def test_return_queue_links_to_the_order_and_rejects_an_independent_store
+    order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)
+    return_record = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator).request!(
+      item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    page = request(:get, '/dashboard/commerce/returns', site_id: @site.id)
+    assert_equal 200, page.status
+    assert_includes page.body, "#return-#{return_record.id}"
+    assert_includes page.headers.fetch('cache-control'), 'no-store'
+    detail = request(:get, "/dashboard/commerce/orders/#{order.id}/returns", site_id: @site.id)
+    assert_equal 200, detail.status
+    assert_includes detail.body, 'Wrong size'
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'return-http-other.test')
+    assert_equal 404, request(:get, "/dashboard/commerce/orders/#{order.id}/returns", site_id: foreign.id).status
+  end
+
   def test_single_delete_and_visible_list_rendering
     order = order_for(product(billing_interval: "one_time"))
     paid = order_for(product(billing_interval: "one_time"))

@@ -8,6 +8,7 @@
       <p>A clear view of every purchase. Manage payments, delivery, and customer access from one place.</p>
     </div>
     <nav class="dd-action-group" aria-label="Commerce navigation">
+      <%= link_to 'Returns', dashboard_commerce_return_queue_path(site_id: @site.id), class: 'dd-button' %>
       <%= link_to dashboard_commerce_payouts_path(site_id: @site.id), class: "dd-button" do %><i class="ti ti-wallet" aria-hidden="true"></i> Payouts<% end %>
       <% if @site.tenant == current_user %>
         <%= link_to 'Payment disputes', dashboard_commerce_disputes_path(site_id: @site.id), class: 'dd-button' %>

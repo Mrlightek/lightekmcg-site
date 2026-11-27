@@ -3,7 +3,7 @@
 <main class="dd-workspace">
   <header class="dd-page-header">
     <div><h1>Returns for order #<%= @order.id %></h1><p><%= @site.name %></p></div>
-    <%= link_to 'Orders', dashboard_commerce_orders_path(site_id: @site.id), class: 'dd-button' %>
+    <%= link_to 'Returns queue', dashboard_commerce_return_queue_path(site_id: @site.id), class: 'dd-button' %>
   </header>
 
   <section class="dd-panel" aria-labelledby="new-return-heading">
@@ -36,7 +36,7 @@
           <% @returns.each do |record| %>
             <% item = @items[record.order_item_id] %>
             <% change_path = change_dashboard_commerce_return_path(order_id: @order.id, site_id: @site.id, return_id: record.id) %>
-            <tr>
+            <tr id="return-<%= record.id %>">
               <th scope="row">#<%= record.id %></th>
               <td><%= item&.name || "Item ##{record.order_item_id}" %></td>
               <td><%= record.quantity %></td>

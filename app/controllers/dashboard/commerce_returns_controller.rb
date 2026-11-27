@@ -1,7 +1,22 @@
 # frozen_string_literal: true
 
 class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
-  before_action :load_order
+  before_action :load_site
+  before_action :load_order, except: :index
+
+  def index
+    response.headers['Cache-Control'] = 'private, no-store'
+    @filter = params[:status].presence || 'open'
+    filters = LightekCommerce::MerchandiseReturn::QUEUE_FILTERS
+    raise ActionController::BadRequest unless filters.key?(@filter)
+
+    before = params[:before].presence
+    raise ActionController::BadRequest if before && !before.to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+
+    @returns = LightekCommerce::MerchandiseReturn.queue(site: @site, filter: @filter, before_id: before&.to_i)
+    @more_returns = @returns.size > LightekCommerce::MerchandiseReturn::PAGE_SIZE
+    @returns.pop if @more_returns
+  end
 
   def show
     response.headers['Cache-Control'] = 'private, no-store'
@@ -46,8 +61,11 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
 
   private
 
-  def load_order
+  def load_site
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+  end
+
+  def load_order
     @order = LightekCommerce::Order.receipt_eligible.where(site: @site).find(params.require(:order_id))
     raise ActiveRecord::RecordNotFound unless LightekCommerce::MerchandiseReturns.eligible_order?(@order)
   end

@@ -1,0 +1,40 @@
+<% content_for :page_title, 'Returns' %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <div><h1>Returns</h1><p><%= @site.name %></p></div>
+    <%= link_to 'Orders', dashboard_commerce_orders_path(site_id: @site.id), class: 'dd-button' %>
+  </header>
+  <section class="dd-panel" aria-label="Return requests">
+    <%= form_with url: dashboard_commerce_return_queue_path, method: :get do %>
+      <%= hidden_field_tag :site_id, @site.id %>
+      <label>Status
+        <%= select_tag :status, options_for_select([['Needs action', 'open'], ['Awaiting approval', 'requested'],
+          ['Awaiting receipt', 'approved'], ['Received', 'received'], ['Rejected or canceled', 'closed']], @filter) %>
+      </label>
+      <%= submit_tag 'Filter returns', class: 'dd-button' %>
+    <% end %>
+    <% if @returns.empty? %>
+      <p>No returns match this filter.</p>
+    <% else %>
+      <table>
+        <thead><tr><th scope="col">Return</th><th scope="col">Order</th><th scope="col">Item</th><th scope="col">Status</th><th scope="col">Requested</th></tr></thead>
+        <tbody>
+          <% @returns.each do |record| %>
+            <tr>
+              <th scope="row"><%= link_to "##{record.id}", dashboard_commerce_returns_path(site_id: @site.id,
+                order_id: record.order_id, anchor: "return-#{record.id}") %></th>
+              <td>#<%= record.order_id %></td>
+              <td><%= record.quantity %> × <%= record.order_item&.name || 'Order item' %></td>
+              <td><%= record.status.humanize %></td>
+              <td><time datetime="<%= record.created_at.iso8601 %>"><%= l(record.created_at, format: :short) %></time></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @more_returns %>
+        <%= link_to 'Older returns', dashboard_commerce_return_queue_path(site_id: @site.id,
+          status: @filter, before: @returns.last.id), class: 'dd-button' %>
+      <% end %>
+    <% end %>
+  </section>
+</main>

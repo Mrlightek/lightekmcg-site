@@ -2325,6 +2325,27 @@ class CommerceHostingTest < Minitest::Test
     assert_raises(ActiveRecord::RecordNotFound) { service.buyer_order!(**scope.merge(id: digital_order.id)) }
   end
 
+  def test_returns_queue_filters_and_paginates_only_the_authorized_store_orders
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: false)
+    order = order_for(item)
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)
+    record_type = LightekCommerce::MerchandiseReturn
+    attrs = {order: order, order_item: order.items.sole, quantity: 1, reason: 'Fixture', requested_by_id: @operator.id}
+    requested = record_type.create!(**attrs, request_key: SecureRandom.uuid)
+    approved = record_type.create!(**attrs, request_key: SecureRandom.uuid, status: 'approved')
+    rejected = record_type.create!(**attrs, request_key: SecureRandom.uuid, status: 'rejected')
+    other_site = DymondSite::Site.create!(tenant: @operator, host: 'returns-queue-other.test')
+    foreign = LightekCommerce::Order.create!(site: other_site, customer_email: 'other@example.test', status: 'fulfilled', paid_at: Time.current)
+    foreign_item = foreign.items.create!(product: item, name: 'Foreign fixture', quantity: 1, unit_price_cents: 100, line_total_cents: 100)
+    record_type.create!(**attrs.merge(order: foreign, order_item: foreign_item), request_key: SecureRandom.uuid)
+
+    assert_equal [approved.id, requested.id], record_type.queue(site: @site, filter: 'open').map(&:id)
+    assert_equal [requested.id], record_type.queue(site: @site, filter: 'open', before_id: approved.id).map(&:id)
+    assert_equal [rejected.id], record_type.queue(site: @site, filter: 'closed').map(&:id)
+    assert_equal [approved.id], record_type.queue(site: @site, filter: 'approved').map(&:id)
+    assert_empty record_type.queue(site: @site, filter: 'received')
+  end
+
   def test_merchandise_returns_release_rejected_quantities_and_keep_untracked_items_out_of_stock
     item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: false, inventory_quantity: 0)
     order = order_for(item)

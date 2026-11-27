@@ -70,6 +70,7 @@ ActiveRecord::Schema.define do
     t.string :client_checkout_key
     t.datetime :merchant_transfer_requested_at, :merchant_transfer_completed_at
     t.text :merchant_transfer_error
+    t.datetime :confirmation_sent_at
     t.datetime :fulfilled_at; t.string :fulfillment_reference; t.string :fulfillment_note; t.datetime :paid_at; t.datetime :canceled_at; t.datetime :provisioned_at; t.string :purpose
   end
   create_table(:lightek_commerce_refunds) do |t|
@@ -767,7 +768,13 @@ class CommerceHostingTest < Minitest::Test
       assert_equal 'pending_payment', purchase.reload.status
       assert_empty LightekCommerce::GiftCard.where(purchase_order: purchase)
       session.payment_status = 'paid'
-      2.times { LightekCommerce::StripeEvents.process!(event) }
+      deliveries = []
+      LightekCommerce::OrderConfirmationJob.stub(:perform_later, ->(id) { deliveries << id }) do
+        2.times { LightekCommerce::StripeEvents.process!(event) }
+        purchase.update!(confirmation_sent_at: Time.current)
+        LightekCommerce::StripeEvents.process!(event)
+      end
+      assert_equal [purchase.id, purchase.id], deliveries
       assert_equal 'fulfilled', purchase.reload.status
       card = LightekCommerce::GiftCard.find_by!(purchase_order: purchase)
       assert_equal 2500, card.available_cents

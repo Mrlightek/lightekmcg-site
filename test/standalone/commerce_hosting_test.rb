@@ -68,6 +68,7 @@ ActiveRecord::Schema.define do
     t.integer :tax_cents, default: 0; t.integer :shipping_cents, default: 0; t.integer :refunded_cents, default: 0
     t.string :merchant_transfer_ref; t.integer :merchant_transfer_amount_cents; t.boolean :stock_reserved, default: true; t.string :payment_namespace; t.string :payment_reference; t.string :payment_provider
     t.string :client_checkout_key
+    t.timestamps
     t.datetime :merchant_transfer_requested_at, :merchant_transfer_completed_at
     t.text :merchant_transfer_error
     t.datetime :confirmation_sent_at
@@ -295,6 +296,7 @@ AddCommerceGiftCardDelivery.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/gift_delivery')
 require Rails.root.join('db/migrate/20261127191000_add_provider_to_shipping_quotes')
 AddProviderToShippingQuotes.new.migrate(:up)
+require Rails.root.join('app/services/lightek_commerce/order_report')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1891,6 +1893,34 @@ class CommerceHostingTest < Minitest::Test
         assert_raises(ArgumentError) { LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup.merge(close: '08:00')) }
       end
     end
+  end
+
+  def test_order_report_filters_store_and_creation_dates_and_exports_safe_rows
+    item = product(name: '=Sample', product_type: 'physical', billing_interval: 'one_time', price_cents: 2500)
+    shipping_order = order_for(item)
+    shipping_order.update!(customer_email: 'buyer@example.test', status: 'paid', paid_at: Time.current)
+    removed = order_for(item)
+    removed.update!(customer_email: 'buyer@example.test', status: 'paid', paid_at: Time.current, deleted_at: Time.current)
+    foreign_site = DymondSite::Site.create!(tenant: @operator, host: 'warehouse-other.test')
+    foreign_product = product(site: foreign_site, product_type: 'physical', billing_interval: 'one_time')
+    LightekCommerce::OrderPlacement.call(site: foreign_site, customer_email: 'buyer@example.test',
+      quantities: {foreign_product.id.to_s => 1}).update!(status: 'paid', paid_at: Time.current)
+    report = LightekCommerce::OrderReport
+    Time.use_zone('Eastern Time (US & Canada)') do
+      filters = {lookup: 'BUYER@example.test', from: Date.current.iso8601, through: Date.current.iso8601, status: 'paid'}
+      scoped = report.new(site: @site, filters: filters)
+      assert_equal [shipping_order.id], scoped.recent.map(&:id)
+      order = CSV.parse(scoped.csv('orders'), headers: true).sole
+      line = CSV.parse(scoped.csv('items'), headers: true).sole
+      assert_equal [shipping_order.id.to_s, '2500', 'paid'], order.values_at('order_id', 'total_cents', 'status')
+      assert_equal [shipping_order.id.to_s, "'=Sample", '2500'], line.values_at('order_id', 'item_name', 'gross_line_cents')
+      assert_equal [shipping_order.id], report.new(site: @site, filters: {lookup: "##{shipping_order.id}"}).recent.map(&:id)
+      assert_raises(report::Invalid) { report.new(site: @site, filters: filters.merge(through: Date.yesterday.iso8601)) }
+      assert_raises(report::Invalid) { scoped.csv('unsupported') }
+    end
+    assert shipping_order.items.sole.physical_for_fulfillment?
+    shipping_order.items.sole.update!(purchase_snapshot: {'product_type' => 'digital'})
+    refute shipping_order.items.sole.reload.physical_for_fulfillment?
   end
 
   def test_packing_supplies_catalog_requires_published_platform_stock

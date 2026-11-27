@@ -16,6 +16,20 @@
     </nav>
   </header>
 
+  <section class="dd-panel">
+    <h2>Filter orders</h2>
+    <%= form_with url: dashboard_commerce_orders_path, method: :get do %>
+      <%= hidden_field_tag :site_id, @site.id %>
+      <label>Order number or buyer email <%= search_field_tag :lookup, @filters[:lookup], maxlength: 254 %></label>
+      <label>Status <%= select_tag :status, options_for_select(LightekCommerce::Order::STATUSES.map { |value| [value.humanize, value] }, @filters[:status]), include_blank: 'All statuses' %></label>
+      <label>Created from <%= date_field_tag :from, @filters[:from] %></label>
+      <label>Created through <%= date_field_tag :through, @filters[:through] %></label>
+      <%= submit_tag 'Filter', class: 'dd-button' %>
+    <% end %>
+    <%= link_to 'Export orders CSV', dashboard_commerce_orders_path(@filters.to_h.merge(site_id: @site.id, format: :csv, kind: 'orders')), class: 'dd-button' %>
+    <%= link_to 'Export line items CSV', dashboard_commerce_orders_path(@filters.to_h.merge(site_id: @site.id, format: :csv, kind: 'items')), class: 'dd-button' %>
+  </section>
+
   <section class="dd-metrics" aria-label="Orders in this view">
     <% [["Orders shown", @orders.size, "ti-receipt"], ["Awaiting payment", @orders.count { |order| order.status == "pending_payment" }, "ti-clock"], ["Ready to fulfill", @orders.count { |order| order.status == "paid" }, "ti-box-seam"]].each do |label, value, icon| %>
       <div class="dd-metric"><span><%= label %><i class="ti <%= icon %>" aria-hidden="true"></i></span><strong><%= value %></strong></div>
@@ -61,6 +75,9 @@
               <summary><span><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Manage order</span><span class="dd-disclosure-hint">Details & actions <i class="ti ti-chevron-down" aria-hidden="true"></i></span></summary>
               <div class="dd-order-attribution"><%= render "dashboard/growth/attribution", record: order %></div>
               <div class="dd-order-panels">
+                <% if order.paid_at? && %w[paid fulfilled partially_refunded].include?(order.status) && order.items.any?(&:physical_for_fulfillment?) %>
+                  <%= link_to 'Packing slip', dashboard_commerce_orders_path(site_id: @site.id, print_order_id: order.id), class: 'dd-button' %>
+                <% end %>
                 <% if order.items.any? { |item| item.product.product_type == "lightek_instance" } %>
                   <section class="dd-form-section">
                     <div class="dd-section-heading"><i class="ti ti-server" aria-hidden="true"></i><div><h3>Application installation</h3><p><%= order.provisioning_state.presence&.humanize || "Awaiting paid confirmation" %></p></div></div>

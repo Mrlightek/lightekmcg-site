@@ -5,6 +5,10 @@ module LightekCommerce
     belongs_to :order, class_name: "LightekCommerce::Order"
     belongs_to :variant, class_name: "LightekCommerce::ProductVariant", optional: true
     belongs_to :product, class_name: "LightekCommerce::Product"
+    def physical_for_fulfillment?
+      (purchase_snapshot.to_h['product_type'].presence || product&.product_type) == 'physical'
+    end
+
     validates :quantity, numericality: {only_integer: true, greater_than: 0}
     validates :unit_price_cents, :line_total_cents, numericality: {only_integer: true, greater_than_or_equal_to: 0}
   end

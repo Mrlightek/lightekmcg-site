@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Packing slip · Order #<%= @order.id %></title>
+</head>
+<body>
+  <main>
+    <h1>Packing slip</h1>
+    <p><%= @site.name %> · Order #<%= @order.id %> · <%= l(@order.paid_at.to_date) %></p>
+    <% if @recipient %>
+      <section>
+        <h2>Ship to</h2>
+        <% address = @recipient.fetch('address', {}) %>
+        <address>
+          <%= @recipient.dig('contact', 'personName') %><br>
+          <% Array(address['streetLines']).each do |street| %><%= street %><br><% end %>
+          <%= [address['city'], address['stateOrProvinceCode'], address['postalCode']].compact.join(' ') %><br>
+          <%= address['countryCode'] %>
+        </address>
+      </section>
+    <% end %>
+    <section>
+      <h2>Items</h2>
+      <table>
+        <thead><tr><th scope="col">Item</th><th scope="col">Quantity</th></tr></thead>
+        <tbody>
+          <% @packages.each do |item| %>
+            <tr><td><%= item.name %></td><td><%= item.quantity %></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

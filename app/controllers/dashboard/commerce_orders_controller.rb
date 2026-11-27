@@ -11,7 +11,21 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
 
   def index
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
-    @orders = LightekCommerce::Order.visible.where(site: @site).includes(items: :product).order(created_at: :desc).limit(150)
+    return packing_slip if params[:print_order_id].present?
+
+    @filters = params.permit(*LightekCommerce::OrderReport::FILTERS)
+    report = LightekCommerce::OrderReport.new(site: @site, filters: @filters)
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    respond_to do |format|
+      format.html { @orders = report.recent }
+      format.csv do
+        kind = params.fetch(:kind, 'orders')
+        send_data report.csv(kind), filename: "commerce-#{kind}-#{Date.current.iso8601}.csv", type: 'text/csv; charset=utf-8'
+      end
+    end
+  rescue LightekCommerce::OrderReport::Invalid => error
+    redirect_to dashboard_commerce_orders_path(site_id: @site.id), alert: error.message, status: :see_other
   end
 
   def destroy
@@ -44,5 +58,21 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
     message = {notice: "#{removed} unpaid order(s) deleted."}
     message[:alert] = "#{failures.size} order(s) kept. #{failures.first(3).join(' ')}" if failures.any?
     redirect_to dashboard_commerce_orders_path(site_id: site.id), **message, status: :see_other
+  end
+
+  private
+
+  def packing_slip
+    order_id = params[:print_order_id].to_s
+    raise ActiveRecord::RecordNotFound unless order_id.match?(/\A[1-9][0-9]{0,17}\z/)
+
+    @order = LightekCommerce::Order.visible.where(site: @site, status: %w[paid fulfilled partially_refunded])
+      .where.not(paid_at: nil).includes(:shipping_quote, items: :product).find(order_id)
+    @packages = @order.items.select { |item| item.physical_for_fulfillment? }
+    raise ActiveRecord::RecordNotFound if @packages.empty?
+
+    @recipient = @order.shipping_quote&.shipment_payload.to_h.fetch('recipients', []).first
+    response.headers['Cache-Control'] = 'private, no-store'
+    render :packing_slip, formats: [:html], layout: false
   end
 end

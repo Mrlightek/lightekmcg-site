@@ -31,7 +31,7 @@ module LightekCommerce
       raise Invalid, 'This checkout is waiting for valid fee settings.'
     end
 
-    def self.cart_price(products:, requested:, lock: false)
+    def self.cart_price(products:, requested:, lock: false, price_only: false)
       return if products.empty? || products.none? { |product| eligible?(product) }
       unless products.all? { |product| eligible?(product) }
         raise Invalid, 'Check out hosting and communications products separately.'
@@ -58,6 +58,7 @@ module LightekCommerce
       end
 
       subtotal = lines.sum { |_, quantity, unit_price, _| quantity * unit_price }
+      return [lines, subtotal] if price_only
       return if subtotal.zero?
 
       [lines, quote_amount(subtotal)]

@@ -57,3 +57,15 @@ Commerce → Merchant payouts → Bank deposits filters by provider-reported arr
 Commerce → Orders → Payment disputes shows the store dispute queue. Configure the shared signed Stripe webhook to deliver `charge.dispute.created`, `charge.dispute.updated` and `charge.dispute.closed`. New actionable disputes create an owner notification with the response deadline. The store owner can refresh historical disputes and submit a reviewed response with PDF, JPEG or PNG attachments. VPS merchants open the owner-scoped queue on the payment platform.
 
 Production acceptance requires a live embedded checkout and bank deposit confirmation for both an agency and an agency client. Validate dispute webhook delivery and evidence upload with Stripe test data before relying on dispute alerts.
+
+### Storefront acceptance scope for PR #463
+
+The comparison covers online storefronts in USD. POS and local-currency checkout are out of scope. Track the following acceptance criteria together before describing the milestone as complete.
+
+| Capability | Acceptance criteria |
+| --- | --- |
+| Checkout and payment operations | Complete embedded checkout, buyer-fee reconciliation, payout reconciliation and dispute handling through the shared Stripe integration. Verify production checkout and separate agency and agency-client bank deposits. |
+| Discount codes | A store owner creates and deactivates a fixed-amount or percentage code. A buyer applies the code to an eligible one-time retail cart. The cart shows the discount and the shared payment system charges, taxes and settles the discounted merchandise amount. |
+| Automatic discounts | A store owner creates a fixed-amount or percentage rule with an optional minimum order value. The highest eligible automatic discount applies unless a buyer chooses a valid code. A changed cart or rule requires review before payment. Discounts apply one at a time. |
+| Gift cards | A buyer can purchase a fixed denomination, and the recipient can redeem it alone or alongside another payment. Keep a store-scoped balance with concurrency protection and verify taxes, cancellation, partial redemption, refunds and merchant settlement. Gift card sales and redemption remain open. |
+| Checkout and accounts editor | A store owner saves branding and copy for the Lightek embedded payment page and customer order history. A customer can see only orders for their verified email address at the selected store. Shopify-style app blocks and arbitrary checkout layout changes are outside this editor's implementation. |

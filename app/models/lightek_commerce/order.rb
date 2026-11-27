@@ -5,7 +5,9 @@ module LightekCommerce
     include GrowthAttributed
     before_validation(on: :create) { self.payment_namespace ||= PaymentIdentity.namespace(site) if site }
     self.table_name = "lightek_commerce_orders"
-    attr_readonly :buyer_fee_snapshot
+    attr_readonly :buyer_fee_snapshot, :discount_cents, :discount_name
+
+    def discount_amount = has_attribute?(:discount_cents) ? self[:discount_cents].to_i : 0
     after_update_commit :queue_buyer_fee_reversal, if: -> { saved_change_to_status? && status == 'refunded' }
 
     def queue_buyer_fee_reversal

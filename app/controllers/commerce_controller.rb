@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 class CommerceController < ApplicationController
-  allow_unauthenticated_access only: %i[index add remove]
+  allow_unauthenticated_access only: %i[index add remove apply_discount]
   helper LightekDesign::StudioHelper
   helper DymondDash::TemplateSchemaHelper
   skip_authorization_check
   before_action :set_site
-  layout 'auth', only: :embedded_checkout
+  layout 'auth', only: %i[embedded_checkout account]
   def index
     if params[:order_id].present?
       order = LightekCommerce::Order.where(site: @site).find_by(id: params[:order_id])
@@ -14,6 +14,7 @@ class CommerceController < ApplicationController
     @products = LightekCommerce::Product.visible.where(site: @site)
     @cart = cart
     show_buyer_fee_prices
+    show_discount
     keys = Array(session["lightek_shipping_quotes_#{@site.id}"]).first(10)
     @shipping_quotes = LightekShipping::Quote.where(site: @site, public_key: keys).where("expires_at > ?", Time.current)
       .where(cart_fingerprint: LightekShipping::Quotes.fingerprint(@site, @cart))
@@ -73,6 +74,31 @@ class CommerceController < ApplicationController
     session[cart_key] = cart
     redirect_to commerce_shop_path(site_id: @site.id), notice: "Cart updated."
   end
+  def apply_discount
+    code = LightekCommerce::Discount.normalize(params[:discount_code])
+    if code
+      products = LightekCommerce::Product.visible.where(site: @site, id: cart.keys.map { |key| key.split(':').first })
+      LightekCommerce::Discounts.quote(site: @site, products: products, quantities: cart, code: code)
+      session[discount_key] = code
+    else
+      session.delete(discount_key)
+    end
+    redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), status: :see_other
+  rescue LightekCommerce::Discounts::Invalid, LightekCommerce::BuyerFees::Invalid => error
+    redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), alert: error.message, status: :see_other
+  end
+
+  def account
+    response.headers['Cache-Control'] = 'private, no-store'
+    @appearance = LightekCommerce::StoreAppearance.read(@site)
+    @orders = if current_user.lightek_email_confirmed_at.present?
+      LightekCommerce::Order.visible.where(site: @site, customer_email: current_user.email_address.to_s.strip.downcase)
+        .where.not(paid_at: nil).order(paid_at: :desc).limit(50)
+    else
+      []
+    end
+  end
+
   def checkout
     instance_cart = LightekCommerce::Product.where(site: @site, id: cart.keys.map { |key| key.split(":").first }, product_type: "lightek_instance").exists?
     email = instance_cart ? current_user.email_address : params.require(:customer_email)
@@ -84,12 +110,14 @@ class CommerceController < ApplicationController
     quantities, workspace_seats = checkout_selection
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
+      discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: completion_url(order, instance_cart), cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
     record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
     session.delete(cart_key)
+    session.delete(discount_key)
     if checkout.url.blank?
       recent = session[:embedded_store_orders].to_h
       recent[order.id.to_s] = [@site.id, current_user.id, request.host, instance_cart]
@@ -113,6 +141,7 @@ class CommerceController < ApplicationController
     end
 
     order = LightekCommerce::Order.visible.where(site: @site).find(params[:order_id])
+    @appearance = LightekCommerce::StoreAppearance.read(@site)
     @completion_url = completion_url(order, context.last)
     return redirect_to @completion_url if order.paid_at?
 
@@ -128,6 +157,25 @@ class CommerceController < ApplicationController
   end
 
   private
+
+  def discount_key = "lightek_commerce_discount_#{@site.id}"
+
+  def show_discount
+    @discount_code = session[discount_key]
+    return if @cart.blank?
+
+    ids = @cart.keys.map { |key| key.split(':').first.to_i }
+    products = @products.select { |product| ids.include?(product.id) }
+    @discount, @discount_cents = LightekCommerce::Discounts.quote(site: @site, products: products,
+      quantities: @cart, code: @discount_code)
+    if @buyer_fee_cart && @discount_cents.to_i.positive?
+      @discounted_buyer_price = LightekCommerce::BuyerFees.quote_amount(
+        @buyer_fee_cart.fetch('merchant_cents') - @discount_cents
+      ).fetch('buyer_cents')
+    end
+  rescue LightekCommerce::Discounts::Invalid, LightekCommerce::BuyerFees::Invalid => error
+    @discount_error = error.message
+  end
 
   def show_buyer_fee_prices
     return if ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].blank? || !LightekCommerce::BuyerFees.enabled?(@site)

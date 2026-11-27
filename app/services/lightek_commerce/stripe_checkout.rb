@@ -56,10 +56,14 @@ module LightekCommerce
       interval = order.items.first.purchase_snapshot.to_h.fetch("billing_interval", "one_time")
       recurring = interval != "one_time"
       raise Unavailable, "Subscriptions require one item with quantity one" if recurring && (order.items.size != 1 || order.items.first.quantity != 1)
-      line_items = order.items.map { |item|
-        {price_data: {currency: order.currency, unit_amount: item.unit_price_cents,
-          product_data: {name: item.name}, **(recurring ? {recurring: {interval: interval}} : {})}, quantity: item.quantity}
-      }
+      line_items = if order.discount_amount.positive?
+        Discounts.processor_items(order)
+      else
+        order.items.map do |item|
+          {price_data: {currency: order.currency, unit_amount: item.unit_price_cents,
+            product_data: {name: item.name}, **(recurring ? {recurring: {interval: interval}} : {})}, quantity: item.quantity}
+        end
+      end
       if order.buyer_fee_cents.positive?
         line_items << {price_data: {currency: order.currency, unit_amount: order.buyer_fee_cents,
           product_data: {name: 'Lightek checkout fee', tax_code: order.buyer_fee_breakdown.fetch('tax_code')},
@@ -80,6 +84,7 @@ module LightekCommerce
           options.merge(idempotency_key: PaymentIdentity.key(order, "shipping-customer")))
         customer = {customer: record.id}
       end
+      raise Unavailable, "Split this cart into smaller orders." if line_items.size > 100
       session = Stripe::Checkout::Session.create({
         mode: recurring ? "subscription" : "payment",
         **(recurring ? {subscription_data: {metadata: PaymentIdentity.metadata(order)}} : {}),

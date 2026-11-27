@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_150000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1739,6 +1739,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_150000) do
     t.index ["subscription_id"], name: "idx_billing_invoice_subscription"
   end
 
+  create_table "lightek_commerce_discounts", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "code"
+    t.string "kind", null: false
+    t.integer "amount", null: false
+    t.integer "minimum_cents", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "code"], name: "index_lightek_commerce_discounts_on_site_id_and_code", unique: true
+    t.index ["site_id"], name: "index_lightek_commerce_discounts_on_site_id"
+  end
+
   create_table "lightek_commerce_dispute_cases", force: :cascade do |t|
     t.bigint "order_id", null: false
     t.string "processor_reference", null: false
@@ -1849,6 +1863,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_150000) do
     t.string "buyer_fee_transfer_destination"
     t.datetime "buyer_fee_reversal_requested_at"
     t.string "buyer_fee_reversal_ref"
+    t.integer "discount_cents", default: 0, null: false
+    t.string "discount_name"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"
@@ -7534,6 +7550,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_150000) do
   add_foreign_key "lightek_blog_entries", "posts", on_delete: :cascade
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
+  add_foreign_key "lightek_commerce_discounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_dispute_cases", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_network_accounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_network_accounts", "lightek_reservation_peers", column: "peer_id"

@@ -15,6 +15,17 @@ class CommerceNetworkTest < CommerceHostingTest
   def reserve(values = attributes)
     LightekCommerce::NetworkGateway.reserve!(peer: peer, attributes: values)
   end
+  def test_network_discount_survives_central_checkout_and_cannot_change_on_replay
+    payload = attributes.merge('discount_cents' => 251)
+    sale = reserve(payload)
+    assert_equal 2249, sale.order.subtotal_cents
+    assert_equal 251, sale.order.discount_amount
+    lines = LightekCommerce::Discounts.processor_items(sale.order)
+    assert_equal 2249, lines.sole.dig(:price_data, :unit_amount)
+    assert_equal sale.id, reserve(payload).id
+    assert_raises(ArgumentError) { reserve(payload.merge('discount_cents' => 250)) }
+  end
+
   def test_peer_reservation_is_idempotent_and_rejects_changed_purchase
     first = reserve
     assert_equal first.id, reserve.id

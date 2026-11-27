@@ -16,6 +16,9 @@ module LightekCommerce
       if attrs.key?('buyer_price_cents')
         stable['buyer_price_cents'] = Integer(attrs['buyer_price_cents'].to_s, 10)
       end
+      if attrs.key?('discount_cents')
+        stable['discount_cents'] = Integer(attrs['discount_cents'].to_s, 10)
+      end
       peer.with_lock do
         sale = NetworkSale.find_by(peer: peer, source_key: key)
         if sale
@@ -32,6 +35,11 @@ module LightekCommerce
         recurring = rows.any? { |row| row["billing_interval"] != "one_time" }
         raise ArgumentError, "Subscriptions must be purchased separately" if recurring && (rows.size != 1 || rows.first["quantity"].to_i != 1 || rows.first["product_type"] != "service")
         subtotal = rows.sum { |row| row["quantity"].to_i * row["unit_price_cents"].to_i }
+        discount = stable.fetch('discount_cents', 0)
+        if discount != 0 && (recurring || !discount.between?(1, subtotal - 1))
+          raise ArgumentError, 'Invalid checkout discount'
+        end
+        subtotal -= discount
         raise ArgumentError, "Checkout total is outside the supported range" unless subtotal.between?(0, 2_000_000_000)
         source_quote = nil
         quote = nil
@@ -48,6 +56,7 @@ module LightekCommerce
         fee = buyer_fee_snapshot(peer: peer, merchant: merchant, subtotal: subtotal, buyer_price_cents: stable['buyer_price_cents'])
         order = Order.new(site: site, customer_email: attrs.fetch("customer_email"), subtotal_cents: subtotal,
           shipping_cents: shipping, stock_reserved: false, shipping_quote: quote)
+        order.discount_cents = discount if discount.positive?
         order.buyer_fee_snapshot = fee if fee.present?
         order.total_cents = subtotal + shipping + order.buyer_fee_cents
         order.save!

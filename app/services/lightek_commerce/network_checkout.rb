@@ -31,6 +31,7 @@ module LightekCommerce
         attributes[:shipping_price_cents] = order.shipping_quote.customer_price_cents
       end
       attributes[:buyer_price_cents] = order.buyer_fee_breakdown.fetch('buyer_cents') if order.buyer_fee_cents.positive?
+      attributes[:discount_cents] = order.discount_amount if order.discount_amount.positive?
       attributes[:embedded] = true if embedded
       result = client(order).request("commerce/checkouts", method: :post, body: {checkout: attributes})
       if order.buyer_fee_cents.positive? && result['buyer_fee_cents'] != order.buyer_fee_cents

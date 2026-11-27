@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -35,10 +35,25 @@ module LightekCommerce
         else
           {}
         end
+        discount, savings = if storefront && (discount_code.present? || !expected_discount_cents.nil?)
+          storefront_discount(site: site, products: products, quantities: requested, code: discount_code)
+        end
+        if !expected_discount_cents.nil? && savings.to_i != Integer(expected_discount_cents.to_s, 10)
+          raise Invalid, 'The discount changed. Review your cart before continuing.'
+        end
+        if fee_snapshot.present? && savings.to_i.positive?
+          fee_snapshot = BuyerFees.quote_amount(fee_snapshot.fetch('merchant_cents') - savings)
+        end
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
+        if discount
+          order.discount_cents = savings
+          order.discount_name = discount.name
+        end
         if fee_snapshot.present?
           order.buyer_fee_snapshot = fee_snapshot
-          order.client_checkout_key = Digest::SHA256.hexdigest(buyer_fee_token)
+          order.client_checkout_key = Digest::SHA256.hexdigest(
+            discount ? [buyer_fee_token, discount.id, savings].join(':') : buyer_fee_token
+          )
           existing = Order.find_by(site: site, customer_email: order.customer_email, client_checkout_key: order.client_checkout_key)
           next existing if existing
         end
@@ -133,6 +148,7 @@ module LightekCommerce
           order.items.create!(purchase_snapshot: snapshot, product: product, variant: variant_id ? variant : nil,
             name: name, quantity: qty, unit_price_cents: price, line_total_cents: line_total)
         end
+        subtotal -= savings.to_i
         # No guessed tax or shipping: add those only through a configured quote provider.
         if fee_snapshot.present? && (order.revenue_share_snapshot.present? || fee_snapshot.fetch('merchant_cents') != subtotal)
           raise Invalid, 'This sale is no longer eligible for buyer-paid fees. Review the cart.'
@@ -151,6 +167,13 @@ module LightekCommerce
     rescue ArgumentError, TypeError
       raise Invalid, "Invalid cart items"
     end
+
+    def self.storefront_discount(site:, products:, quantities:, code:)
+      Discounts.quote(site: site, products: products, quantities: quantities, code: code, lock: true)
+    rescue Discounts::Invalid => error
+      raise Invalid, error.message
+    end
+    private_class_method :storefront_discount
 
     def self.cancel!(order)
       order.with_lock do

@@ -220,6 +220,10 @@ end
   post "/dashboard/marketing/campaigns/:id/schedule", to: "dashboard/marketing_campaigns#schedule", as: :schedule_dashboard_marketing_campaign
   get "/dashboard/business", to: "dashboard/business_hub#index", as: :dashboard_business_hub
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
+  get "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#show", as: :dashboard_commerce_store_settings
+  patch "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#update"
+  post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
+  patch "/dashboard/commerce/discounts/:id", to: "dashboard/commerce_store_settings#update_discount", as: :dashboard_commerce_store_discount
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund
@@ -254,6 +258,8 @@ end
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
   draw :commerce_embedded_checkout
+  post "/commerce/cart/discount", to: "commerce#apply_discount", as: :commerce_cart_discount
+  get "/commerce/account", to: "commerce#account", as: :commerce_account
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"

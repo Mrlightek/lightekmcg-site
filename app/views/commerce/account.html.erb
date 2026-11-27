@@ -1,0 +1,27 @@
+<% content_for :title, "My orders · #{@site.name}" %>
+<main class="auth-shell">
+  <% accent = LightekCommerce::StoreAppearance.accent(@appearance) if @appearance %>
+  <section class="auth-story"<%= tag.attributes(style: "background: #{accent}") if accent %>>
+    <div class="auth-story-copy">
+      <h2><%= @appearance['brand_name'] || @site.name %></h2>
+      <%= link_to 'Back to store', commerce_shop_path(site_id: @site.id), class: 'auth-link' %>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1><%= @appearance['account_title'] || 'My orders' %></h1>
+      <% if @appearance['account_message'] %><p><%= @appearance['account_message'] %></p><% end %>
+      <% if current_user.lightek_email_confirmed_at.blank? %>
+        <p>Confirm your email address to view your orders.</p>
+      <% elsif @orders.empty? %>
+        <p>There are no paid orders for this email address at this store.</p>
+      <% else %>
+        <ul>
+          <% @orders.each do |order| %>
+            <li>Order #<%= order.id %> · <%= l(order.paid_at.to_date) %> · <%= number_to_currency(order.total_cents / 100.0) %> · <%= order.status.humanize %></li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </section>
+</main>

@@ -256,6 +256,11 @@ require Rails.root.join('db/migrate/20261114140000_add_commerce_order_deletion')
 AddCommerceOrderDeletion.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127140000_add_commerce_buyer_fee_snapshot')
 AddCommerceBuyerFeeSnapshot.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127160000_add_commerce_discounts')
+AddCommerceDiscounts.new.migrate(:up)
+require Rails.root.join('app/models/lightek_commerce/discount')
+require Rails.root.join('app/services/lightek_commerce/discounts')
+require Rails.root.join('app/services/lightek_commerce/store_appearance')
 LightekCommerce::Order.reset_column_information
 require Rails.root.join('app/services/lightek_payments/payout_accounts')
 require Rails.root.join('app/services/lightek_commerce/bank_deposits')
@@ -721,6 +726,38 @@ class CommerceHostingTest < Minitest::Test
     end
     assert_equal "partially_refunded", order.reload.status
     assert_equal "tr_ledger", order.merchant_transfer_ref
+  end
+
+  def test_discount_is_scoped_to_store_and_frozen_into_taxable_line_prices
+    merchandise = product(billing_interval: 'one_time', price_cents: 1250)
+    cart = {merchandise.id.to_s => 3}
+    auto = LightekCommerce::Discount.create!(site: @site, name: 'Spring', kind: 'percent', amount: 10)
+    code = LightekCommerce::Discount.create!(site: @site, name: 'Member', code: ' member ', kind: 'fixed', amount: 251)
+    inputs = {site: @site, customer_email: 'buyer@example.test', quantities: cart, storefront: true}
+    automatic = LightekCommerce::OrderPlacement.call(**inputs, expected_discount_cents: 375)
+    assert_equal [375, 3375, auto.name], [automatic.discount_amount, automatic.subtotal_cents, automatic.discount_name]
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(**inputs, discount_code: code.code, expected_discount_cents: 250)
+    end
+    discounted = LightekCommerce::OrderPlacement.call(**inputs, discount_code: 'member', expected_discount_cents: 251)
+    assert_equal 3499, discounted.total_cents
+    rows = LightekCommerce::Discounts.processor_items(discounted)
+    assert_equal 3, rows.sum { |line| line.fetch(:quantity) }
+    assert_equal 3499, rows.sum { |line| line[:price_data][:unit_amount] * line[:quantity] }
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'other.example.com')
+    assert_raises(LightekCommerce::Discounts::Invalid) do
+      LightekCommerce::Discounts.quote(site: foreign, products: [merchandise], quantities: cart, code: 'member')
+    end
+  end
+
+  def test_store_appearance_updates_only_the_commerce_manifest
+    @site.update!(manifest: {'pages' => ['home']})
+    LightekCommerce::StoreAppearance.save!(@site, {'brand_name' => '  Lightek  ', 'accent_color' => '#4655aa'})
+    assert_equal ['home'], @site.reload.manifest['pages']
+    assert_equal({'brand_name' => 'Lightek', 'accent_color' => '#4655aa'}, LightekCommerce::StoreAppearance.read(@site))
+    assert_raises(LightekCommerce::StoreAppearance::Invalid) do
+      LightekCommerce::StoreAppearance.save!(@site, {'accent_color' => 'url(invalid)'})
+    end
   end
 
   def test_buyer_fee_cart_signs_variant_price_and_quantities_as_one_purchase

@@ -298,6 +298,7 @@ require Rails.root.join('db/migrate/20261127191000_add_provider_to_shipping_quot
 AddProviderToShippingQuotes.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/order_report')
 require Rails.root.join('app/services/lightek_commerce/order_timeline')
+require Rails.root.join('app/services/lightek_commerce/packing_slips')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1894,6 +1895,26 @@ class CommerceHostingTest < Minitest::Test
         assert_raises(ArgumentError) { LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup.merge(close: '08:00')) }
       end
     end
+  end
+
+  def test_bulk_packing_slips_scope_every_order_and_keep_selected_order
+    physical = product(product_type: 'physical', billing_interval: 'one_time')
+    digital = product(product_type: 'digital', billing_interval: 'one_time')
+    paid = order_for(physical)
+    paid.update!(status: 'paid', paid_at: Time.current)
+    fulfilled = order_for(physical)
+    fulfilled.update!(status: 'fulfilled', paid_at: Time.current)
+    unshippable = order_for(digital)
+    unshippable.update!(status: 'paid', paid_at: Time.current)
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'shipping-other.test')
+    slips = LightekCommerce::PackingSlips
+    assert_equal [fulfilled.id, paid.id], slips.for(site: @site, order_ids: [fulfilled.id, paid.id, paid.id]).map { |slip| slip.order.id }
+    assert slips.eligible?(paid)
+    refute slips.eligible?(unshippable)
+    assert_raises(ActiveRecord::RecordNotFound) { slips.for(site: foreign, order_ids: [paid.id]) }
+    assert_raises(ActiveRecord::RecordNotFound) { slips.for(site: @site, order_ids: [paid.id, unshippable.id]) }
+    assert_raises(slips::Invalid) { slips.for(site: @site, order_ids: []) }
+    assert_raises(slips::Invalid) { slips.for(site: @site, order_ids: [0]) }
   end
 
   def test_order_timeline_orders_lifecycle_and_keeps_pending_refunds_distinct

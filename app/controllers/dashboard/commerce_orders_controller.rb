@@ -12,7 +12,8 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
   def index
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
     return payment_receipt if params[:receipt_order_id].present?
-    return packing_slip if params[:print_order_id].present?
+    return packing_slips(params[:print_order_id]) if params[:print_order_id].present?
+    return packing_slips(params.fetch(:packing_order_ids, [])) if params[:print_packing_slips] == '1'
 
     @filters = params.permit(*LightekCommerce::OrderReport::FILTERS)
     report = LightekCommerce::OrderReport.new(site: @site, filters: @filters)
@@ -25,7 +26,7 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
         send_data report.csv(kind), filename: "commerce-#{kind}-#{Date.current.iso8601}.csv", type: 'text/csv; charset=utf-8'
       end
     end
-  rescue LightekCommerce::OrderReport::Invalid => error
+  rescue LightekCommerce::OrderReport::Invalid, LightekCommerce::PackingSlips::Invalid => error
     redirect_to dashboard_commerce_orders_path(site_id: @site.id), alert: error.message, status: :see_other
   end
 
@@ -69,13 +70,8 @@ class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
     render 'commerce/payment_receipt', formats: [:html], layout: false
   end
 
-  def packing_slip
-    @order = paid_document_order(params[:print_order_id]).where.not(status: 'refunded')
-      .includes(:shipping_quote, items: :product).take!
-    @packages = @order.items.select { |item| item.physical_for_fulfillment? }
-    raise ActiveRecord::RecordNotFound if @packages.empty?
-
-    @recipient = @order.shipping_quote&.shipment_payload.to_h.fetch('recipients', []).first
+  def packing_slips(ids)
+    @slips = LightekCommerce::PackingSlips.for(site: @site, order_ids: ids)
     response.headers['Cache-Control'] = 'private, no-store'
     render :packing_slip, formats: [:html], layout: false
   end

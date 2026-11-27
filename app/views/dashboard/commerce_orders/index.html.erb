@@ -1,4 +1,5 @@
 <% content_for :page_title, "Orders" %>
+<%= javascript_include_tag '/lightek/order-views.js', defer: true %>
 <main class="dd-workspace dd-orders" data-orders-workspace>
   <header class="dd-page-header dd-page-hero">
     <div>
@@ -18,7 +19,7 @@
 
   <section class="dd-panel">
     <h2>Filter orders</h2>
-    <%= form_with url: dashboard_commerce_orders_path, method: :get do %>
+    <%= form_with url: dashboard_commerce_orders_path, method: :get, data: {order_filters: true} do %>
       <%= hidden_field_tag :site_id, @site.id %>
       <label>Order number or buyer email <%= search_field_tag :lookup, @filters[:lookup], maxlength: 254 %></label>
       <label>Status <%= select_tag :status, options_for_select(LightekCommerce::Order::STATUSES.map { |value| [value.humanize, value] }, @filters[:status]), include_blank: 'All statuses' %></label>
@@ -26,6 +27,18 @@
       <label>Created through <%= date_field_tag :through, @filters[:through] %></label>
       <%= submit_tag 'Filter', class: 'dd-button' %>
     <% end %>
+    <div hidden data-saved-order-views="<%= current_user.id %>:<%= @site.id %>">
+      <h3>Saved views</h3>
+      <p>Save status and dates for this store in this browser.</p>
+      <form data-order-view-save>
+        <label>View name <input name="view_name" type="text" required maxlength="60"></label>
+        <button type="submit" class="dd-button">Save view</button>
+      </form>
+      <label>Saved view <select data-order-view-picker disabled></select></label>
+      <button type="button" class="dd-button" data-order-view-apply disabled>Apply view</button>
+      <button type="button" class="dd-button" data-order-view-remove disabled>Remove view</button>
+      <p role="status" data-order-view-message></p>
+    </div>
     <%= link_to 'Export orders CSV', dashboard_commerce_orders_path(@filters.to_h.merge(site_id: @site.id, format: :csv, kind: 'orders')), class: 'dd-button' %>
     <%= link_to 'Export line items CSV', dashboard_commerce_orders_path(@filters.to_h.merge(site_id: @site.id, format: :csv, kind: 'items')), class: 'dd-button' %>
   </section>
@@ -55,6 +68,15 @@
         </div>
       <% end %>
 
+      <% if @orders.any? { |order| LightekCommerce::PackingSlips.eligible?(order) } %>
+        <%= form_with url: dashboard_commerce_orders_path, method: :get, id: 'print-packing-slips', data: {turbo: false} do %>
+          <%= hidden_field_tag :site_id, @site.id, id: nil %>
+          <%= hidden_field_tag :print_packing_slips, '1' %>
+          <p>Select paid physical orders below to print their packing slips together.</p>
+          <%= submit_tag 'Print selected packing slips', class: 'dd-button' %>
+        <% end %>
+      <% end %>
+
       <div class="dd-order-collection">
         <% @orders.each do |order| %>
           <% tone = %w[paid fulfilled].include?(order.status) ? "success" : %w[pending_payment partially_refunded].include?(order.status) ? "warning" : "neutral" %>
@@ -63,6 +85,8 @@
               <div class="dd-order-identity">
                 <% if order.removable? %>
                   <%= check_box_tag "order_ids[]", order.id, false, id: "select-order-#{order.id}", form: "delete-selected-orders", data: { order_select: true }, aria: { label: "Select unpaid order ##{order.id}" } %>
+                <% elsif LightekCommerce::PackingSlips.eligible?(order) %>
+                  <%= check_box_tag 'packing_order_ids[]', order.id, false, id: "print-order-#{order.id}", form: 'print-packing-slips', aria: {label: "Select packing slip for order ##{order.id}"} %>
                 <% else %><span class="dd-order-receipt" aria-hidden="true"><i class="ti ti-receipt"></i></span><% end %>
                 <div><span class="dd-caption">Order</span><h3 id="order-heading-<%= order.id %>">#<%= order.id %></h3></div>
               </div>
@@ -79,7 +103,7 @@
                 <% if order.paid_at? && %w[paid fulfilled partially_refunded refunded].include?(order.status) %>
                   <%= link_to 'Payment receipt', dashboard_commerce_orders_path(site_id: @site.id, receipt_order_id: order.id), class: 'dd-button' %>
                 <% end %>
-                <% if order.paid_at? && %w[paid fulfilled partially_refunded].include?(order.status) && order.items.any?(&:physical_for_fulfillment?) %>
+                <% if LightekCommerce::PackingSlips.eligible?(order) %>
                   <%= link_to 'Packing slip', dashboard_commerce_orders_path(site_id: @site.id, print_order_id: order.id), class: 'dd-button' %>
                 <% end %>
                 <% if order.items.any? { |item| item.product.product_type == "lightek_instance" } %>

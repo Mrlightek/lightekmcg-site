@@ -103,6 +103,9 @@
                 <% if order.paid_at? && %w[paid fulfilled partially_refunded refunded].include?(order.status) %>
                   <%= link_to 'Payment receipt', dashboard_commerce_orders_path(site_id: @site.id, receipt_order_id: order.id), class: 'dd-button' %>
                 <% end %>
+                <% if LightekCommerce::MerchandiseReturns.eligible_order?(order) && order.items.any?(&:physical_for_fulfillment?) %>
+                  <%= link_to 'Manage returns', dashboard_commerce_returns_path(order_id: order.id, site_id: @site.id), class: 'dd-button' %>
+                <% end %>
                 <% if LightekCommerce::PackingSlips.eligible?(order) %>
                   <%= link_to 'Packing slip', dashboard_commerce_orders_path(site_id: @site.id, print_order_id: order.id), class: 'dd-button' %>
                 <% end %>

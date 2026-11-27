@@ -24,6 +24,8 @@
               <td>
                 <% if change.supplier_order_id %>
                   <%= link_to "PO ##{change.supplier_order_id}", dashboard_commerce_supplier_order_path(change.supplier_order_id, site_id: @site.id) %>
+                <% elsif change.merchandise_return_id %>
+                  Return #<%= change.merchandise_return_id %>
                 <% elsif change.source.in?(%w[csv_import stock_state_adjustment]) %>
                   <span title="<%= change.batch_key %>"><%= change.batch_key.first(8) %></span>
                 <% elsif change.order_id %>

@@ -54,7 +54,7 @@ module LightekCommerce
     end
 
     # Caller locks the product, then its variant when present, inside the stock transaction.
-    def self.apply_locked!(product:, target:, from:, to:, units:, actor:, supplier_order: nil)
+    def self.apply_locked!(product:, target:, from:, to:, units:, actor:, supplier_order: nil, merchandise_return: nil)
       max = InventoryAdjustment::MAX_QUANTITY
       deltas = {}
       deltas[from] = -units if from
@@ -83,7 +83,7 @@ module LightekCommerce
       counts.each do |state, (before, after)|
         InventoryChange.record!(product: product, variant: (target unless target.equal?(product)), actor: actor,
           source: 'stock_state_adjustment', stock_state: state, batch_key: batch_key, supplier_order: supplier_order,
-          before_quantity: before, after_quantity: after)
+          merchandise_return: merchandise_return, before_quantity: before, after_quantity: after)
       end
     end
 

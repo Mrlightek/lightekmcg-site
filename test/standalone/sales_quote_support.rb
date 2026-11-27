@@ -71,6 +71,8 @@ require ROOT.join('db/migrate/20261127200000_add_commerce_inventory_stock_states
 AddCommerceInventoryStockStates.new.migrate(:up)
 require ROOT.join('db/migrate/20261127201000_create_commerce_supplier_orders')
 CreateCommerceSupplierOrders.new.migrate(:up)
+require ROOT.join('db/migrate/20261127202000_create_commerce_merchandise_returns')
+CreateCommerceMerchandiseReturns.new.migrate(:up)
 require ROOT.join('app/models/lightek_commerce/inventory_change')
 require ROOT.join('app/services/lightek_commerce/order_placement')
 require ROOT.join('db/migrate/20261115120100_add_sales_quotes')

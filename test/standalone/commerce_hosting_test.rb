@@ -315,12 +315,16 @@ require Rails.root.join('db/migrate/20261127200000_add_commerce_inventory_stock_
 AddCommerceInventoryStockStates.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127201000_create_commerce_supplier_orders')
 CreateCommerceSupplierOrders.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127202000_create_commerce_merchandise_returns')
+CreateCommerceMerchandiseReturns.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
 require Rails.root.join('app/models/lightek_commerce/supplier_order')
 require Rails.root.join('app/models/lightek_commerce/supplier_order_line')
 require Rails.root.join('app/services/lightek_commerce/supplier_orders')
+require Rails.root.join('app/models/lightek_commerce/merchandise_return')
+require Rails.root.join('app/services/lightek_commerce/merchandise_returns')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -2247,6 +2251,64 @@ class CommerceHostingTest < Minitest::Test
     assert_raises(service::Invalid) { buyer.cancel! }
     buyer.reconcile_invoice!(reference: 'INV-4', subtotal: 75)
     assert_equal order.received_subtotal_cents, order.reload.invoice_subtotal_cents
+  end
+
+  def test_merchandise_returns_approve_receive_and_restore_only_the_original_tracked_stock
+    simple = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 8)
+    parent = product(product_type: 'physical', billing_interval: 'one_time')
+    variant = parent.variants.create!(name: 'Small', price_cents: 500, inventory_quantity: 5, active: true)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {simple.id.to_s => 4, "#{parent.id}:#{variant.id}" => 2})
+    service = LightekCommerce::MerchandiseReturns
+    returns = service.new(order: order, actor: @operator)
+    line = order.items.find_by!(product_id: simple.id)
+    request = {item_id: line.id, quantity: '2', reason: 'Wrong size', request_key: SecureRandom.uuid}
+    assert_raises(service::Invalid) { returns.request!(**request) }
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)
+    record = returns.request!(**request)
+    assert_equal record.id, returns.request!(**request).id
+    assert_raises(service::Invalid) { returns.request!(**request.merge(quantity: '1')) }
+    assert_raises(service::Invalid) { returns.request!(**request.merge(quantity: '3', request_key: SecureRandom.uuid)) }
+    assert_raises(service::Invalid) { returns.receive!(record.id, disposition: 'available') }
+
+    returns.approve!(record.id)
+    model = LightekCommerce::InventoryChange
+    model.stub(:record!, ->(**) { raise ActiveRecord::RecordInvalid.new(model.new) }) do
+      assert_raises(service::Invalid) { returns.receive!(record.id, disposition: 'available') }
+    end
+    assert_equal [4, 'approved'], [simple.reload.inventory_quantity, record.reload.status]
+    returns.receive!(record.id, disposition: 'available')
+    assert_equal [6, 'received', 'available'], [simple.reload.inventory_quantity, record.reload.status, record.disposition]
+    assert_raises(service::Invalid) { returns.receive!(record.id, disposition: 'available') }
+    assert_equal 6, simple.reload.inventory_quantity
+
+    variant_item = order.items.find_by!(variant_id: variant.id)
+    returned_variant = returns.request!(item_id: variant_item.id, quantity: 2, reason: 'Damaged delivery', request_key: SecureRandom.uuid)
+    returns.approve!(returned_variant.id)
+    returns.receive!(returned_variant.id, disposition: 'damaged')
+    assert_equal [3, 2], variant.reload.attributes.values_at('inventory_quantity', 'damaged_quantity')
+    changes = model.for_site(@site).where(merchandise_return_id: [record.id, returned_variant.id]).order(:id)
+    assert_equal [[record.id, 'available', nil], [returned_variant.id, 'damaged', variant.id]],
+      changes.pluck(:merchandise_return_id, :stock_state, :variant_id)
+  end
+
+  def test_merchandise_returns_release_rejected_quantities_and_keep_untracked_items_out_of_stock
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: false, inventory_quantity: 0)
+    order = order_for(item)
+    order.update!(status: 'refunded', fulfilled_at: Time.current, paid_at: Time.current)
+    service = LightekCommerce::MerchandiseReturns
+    returns = service.new(order: order, actor: @operator)
+    details = {item_id: order.items.sole.id, quantity: 1, reason: 'Customer changed their mind'}
+    denied = returns.request!(**details, request_key: SecureRandom.uuid)
+    returns.reject!(denied.id)
+    record = returns.request!(**details, request_key: SecureRandom.uuid)
+    returns.approve!(record.id)
+    another_order = order_for(item)
+    assert_raises(ActiveRecord::RecordNotFound) { service.new(order: another_order, actor: @operator).cancel!(record.id) }
+    assert_raises(service::Invalid) { returns.receive!(record.id, disposition: 'available') }
+    returns.receive!(record.id, disposition: 'discarded')
+    assert_equal [0, 'received', 'discarded'], [item.reload.inventory_quantity, record.reload.status, record.disposition]
+    assert_empty LightekCommerce::InventoryChange.where(merchandise_return_id: record.id)
   end
 
   def test_bulk_packing_slips_scope_every_order_and_keep_selected_order

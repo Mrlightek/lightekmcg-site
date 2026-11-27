@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_201000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_202000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1858,6 +1858,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_201000) do
     t.check_constraint "state IN ('held', 'captured', 'released', 'refunded')", name: "commerce_gift_redemption_state"
   end
 
+  create_table "lightek_commerce_merchandise_returns", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "order_item_id", null: false
+    t.string "request_key", limit: 36, null: false
+    t.integer "quantity", null: false
+    t.string "reason", limit: 300, null: false
+    t.string "status", default: "requested", null: false
+    t.string "disposition"
+    t.bigint "requested_by_id", null: false
+    t.bigint "resolved_by_id"
+    t.datetime "received_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id", "request_key"], name: "idx_commerce_merchandise_return_request", unique: true
+    t.index ["order_item_id", "status"], name: "idx_commerce_merchandise_return_item"
+    t.check_constraint "quantity > 0 AND (status::text = ANY (ARRAY['requested'::character varying, 'approved'::character varying, 'rejected'::character varying, 'received'::character varying, 'canceled'::character varying]::text[]))", name: "commerce_merchandise_return_valid"
+    t.check_constraint "status::text = 'received'::text AND disposition IS NOT NULL AND (disposition::text = ANY (ARRAY['available'::character varying, 'damaged'::character varying, 'discarded'::character varying]::text[])) AND received_at IS NOT NULL OR status::text <> 'received'::text AND disposition IS NULL AND received_at IS NULL", name: "commerce_merchandise_return_receipt"
+  end
+
   create_table "lightek_commerce_network_accounts", force: :cascade do |t|
     t.bigint "peer_id", null: false
     t.bigint "user_id", null: false
@@ -1905,12 +1924,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_201000) do
     t.string "reason"
     t.string "stock_state", default: "available", null: false
     t.bigint "supplier_order_id"
+    t.bigint "merchandise_return_id"
     t.index ["site_id", "id"], name: "idx_commerce_inventory_changes_site_history"
     t.check_constraint "before_quantity >= 0 AND after_quantity >= 0 AND before_quantity <> after_quantity", name: "commerce_inventory_change_counts"
     t.check_constraint "(source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying, 'stock_state_adjustment'::character varying]::text[])) AND actor_id IS NOT NULL AND order_id IS NULL OR (source::text = ANY (ARRAY['checkout_reserved'::character varying, 'checkout_released'::character varying]::text[])) AND actor_id IS NULL AND order_id IS NOT NULL", name: "commerce_inventory_change_context"
     t.check_constraint "reason IS NULL OR (source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])) AND (reason::text = ANY (ARRAY['count'::character varying, 'received'::character varying, 'returned'::character varying, 'damaged'::character varying, 'lost'::character varying, 'correction'::character varying]::text[]))", name: "commerce_inventory_change_reason"
     t.check_constraint "stock_state::text = 'available'::text OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['incoming'::character varying, 'unavailable'::character varying, 'damaged'::character varying]::text[]))", name: "commerce_inventory_change_stock_state"
     t.check_constraint "supplier_order_id IS NULL OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['available'::character varying, 'incoming'::character varying]::text[]))", name: "commerce_inventory_change_supplier"
+    t.check_constraint "merchandise_return_id IS NULL OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['available'::character varying, 'damaged'::character varying]::text[])) AND supplier_order_id IS NULL", name: "commerce_inventory_change_return"
   end
 
   create_table "lightek_commerce_order_items", force: :cascade do |t|

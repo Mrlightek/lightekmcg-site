@@ -239,6 +239,9 @@ end
   end
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
+  get "/dashboard/commerce/orders/:order_id/returns", to: "dashboard/commerce_returns#show", as: :dashboard_commerce_returns
+  post "/dashboard/commerce/orders/:order_id/returns", to: "dashboard/commerce_returns#create"
+  post "/dashboard/commerce/orders/:order_id/returns/:return_id", to: "dashboard/commerce_returns#change", as: :change_dashboard_commerce_return
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund
   get "/dashboard/commerce/industry/preview", to: "dashboard/commerce_products#preview_industry", as: :preview_dashboard_commerce_industry
   post "/dashboard/commerce/industry", to: "dashboard/commerce_products#install_industry", as: :dashboard_commerce_industry

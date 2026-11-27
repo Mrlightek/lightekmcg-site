@@ -1,0 +1,74 @@
+<% content_for :page_title, "Returns for order ##{@order.id}" %>
+<% return_path = dashboard_commerce_returns_path(order_id: @order.id, site_id: @site.id) %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <div><h1>Returns for order #<%= @order.id %></h1><p><%= @site.name %></p></div>
+    <%= link_to 'Orders', dashboard_commerce_orders_path(site_id: @site.id), class: 'dd-button' %>
+  </header>
+
+  <section class="dd-panel" aria-labelledby="new-return-heading">
+    <h2 id="new-return-heading">Request a return</h2>
+    <% choices = @items.values.filter_map do |item|
+      remaining = item.quantity - @used.fetch(item.id, 0)
+      ["#{item.name} (#{remaining} returnable)", item.id] if remaining.positive?
+    end %>
+    <% if choices.empty? %>
+      <p>There are no more returnable units on this order.</p>
+    <% else %>
+      <%= form_with url: return_path, method: :post, class: 'dd-form-stack' do %>
+        <%= hidden_field_tag :request_key, SecureRandom.uuid %>
+        <label>Item <%= select_tag :item_id, options_for_select(choices), prompt: 'Choose an item', required: true %></label>
+        <label>Quantity <%= number_field_tag :quantity, nil, min: 1, required: true %></label>
+        <label>Reason <%= text_area_tag :reason, nil, rows: 2, maxlength: 300, required: true %></label>
+        <%= submit_tag 'Record request', class: 'dd-button dd-btn-primary' %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="dd-panel" aria-labelledby="return-history">
+    <h2 id="return-history">Returns</h2>
+    <% if @returns.empty? %>
+      <p>No returns recorded.</p>
+    <% else %>
+      <table>
+        <thead><tr><th scope="col">Return</th><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+        <tbody>
+          <% @returns.each do |record| %>
+            <% item = @items[record.order_item_id] %>
+            <% change_path = change_dashboard_commerce_return_path(order_id: @order.id, site_id: @site.id, return_id: record.id) %>
+            <tr>
+              <th scope="row">#<%= record.id %></th>
+              <td><%= item&.name || "Item ##{record.order_item_id}" %></td>
+              <td><%= record.quantity %></td>
+              <td><%= record.reason %></td>
+              <td>
+                <%= record.status.humanize %>
+                <% if record.received_at? %>
+                  <p><%= LightekCommerce::MerchandiseReturns::DISPOSITIONS.fetch(record.disposition) %></p>
+                  <time datetime="<%= record.received_at.iso8601 %>"><%= l(record.received_at, format: :short) %></time>
+                <% end %>
+              </td>
+              <td>
+                <% if record.status == 'requested' %>
+                  <%= button_to 'Approve', change_path, params: {operation: 'approve'}, class: 'dd-button' %>
+                  <%= button_to 'Reject', change_path, params: {operation: 'reject'}, class: 'dd-button' %>
+                <% elsif record.status == 'approved' %>
+                  <%= form_with url: change_path, method: :post do %>
+                    <%= hidden_field_tag :operation, 'receive', id: nil %>
+                    <% options = LightekCommerce::MerchandiseReturns::DISPOSITIONS %>
+                    <% options = options.slice('discarded') unless item && LightekCommerce::MerchandiseReturns.restockable?(@order, item) %>
+                    <label>Disposition <%= select_tag :disposition, options_for_select(options.invert), id: nil,
+                      prompt: 'Choose a disposition', required: true %></label>
+                    <%= submit_tag 'Receive return', class: 'dd-button dd-btn-primary' %>
+                  <% end %>
+                  <%= button_to 'Cancel return', change_path, params: {operation: 'cancel'}, class: 'dd-button' %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <p>Issue any refund from the original order.</p>
+  </section>
+</main>

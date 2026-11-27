@@ -152,6 +152,8 @@ jobs:
         run: gem install activerecord:8.0.4 activestorage:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 uri:1.1.2 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
         run: ruby test/standalone/campaign_performance_checks.rb
+      - name: Verify referral attribution and commission receipts
+        run: ruby test/standalone/sales_partner_checks.rb --name '/test_partner_/'
       - name: Verify social prospecting, Vault isolation and message receipts
         run: ruby test/standalone/social_prospecting_checks.rb --name '/test_prospecting_/'
       - name: Verify native CMS audit evidence, permissions, fixes and recovery

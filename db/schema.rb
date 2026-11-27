@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_26_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4143,6 +4143,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_26_140000) do
     t.check_constraint "amount_cents >= 0 AND probability >= 0 AND probability <= 100", name: "sales_opportunity_amount_probability"
   end
 
+  create_table "lightek_sales_partners", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "product_id", null: false
+    t.string "name", null: false
+    t.string "agreement_reference", null: false
+    t.bigint "commission_cents", null: false
+    t.string "referral_code", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_lightek_sales_partners_on_product_id"
+    t.index ["referral_code"], name: "index_lightek_sales_partners_on_referral_code", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_partners_on_site_id"
+    t.check_constraint "commission_cents > 0", name: "sales_partner_positive_commission"
+  end
+
   create_table "lightek_sales_prospecting_cadences", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.string "name", null: false
@@ -4184,6 +4200,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_26_140000) do
     t.index ["order_id"], name: "index_lightek_sales_quotes_on_order_id", unique: true
     t.index ["site_id", "series_key", "revision"], name: "idx_sales_quote_revision", unique: true
     t.index ["site_id"], name: "index_lightek_sales_quotes_on_site_id"
+  end
+
+  create_table "lightek_sales_referrals", force: :cascade do |t|
+    t.bigint "partner_id", null: false
+    t.bigint "lead_id", null: false
+    t.bigint "commission_cents", null: false
+    t.bigint "order_id"
+    t.bigint "recorded_by_id"
+    t.string "payout_reference"
+    t.datetime "paid_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["lead_id"], name: "index_lightek_sales_referrals_on_lead_id", unique: true
+    t.index ["order_id"], name: "index_lightek_sales_referrals_on_order_id", unique: true
+    t.index ["partner_id"], name: "index_lightek_sales_referrals_on_partner_id"
+    t.index ["payout_reference"], name: "index_lightek_sales_referrals_on_payout_reference", unique: true
+    t.index ["recorded_by_id"], name: "index_lightek_sales_referrals_on_recorded_by_id"
+    t.check_constraint "commission_cents > 0", name: "sales_referral_positive_commission"
   end
 
   create_table "lightek_sales_routing_rules", force: :cascade do |t|
@@ -7324,7 +7358,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_26_140000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "growth_visit_id"
+    t.bigint "sales_partner_id"
     t.index ["growth_visit_id"], name: "index_website_template_inquiries_on_growth_visit_id"
+    t.index ["sales_partner_id"], name: "index_website_template_inquiries_on_sales_partner_id"
     t.index ["site_id"], name: "index_website_template_inquiries_on_site_id"
   end
 
@@ -7742,12 +7778,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_26_140000) do
   add_foreign_key "lightek_sales_opportunities", "lightek_marketing_contacts", column: "contact_id"
   add_foreign_key "lightek_sales_opportunities", "lightek_sales_accounts", column: "account_id"
   add_foreign_key "lightek_sales_opportunities", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_partners", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_partners", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_sales_prospecting_cadences", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_quotes", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_quotes", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_sales_quotes", "lightek_sales_opportunities", column: "opportunity_id"
   add_foreign_key "lightek_sales_quotes", "users", column: "accepted_by_id"
   add_foreign_key "lightek_sales_quotes", "users", column: "created_by_id"
+  add_foreign_key "lightek_sales_referrals", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_sales_referrals", "lightek_sales_leads", column: "lead_id"
+  add_foreign_key "lightek_sales_referrals", "lightek_sales_partners", column: "partner_id"
+  add_foreign_key "lightek_sales_referrals", "users", column: "recorded_by_id"
   add_foreign_key "lightek_sales_routing_rules", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_routing_rules", "users", column: "owner_id"
   add_foreign_key "lightek_sales_social_prospects", "dymond_site_sites", column: "site_id"
@@ -8078,4 +8120,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_26_140000) do
   add_foreign_key "users", "users", column: "agency_id"
   add_foreign_key "website_template_inquiries", "dymond_site_sites", column: "site_id"
   add_foreign_key "website_template_inquiries", "lightek_growth_visits", column: "growth_visit_id"
+  add_foreign_key "website_template_inquiries", "lightek_sales_partners", column: "sales_partner_id"
 end

@@ -9,18 +9,20 @@ class SalesInquiriesController < ApplicationController
   rate_limit to: 10, within: 10.minutes, only: :create
 
   def new
+    @referral_code = referral_code
     @inquiry = WebsiteTemplateInquiry.new(fields: {})
   end
 
   def create
     return received if params[:website_url].present?
 
+    @referral_code = referral_code
     fields = params.permit(sales_submission: WebsiteTemplateInquiry::SALES_FIELD_LIMITS.keys)
       .fetch(:sales_submission, {}).to_h.transform_values { |value| value.to_s.strip }
     template, section = WebsiteTemplateInquiry::SALES_FORM_KEYS
     @inquiry = WebsiteTemplateInquiry.new(site: @site, template_key: template, section_key: section, fields: fields)
     @inquiry.growth_visit = LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request)
-    if @inquiry.save
+    if save_inquiry
       record_platform_experiment('inquiry', @inquiry) if respond_to?(:record_platform_experiment, true)
       return received
     end
@@ -29,6 +31,20 @@ class SalesInquiriesController < ApplicationController
   end
 
   private
+
+  def referral_code
+    code = params[:ref].to_s
+    code if code.match?(/\A[0-9a-f]{40}\z/)
+  end
+
+  def save_inquiry
+    return @inquiry.save unless @referral_code
+
+    @site.with_lock do
+      @inquiry.sales_partner = LightekSales::Partner.active.find_by(site: @site, referral_code: @referral_code)
+      @inquiry.save
+    end
+  end
 
   def set_form_site
     response.set_header('Cache-Control', 'private, no-store')

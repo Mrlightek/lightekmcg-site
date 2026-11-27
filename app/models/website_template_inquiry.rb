@@ -19,6 +19,12 @@ class WebsiteTemplateInquiry < ApplicationRecord
   end
 
   belongs_to :site, class_name: "DymondSite::Site"
+  belongs_to :sales_partner, class_name: 'LightekSales::Partner', optional: true
+  validate do
+    if sales_partner && (!native_sales_form? || sales_partner.site_id != site_id)
+      errors.add(:sales_partner, 'must belong to this website and sales form')
+    end
+  end
   validates :template_key, :section_key, presence: true
   validate :valid_starter_fields, unless: :native_sales_form?
   validate :valid_sales_fields, if: :native_sales_form?

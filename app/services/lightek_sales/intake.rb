@@ -46,7 +46,11 @@ module LightekSales
       values = mapping.to_h { |key, field| [key, inquiry.fields[field].to_s.strip] }.slice(*IntakeRule::TARGETS)
       site.with_lock do
         IntakeEntry.find_or_create_by!(site: site, origin_key: "website:#{inquiry.id}") do |entry|
-          source = rule&.source || (inquiry.native_sales_form? ? 'sales_inquiry' : 'website')
+          source = if inquiry.sales_partner_id?
+            'partner_referral'
+          else
+            rule&.source || (inquiry.native_sales_form? ? 'sales_inquiry' : 'website')
+          end
           entry.assign_attributes(origin: 'website', inquiry: inquiry, source: source,
             payload: values, original: inquiry.fields, created_by: actor)
         end
@@ -71,6 +75,11 @@ module LightekSales
           lead = workspace.save!('lead', {name: data['name'], email: data['email'], company: data['company'].presence || data['name'],
             phone: data['phone'], source: entry.source, notes: details(entry, data),
             next_step: 'Review the inquiry and agree on a first conversation.', follow_up_on: Date.current + 1}, growth_visit: entry.inquiry&.growth_attribution)
+        end
+        if !duplicate && entry.inquiry&.sales_partner_id? &&
+            entry.inquiry.fields['email'].to_s.strip.casecmp?(lead.email)
+          partner = entry.inquiry.sales_partner
+          Referral.create!(partner: partner, lead: lead, commission_cents: partner.commission_cents)
         end
         Activity.create!(site: site, actor: actor, record: lead, kind: 'inquiry_received', body: details(entry, data))
         related = lead.converted_at? ? lead.opportunity : lead

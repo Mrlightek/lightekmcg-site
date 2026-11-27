@@ -1,0 +1,69 @@
+<% content_for :page_title, 'Referral partners and commissions' %>
+<main class="sales-workspace">
+  <%= render 'dashboard/sales/header' %>
+
+  <section class="sales-panel">
+    <h2>Register a referral partner</h2>
+    <p>Use the signed referral agreement to enter a fixed USD commission for the first eligible order. Partners introduce customers through a link. Your sales team owns the CRM and closes the sale.</p>
+    <%= form_with scope: :partner, url: dashboard_sales_partners_path(site_id: @site.id), class: 'sales-filters' do |form| %>
+      <label>Partner or business name<%= form.text_field :name, required: true, maxlength: 160 %></label>
+      <label>Signed agreement reference<%= form.text_field :agreement_reference, required: true, maxlength: 160 %></label>
+      <label>Eligible package<%= form.collection_select :product_id, @products, :id, :name, {prompt: 'Choose a published package'}, required: true %></label>
+      <label>Commission (USD)<%= form.text_field :commission, inputmode: 'decimal', required: true, maxlength: 10 %></label>
+      <%= form.submit 'Register partner', class: 'sales-button' %>
+    <% end %>
+  </section>
+
+  <section class="sales-panel">
+    <h2>Partner links</h2>
+    <% if @partners.empty? %><p>No referral partners yet.</p><% end %>
+    <% @partners.each do |partner| %>
+      <article>
+        <h3><%= partner.name %></h3>
+        <p><%= number_to_currency(partner.commission_cents / 100.0) %> per eligible first order · <%= partner.product.name %></p>
+        <p>Agreement <%= partner.agreement_reference %></p>
+        <% if partner.revoked_at? %>
+          <p>Revoked</p>
+        <% elsif WebsiteTemplateInquiry.sales_form_available?(@site) %>
+          <label for="partner-link-<%= partner.id %>">Customer inquiry link</label>
+          <%= text_field_tag "partner-link-#{partner.id}", sales_inquiry_url(host: @site.host, protocol: 'https', ref: partner.referral_code), readonly: true %>
+          <%= button_to 'Revoke link', revoke_dashboard_sales_partner_path(site_id: @site.id, id: partner.id), class: 'sales-button secondary' %>
+        <% else %>
+          <p>The website’s sales inquiry form is unavailable.</p>
+          <%= button_to 'Revoke link', revoke_dashboard_sales_partner_path(site_id: @site.id, id: partner.id), class: 'sales-button secondary' %>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+
+  <section class="sales-panel">
+    <h2>Commission ledger</h2>
+    <p>Showing the latest 100 credited referrals. Record a receipt after the merchant proceeds clear and the partner payment completes.</p>
+    <% if @referrals.empty? %><p>No credited referrals yet.</p><% end %>
+    <% @referrals.each do |referral| %>
+      <% order = referral.first_paid_order %>
+      <% status = referral.payout_status(order) %>
+      <article>
+        <h3><%= referral.partner.name %> · <%= referral.lead.company %></h3>
+        <p>
+          <%= link_to "Lead ##{referral.lead_id}", dashboard_sales_record_path(site_id: @site.id, kind: 'lead', id: referral.lead_id) %>
+          <% if referral.lead.opportunity %>
+            · <%= link_to "Deal ##{referral.lead.opportunity_id}", dashboard_sales_record_path(site_id: @site.id, kind: 'opportunity', id: referral.lead.opportunity_id) %>
+          <% end %>
+          <% if order %> · Order #<%= order.id %><% end %>
+        </p>
+        <p><strong><%= status %></strong> · <%= number_to_currency(referral.commission_cents / 100.0) %></p>
+        <% if referral.paid_at? %>
+          <p>Receipt <%= referral.payout_reference %> · <%= l(referral.paid_at.to_date) %></p>
+        <% elsif status == 'Ready to record' %>
+          <%= form_with scope: :receipt, url: record_dashboard_sales_commission_path(site_id: @site.id, id: referral.id), class: 'sales-filters' do |form| %>
+            <%= form.hidden_field :order_id, value: order.id, id: "commission-order-#{referral.id}" %>
+            <label>Payment receipt reference<%= form.text_field :reference, required: true, maxlength: 160, id: "commission-reference-#{referral.id}" %></label>
+            <label><%= form.check_box :confirmed, required: true, id: "commission-confirmed-#{referral.id}" %> Merchant proceeds cleared and the partner payment completed</label>
+            <%= form.submit 'Record receipt', class: 'sales-button secondary' %>
+          <% end %>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+</main>

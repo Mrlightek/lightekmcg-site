@@ -1,0 +1,15 @@
+[Unit]
+Description=Lightek production web slot %i
+After=network.target
+
+[Service]
+Type=simple
+User=lightek
+Slice=lightek-slot-%i.slice
+EnvironmentFile=/etc/lightek/lightekmcg-site.env
+ExecStart=/usr/local/lib/lightek/run_production_slot.sh web %i
+Restart=on-failure
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

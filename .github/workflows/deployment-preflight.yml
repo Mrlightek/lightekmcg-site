@@ -50,6 +50,8 @@ jobs:
           bundle exec ruby test/standalone/dymond_site_initialization_test.rb
           bundle exec ruby test/standalone/database_readiness_test.rb
           bundle exec ruby test/standalone/studio_blender_slot_test.rb
+      - name: Rehearse blue-green promotion and rollback
+        run: python3 -m unittest test.operations.blue_green_test
       - name: Verify deployment shell regressions before merge
         run: |
           python3 -m unittest test.operations.bootstrap_ruby_build_test

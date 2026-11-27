@@ -1,0 +1,13 @@
+[Unit]
+Description=Start the active Lightek production release
+After=network.target systemd-tmpfiles-setup.service
+ConditionPathExists=/var/lib/lightek/blue-green/active.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /var/www/lightekmcg-site/lib/scripts/gatekeeper/blue_green.py start-active-slot
+TimeoutStartSec=300
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

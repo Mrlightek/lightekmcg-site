@@ -235,6 +235,17 @@ class PayoutAccountsChecks < EnterpriseHttpChecks
     assert_response :unprocessable_entity
   end
 
+  def test_payout_stripe_browser_key_form_is_available_only_to_platform_admins
+    sign_in
+    patch dashboard_commerce_stripe_browser_key_path,
+      params: {browser_key: 'pk_test_newfixture', authenticity_token: @csrf}, headers: {'Origin' => 'http://example.test'}
+    assert_response :forbidden
+    login(User.create!(email_address: 'platform-browser-key@example.test', role: 'super_admin'))
+    get dashboard_commerce_stripe_access_path
+    assert_response :success
+    assert_includes response.body, 'Save publishable key'
+  end
+
   def test_payout_http_session_is_current_owner_scoped_and_contains_no_private_api_key
     sign_in;linked
     Stripe::Account.stub(:retrieve,account) do

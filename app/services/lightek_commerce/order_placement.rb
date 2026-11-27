@@ -31,7 +31,7 @@ module LightekCommerce
         end
         fee_snapshot = if storefront && (buyer_fee_token.present? || ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].present?)
           BuyerFees.snapshot_for(site: site, products: products, requested: requested.transform_values(&:to_i),
-            token: buyer_fee_token, shipping_quote: shipping_quote)
+            token: buyer_fee_token)
         else
           {}
         end

@@ -44,12 +44,6 @@ class CommerceController < ApplicationController
     end
 
     quantity = Integer(params.fetch(:quantity, 1).to_s, 10)
-    if ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].present? && LightekCommerce::BuyerFees.enabled?(@site)
-      buyer_fee_product = LightekCommerce::BuyerFees.eligible?(product)
-      if (buyer_fee_product && (quantity != 1 || cart.any?)) || fee_item_in_cart?
-        return redirect_to commerce_shop_path(site_id: @site.id), alert: 'Purchase this item on its own, one at a time.'
-      end
-    end
     seat_range = Gatekeeper::Hosting::WorkspacePlans.seats_for(product)
     return select_workspace(product, quantity, seat_range) if seat_range
 
@@ -140,25 +134,20 @@ class CommerceController < ApplicationController
 
     @buyer_fee_prices = {}
     @products.each do |product|
-      next unless LightekCommerce::BuyerFees.eligible?(product)
+      next unless LightekCommerce::BuyerFees.eligible?(product) && product.price_cents.positive?
+      next if product.variants.any?(&:active?)
 
       @buyer_fee_prices[product.id] = LightekCommerce::BuyerFees.quote_for(product)
     end
-    selected = cart.keys.filter_map { |key| @buyer_fee_prices[key.split(':').first.to_i] }
-    return if selected.empty?
+    selected = @products.select { |product| cart.keys.any? { |key| key.split(':').first == product.id.to_s } }
+    price = LightekCommerce::BuyerFees.cart_price(products: selected, requested: cart)
+    return unless price
 
-    key, quantity = cart.first
-    if cart.size != 1 || key.include?(':') || quantity.to_i != 1
-      @buyer_fee_cart_invalid = true
-      return
-    end
-    @buyer_fee_cart = selected.first
-    @buyer_fee_token = LightekCommerce::BuyerFees.sign(@site, @products.find { |product| product.id == key.to_i }, @buyer_fee_cart)
-  end
-
-  def fee_item_in_cart?
-    LightekCommerce::Product.visible.where(site: @site, id: cart.keys.map { |key| key.split(':').first })
-      .any? { |product| LightekCommerce::BuyerFees.eligible?(product) }
+    lines, @buyer_fee_cart = price
+    @buyer_fee_interval = lines.first.last
+    @buyer_fee_token = LightekCommerce::BuyerFees.sign(@site, lines, @buyer_fee_cart)
+  rescue LightekCommerce::BuyerFees::Invalid => error
+    @buyer_fee_cart_error = error.message
   end
 
   def completion_url(order, instance_cart)

@@ -11,8 +11,15 @@
         <% due_by = dispute.evidence_details&.due_by %>
         <% if due_by.to_i.positive? %><p>Response deadline <%= l(Time.at(due_by)) %></p><% end %>
         <% if LightekCommerce::MerchantDisputes::RESPONDABLE.include?(dispute.status) && due_by.to_i > Time.current.to_i && dispute.evidence_details&.submission_count.to_i.zero? %>
-          <%= form_with url: respond_dashboard_commerce_dispute_path(site_id: @site.id, order_id: @order.id, dispute_id: dispute.id), class: 'lr-form' do |form| %>
-            <label>Evidence<%= form.text_area :merchant_dispute_evidence, required: true, maxlength: 20_000 %></label>
+          <%= form_with url: respond_dashboard_commerce_dispute_path(site_id: @site.id, order_id: @order.id, dispute_id: dispute.id), class: 'lr-form', multipart: true do |form| %>
+            <label>Evidence summary <%= form.text_area :merchant_dispute_evidence, maxlength: 20_000 %></label>
+            <details>
+              <summary>Attach evidence files</summary>
+              <p>PDF, PNG or JPEG. Maximum 4 MB total.</p>
+              <% LightekCommerce::MerchantDisputes::EVIDENCE_FIELDS.each do |key, label| %>
+                <label><%= label %> <%= file_field_tag "merchant_dispute_files[#{key}]", accept: 'application/pdf,image/png,image/jpeg' %></label>
+              <% end %>
+            </details>
             <label><%= check_box_tag :confirm_submission, '1', false, required: true, id: "confirm-#{dispute.id}" %> I reviewed this evidence and want to submit it now.</label>
             <%= form.submit 'Submit response', class: 'lr-button' %>
           <% end %>

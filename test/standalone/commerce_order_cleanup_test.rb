@@ -1,8 +1,5 @@
 # Run against the real commerce models and transactions, without private gems.
 require_relative "commerce_hosting_test"
-require Rails.root.join("db/migrate/20261114140000_add_commerce_order_deletion").to_s
-AddCommerceOrderDeletion.new.migrate(:up)
-LightekCommerce::Order.reset_column_information
 require Rails.root.join("app/services/lightek_commerce/order_removal").to_s
 require Rails.root.join("app/services/lightek_commerce/installations").to_s
 
@@ -156,6 +153,7 @@ Dashboard::CommerceOrdersController.layout false
 CLEANUP_ROUTES = ActionDispatch::Routing::RouteSet.new
 CLEANUP_ROUTES.draw do
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
+  get "/dashboard/commerce/disputes", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_disputes
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"
   delete "/dashboard/commerce/orders/:order_id", to: "dashboard/commerce_orders#destroy", as: :dashboard_commerce_order
   get "/dashboard/installations", to: "dashboard/commerce_orders#index", as: :dashboard_installations

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1737,6 +1737,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_140000) do
     t.index ["processor_reference"], name: "index_lightek_commerce_billing_invoices_on_processor_reference", unique: true
     t.index ["settlement_order_id"], name: "idx_billing_invoice_settlement", unique: true
     t.index ["subscription_id"], name: "idx_billing_invoice_subscription"
+  end
+
+  create_table "lightek_commerce_dispute_cases", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.string "processor_reference", null: false
+    t.string "status", null: false
+    t.string "reason", null: false
+    t.integer "amount_cents", null: false
+    t.datetime "due_at"
+    t.datetime "alerted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_lightek_commerce_dispute_cases_on_order_id"
+    t.index ["processor_reference"], name: "index_lightek_commerce_dispute_cases_on_processor_reference", unique: true
   end
 
   create_table "lightek_commerce_network_accounts", force: :cascade do |t|
@@ -7520,6 +7534,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_140000) do
   add_foreign_key "lightek_blog_entries", "posts", on_delete: :cascade
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
+  add_foreign_key "lightek_commerce_dispute_cases", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_network_accounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_network_accounts", "lightek_reservation_peers", column: "peer_id"
   add_foreign_key "lightek_commerce_network_accounts", "users"

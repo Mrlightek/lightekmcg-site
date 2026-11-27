@@ -4,12 +4,12 @@
   <h1>Bank deposit</h1>
   <p><%= link_to 'Bank deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id) %></p>
   <p><strong><%= number_to_currency(payout.amount / 100.0) %> <%= payout.currency.upcase %></strong> · <%= payout.status.humanize %></p>
-  <% if payout.arrival_date %><p>Provider-reported arrival date <%= l(Time.at(payout.arrival_date).to_date) %></p><% end %>
+  <% if payout.arrival_date %><p>Provider-reported arrival date <%= l(Time.at(payout.arrival_date).utc.to_date) %></p><% end %>
   <% unless payout.automatic %>
     <p>Transaction matching is available for automatic deposits. This deposit was initiated manually.</p>
   <% else %>
     <% if @deposit[:rows].empty? %><p>The provider has yet to report the transactions for this deposit.</p><% end %>
-    <p><%= link_to 'Export this page as CSV', dashboard_commerce_bank_deposit_path(site_id: @site.id, payout_id: payout.id, after: params[:after], format: :csv) %></p>
+    <p><%= link_to 'Export all transactions as CSV', dashboard_commerce_bank_deposit_path(site_id: @site.id, payout_id: payout.id, format: :csv) %></p>
     <table>
       <thead><tr><th>Entry</th><th>Store order</th><th>Gross</th><th>Fee</th><th>Net</th></tr></thead>
       <tbody>

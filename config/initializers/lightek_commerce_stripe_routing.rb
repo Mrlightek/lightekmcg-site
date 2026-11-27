@@ -5,7 +5,7 @@ module LightekCommerceStripeRouting
   def process!(event)
     if DymondBank::BroadcastAdvertising::Funding.checkout_event?(event)
       DymondBank::BroadcastAdvertising::Funding.process!(event)
-    elsif %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.closed].include?(event.type)
+    elsif %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type)
       # These events can concern both Bank/Susu and Commerce records. Preserve
       # Bank handling and let Commerce reconcile only its own recorded IDs.
       result = super

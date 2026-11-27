@@ -2,6 +2,13 @@
 <main class="lt-settings lr-admin">
   <h1>Bank deposits</h1>
   <p><%= link_to 'Merchant payouts', dashboard_commerce_payouts_path(site_id: @site.id) %></p>
+  <%= form_with url: dashboard_commerce_bank_deposits_path, method: :get, local: true do %>
+    <%= hidden_field_tag :site_id, @site.id %>
+    <label>Arrival date from <%= date_field_tag :from, @from || 29.days.ago.utc.to_date, required: true %></label>
+    <label>Through <%= date_field_tag :through, @through || Time.current.utc.to_date, required: true %></label>
+    <%= submit_tag 'Filter deposits' %>
+    <%= submit_tag 'Export deposits and transactions', formaction: dashboard_commerce_bank_deposits_path(format: :csv) %>
+  <% end %>
   <% if @payouts %>
     <% if @payouts.data.empty? %><p>No bank deposits reported yet.</p><% end %>
     <table>
@@ -9,7 +16,7 @@
       <tbody>
         <% @payouts.data.each do |payout| %>
           <tr>
-            <td><%= l(Time.at(payout.arrival_date).to_date) if payout.arrival_date %></td>
+            <td><%= l(Time.at(payout.arrival_date).utc.to_date) if payout.arrival_date %></td>
             <td><%= number_to_currency(payout.amount / 100.0) %> <%= payout.currency.upcase %></td>
             <td><%= payout.status.humanize %></td>
             <td><%= link_to 'View deposit', dashboard_commerce_bank_deposit_path(site_id: @site.id, payout_id: payout.id) %></td>
@@ -18,7 +25,7 @@
       </tbody>
     </table>
     <% if @payouts.has_more && @payouts.data.any? %>
-      <%= link_to 'More deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id, after: @payouts.data.last.id) %>
+      <%= link_to 'More deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id, after: @payouts.data.last.id, from: @from, through: @through) %>
     <% end %>
   <% end %>
 </main>

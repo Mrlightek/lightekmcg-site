@@ -150,13 +150,19 @@ module LightekReservations
         end
         data
       end
-      def commerce_finance_url(site_id:, order_id: nil)
+      def commerce_finance_url(site_id:, order_id: nil, disputes: false)
         unless site_id.to_s.match?(/\A[1-9]\d*\z/) && (order_id.nil? || order_id.to_s.match?(/\A[1-9]\d*\z/))
           raise Unavailable, 'The payment record could not be located.'
         end
 
         uri = @origin.dup
-        uri.path = order_id ? "/dashboard/commerce/orders/#{order_id}/disputes" : '/dashboard/commerce/bank-deposits'
+        uri.path = if order_id
+          "/dashboard/commerce/orders/#{order_id}/disputes"
+        elsif disputes
+          '/dashboard/commerce/disputes'
+        else
+          '/dashboard/commerce/bank-deposits'
+        end
         uri.query = URI.encode_www_form(site_id: site_id)
         uri.to_s
       end

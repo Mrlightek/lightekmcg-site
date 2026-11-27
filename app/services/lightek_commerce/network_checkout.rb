@@ -84,7 +84,7 @@ module LightekCommerce
       root.with_lock do
         raise StripeCheckout::Unavailable, "Network receipt does not match the reserved merchandise" unless receipt.fetch("subtotal_cents") == root.subtotal_cents
         if root.buyer_fee_cents.positive? && (receipt['buyer_fee_cents'] != root.buyer_fee_cents ||
-            receipt['total_cents'] != root.subtotal_cents + root.buyer_fee_cents + receipt.fetch('tax_cents'))
+            receipt['total_cents'] != root.subtotal_cents + root.buyer_fee_cents + receipt.fetch('tax_cents') + receipt.fetch('shipping_cents'))
           raise StripeCheckout::Unavailable, 'Network receipt does not match the confirmed buyer price.'
         end
         apply_order!(root, receipt)
@@ -100,9 +100,14 @@ module LightekCommerce
             settled_order = local_invoice.settlement_order || (invoice["initial"] ? root : nil)
             if invoice["order"] && !invoice["initial"] && !settled_order
               row = invoice.fetch("order")
+              if root.buyer_fee_cents.positive? && (row['subtotal_cents'] != root.subtotal_cents ||
+                  row['buyer_fee_cents'] != root.buyer_fee_cents ||
+                  row['total_cents'] != root.subtotal_cents + root.buyer_fee_cents + row.fetch('tax_cents'))
+                raise StripeCheckout::Unavailable, 'Network renewal does not match the confirmed buyer price.'
+              end
               settled_order = Order.create!(site: root.site, customer_email: root.customer_email, purpose: "subscription_renewal", stock_reserved: false,
                 payment_provider: "network", payment_reference: root.network_reference, network_reference: root.network_reference,
-                network_invoice_reference: invoice.fetch("reference"), subtotal_cents: row.fetch("subtotal_cents"), total_cents: row.fetch("total_cents"))
+                network_invoice_reference: invoice.fetch("reference"), buyer_fee_snapshot: root.buyer_fee_breakdown, subtotal_cents: row.fetch("subtotal_cents"), total_cents: row.fetch("total_cents"))
               source = root.items.sole
               settled_order.items.create!(product: source.product, name: source.name, quantity: 1,
                 unit_price_cents: row.fetch("subtotal_cents"), line_total_cents: row.fetch("subtotal_cents"), purchase_snapshot: source.purchase_snapshot)

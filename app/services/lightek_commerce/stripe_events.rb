@@ -6,6 +6,12 @@ module LightekCommerce
     def self.process!(event)
       return if defined?(LightekPwa::CreatorSettlement) && LightekPwa::CreatorSettlement.payment_event!(event)
       return SubscriptionEvents.process!(event) if SubscriptionEvents::TYPES.include?(event.type)
+      if %w[charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type)
+        reference = event.data.object.id.to_s
+        return if event.respond_to?(:account) && event.account.present?
+
+        return DisputeEventJob.perform_later(reference) if reference.match?(/\Adp_[A-Za-z0-9_]{1,150}\z/)
+      end
       if %w[charge.refund.updated refund.updated].include?(event.type)
         refund = event.data.object
         return RefundSettlement.call(processor_ref: refund.id, status: refund.status)

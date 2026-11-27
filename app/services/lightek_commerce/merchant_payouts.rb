@@ -30,9 +30,10 @@ module LightekCommerce
       if order.respond_to?(:buyer_fee_breakdown) && (fee = order.buyer_fee_breakdown).present?
         raise Invalid, "Buyer fee settlement does not match the order" unless merchandise == fee.fetch('merchant_cents')
 
+        shipping_margin = order.shipping_quote ? order.shipping_quote.customer_price_cents - order.shipping_quote.platform_price_cents : 0
         return {gross_cents: gross, processor_reserve_cents: fee.fetch('processor_reserve_cents'),
           platform_fee_cents: fee.fetch('network_cents'), infrastructure_reserve_cents: 0,
-          upstream_share_cents: 0, net_cents: merchandise}
+          upstream_share_cents: 0, net_cents: merchandise + shipping_margin}
       end
       processor_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FEE_BPS", "300"))
       processor_fixed = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FIXED_CENTS", "30"))

@@ -231,6 +231,8 @@ end
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
   get "/dashboard/commerce/bank-deposits", to: "dashboard/commerce_payouts#bank_deposits", as: :dashboard_commerce_bank_deposits
   get "/dashboard/commerce/bank-deposits/:payout_id", to: "dashboard/commerce_payouts#bank_deposit", as: :dashboard_commerce_bank_deposit
+  get "/dashboard/commerce/disputes", to: "dashboard/commerce_payouts#dispute_queue", as: :dashboard_commerce_disputes
+  post "/dashboard/commerce/disputes/refresh", to: "dashboard/commerce_payouts#refresh_disputes", as: :refresh_dashboard_commerce_disputes
   get "/dashboard/commerce/orders/:order_id/disputes", to: "dashboard/commerce_payouts#disputes", as: :dashboard_commerce_order_disputes
   post "/dashboard/commerce/orders/:order_id/disputes/:dispute_id/respond", to: "dashboard/commerce_payouts#respond_to_dispute", as: :respond_dashboard_commerce_dispute
   get "/dashboard/commerce/payouts/:order_id/ledger", to: "dashboard/commerce_payouts#ledger", as: :dashboard_commerce_payout_ledger
@@ -595,6 +597,7 @@ get "gatekeeper/search",
 
 get "/dashboard/commerce/stripe-access", to: "susu_payout_accounts#stripe_access", as: :dashboard_commerce_stripe_access
 post "/dashboard/commerce/stripe-access", to: "susu_payout_accounts#check_stripe_access"
+patch "/dashboard/commerce/stripe-access/browser-key", to: "susu_payout_accounts#update_stripe_browser_key", as: :dashboard_commerce_stripe_browser_key
 get "/dashboard/commerce/payout-account", to: "susu_payout_accounts#show", as: :dashboard_commerce_payout_account
 post "/dashboard/susu/payout-account/connect", to: "susu_payout_accounts#connect", as: :connect_dashboard_susu_payout_account
 get "/dashboard/susu/payout-account/refresh", to: "susu_payout_accounts#refresh", as: :refresh_dashboard_susu_payout_account

@@ -24,11 +24,22 @@ module LightekCommerce
       raise StripeEvents::Rejected, "Subscription order mismatch" unless expected.all? { |key, value| data.fetch("metadata", {})[key] == value }
       item = order.items.sole
       interval = item.purchase_snapshot.fetch("billing_interval")
-      remote_item = data.fetch("items").fetch("data").sole
-      price = remote_item.fetch("price")
-      raise StripeEvents::Rejected, "Subscription price mismatch" unless price["unit_amount"].to_i == item.unit_price_cents &&
-        price["currency"] == order.currency && price.dig("recurring", "interval") == interval &&
-        price.dig("recurring", "interval_count").to_i == 1 && remote_item["quantity"].to_i == 1
+      fee = order.buyer_fee_cents
+      expected_amounts = [item.unit_price_cents]
+      expected_amounts << fee if fee.positive?
+      remote_items = data.fetch('items')
+      valid_prices = remote_items.fetch('data').map do |remote_item|
+        price = remote_item.fetch('price')
+        unless price['currency'] == order.currency && price.dig('recurring', 'interval') == interval &&
+            price.dig('recurring', 'interval_count').to_i == 1 && remote_item['quantity'].to_i == 1
+          raise StripeEvents::Rejected, 'Subscription price mismatch'
+        end
+
+        price.fetch('unit_amount').to_i
+      end
+      if remote_items['has_more'] || valid_prices.sort != expected_amounts.sort
+        raise StripeEvents::Rejected, 'Subscription price mismatch'
+      end
       subscription = Subscription.find_or_initialize_by(order: order)
       if subscription.persisted? && subscription.processor_reference != reference
         raise StripeEvents::Rejected, "Order already has a different subscription"
@@ -78,14 +89,20 @@ module LightekCommerce
       if invoice["billing_reason"] == "subscription_create"
         record.settlement_order = original
       elsif invoice["billing_reason"] == "subscription_cycle"
-        subtotal = invoice["subtotal"].to_i
+        invoice_subtotal = invoice['subtotal'].to_i
+        buyer_fee = original.buyer_fee_breakdown
+        buyer_fee_cents = original.buyer_fee_cents
+        subtotal = invoice_subtotal - buyer_fee_cents
         tax = invoice["tax"] || Array(invoice["total_taxes"]).sum { |row| row.fetch("amount", 0).to_i }
         # Credits, prorations and multi-payment invoices remain visible receipts
         # for review, rather than creating an incorrect merchant transfer.
-        if subtotal.positive? && invoice["total"].to_i == record.amount_paid_cents && subtotal + tax.to_i == record.amount_paid_cents
+        exact_buyer_price = buyer_fee.empty? || (subtotal == original.subtotal_cents &&
+          currency_amounts_match?(invoice, subscription, original))
+        if exact_buyer_price && subtotal.positive? && invoice["total"].to_i == record.amount_paid_cents &&
+            invoice_subtotal + tax.to_i == record.amount_paid_cents
           renewal = Order.create!(site: original.site, customer_email: original.customer_email, currency: record.currency,
             status: "fulfilled", purpose: renewal_purpose(original), stock_reserved: false, revenue_share_snapshot: original.revenue_share_snapshot,
-            subtotal_cents: subtotal, tax_cents: tax.to_i, total_cents: record.amount_paid_cents,
+            buyer_fee_snapshot: buyer_fee, subtotal_cents: subtotal, tax_cents: tax.to_i, total_cents: record.amount_paid_cents,
             payment_provider: "stripe_invoice", payment_reference: record.processor_reference,
             paid_at: record.paid_at, fulfilled_at: record.paid_at, fulfillment_reference: record.processor_reference)
           source = original.items.sole
@@ -101,6 +118,19 @@ module LightekCommerce
       LightekPwa::RevenueEligibility.record!(subscription: subscription, reference: "invoice:#{record.processor_reference}") if defined?(LightekPwa::RevenueEligibility)
       record
     end
+
+    def self.currency_amounts_match?(invoice, subscription, order)
+      lines = invoice.fetch('lines', {})
+      return false if lines['has_more']
+
+      expected = [subscription.amount_cents, order.buyer_fee_cents]
+      rows = Array(lines['data'])
+      rows.size == expected.size && rows.all? { |line|
+        line['currency'] == order.currency && line['quantity'].to_i == 1 && !line['proration'] &&
+          !line.dig('parent', 'subscription_item_details', 'proration')
+      } && rows.map { |line| line['amount'].to_i }.sort == expected.sort
+    end
+    private_class_method :currency_amounts_match?
 
     def self.renewal_purpose(order)
       case order.purpose
@@ -119,7 +149,8 @@ module LightekCommerce
     private_class_method :settle_agency_renewal!
 
     def self.apply!(subscription:, data:)
-      item = data.fetch("items").fetch("data").first || {}
+      items = data.fetch('items').fetch('data')
+      item = items.find { |row| row.dig('price', 'unit_amount').to_i == subscription.amount_cents } || items.first || {}
       period_end = item["current_period_end"] || data["current_period_end"] || subscription.current_period_end&.to_i
       raise StripeEvents::Rejected, "Subscription billing period missing" unless period_end.to_i.positive?
       period_start = item['current_period_start'] || data['current_period_start']

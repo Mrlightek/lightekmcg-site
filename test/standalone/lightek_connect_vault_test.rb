@@ -1,4 +1,12 @@
 require_relative "lightek_connect_api_test"
+require "minitest/mock"
+require Rails.root.join("app/services/lightek_payments/stripe_browser_key")
+
+module DymondBank
+  module StripeCredentials
+    def self.secret_key = 'sk_test_fixture_only'
+  end
+end
 
 class LightekConnectVaultTest < Minitest::Test
   include ConnectVaultFixtures
@@ -7,6 +15,20 @@ class LightekConnectVaultTest < Minitest::Test
     @operator = User.create!(role: "super_admin", email_address: "operator@example.test")
   end
   def credentials = LightekConnect::ShopifyCredentials
+  def test_stripe_browser_key_rotation_preserves_existing_credential_and_webhook
+    browser_key = LightekPayments::StripeBrowserKey
+    fixture = {'secret_key' => 'sk_test_fixture_only', 'webhook_secret' => 'whsec_fixture', 'publishable_key' => 'pk_test_original'}
+    policy = {'consumers' => [browser_key::CONSUMER], 'purposes' => [browser_key::PURPOSE]}
+    vault = LightekVault::Service.store!(name: 'Existing Stripe credential', slug: browser_key::SLUG,
+      payload: fixture, access_policy: policy)
+    assert_raises(browser_key::Invalid) { browser_key.update!(actor: @operator, key: 'pk_live_wrongmode') }
+    assert_equal 'pk_test_original', browser_key.read
+    browser_key.update!(actor: @operator, key: 'pk_test_newfixture')
+    assert_equal 'pk_test_newfixture', browser_key.read
+    assert_equal fixture.merge('publishable_key' => 'pk_test_newfixture'), LightekVault::Crypto.new.decrypt_hash(vault.reload)
+    assert_equal policy, vault.access_policy
+  end
+
   def test_store_encrypts_secret_and_audits_runtime_checkout
     credentials.store!(actor: @operator, client_id: "new-client-id", client_secret: "new-client-secret")
     row = LightekVault::Secret.find_by!(slug: credentials::SLUG)

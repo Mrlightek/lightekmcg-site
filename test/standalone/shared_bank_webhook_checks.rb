@@ -134,7 +134,7 @@ class SharedBankWebhookTest < Minitest::Test
     assert_empty LightekCommerce::StripeEvents.events
   end
   def test_refund_and_dispute_events_reach_both_existing_bank_and_commerce_reconciliation
-    types = %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.closed]
+    types = %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.updated charge.dispute.closed]
     types.each do |type|
       value = event(type)
       assert_equal :bank, route(value)

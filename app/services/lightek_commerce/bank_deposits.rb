@@ -28,8 +28,16 @@ module LightekCommerce
       raise Unavailable, 'Bank deposits are unavailable while the payout connection is being verified.'
     end
 
-    def list(after: nil)
-      ::Stripe::Payout.list({limit: 25}.merge(cursor(after, 'po_')), @options)
+    def list(after: nil, from: nil, through: nil)
+      dates = if from || through
+        unless from && through && from <= through
+          raise Unavailable, 'Choose a valid start and end date.'
+        end
+        {arrival_date: {gte: from.to_time(:utc).to_i, lt: (through + 1).to_time(:utc).to_i}}
+      else
+        {}
+      end
+      ::Stripe::Payout.list({limit: 25}.merge(dates).merge(cursor(after, 'po_')), @options)
     rescue ::Stripe::StripeError
       raise Unavailable, 'Bank deposit history is temporarily unavailable.'
     end
@@ -39,6 +47,35 @@ module LightekCommerce
 
       payout = ::Stripe::Payout.retrieve(id, @options)
       raise Unavailable, 'The provider returned a different bank deposit.' unless payout.id == id
+      transactions(payout, after: after)
+    rescue ::Stripe::StripeError
+      raise Unavailable, 'The bank deposit or its transaction details could not be verified.'
+    end
+
+    def each_payout(from:, through:)
+      after = nil
+      loop do
+        page = list(after: after, from: from, through: through)
+        page.data.each { |payout| yield payout }
+        break unless page.has_more
+
+        after = page.data.last&.id || raise(Unavailable, 'Stripe returned an incomplete payout page.')
+      end
+    end
+
+    def each_transaction(payout)
+      after = nil
+      loop do
+        page = transactions(payout, after: after)
+        page.fetch(:rows).each { |row| yield row }
+        after = page[:cursor]
+        break unless after
+      end
+    end
+
+    private
+
+    def transactions(payout, after:)
       if !payout.automatic || (payout.reconciliation_status.present? && payout.reconciliation_status != 'completed')
         return {payout: payout, rows: [], cursor: nil}
       end
@@ -54,12 +91,13 @@ module LightekCommerce
          gross_cents: entry['amount'], fee_cents: entry['fee'], net_cents: entry['net'],
          currency: entry['currency'], order: order}
       end
-      {payout: payout, rows: rows, cursor: (data.last['id'] if entries.has_more && data.any?)}
+      next_page = if entries.has_more
+        data.last&.fetch('id') || raise(Unavailable, 'Stripe returned an incomplete transaction page.')
+      end
+      {payout: payout, rows: rows, cursor: next_page}
     rescue ::Stripe::StripeError
       raise Unavailable, 'The bank deposit or its transaction details could not be verified.'
     end
-
-    private
 
     def transfer_reference(entry)
       source = entry['source']

@@ -8,6 +8,9 @@
     </div>
     <nav class="dd-action-group" aria-label="Commerce navigation">
       <%= link_to dashboard_commerce_payouts_path(site_id: @site.id), class: "dd-button" do %><i class="ti ti-wallet" aria-hidden="true"></i> Payouts<% end %>
+      <% if @site.tenant == current_user %>
+        <%= link_to 'Payment disputes', dashboard_commerce_disputes_path(site_id: @site.id), class: 'dd-button' %>
+      <% end %>
       <%= link_to dashboard_installations_path, class: "dd-button" do %><i class="ti ti-server" aria-hidden="true"></i> Installations<% end %>
       <%= link_to dashboard_commerce_products_path(site_id: @site.id), class: "dd-button dd-btn-primary" do %><i class="ti ti-package" aria-hidden="true"></i> Manage products<% end %>
     </nav>

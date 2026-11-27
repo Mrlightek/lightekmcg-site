@@ -6,6 +6,8 @@ require "minitest/mock"
 require "active_record"
 require "active_job"
 require "active_support/all"
+require "action_dispatch/http/upload"
+require "tempfile"
 require "pathname"
 require "ostruct"
 require "uri"
@@ -65,7 +67,6 @@ ActiveRecord::Schema.define do
     t.string :currency, default: "usd"; t.integer :total_cents, default: 0; t.integer :subtotal_cents, default: 0
     t.integer :tax_cents, default: 0; t.integer :shipping_cents, default: 0; t.integer :refunded_cents, default: 0
     t.string :merchant_transfer_ref; t.integer :merchant_transfer_amount_cents; t.boolean :stock_reserved, default: true; t.string :payment_namespace; t.string :payment_reference; t.string :payment_provider
-    t.datetime :deleted_at
     t.string :client_checkout_key
     t.datetime :merchant_transfer_requested_at, :merchant_transfer_completed_at
     t.text :merchant_transfer_error
@@ -153,6 +154,9 @@ module Stripe
   class BalanceTransaction
     def self.list(*) = raise("Unexpected balance read")
   end
+  class File
+    def self.create(*) = raise("Unexpected evidence upload")
+  end
   class Dispute
     def self.list(*) = raise("Unexpected dispute list")
     def self.retrieve(*) = raise("Unexpected dispute lookup")
@@ -171,6 +175,7 @@ module Stripe
     class Session
       def self.retrieve(*) = raise("Unexpected processor call")
       def self.create(*) = raise("Unexpected processor call")
+      def self.list(*) = raise("Unexpected checkout list")
     end
   end
   class Invoice
@@ -247,6 +252,8 @@ end
   gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase gatekeeper/hosting/workspace_plans gatekeeper/hosting/retail_pricing lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment lightek_commerce/buyer_price lightek_commerce/merchant_ledger lightek_settings/website_identity].each do |path|
   require Rails.root.join("app/services/#{path}").to_s
 end
+require Rails.root.join('db/migrate/20261114140000_add_commerce_order_deletion')
+AddCommerceOrderDeletion.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127140000_add_commerce_buyer_fee_snapshot')
 AddCommerceBuyerFeeSnapshot.new.migrate(:up)
 LightekCommerce::Order.reset_column_information
@@ -256,6 +263,15 @@ require Rails.root.join('app/services/lightek_commerce/merchant_disputes')
 require Rails.root.join('app/services/lightek_commerce/buyer_fees')
 class ApplicationJob < ActiveJob::Base; end unless defined?(ApplicationJob)
 require Rails.root.join('app/jobs/lightek_commerce/buyer_fee_reversal_job')
+require Rails.root.join('db/migrate/20261127150000_create_lightek_commerce_dispute_cases')
+CreateLightekCommerceDisputeCases.new.migrate(:up)
+require Rails.root.join('app/models/lightek_commerce/dispute_case')
+require Rails.root.join('app/jobs/lightek_commerce/dispute_event_job')
+module DymondDash
+  class Notification
+    def self.create!(*) = raise('Unexpected dispute notification')
+  end
+end
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 
@@ -420,7 +436,7 @@ class CommerceHostingTest < Minitest::Test
       payment_intent: 'pi_order', metadata: LightekCommerce::PaymentIdentity.metadata(order)}
     due = OpenStruct.new(due_by: 2.days.from_now.to_i, submission_count: 0)
     dispute = OpenStruct.new(id: 'dp_fixture', payment_intent: 'pi_order', currency: 'usd',
-      amount: 2_500, status: 'needs_response', evidence_details: due)
+      amount: 2_500, status: 'needs_response', reason: 'product_not_received', evidence_details: due)
     Stripe::Checkout::Session.stub(:retrieve, session) do
       service = LightekCommerce::MerchantDisputes.new(order: order, actor: @operator)
       assert_raises(LightekCommerce::MerchantDisputes::Unavailable) do
@@ -442,6 +458,94 @@ class CommerceHostingTest < Minitest::Test
         end
       end
     end
+  end
+
+  def test_store_dispute_job_records_current_status_and_alerts_once
+    order = order_for(product(billing_interval: 'one_time'))
+    order.update!(status: 'paid', paid_at: Time.current, payment_provider: 'stripe', payment_reference: 'cs_dispute')
+    session = {id: 'cs_dispute', payment_status: 'paid', currency: 'usd', amount_total: 2_500,
+      payment_intent: 'pi_order', metadata: LightekCommerce::PaymentIdentity.metadata(order)}
+    dispute = OpenStruct.new(id: 'dp_new', payment_intent: 'pi_order', currency: 'usd', amount: 2_500,
+      status: 'needs_response', reason: 'product_not_received', evidence_details: OpenStruct.new(due_by: 2.days.from_now.to_i))
+    alerts = []
+    DymondDash::Notification.stub(:create!, ->(**details) { alerts << details }) do
+      Stripe::Checkout::Session.stub(:list, OpenStruct.new(data: [OpenStruct.new(id: 'cs_dispute')])) do
+        Stripe::Checkout::Session.stub(:retrieve, session) do
+          Stripe::Dispute.stub(:retrieve, dispute) do
+            2.times { LightekCommerce::DisputeEventJob.new.perform(dispute.id) }
+            assert_equal 'needs_response', LightekCommerce::DisputeCase.sole.status
+            assert_equal @operator, alerts.sole[:recipient]
+            dispute.status = 'won'
+            LightekCommerce::DisputeEventJob.new.perform(dispute.id)
+          end
+        end
+      end
+    end
+    assert_equal 'won', LightekCommerce::DisputeCase.sole.status
+  end
+
+  def test_evidence_upload_is_bound_to_an_owned_dispute_and_submitted_with_response
+    order = order_for(product(billing_interval: 'one_time'))
+    order.update!(status: 'paid', paid_at: Time.current, payment_provider: 'stripe', payment_reference: 'cs_upload')
+    session = {id: 'cs_upload', payment_status: 'paid', currency: 'usd', amount_total: 2_500,
+      payment_intent: 'pi_order', metadata: LightekCommerce::PaymentIdentity.metadata(order)}
+    dispute = OpenStruct.new(id: 'dp_upload', payment_intent: 'pi_order', currency: 'usd', amount: 2_500,
+      status: 'needs_response', reason: 'product_not_received',
+      evidence_details: OpenStruct.new(due_by: 2.days.from_now.to_i, submission_count: 0))
+    Tempfile.create('receipt') do |file|
+      file.write('%PDF-1.4 fixture')
+      file.rewind
+      attachment = ActionDispatch::Http::UploadedFile.new(tempfile: file, filename: 'receipt.pdf')
+      Stripe::Checkout::Session.stub(:retrieve, session) do
+        service = LightekCommerce::MerchantDisputes.new(order: order, actor: @operator)
+        Stripe::Dispute.stub(:retrieve, dispute) do
+          Stripe::File.stub(:create, ->(payload, options) {
+            assert_equal 'dispute_evidence', payload[:purpose]
+            assert_equal '%PDF-1.4 fixture', payload[:file].read
+            assert_includes options[:idempotency_key], dispute.id
+            OpenStruct.new(id: 'file_receipt')
+          }) do
+            Stripe::Dispute.stub(:update, ->(_reference, payload, _) {
+              assert_equal({evidence: {'receipt' => 'file_receipt'}, submit: true}, payload)
+              dispute
+            }) do
+              service.respond!(id: dispute.id, evidence: '', confirmed: true, attachments: {'receipt' => attachment})
+            end
+          end
+        end
+      end
+    end
+  end
+
+  def test_bank_export_walks_every_payout_and_transaction_page_with_utc_date_bounds
+    @operator.update!(stripe_connect_account_id: 'acct_store')
+    connected = OpenStruct.new(id: 'acct_store', metadata: {lightek_user_id: @operator.id.to_s})
+    payout = OpenStruct.new(id: 'po_first', automatic: true, reconciliation_status: 'completed')
+    manual = OpenStruct.new(id: 'po_manual', automatic: false, reconciliation_status: 'not_applicable')
+    from = Date.new(2026, 11, 1)
+    through = Date.new(2026, 11, 26)
+    fetched = []
+    Stripe::Account.stub(:retrieve, connected) do
+      service = LightekCommerce::BankDeposits.new(site: @site, actor: @operator)
+      Stripe::Payout.stub(:list, ->(query, options) {
+        assert_equal({gte: Time.utc(2026, 11, 1).to_i, lt: Time.utc(2026, 11, 27).to_i}, query[:arrival_date])
+        assert_equal 'acct_store', options[:stripe_account]
+        assert_includes [nil, payout.id], query[:starting_after]
+        query[:starting_after] ? OpenStruct.new(data: [manual], has_more: false) : OpenStruct.new(data: [payout], has_more: true)
+      }) do
+        Stripe::BalanceTransaction.stub(:list, ->(query, _) {
+          assert_equal payout.id, query[:payout]
+          id = query[:starting_after] ? 'txn_second' : 'txn_first'
+          OpenStruct.new(data: [{id: id, amount: 100, fee: 0, net: 100, currency: 'usd'}], has_more: id == 'txn_first')
+        }) do
+          service.each_payout(from: from, through: through) do |record|
+            fetched << record.id
+            service.each_transaction(record) { |row| fetched << row[:id] }
+          end
+        end
+      end
+    end
+    assert_equal %w[po_first txn_first txn_second po_manual], fetched
   end
 
   def test_embedded_checkout_uses_native_return_and_preserves_verified_settlement
@@ -617,6 +721,76 @@ class CommerceHostingTest < Minitest::Test
     end
     assert_equal "partially_refunded", order.reload.status
     assert_equal "tr_ledger", order.merchant_transfer_ref
+  end
+
+  def test_buyer_fee_cart_signs_variant_price_and_quantities_as_one_purchase
+    physical = product(product_type: 'physical', billing_interval: 'one_time')
+    variant = physical.variants.create!(name: 'Blue', price_cents: 1700, inventory_quantity: 4)
+    digital = product(product_type: 'digital', billing_interval: 'one_time', price_cents: 900)
+    cart = {"#{physical.id}:#{variant.id}" => 2, digital.id.to_s => 1}
+    with_buyer_fee_configuration do |fees|
+      lines, quote = fees.cart_price(products: [physical, digital], requested: cart)
+      token = fees.sign(@site, lines, quote)
+      inputs = {site: @site, customer_email: 'buyer@example.com', quantities: cart, storefront: true, buyer_fee_token: token}
+      variant.update!(price_cents: 1600)
+      digital.update!(price_cents: 1100)
+      assert_raises(fees::Invalid) { LightekCommerce::OrderPlacement.call(**inputs) }
+      variant.update!(price_cents: 1700)
+      digital.update!(price_cents: 900)
+      order = LightekCommerce::OrderPlacement.call(**inputs)
+      assert_equal 4300, order.subtotal_cents
+      assert_equal quote.fetch('buyer_cents'), order.total_cents
+      assert_equal 4300, LightekCommerce::MerchantPayouts.fee_quote(order)[:net_cents]
+      assert_equal 2, variant.reload.inventory_quantity
+    end
+  end
+
+  def test_subscription_renews_at_frozen_buyer_price_and_keeps_merchant_principal
+    item = product
+    with_buyer_fee_configuration do |fees|
+      cart = {item.id.to_s => 1}
+      lines, quote = fees.cart_price(products: [item], requested: cart)
+      order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.com', quantities: cart,
+        storefront: true, buyer_fee_token: fees.sign(@site, lines, quote))
+      Stripe::Checkout::Session.stub(:create, ->(payload, _) {
+        assert_equal %w[month month], payload[:line_items].map { |row| row.dig(:price_data, :recurring, :interval) }
+        OpenStruct.new(id: 'cs_renewal')
+      }) do
+        LightekCommerce::StripeCheckout.start!(order: order, success_url: 'https://shop.example.com/ok', cancel_url: 'https://shop.example.com/shop')
+      end
+      remote = remote_subscription(order)
+      assert_raises(LightekCommerce::StripeEvents::Rejected) { register(order, remote) }
+      recurring = remote['items']['data']
+      fee_line = recurring.first.deep_dup
+      fee_line['price']['unit_amount'] = order.buyer_fee_cents
+      recurring.unshift(fee_line)
+      subscription = register(order, remote)
+      rows = [order.subtotal_cents, order.buyer_fee_cents].map { |amount| {'amount' => amount, 'currency' => 'usd', 'quantity' => 1} }
+      total = order.total_cents
+      invoice = {'id' => 'in_repeat', 'billing_reason' => 'subscription_cycle', 'status' => 'paid', 'currency' => 'usd',
+        'subtotal' => total, 'total' => total, 'amount_paid' => total, 'lines' => {'data' => rows, 'has_more' => false}}
+      receipt = LightekCommerce::SubscriptionEvents.record_invoice!(subscription: subscription, invoice: invoice, at: Time.current)
+      renewal = receipt.settlement_order
+      assert_equal 2500, renewal.subtotal_cents
+      assert_equal total, renewal.total_cents
+      assert_equal order.buyer_fee_breakdown, renewal.buyer_fee_breakdown
+      assert_equal 2500, LightekCommerce::MerchantPayouts.fee_quote(renewal)[:net_cents]
+      rows.first['amount'] -= 1
+      rows.last['amount'] += 1
+      mismatch = LightekCommerce::SubscriptionEvents.record_invoice!(subscription: subscription,
+        invoice: invoice.merge('id' => 'in_mismatch'), at: Time.current)
+      assert_nil mismatch.settlement_order
+    end
+  end
+
+  def with_buyer_fee_configuration
+    keys = %w[LIGHTEK_COMMERCE_BUYER_FEE_HOSTS LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE]
+    prior = keys.to_h { |key| [key, ENV[key]] }
+    ENV.update(keys.zip([@site.host, 'txcd_10000000']).to_h)
+    fees = LightekCommerce::BuyerFees
+    fees.stub(:verifier, ActiveSupport::MessageVerifier.new('fixture-cart-quote')) { yield fees }
+  ensure
+    ENV.update(prior)
   end
 
   def test_processor_subscription_must_match_order_namespace_price_and_interval

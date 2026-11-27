@@ -1,0 +1,33 @@
+<%= stylesheet_link_tag 'reservations' %>
+<main class="lt-settings lr-admin">
+  <h1>Payment disputes</h1>
+  <p><%= link_to 'Orders', dashboard_commerce_orders_path(site_id: @site.id) %> · <%= link_to 'Merchant payouts', dashboard_commerce_payouts_path(site_id: @site.id) %></p>
+  <% if @cases %>
+    <nav aria-label="Dispute filters">
+      <%= link_to 'All disputes', dashboard_commerce_disputes_path(site_id: @site.id) %>
+      <%= link_to 'Needs response', dashboard_commerce_disputes_path(site_id: @site.id, needs_response: '1') %>
+    </nav>
+    <%= button_to 'Refresh dispute history', refresh_dashboard_commerce_disputes_path(site_id: @site.id), method: :post, class: 'lr-button' %>
+    <% if @cases.empty? %>
+      <p>No disputes match this view.</p>
+    <% else %>
+      <table>
+        <thead><tr><th>Order</th><th>Reason</th><th>Amount</th><th>Status</th><th>Response deadline</th></tr></thead>
+        <tbody>
+          <% @cases.each do |dispute| %>
+            <tr>
+              <td><%= link_to "##{dispute.order_id}", dashboard_commerce_order_disputes_path(site_id: @site.id, order_id: dispute.order_id) %></td>
+              <td><%= dispute.reason.humanize %></td>
+              <td><%= number_to_currency(dispute.amount_cents / 100.0) %> <%= dispute.order.currency.upcase %></td>
+              <td><%= dispute.status.humanize %></td>
+              <td><%= l(dispute.due_at) if dispute.due_at %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <% if @next_case %>
+      <p><%= link_to 'More disputes', dashboard_commerce_disputes_path(site_id: @site.id, needs_response: params[:needs_response], after: @next_case) %></p>
+    <% end %>
+  <% end %>
+</main>

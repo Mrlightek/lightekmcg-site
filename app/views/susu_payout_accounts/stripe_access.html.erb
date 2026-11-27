@@ -12,5 +12,13 @@
       'unconfigured' => 'Connection not configured', 'unverified' => 'Could not verify access'
     }.fetch(@result.fetch(:state)) %><% if @result[:mode] %> · <%= @result[:mode].capitalize %> mode<% end %></p>
   <% end %>
+  <section>
+    <h2>Stripe publishable key</h2>
+    <p>Use the publishable key from the Stripe account that processes Lightek payments.</p>
+    <%= form_with url: dashboard_commerce_stripe_browser_key_path, method: :patch, local: true, class: 'dd-form-stack' do |form| %>
+      <label>Publishable key <%= form.password_field :browser_key, autocomplete: 'off', required: true %></label>
+      <%= form.submit 'Save publishable key', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+  </section>
   <p>Receiving payments, releasing money, and sending webhook events each require separate acceptance checks.</p>
 </main>

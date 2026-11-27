@@ -63,7 +63,7 @@ module LightekCommerce
       if order.buyer_fee_cents.positive?
         line_items << {price_data: {currency: order.currency, unit_amount: order.buyer_fee_cents,
           product_data: {name: 'Lightek checkout fee', tax_code: order.buyer_fee_breakdown.fetch('tax_code')},
-          tax_behavior: 'exclusive'}, quantity: 1}
+          tax_behavior: 'exclusive', **(recurring ? {recurring: {interval: interval}} : {})}, quantity: 1}
       end
       customer = {customer_email: order.customer_email}
       if order.shipping_quote && order.purpose != "shipping_label"

@@ -45,14 +45,13 @@ module LightekCommerce
           quote.assign_attributes(site: site, public_key: SecureRandom.uuid, customer_price_cents: shipping, purchase_order_id: nil)
           quote.save!
         end
-        fee = buyer_fee_snapshot(peer: peer, merchant: merchant, rows: rows, subtotal: subtotal,
-          shipping_quote: quote, buyer_price_cents: stable['buyer_price_cents'])
+        fee = buyer_fee_snapshot(peer: peer, merchant: merchant, subtotal: subtotal, buyer_price_cents: stable['buyer_price_cents'])
         order = Order.new(site: site, customer_email: attrs.fetch("customer_email"), subtotal_cents: subtotal,
           shipping_cents: shipping, stock_reserved: false, shipping_quote: quote)
         order.buyer_fee_snapshot = fee if fee.present?
         order.total_cents = subtotal + shipping + order.buyer_fee_cents
         order.save!
-        rows.each_with_index do |row, index|
+        rows.each do |row|
           product = Product.create!(site: site, slug: "network-#{SecureRandom.hex(12)}", name: row.fetch("name").to_s.first(160),
             price_cents: row["unit_price_cents"].to_i, product_type: row["product_type"], billing_interval: row["billing_interval"],
             published: false, inventory_quantity: 0, track_inventory: false)
@@ -67,13 +66,10 @@ module LightekCommerce
         sale
       end
     end
-    def self.buyer_fee_snapshot(peer:, merchant:, rows:, subtotal:, shipping_quote:, buyer_price_cents:)
+    def self.buyer_fee_snapshot(peer:, merchant:, subtotal:, buyer_price_cents:)
       return {} unless buyer_price_cents
 
-      item = rows.first
-      unless BuyerFees.approved_host?(peer.site.host) && rows.one? && item['quantity'].to_i == 1 &&
-          item['product_type'].in?(%w[digital service]) && item['billing_interval'] == 'one_time' &&
-          subtotal.positive? && shipping_quote.nil? && RevenueSharing.snapshot_for(merchant).blank?
+      unless BuyerFees.approved_host?(peer.site.host) && subtotal.positive? && RevenueSharing.snapshot_for(merchant).blank?
         raise BuyerFees::Invalid, 'This store or order does not support buyer-paid fees.'
       end
 

@@ -62,6 +62,18 @@
                     <%= submit_tag 'Receive return', class: 'dd-button dd-btn-primary' %>
                   <% end %>
                   <%= button_to 'Cancel return', change_path, params: {operation: 'cancel'}, class: 'dd-button' %>
+                <% elsif record.status == 'received' %>
+                  <% if (refund = @refunds[record.id]) %>
+                    <p><%= number_to_currency(refund.amount_cents / 100.0) %> refund · <%= refund.status.humanize %></p>
+                    <% if refund.status == 'pending' %><p>Awaiting processor confirmation.</p><% end %>
+                    <% if refund.status == 'failed' %><p>Review the refund on the original order before trying again.</p><% end %>
+                  <% elsif (amount = LightekCommerce::ReturnRefunds.amount_for(@order, item, record)) %>
+                    <%= button_to "Refund #{number_to_currency(amount / 100.0)}", change_path,
+                      params: {operation: 'refund', amount_cents: amount}, class: 'dd-button',
+                      form: {data: {turbo_confirm: 'Refund this amount to the original payment method?'}} %>
+                  <% else %>
+                    <p>Review refund options on the original order.</p>
+                  <% end %>
                 <% end %>
               </td>
             </tr>
@@ -69,6 +81,6 @@
         </tbody>
       </table>
     <% end %>
-    <p>Issue any refund from the original order.</p>
+    <p><%= link_to 'View original order', dashboard_commerce_orders_path(site_id: @site.id, lookup: @order.id) %></p>
   </section>
 </main>

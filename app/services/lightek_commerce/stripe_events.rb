@@ -20,7 +20,11 @@ module LightekCommerce
         if refund.respond_to?(:metadata) && refund.metadata.to_h.stringify_keys['lightek_gift_refund'] == '1'
           return GiftRefunds.process_event!(refund)
         end
-        return if event.type == 'refund.created'
+        return_key = refund.metadata.to_h.stringify_keys['lightek_return_refund'] if refund.respond_to?(:metadata)
+        return if event.type == 'refund.created' && return_key.blank?
+        if return_key.present?
+          return RefundSettlement.call(processor_ref: refund.id, status: refund.status, return_key: return_key, amount_cents: refund.amount)
+        end
         return RefundSettlement.call(processor_ref: refund.id, status: refund.status)
       end
       return unless %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired].include?(event.type)

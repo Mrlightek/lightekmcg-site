@@ -6,7 +6,7 @@ module LightekCommerceStripeRouting
     if DymondBank::BroadcastAdvertising::Funding.checkout_event?(event)
       DymondBank::BroadcastAdvertising::Funding.process!(event)
     elsif %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type) ||
-        (event.type == 'refund.created' && event.data.object.metadata.to_h.stringify_keys['lightek_gift_refund'] == '1')
+        commerce_refund_created?(event)
       # These events can concern both Bank/Susu and Commerce records. Preserve
       # Bank handling and let Commerce reconcile only its own recorded IDs.
       result = super
@@ -21,6 +21,13 @@ module LightekCommerceStripeRouting
   end
 
   private
+
+  def commerce_refund_created?(event)
+    return false unless event.type == 'refund.created'
+
+    metadata = event.data.object.metadata.to_h.stringify_keys
+    metadata['lightek_gift_refund'] == '1' || metadata['lightek_return_refund'].present?
+  end
 
   def commerce_checkout?(event)
     if LightekCommerce::SubscriptionEvents::TYPES.include?(event.type)

@@ -154,6 +154,7 @@ class CommerceController < ApplicationController
     returns = LightekCommerce::MerchandiseReturn.where(order_id: @order.id)
     @used = returns.counting_against_order.group(:order_item_id).sum(:quantity)
     @returns = returns.order(id: :desc).limit(100)
+    @refunds = @order.refunds.where(merchandise_return_id: @returns.map(&:id)).index_by(&:merchandise_return_id)
   end
 
   def request_account_return

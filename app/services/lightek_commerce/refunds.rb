@@ -7,8 +7,12 @@ module LightekCommerce
       issue!(order: order, amount_cents: order.total_cents - order.refunded_cents)
     end
 
-    def self.issue!(order:, amount_cents:, idempotency_key: nil)
+    def self.issue!(order:, amount_cents:, idempotency_key: nil, merchandise_return_id: nil)
       amount_cents = Integer(amount_cents)
+      if merchandise_return_id
+        raise Invalid, 'This payment requires the original order refund workflow.' unless ReturnRefunds.supported?(order)
+        idempotency_key = PaymentIdentity.key(order, "merchandise-return-#{merchandise_return_id}")
+      end
       if order.payment_provider == "network"
         raise Invalid, "A site-local refund is required for this workflow" if idempotency_key
         NetworkCheckout.action!(order: order, action: "refund", attributes: {amount_cents: amount_cents})
@@ -22,6 +26,11 @@ module LightekCommerce
           raise Invalid, "The refund amount differs from the recorded request" if existing.amount_cents != amount_cents
 
           return existing
+        end
+        if merchandise_return_id
+          record = MerchandiseReturn.where(order_id: order.id).find(merchandise_return_id)
+          current_amount = ReturnRefunds.amount_for(order, order.items.find(record.order_item_id), record)
+          raise Invalid, 'The return refund amount is unavailable or changed. Review the order and any existing refunds.' unless current_amount == amount_cents
         end
         raise Invalid, "Order is not refundable" unless %w[paid fulfilled partially_refunded].include?(order.status)
         pending = order.refunds.where(status: "pending").exists?
@@ -41,11 +50,21 @@ module LightekCommerce
         Stripe.api_key = key
         payment_intent = ProcessorPayment.intent!(order: order)
 
-        record = order.refunds.create!(amount_cents: amount_cents,
-          idempotency_key: idempotency_key || "commerce-refund-#{order.id}-#{SecureRandom.uuid}")
-        response = Stripe::Refund.create({payment_intent: payment_intent, amount: amount_cents,
-          reason: "requested_by_customer"}, {idempotency_key: record.idempotency_key})
-        record.update!(processor_ref: response.id, status: "pending")
+        refund_attributes = {amount_cents: amount_cents,
+          idempotency_key: idempotency_key || "commerce-refund-#{order.id}-#{SecureRandom.uuid}"}
+        refund_attributes[:merchandise_return_id] = merchandise_return_id if merchandise_return_id
+        record = order.refunds.create!(refund_attributes)
+        attributes = {payment_intent: payment_intent, amount: amount_cents, reason: "requested_by_customer"}
+        attributes[:metadata] = {lightek_return_refund: record.idempotency_key} if merchandise_return_id
+        begin
+          response = Stripe::Refund.create(attributes, {idempotency_key: record.idempotency_key})
+        rescue Stripe::StripeError
+          raise unless merchandise_return_id
+
+          # Keep the pending record if Stripe's response is uncertain. Signed events can complete it.
+          next record
+        end
+        record.update!(processor_ref: response.id, status: %w[failed canceled].include?(response.status) ? 'failed' : 'pending')
         if response.status == "succeeded"
           record.update!(status: "succeeded")
           refunded = order.refunded_cents + amount_cents

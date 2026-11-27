@@ -24,6 +24,7 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     returns = LightekCommerce::MerchandiseReturn.where(order_id: @order.id)
     @used = returns.counting_against_order.group(:order_item_id).sum(:quantity)
     @returns = returns.order(id: :desc)
+    @refunds = @order.refunds.where.not(merchandise_return_id: nil).index_by(&:merchandise_return_id)
   end
 
   def create
@@ -48,6 +49,11 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     when 'cancel'
       service.cancel!(id)
       'Return canceled.'
+    when 'refund'
+      record = LightekCommerce::MerchandiseReturn.where(order_id: @order.id).find(id)
+      refund = LightekCommerce::Refunds.issue!(order: @order, merchandise_return_id: record.id,
+        amount_cents: params.require(:amount_cents))
+      "Refund status: #{refund.status.humanize}."
     when 'receive'
       service.receive!(id, disposition: params[:disposition])
       'Return received.'
@@ -55,7 +61,8 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
       raise ActionController::BadRequest
     end
     redirect_to return_path, notice: notice, status: :see_other
-  rescue LightekCommerce::MerchandiseReturns::Invalid, LightekCommerce::InventoryStockStates::Invalid => error
+  rescue LightekCommerce::MerchandiseReturns::Invalid, LightekCommerce::InventoryStockStates::Invalid,
+    LightekCommerce::Refunds::Invalid, Stripe::StripeError => error
     redirect_to return_path, alert: error.message, status: :see_other
   end
 

@@ -317,6 +317,8 @@ require Rails.root.join('db/migrate/20261127201000_create_commerce_supplier_orde
 CreateCommerceSupplierOrders.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127202000_create_commerce_merchandise_returns')
 CreateCommerceMerchandiseReturns.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127203000_link_commerce_refunds_to_returns')
+LinkCommerceRefundsToReturns.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -325,6 +327,8 @@ require Rails.root.join('app/models/lightek_commerce/supplier_order_line')
 require Rails.root.join('app/services/lightek_commerce/supplier_orders')
 require Rails.root.join('app/models/lightek_commerce/merchandise_return')
 require Rails.root.join('app/services/lightek_commerce/merchandise_returns')
+require Rails.root.join('app/services/lightek_commerce/return_refunds')
+require Rails.root.join('app/services/lightek_commerce/refund_settlement')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1490,6 +1494,51 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_received_return_refund_uses_discounted_merchandise_and_reconciles_signed_event_once
+    item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {item.id.to_s => 2})
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_returns', total_cents: 1601)
+    line = order.items.sole
+    line.update!(purchase_snapshot: line.purchase_snapshot.merge('merchandise_discount_cents' => 199))
+    service = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    returns = 2.times.map do
+      record = service.request!(item_id: line.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+      service.approve!(record.id)
+      service.receive!(record.id, disposition: 'discarded')
+      record.reload
+    end
+    first, second = returns
+    assert_equal [700, 701], returns.map { |record| LightekCommerce::ReturnRefunds.amount_for(order, line, record) }
+    refunds = LightekCommerce::Refunds
+    assert_raises(refunds::Invalid) { refunds.issue!(order: order, amount_cents: 800, merchandise_return_id: first.id) }
+    calls = []
+    processor = lambda do |attributes, options|
+      calls << [attributes, options]
+      raise Stripe::StripeError, 'Transport failed after submission'
+    end
+    LightekCommerce::ProcessorPayment.stub(:intent!, 'pi_returns') do
+      Stripe::Refund.stub(:create, processor) do
+        refund = refunds.issue!(order: order, amount_cents: 700, merchandise_return_id: first.id)
+        assert_equal [first.id, 'pending', nil], [refund.merchandise_return_id, refund.status, refund.processor_ref]
+        assert_equal refund.id, refunds.issue!(order: order, amount_cents: 700, merchandise_return_id: first.id).id
+        assert_raises(refunds::Invalid) { refunds.issue!(order: order, amount_cents: 701, merchandise_return_id: second.id) }
+      end
+    end
+    assert_equal 1, calls.size
+    key = calls.first.last.fetch(:idempotency_key)
+    assert_includes key, order.payment_namespace
+    assert_equal key, calls.first.first.dig(:metadata, :lightek_return_refund)
+    object = OpenStruct.new(id: 're_linked_return', status: 'succeeded', amount: 701, metadata: {lightek_return_refund: key})
+    event = OpenStruct.new(type: 'refund.updated', data: OpenStruct.new(object: object))
+    LightekCommerce::StripeEvents.process!(event)
+    assert_equal 0, order.reload.refunded_cents
+    object.amount = 700
+    2.times { LightekCommerce::StripeEvents.process!(event) }
+    assert_equal 700, order.reload.refunded_cents
+    assert_equal ['succeeded', 're_linked_return'], order.refunds.sole.attributes.values_at('status', 'processor_ref')
+  end
+
   def test_customer_service_refund_reuses_durable_key_without_sending_a_second_refund
     order = order_for(product)
     order.update!(status: "paid", payment_provider: "stripe_invoice", payment_reference: "in_renewal")

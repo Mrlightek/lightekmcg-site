@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_202000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_203000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2100,6 +2100,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_202000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "gift_restore_cents", default: 0, null: false
+    t.bigint "merchandise_return_id"
+    t.index ["merchandise_return_id"], name: "idx_commerce_refund_return", unique: true
     t.index ["idempotency_key"], name: "index_lightek_commerce_refunds_on_idempotency_key", unique: true
     t.index ["order_id"], name: "index_lightek_commerce_refunds_on_order_id"
     t.index ["processor_ref"], name: "index_lightek_commerce_refunds_on_processor_ref", unique: true
@@ -7771,6 +7773,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_202000) do
   add_foreign_key "lightek_commerce_products", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_supplier_order_lines", "lightek_commerce_supplier_orders", column: "supplier_order_id"
   add_foreign_key "lightek_commerce_products", "hosting_packages", column: "source_hosting_package_id"
+  add_foreign_key "lightek_commerce_refunds", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "users", column: "beneficiary_id"

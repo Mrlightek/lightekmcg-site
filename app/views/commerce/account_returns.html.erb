@@ -32,6 +32,9 @@
             <li>
               <%= record.quantity %> × <%= @items[record.order_item_id]&.name || 'Order item' %>
               · <%= record.status.humanize %> · <%= l(record.created_at.to_date) %>
+              <% if (refund = @refunds[record.id]) %>
+                <div>Refund <%= number_to_currency(refund.amount_cents / 100.0) %> · <%= refund.status == 'succeeded' ? 'Completed' : refund.status.humanize %></div>
+              <% end %>
             </li>
           <% end %>
         </ul>

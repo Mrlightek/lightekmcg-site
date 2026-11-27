@@ -152,6 +152,16 @@ class SharedBankWebhookTest < Minitest::Test
     assert_equal types.size, DymondBank::StripeWebhookService.events.size
     assert_equal types.size, LightekCommerce::StripeEvents.events.size
   end
+  def test_return_refund_created_uses_the_shared_bank_and_commerce_route
+    value = event('refund.created', {'lightek_return_refund' => 'fixture-return-refund'})
+    assert_equal :bank, route(value)
+    assert_same value, DymondBank::StripeWebhookService.events.last
+    assert_same value, LightekCommerce::StripeEvents.events.last
+
+    assert_equal :bank, route(event('refund.created'))
+    assert_equal 1, LightekCommerce::StripeEvents.events.size
+  end
+
   def test_commerce_reconciliation_failure_is_not_acknowledged_as_success
     LightekCommerce::StripeEvents.error = RuntimeError.new('retry reconciliation')
     assert_raises(RuntimeError) { route(event('charge.refunded')) }

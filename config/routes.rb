@@ -229,6 +229,7 @@ end
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_variants#create", as: :dashboard_commerce_variants
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
+  get "/dashboard/commerce/payouts/:order_id/ledger", to: "dashboard/commerce_payouts#ledger", as: :dashboard_commerce_payout_ledger
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
   post "/dashboard/network/cron_jobs", to: "dashboard/network#create_cron_job", as: :dashboard_network_cron_jobs
   patch "/dashboard/network/cron_jobs", to: "dashboard/network#update_cron_job"

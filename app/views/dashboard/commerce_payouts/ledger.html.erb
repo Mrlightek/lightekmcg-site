@@ -1,0 +1,60 @@
+<%= stylesheet_link_tag 'reservations' %>
+<main class="lt-settings lr-admin">
+  <h1>Order <%= @order.id %> payments ledger</h1>
+  <p><%= link_to 'Merchant payouts', dashboard_commerce_payouts_path(site_id: @site.id) %></p>
+
+  <% if @ledger %>
+    <section class="lr-card">
+      <h2>Order and earnings</h2>
+      <dl>
+        <% {
+          merchandise_cents: 'Merchandise', shipping_cents: 'Shipping', taxes_cents: 'Tax',
+          gross_cents: 'Buyer paid or quoted', refunded_cents: 'Refunds recorded on order',
+          processor_reserve_cents: 'Estimated processor reserve', platform_fee_cents: 'Estimated Lightek fee',
+          infrastructure_reserve_cents: 'Estimated infrastructure reserve', agency_shares_cents: 'Recorded upstream shares',
+          agency_reversed_cents: 'Upstream shares reversed', merchant_transfer_cents: 'Released to payout balance'
+        }.each do |key, label| %>
+          <% if @ledger[key] %>
+            <dt><%= label %></dt>
+            <dd><%= number_to_currency(@ledger[key] / 100.0) %></dd>
+          <% end %>
+        <% end %>
+      </dl>
+      <% if @ledger[:merchant_transfer_ref] %>
+        <p>Transfer <%= @ledger[:merchant_transfer_ref] %> · <%= l(@ledger[:merchant_transfer_at].to_date) if @ledger[:merchant_transfer_at] %></p>
+        <p>This is the release to the payout account. Bank deposit reconciliation is pending.</p>
+      <% end %>
+    </section>
+
+    <% if @processor_available %>
+      <section class="lr-card">
+        <h2>Original processor charge</h2>
+        <% if @ledger.key?(:processor_actual_cents) %>
+          <dl>
+            <dt>Actual original fee</dt><dd><%= number_to_currency(@ledger[:processor_actual_cents] / 100.0) %></dd>
+            <dt>Original processor net</dt><dd><%= number_to_currency(@ledger[:processor_net_cents] / 100.0) %></dd>
+            <dt>Processor balance</dt><dd><%= @ledger[:processor_funds_state].capitalize %></dd>
+            <% if @ledger[:processor_refunded_cents] %>
+              <dt>Refunds reported by processor</dt><dd><%= number_to_currency(@ledger[:processor_refunded_cents] / 100.0) %></dd>
+            <% end %>
+          </dl>
+          <% if @ledger[:processor_disputed] %><p>Processor reports a dispute.</p><% end %>
+        <% end %>
+        <%= link_to 'Refresh processor charge', dashboard_commerce_payout_ledger_path(site_id: @site.id, order_id: @order.id) %>
+      </section>
+    <% end %>
+  <% end %>
+
+  <% if @buyer_price %>
+    <section class="lr-card">
+      <h2>Buyer-inclusive pricing preview</h2>
+      <p>Illustrates a buyer price before tax and shipping. This preview leaves checkout and payout amounts as recorded.</p>
+      <dl>
+        <dt>Merchant price</dt><dd><%= number_to_currency(@buyer_price[:merchant_cents] / 100.0) %></dd>
+        <dt>Lightek platform charge</dt><dd><%= number_to_currency(@buyer_price[:platform_cents] / 100.0) %></dd>
+        <dt>Estimated processing on the buyer total</dt><dd><%= number_to_currency(@buyer_price[:processor_reserve_cents] / 100.0) %></dd>
+        <dt>Buyer price</dt><dd><%= number_to_currency(@buyer_price[:buyer_cents] / 100.0) %></dd>
+      </dl>
+    </section>
+  <% end %>
+</main>

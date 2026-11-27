@@ -15,8 +15,27 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
     end
     @payout_status ||= LightekPayments::PayoutAccounts.status(current_user) if @site.tenant == current_user
     @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
-    @orders = LightekCommerce::Order.where(site: @site, status: "fulfilled")
+    @orders = LightekCommerce::Order.visible.where(site: @site, status: %w[fulfilled partially_refunded refunded])
       .includes(:refunds).order(created_at: :desc).limit(100)
+  end
+
+  def ledger
+    response.headers['Cache-Control'] = 'private, no-store'
+    @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    raise ActiveRecord::RecordNotFound unless @site.tenant == current_user
+
+    @order = LightekCommerce::Order.visible.where(site: @site).find(params.require(:order_id))
+    @ledger = LightekCommerce::MerchantLedger.read(order: @order, actor: current_user)
+    @processor_available = @order.paid_at? && @order.payment_provider.in?(%w[stripe stripe_invoice])
+    if @order.subtotal_cents.positive?
+      @buyer_price = LightekCommerce::BuyerPrice.quote(merchant_cents: @order.subtotal_cents)
+    end
+    if @processor_available
+      @ledger = LightekCommerce::MerchantLedger.read(order: @order, actor: current_user, processor: true)
+    end
+  rescue LightekCommerce::MerchantLedger::Invalid, LightekCommerce::MerchantPayouts::Invalid, ArgumentError => error
+    flash.now[:alert] = error.message
+    render :ledger, status: :unprocessable_entity
   end
 
   def schedule

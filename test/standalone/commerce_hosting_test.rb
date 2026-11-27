@@ -64,6 +64,7 @@ ActiveRecord::Schema.define do
     t.string :currency, default: "usd"; t.integer :total_cents, default: 0; t.integer :subtotal_cents, default: 0
     t.integer :tax_cents, default: 0; t.integer :shipping_cents, default: 0; t.integer :refunded_cents, default: 0
     t.string :merchant_transfer_ref; t.integer :merchant_transfer_amount_cents; t.boolean :stock_reserved, default: true; t.string :payment_namespace; t.string :payment_reference; t.string :payment_provider
+    t.datetime :merchant_transfer_completed_at
     t.datetime :fulfilled_at; t.string :fulfillment_reference; t.string :fulfillment_note; t.datetime :paid_at; t.datetime :canceled_at; t.datetime :provisioned_at; t.string :purpose
   end
   create_table(:lightek_commerce_refunds) do |t|
@@ -138,6 +139,9 @@ end
 module Stripe
   class StripeError < StandardError; end
   class << self; attr_accessor :api_key; end
+  class PaymentIntent
+    def self.retrieve(*) = raise("Unexpected processor payment intent")
+  end
   class Refund
     def self.create(*) = raise("Unexpected processor refund")
   end
@@ -221,7 +225,7 @@ require Rails.root.join('app/services/lightek_agency/hosting_catalog').to_s
   require Rails.root.join("app/models/#{path}").to_s
 end
 %w[lightek_commerce/network_accounts lightek_commerce/network_gateway lightek_commerce/network_checkout lightek_shipping/payload lightek_shipping/fedex lightek_shipping/quotes lightek_shipping/purchases lightek_shipping/labels lightek_commerce/fulfillment gatekeeper/hosting/access lightek_commerce/payment_identity lightek_commerce/revenue_sharing lightek_commerce/merchant_payouts lightek_commerce/order_placement
-  gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase gatekeeper/hosting/workspace_plans gatekeeper/hosting/retail_pricing lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment].each do |path|
+  gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase gatekeeper/hosting/workspace_plans gatekeeper/hosting/retail_pricing lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment lightek_commerce/buyer_price lightek_commerce/merchant_ledger lightek_settings/website_identity].each do |path|
   require Rails.root.join("app/services/#{path}").to_s
 end
 module LightekCommerce
@@ -351,6 +355,59 @@ class CommerceHostingTest < Minitest::Test
         LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
       end
     end
+  end
+
+  def test_buyer_price_covers_the_full_charge_without_reducing_the_merchant_principal
+    quote = LightekCommerce::BuyerPrice.quote(merchant_cents: 10_000, processor_bps: 300,
+      processor_fixed_cents: 30, platform_bps: 100)
+    assert_equal({merchant_cents: 10_000, platform_cents: 100, processor_reserve_cents: 344, buyer_cents: 10_444}, quote)
+    [1, 100, 2_500, 99_999].each do |principal|
+      quote = LightekCommerce::BuyerPrice.quote(merchant_cents: principal, processor_bps: 290,
+        processor_fixed_cents: 30, platform_bps: 100)
+      gross = quote.fetch(:buyer_cents)
+      actual_estimate = (gross * 290 + 9999).div(10_000) + 30
+      assert_equal principal, gross - quote.fetch(:platform_cents) - actual_estimate
+      smaller_estimate = ((gross - 1) * 290 + 9999).div(10_000) + 30
+      assert_operator gross - 1 - quote.fetch(:platform_cents) - smaller_estimate, :<, principal
+    end
+    assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 0) }
+    assert_raises(ArgumentError) { LightekCommerce::BuyerPrice.quote(merchant_cents: 100, processor_bps: 10_000) }
+  end
+
+  def test_merchant_ledger_verifies_provider_fees_and_preserves_existing_order_and_refunds
+    order = order_for(product(billing_interval: "one_time"))
+    order.update!(status: "partially_refunded", paid_at: Time.current, payment_provider: "stripe",
+      payment_reference: "cs_ledger", refunded_cents: 500, merchant_transfer_ref: "tr_ledger", merchant_transfer_amount_cents: 2_300)
+    redirect = {id: "cs_ledger", payment_status: "paid", currency: "usd", amount_total: 2_500,
+      payment_intent: "pi_ledger", metadata: LightekCommerce::PaymentIdentity.metadata(order)}
+    balance = {source: "ch_ledger", amount: 2_500, fee: 103, net: 2_397, currency: "usd", status: "available"}
+    charge = {id: "ch_ledger", payment_intent: "pi_ledger", paid: true, amount: 2_500,
+      amount_refunded: 500, currency: "usd", disputed: false, balance_transaction: balance}
+    intent = {id: "pi_ledger", status: "succeeded", currency: "usd", amount_received: 2_500, latest_charge: charge}
+    other = User.create!(role: "super_admin", email_address: "other-operator@example.com")
+    assert_raises(ActiveRecord::RecordNotFound) { LightekCommerce::MerchantLedger.read(order: order, actor: other, processor: true) }
+
+    Stripe::Checkout::Session.stub(:retrieve, redirect) do
+      Stripe::PaymentIntent.stub(:retrieve, intent) do
+        info = LightekCommerce::MerchantLedger.read(order: order, actor: @operator, processor: true)
+        assert_equal 103, info[:processor_actual_cents]
+        assert_equal 2_397, info[:processor_net_cents]
+        assert_equal 500, info[:processor_refunded_cents]
+        assert_equal 500, info[:refunded_cents]
+        assert_equal 2_300, info[:merchant_transfer_cents]
+        assert_equal "available", info[:processor_funds_state]
+        balance[:source] = "ch_unrelated"
+        assert_raises(LightekCommerce::MerchantLedger::Invalid) do
+          LightekCommerce::MerchantLedger.read(order: order, actor: @operator, processor: true)
+        end
+      end
+      redirect[:metadata] = redirect[:metadata].merge(lightek_host_key: "invalid")
+      assert_raises(LightekCommerce::MerchantLedger::Invalid) do
+        LightekCommerce::MerchantLedger.read(order: order, actor: @operator, processor: true)
+      end
+    end
+    assert_equal "partially_refunded", order.reload.status
+    assert_equal "tr_ledger", order.merchant_transfer_ref
   end
 
   def test_processor_subscription_must_match_order_namespace_price_and_interval

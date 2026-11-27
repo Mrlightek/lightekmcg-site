@@ -26,7 +26,13 @@
 <% @orders.each do |order| %>
 <% quote = LightekCommerce::MerchantPayouts.fee_quote(order) %>
 <% reason = order.merchant_transfer_ref.present? ? nil : LightekCommerce::MerchantPayouts.ineligible_reason(order, quote: quote) %>
-<tr><td>#<%= order.id %></td><td><%= number_to_currency(quote[:gross_cents] / 100.0) %></td>
+<tr><td>
+  <% if @site.tenant == current_user %>
+    <%= link_to "##{order.id}", dashboard_commerce_payout_ledger_path(site_id: @site.id, order_id: order.id) %>
+  <% else %>
+    #<%= order.id %>
+  <% end %>
+</td><td><%= number_to_currency(quote[:gross_cents] / 100.0) %></td>
 <td><%= number_to_currency(quote[:processor_reserve_cents] / 100.0) %></td>
 <td><%= number_to_currency((quote[:platform_fee_cents] + quote[:infrastructure_reserve_cents]) / 100.0) %></td>
 <td><% amount = order.merchant_transfer_ref.present? ? order.merchant_transfer_amount_cents : (quote[:net_cents] unless reason || order.payment_provider == "network") %><%= amount ? number_to_currency(amount / 100.0) : "—" %></td>

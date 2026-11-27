@@ -21,7 +21,6 @@ module LightekCommerce
     def self.apply!(site:, actor:, data:)
       changes = parse(data)
       batch_key = SecureRandom.uuid
-      actor_name = actor.full_name.presence || "Account ##{actor.id}"
       Product.transaction do
         ids = changes.map(&:product_id).uniq
         products = Product.where(site: site, id: ids).order(:id).lock.index_by(&:id)
@@ -54,12 +53,8 @@ module LightekCommerce
 
           before_quantity = target.inventory_quantity
           target.update!(inventory_quantity: change.quantity)
-          InventoryChange.create!(
-            site_id: site.id, product_id: product.id, variant_id: change.variant_id,
-            actor_id: actor.id, actor_name: actor_name, product_name: product.name,
-            variant_name: (target.name if change.variant_id), batch_key: batch_key,
-            before_quantity: before_quantity, after_quantity: change.quantity
-          )
+          InventoryChange.record!(product: product, variant: (target if change.variant_id), actor: actor,
+            batch_key: batch_key, source: 'csv_import', before_quantity: before_quantity, after_quantity: change.quantity)
           true
         end
       end
@@ -67,6 +62,31 @@ module LightekCommerce
       raise Invalid, error.record.errors.full_messages.to_sentence
     rescue ActiveRecord::Deadlocked
       raise Invalid, 'Another inventory transaction is in progress. Try the import again.'
+    end
+
+    def self.update_product!(product:, actor:, attributes:, version: nil)
+      product.with_lock do
+        before_quantity = product.inventory_quantity
+        before_tracking = product.track_inventory?
+        current_version = snapshot_version(product.updated_at)
+        product.assign_attributes(attributes)
+        changed_quantity = product.will_save_change_to_inventory_quantity?
+        if changed_quantity && version.present? && current_version != version
+          raise Invalid, 'Stock changed since you opened this product. Review the current count and try again.'
+        end
+
+        next false unless product.save
+
+        if changed_quantity && (before_tracking || product.track_inventory?)
+          InventoryChange.record!(product: product, actor: actor, source: 'product_editor',
+            before_quantity: before_quantity, after_quantity: product.inventory_quantity)
+        end
+        true
+      end
+    rescue ActiveRecord::RecordInvalid
+      raise Invalid, 'The product could not be saved with its inventory history. Try again.'
+    rescue ActiveRecord::Deadlocked
+      raise Invalid, 'Another inventory transaction is in progress. Try again.'
     end
 
     def self.parse(data)

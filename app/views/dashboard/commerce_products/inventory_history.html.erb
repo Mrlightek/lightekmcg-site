@@ -4,12 +4,12 @@
     <div><h1>Inventory adjustment history</h1><p><%= @site.name %></p></div>
     <%= link_to 'Inventory', dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), class: 'dd-button' %>
   </header>
-  <section class="dd-panel" aria-label="CSV stock adjustments">
+  <section class="dd-panel" aria-label="Stock adjustments">
     <% if @inventory_changes.empty? %>
-      <p>There are no CSV stock adjustments in this view.</p>
+      <p>There are no stock adjustments in this view.</p>
     <% else %>
       <table>
-        <thead><tr><th scope="col">Time</th><th scope="col">Product</th><th scope="col">Before</th><th scope="col">After</th><th scope="col">Changed by</th><th scope="col">Upload</th></tr></thead>
+        <thead><tr><th scope="col">Time</th><th scope="col">Product</th><th scope="col">Before</th><th scope="col">After</th><th scope="col">Changed by</th><th scope="col">Source</th><th scope="col">Upload</th></tr></thead>
         <tbody>
           <% @inventory_changes.each do |change| %>
             <tr>
@@ -18,7 +18,12 @@
               <td><%= change.before_quantity %></td>
               <td><%= change.after_quantity %></td>
               <td><%= change.actor_name %></td>
-              <td><span title="<%= change.batch_key %>"><%= change.batch_key.first(8) %></span></td>
+              <td><%= change.source_label %></td>
+              <td>
+                <% if change.source == 'csv_import' %>
+                  <span title="<%= change.batch_key %>"><%= change.batch_key.first(8) %></span>
+                <% else %>—<% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>

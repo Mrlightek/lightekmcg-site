@@ -49,7 +49,9 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   def edit; end
   def update
     authorize_instance_product!
-    if @product.update(product_params.except(:remove_photo_ids))
+    attributes = product_params.except(:remove_photo_ids)
+    if LightekCommerce::InventoryAdjustment.update_product!(product: @product, actor: current_user,
+        attributes: attributes, version: params[:inventory_stock_version])
       Array(product_params[:remove_photo_ids]).reject(&:blank?).each do |id|
         attachment = @product.photos_attachments.find_by(id: id)
         attachment&.purge
@@ -57,6 +59,8 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
       return redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product updated."
     end
     render :edit, status: :unprocessable_entity
+  rescue LightekCommerce::InventoryAdjustment::Invalid => error
+    redirect_to edit_dashboard_commerce_product_path(@product, site_id: @site.id), alert: error.message, status: :see_other
   end
   def destroy
     @product.destroy!

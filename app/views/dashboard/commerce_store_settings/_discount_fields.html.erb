@@ -1,0 +1,11 @@
+<label>Name <%= form.text_field :name, required: true, maxlength: 100 %></label>
+<label>Code <%= form.text_field :code, maxlength: 40, placeholder: 'Leave blank for an automatic discount' %></label>
+<label>Type <%= form.select :kind, [['Percentage', 'percent'], ['Fixed amount (cents)', 'fixed']] %></label>
+<label>Amount <%= form.number_field :amount, min: 1, required: true %></label>
+<label>Minimum order amount (cents) <%= form.number_field :minimum_cents, min: 0, required: true %></label>
+<label>Applies to <%= form.select :target_product_id, options_from_collection_for_select(@discount_products, :id, :name, form.object.target_product_id), include_blank: 'Entire merchandise subtotal' %></label>
+<label><%= form.check_box :combinable %> Allow combining with other eligible discounts</label>
+<label>Start time (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, value: form.object.starts_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>
+<label>End time (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, value: form.object.ends_at&.in_time_zone&.strftime('%Y-%m-%dT%H:%M') %></label>
+<label>Total uses <%= form.number_field :usage_limit, min: 1, placeholder: 'Unlimited' %></label>
+<label>Uses per signed-in buyer <%= form.number_field :buyer_limit, min: 1, placeholder: 'Unlimited' %></label>

@@ -87,14 +87,19 @@ class CommerceController < ApplicationController
     redirect_to commerce_shop_path(site_id: @site.id), notice: "Cart updated."
   end
   def apply_discount
-    code = LightekCommerce::Discount.normalize(params[:discount_code])
-    if code
-      products = LightekCommerce::Product.visible.where(site: @site, id: cart.keys.map { |key| key.split(':').first })
-      LightekCommerce::Discounts.quote(site: @site, products: products, quantities: cart, code: code)
-      session[discount_key] = code
+    entered = LightekCommerce::Discounts.codes(session[discount_key])
+    if params[:remove_discount].present?
+      entered.delete(LightekCommerce::Discount.normalize(params[:remove_discount]))
     else
-      session.delete(discount_key)
+      code = LightekCommerce::Discount.normalize(params[:discount_code])
+      if code.present?
+        entered = LightekCommerce::Discounts.codes([*entered, code])
+        products = LightekCommerce::Product.visible.where(site: @site, id: cart.keys.map { |key| key.split(':').first })
+        LightekCommerce::Discounts.quote(site: @site, products: products, quantities: cart, code: entered,
+          buyer_id: (current_user&.id if authenticated?))
+      end
     end
+    session[discount_key] = entered
     redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), status: :see_other
   rescue LightekCommerce::Discounts::Invalid, LightekCommerce::BuyerFees::Invalid => error
     redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), alert: error.message, status: :see_other
@@ -159,6 +164,7 @@ class CommerceController < ApplicationController
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
       gift_redemption: gift_code.present?, storefront_buyer: current_user, discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
+      discount_review_token: params[:discount_review_token],
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
     checkout = if gift_code && LightekCommerce::NetworkCheckout.connected?(order)
@@ -272,13 +278,15 @@ class CommerceController < ApplicationController
   def discount_key = "lightek_commerce_discount_#{@site.id}"
 
   def show_discount
-    @discount_code = session[discount_key]
+    @discount_codes = LightekCommerce::Discounts.codes(session[discount_key])
     return if @cart.blank?
 
     ids = @cart.keys.map { |key| key.split(':').first.to_i }
     products = @products.select { |product| ids.include?(product.id) }
-    @discount, @discount_cents = LightekCommerce::Discounts.quote(site: @site, products: products,
-      quantities: @cart, code: @discount_code)
+    @discount = LightekCommerce::Discounts.quote(site: @site, products: products,
+      quantities: @cart, code: @discount_codes, buyer_id: (current_user&.id if authenticated?))
+    @discount_cents = @discount&.total
+    @discount_review_token = LightekCommerce::Discounts.signed_quote(@site, @discount) if @discount
     if @buyer_fee_cart && @discount_cents.to_i.positive?
       @discounted_buyer_price = LightekCommerce::BuyerFees.quote_amount(
         @buyer_fee_cart.fetch('merchant_cents') - @discount_cents

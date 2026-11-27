@@ -278,7 +278,10 @@ require Rails.root.join('db/migrate/20261127170000_create_commerce_gift_cards')
 CreateCommerceGiftCards.new.migrate(:up)
 %w[gift_card gift_redemption].each { |name| require Rails.root.join("app/models/lightek_commerce/#{name}") }
 %w[gift_cards gift_checkout gift_refunds].each { |name| require Rails.root.join("app/services/lightek_commerce/#{name}") }
+require Rails.root.join('db/migrate/20261127180000_extend_commerce_discount_rules')
+ExtendCommerceDiscountRules.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/discount')
+require Rails.root.join('app/models/lightek_commerce/discount_use')
 require Rails.root.join('app/services/lightek_commerce/discounts')
 require Rails.root.join('app/services/lightek_commerce/store_appearance')
 LightekCommerce::Order.reset_column_information
@@ -957,6 +960,75 @@ class CommerceHostingTest < Minitest::Test
     assert_raises(LightekCommerce::Discounts::Invalid) do
       LightekCommerce::Discounts.quote(site: foreign, products: [merchandise], quantities: cart, code: 'member')
     end
+  end
+
+  def test_product_and_order_codes_freeze_line_allocations_and_combine_with_automatic_savings
+    target = product(billing_interval: 'one_time', price_cents: 2000)
+    other = product(billing_interval: 'one_time', price_cents: 3000)
+    rules = LightekCommerce::Discount
+    rules.create!(site: @site, target_product: target, name: 'Item', code: 'ITEM', kind: 'fixed', amount: 500, combinable: true)
+    rules.create!(site: @site, name: 'Order', code: 'ORDER', kind: 'percent', amount: 10, combinable: true)
+    rules.create!(site: @site, name: 'Automatic', kind: 'fixed', amount: 100, combinable: true)
+    quantities = {target.id.to_s => 1, other.id.to_s => 1}
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: quantities, storefront: true, storefront_buyer: @operator, discount_code: %w[ORDER ITEM],
+      expected_discount_cents: 1050)
+    assert_equal 3950, order.total_cents
+    allocations = order.items.to_h { |item| [item.product_id, item.purchase_snapshot.fetch('merchandise_discount_cents')] }
+    assert_equal 683, allocations.fetch(target.id)
+    assert_equal 367, allocations.fetch(other.id)
+    assert_equal [100, 450, 500], LightekCommerce::DiscountUse.where(order: order).pluck(:amount_cents).sort
+    assert_equal [1317, 2633], LightekCommerce::Discounts.processor_items(order).map { |line| line.dig(:price_data, :unit_amount) }
+  end
+
+  def test_discount_review_rejects_repriced_carts_and_retries_a_reserved_discount
+    item = product(billing_interval: 'one_time', price_cents: 2000)
+    rule = LightekCommerce::Discount.create!(site: @site, name: 'Reviewed', code: 'REVIEW',
+      kind: 'fixed', amount: 200, buyer_limit: 1)
+    cart = {item.id.to_s => 1}
+    discounts = LightekCommerce::Discounts
+    verifier = ActiveSupport::MessageVerifier.new('fixture-signed-discount')
+    discounts.stub(:verifier, verifier) do
+      quote = discounts.quote(site: @site, products: [item], quantities: cart, code: rule.code, buyer_id: @operator.id)
+      inputs = {site: @site, customer_email: @operator.email_address, quantities: cart, storefront: true,
+        storefront_buyer: @operator, discount_code: rule.code, expected_discount_cents: 200,
+        discount_review_token: discounts.signed_quote(@site, quote)}
+      item.update!(price_cents: 2100)
+      assert_raises(LightekCommerce::OrderPlacement::Invalid) { LightekCommerce::OrderPlacement.call(**inputs) }
+      item.update!(price_cents: 2000)
+      original = LightekCommerce::OrderPlacement.call(**inputs)
+      assert_equal 1800, original.total_cents
+      assert_equal original.id, LightekCommerce::OrderPlacement.call(**inputs).id
+      assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+        LightekCommerce::OrderPlacement.call(**inputs.merge(quantities: {item.id.to_s => 2}))
+      end
+      assert_equal 1, LightekCommerce::DiscountUse.where(discount: rule).count
+    end
+  end
+
+  def test_removing_an_unsold_target_product_deactivates_its_discount
+    item = product(billing_interval: 'one_time', price_cents: 2000)
+    rule = LightekCommerce::Discount.create!(site: @site, name: 'Target', target_product: item,
+      kind: 'fixed', amount: 200)
+    item.destroy!
+    refute rule.reload.active?
+    assert_nil rule.target_product_id
+  end
+
+  def test_discount_schedule_and_durable_limits_follow_checkout_state
+    product = product(billing_interval: 'one_time', price_cents: 2000)
+    row = LightekCommerce::Discount.create!(site: @site, name: 'Limited', code: 'LIMIT', kind: 'fixed', amount: 200,
+      starts_at: 1.hour.from_now, ends_at: 2.hours.from_now, usage_limit: 1, buyer_limit: 1)
+    inputs = {site: @site, customer_email: 'buyer@example.test', quantities: {product.id.to_s => 1}, storefront: true,
+      storefront_buyer: @operator, discount_code: 'LIMIT', expected_discount_cents: 200}
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) { LightekCommerce::OrderPlacement.call(**inputs) }
+    row.update!(starts_at: 1.hour.ago)
+    original = LightekCommerce::OrderPlacement.call(**inputs)
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) { LightekCommerce::OrderPlacement.call(**inputs) }
+    LightekCommerce::OrderPlacement.cancel!(original)
+    assert_equal 1800, LightekCommerce::OrderPlacement.call(**inputs).total_cents
+    row.update!(ends_at: 1.minute.ago)
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) { LightekCommerce::OrderPlacement.call(**inputs) }
   end
 
   def test_store_appearance_updates_only_the_commerce_manifest

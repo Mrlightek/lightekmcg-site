@@ -24,7 +24,8 @@ module LightekCommerce
         store_name: order.site.name, merchant_chain: chain(order.site), return_url: return_url,
         items: order.items.map { |item| {name: item.name, quantity: item.quantity, unit_price_cents: item.unit_price_cents,
           product_type: item.purchase_snapshot.fetch("product_type", item.product.product_type),
-          billing_interval: item.purchase_snapshot.fetch("billing_interval", "one_time")} }}
+          billing_interval: item.purchase_snapshot.fetch("billing_interval", "one_time"),
+          **item.purchase_snapshot.slice('merchandise_discount_cents')} }}
       if order.shipping_quote
         raise StripeCheckout::Unavailable, "Shipping quote is not connected to the network" if order.shipping_quote.broker_reference.blank?
         attributes[:shipping_quote_key] = order.shipping_quote.broker_reference

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_170000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1739,6 +1739,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_170000) do
     t.index ["subscription_id"], name: "idx_billing_invoice_subscription"
   end
 
+  create_table "lightek_commerce_discount_uses", force: :cascade do |t|
+    t.bigint "discount_id", null: false
+    t.bigint "order_id", null: false
+    t.bigint "buyer_id"
+    t.integer "amount_cents", null: false
+    t.index ["discount_id", "buyer_id"], name: "idx_commerce_discount_uses_rule_buyer"
+    t.index ["order_id", "discount_id"], name: "idx_commerce_discount_uses_order_rule", unique: true
+    t.index ["order_id"], name: "index_lightek_commerce_discount_uses_on_order_id"
+  end
+
   create_table "lightek_commerce_discounts", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.string "name", null: false
@@ -1749,6 +1759,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_170000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "combinable", default: false, null: false
+    t.bigint "target_product_id"
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.integer "usage_limit"
+    t.integer "buyer_limit"
     t.index ["site_id", "code"], name: "index_lightek_commerce_discounts_on_site_id_and_code", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_discounts_on_site_id"
   end
@@ -7593,6 +7609,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_170000) do
   add_foreign_key "lightek_blog_entries", "posts", on_delete: :cascade
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
+  add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_discounts", column: "discount_id"
+  add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_products", column: "target_product_id"
   add_foreign_key "lightek_commerce_discounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_dispute_cases", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_gift_cards", "dymond_site_sites", column: "site_id"

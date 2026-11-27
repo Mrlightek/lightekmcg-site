@@ -81,6 +81,21 @@ class CommerceNetworkTest < CommerceHostingTest
     assert_raises(ArgumentError) { reserve(payload.merge('discount_cents' => 250)) }
   end
 
+  def test_network_preserves_product_discount_allocation_for_tax
+    items = [
+      attributes.fetch('items').sole.merge('merchandise_discount_cents' => 251),
+      {'name' => 'Download', 'quantity' => 2, 'unit_price_cents' => 500, 'product_type' => 'digital',
+        'billing_interval' => 'one_time', 'merchandise_discount_cents' => 0}
+    ]
+    payload = attributes.merge('items' => items, 'discount_cents' => 251)
+    sale = reserve(payload)
+    assert_equal [2249, 500], LightekCommerce::Discounts.processor_items(sale.order).map { |line| line.dig(:price_data, :unit_amount) }
+    invalid_items = [items.first.merge('merchandise_discount_cents' => 250), items.last]
+    assert_raises(ArgumentError) { reserve(payload.merge('items' => invalid_items, 'source_key' => 'b' * 64)) }
+    adjusted_items = [items.first.merge('merchandise_discount_cents' => 250), items.last.merge('merchandise_discount_cents' => 1)]
+    assert_raises(ArgumentError) { reserve(payload.merge('items' => adjusted_items)) }
+  end
+
   def test_peer_reservation_is_idempotent_and_rejects_changed_purchase
     first = reserve
     assert_equal first.id, reserve.id

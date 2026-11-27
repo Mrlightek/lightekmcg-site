@@ -3,48 +3,164 @@
 module LightekCommerce
   class Discounts
     class Invalid < StandardError; end
+    MAX_CODES = 5
+    CHECKOUT_MINIMUM_CENTS = 50
+    Quote = Struct.new(:entries, :line_savings, :cart_lines, :codes, keyword_init: true) do
+      def total = entries.sum(&:last)
+      def names = entries.map { |rule, _| rule.name }
+      def identity = [cart_lines, codes, entries.map { |rule, cents| [rule.id, rule.name, cents] }, line_savings]
+    end
 
-    def self.quote(site:, products:, quantities:, code:, lock: false)
-      code = Discount.normalize(code)
-      return unless code || Discount.exists?(site: site, active: true, code: nil)
+    def self.codes(value)
+      normalized = Array(value).map { |entry| Discount.normalize(entry) }.compact.uniq
+      if normalized.size > MAX_CODES || normalized.any? { |entry| !entry.match?(/\A[A-Z0-9_-]{1,40}\z/) }
+        raise Invalid, "Enter up to #{MAX_CODES} valid discount codes."
+      end
 
-      eligible = products.any? && products.all? { |product| BuyerFees.eligible?(product) && product.billing_interval == 'one_time' }
-      unless eligible
-        raise Invalid, 'This discount applies to one-time retail purchases.' if code
+      normalized.sort
+    end
+
+    def self.quote(site:, products:, quantities:, code:, buyer_id: nil, lock: false)
+      entered = codes(code)
+      return unless entered.any? || Discount.exists?(site: site, active: true, code: nil)
+
+      unless products.any? && products.all? { |product| BuyerFees.eligible?(product) && product.billing_interval == 'one_time' }
+        raise Invalid, 'These discounts apply to one-time retail purchases.' if entered.any?
         return
       end
 
-      _, base = BuyerFees.cart_price(products: products, requested: quantities, lock: lock, price_only: true)
-      subtotal = base.to_i
-      candidates = Discount.where(site: site, active: true, code: code).order(:id)
-      candidates = candidates.lock if lock
-      best = candidates.map { |discount| [discount, discount.savings(subtotal)] }.max_by(&:last)
-      return best if best && best.last.positive?
+      lines, subtotal = BuyerFees.cart_price(products: products, requested: quantities, lock: lock, price_only: true)
+      prices = lines.to_h { |key, quantity, price, _| [key, quantity * price] }
+      grouped = prices.keys.group_by { |key| key.split(':').first.to_i }
+      scope = Discount.where(site: site, active: true, code: [nil, *entered]).order(:id)
+      scope = scope.lock if lock
+      now = Time.current
+      candidates = scope.to_a.select do |rule|
+        applicable = rule.target_product_id.nil? || grouped.key?(rule.target_product_id)
+        applicable && rule.scheduled_for?(now) && subtotal >= rule.minimum_cents &&
+          within_limits?(rule, buyer_id, lock)
+      end
 
-      raise Invalid, 'This discount code does not apply to your cart.' if code
+      explicit, automatic = candidates.partition { |rule| rule.code.present? }
+      unless explicit.map(&:code).sort == entered
+        raise Invalid, 'One or more discount codes do not apply to your cart.'
+      end
+      if explicit.many? && (!explicit.all?(&:combinable?) || explicit.filter_map(&:target_product_id).tally.values.any? { |count| count > 1 })
+        raise Invalid, 'These discount codes cannot be combined.'
+      end
+
+      winning = if explicit.none?
+        sets = automatic.map { |rule| [rule] }
+        sets << compatible_rules([], automatic, prices, grouped, subtotal)
+        sets.map { |rules| apply(rules, prices, grouped, subtotal) }.max_by { |entries, _| entries.sum(&:last) }
+      else
+        rules = explicit.all?(&:combinable?) ? compatible_rules(explicit, automatic, prices, grouped, subtotal) : explicit
+        apply(rules, prices, grouped, subtotal)
+      end
+
+      entries, allocated = winning
+      unless explicit.all? { |rule| entries.any? { |applied_rule, _| applied_rule.id == rule.id } }
+        raise Invalid, 'One or more discount codes produce no savings on this cart.'
+      end
+      Quote.new(entries: entries, line_savings: allocated, cart_lines: lines, codes: entered) if entries.any?
+    end
+
+    def self.signed_quote(site, quote)
+      verifier.generate([site.id, quote.identity, SecureRandom.hex(12)], expires_in: 15.minutes)
+    end
+
+    def self.matches_review?(site, quote, token)
+      reviewed = verifier.verified(token.to_s)
+      quote && reviewed.is_a?(Array) && reviewed.first(2) == [site.id, quote.identity]
+    end
+
+    def self.record!(order, quote, buyer_id:)
+      quote.entries.each do |rule, amount|
+        DiscountUse.create!(order: order, discount: rule, buyer_id: buyer_id, amount_cents: amount)
+      end
     end
 
     def self.processor_items(order)
       items = order.items.to_a
+      frozen = items.any? { |item| item.purchase_snapshot.to_h.key?('merchandise_discount_cents') }
+      allocations = if frozen
+        items.to_h { |item| [item.id, item.purchase_snapshot.to_h.fetch('merchandise_discount_cents', 0)] }
+      else
+        allocate(order.discount_amount, items.to_h { |item| [item.id, item.line_total_cents] })
+      end
+      unless allocations.values.sum == order.discount_amount &&
+          items.all? { |item| allocations.fetch(item.id, 0).between?(0, item.line_total_cents) }
+        raise Invalid, 'Recorded discounts do not match this order.'
+      end
 
-      remaining_discount = order.discount_amount
-      remaining_value = items.sum(&:line_total_cents)
       items.flat_map do |item|
-        gross = item.line_total_cents
-        discount = remaining_value.positive? ? remaining_discount * gross / remaining_value : 0
-        remaining_discount -= discount
-        remaining_value -= gross
-        unit, remainder = (gross - discount).divmod(item.quantity)
-        rows = [line(item, unit, item.quantity - remainder)]
-        rows << line(item, unit + 1, remainder) if remainder.positive?
-        rows
+        unit, remainder = (item.line_total_cents - allocations.fetch(item.id, 0)).divmod(item.quantity)
+        result = [line(item, unit, item.quantity - remainder)]
+        result << line(item, unit + 1, remainder) if remainder.positive?
+        result
+      end
+    end
+
+    def self.within_limits?(rule, buyer_id, checkout)
+      return true unless rule.usage_limit || rule.buyer_limit
+
+      uses = DiscountUse.counted.where(discount: rule)
+      return false if rule.usage_limit && uses.count >= rule.usage_limit
+      return true unless rule.buyer_limit
+      return !checkout unless buyer_id
+
+      uses.where(buyer_id: buyer_id).count < rule.buyer_limit
+    end
+
+    def self.compatible_rules(explicit, automatic, prices, grouped, subtotal)
+      stackable = automatic.select(&:combinable?)
+      chosen_products = explicit.filter_map(&:target_product_id)
+      targets, cart_offers = stackable.partition(&:target_product_id)
+      best_products = targets.group_by(&:target_product_id).filter_map do |id, rules|
+        next if chosen_products.include?(id)
+
+        base = prices.values_at(*grouped.fetch(id)).sum
+        rules.max_by { |rule| rule.savings(base, cart_subtotal: subtotal) }
+      end
+      explicit + best_products + cart_offers
+    end
+
+    def self.apply(rules, prices, grouped, subtotal)
+      products, orders = rules.partition(&:target_product_id)
+      remaining = prices.dup
+      entries = []
+      order_base = nil
+      (products + orders).each do |rule|
+        keys = rule.target_product_id ? grouped.fetch(rule.target_product_id) : remaining.keys
+        available = remaining.slice(*keys)
+        base = rule.target_product_id ? available.values.sum : (order_base ||= remaining.values.sum)
+        cap = [remaining.values.sum - CHECKOUT_MINIMUM_CENTS, available.values.sum].min
+        amount = [rule.savings(base, cart_subtotal: subtotal), cap].min
+        next unless amount.positive?
+
+        allocate(amount, available).each { |key, cents| remaining[key] -= cents }
+        entries << [rule, amount]
+      end
+      [entries, prices.to_h { |key, gross| [key, gross - remaining.fetch(key)] }]
+    end
+
+    def self.allocate(amount, prices)
+      total = prices.values.sum
+      prices.to_h do |key, gross|
+        portion = total.positive? ? amount * gross / total : 0
+        amount -= portion
+        total -= gross
+        [key, portion]
       end
     end
 
     def self.line(item, cents, quantity)
-      price = {currency: item.order.currency, unit_amount: cents, product_data: {name: item.name}}
-      {price_data: price, quantity: quantity}
+      {price_data: {currency: item.order.currency, unit_amount: cents, product_data: {name: item.name}}, quantity: quantity}
     end
-    private_class_method :line
+
+    def self.verifier
+      Rails.application.message_verifier('commerce-discount-review-v1')
+    end
+    private_class_method :line, :within_limits?, :compatible_rules, :apply, :allocate, :verifier
   end
 end

@@ -4,6 +4,10 @@ module LightekCommerce
   # Every installation retains its own database and sites; ownership is scoped per site.
   class Product < ApplicationRecord
     self.table_name = "lightek_commerce_products"
+
+    before_destroy do
+      Discount.where(target_product: self).update_all(target_product_id: nil, active: false, updated_at: Time.current)
+    end
     COMMUNICATIONS_SLUGS = { "lightek-internet" => "internet", "lightek-voice" => "voice" }.freeze
 
     VOICE_PLAN_SLUG = /\Alightek-voice(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\z/

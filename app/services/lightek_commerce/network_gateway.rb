@@ -39,6 +39,16 @@ module LightekCommerce
         if discount != 0 && (recurring || !discount.between?(1, subtotal - 1))
           raise ArgumentError, 'Invalid checkout discount'
         end
+        if rows.any? { |row| row.key?('merchandise_discount_cents') }
+          allocations = rows.map do |row|
+            cents = Integer(row.fetch('merchandise_discount_cents', 0).to_s, 10)
+            unless cents.between?(0, row['unit_price_cents'].to_i * row['quantity'].to_i)
+              raise ArgumentError, 'Invalid item discount'
+            end
+            cents
+          end
+          raise ArgumentError, 'Item discounts do not match the order discount' unless allocations.sum == discount
+        end
         subtotal -= discount
         raise ArgumentError, "Checkout total is outside the supported range" unless subtotal.between?(0, 2_000_000_000)
         gift_purpose = stable['gift_order_purpose']
@@ -82,7 +92,8 @@ module LightekCommerce
             published: false, inventory_quantity: 0, track_inventory: false)
           order.items.create!(product: product, name: product.name, quantity: row["quantity"].to_i, unit_price_cents: product.price_cents,
             line_total_cents: product.price_cents * row["quantity"].to_i,
-            purchase_snapshot: {"product_type" => product.product_type, "billing_interval" => product.billing_interval, "track_inventory" => false})
+            purchase_snapshot: {"product_type" => product.product_type, "billing_interval" => product.billing_interval, "track_inventory" => false,
+              **row.slice('merchandise_discount_cents').transform_values(&:to_i)})
         end
         MerchantPayouts.fee_quote(order, gross_cents: (order.total_cents * 125 + 99) / 100)
         sale = NetworkSale.create!(peer: peer, order: order, source_key: key, source_snapshot: stable,

@@ -28,25 +28,40 @@
   <% end %>
   <section class="dd-panel">
     <h2>Discounts</h2>
-    <%= form_with scope: :discount, url: dashboard_commerce_store_discounts_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>
-      <label>Name <%= form.text_field :name, required: true, maxlength: 100 %></label>
-      <label>Code <%= form.text_field :code, maxlength: 40, placeholder: 'Leave blank for an automatic discount' %></label>
-      <label>Type <%= form.select :kind, [['Percentage', 'percent'], ['Fixed amount (cents)', 'fixed']] %></label>
-      <label>Amount <%= form.number_field :amount, min: 1, required: true %></label>
-      <label>Minimum order amount (cents) <%= form.number_field :minimum_cents, min: 0, value: 0, required: true %></label>
+    <%= form_with model: LightekCommerce::Discount.new, scope: :discount, url: dashboard_commerce_store_discounts_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>
+      <%= render 'discount_fields', form: form %>
       <%= form.submit 'Create discount', class: 'dd-button dd-btn-primary' %>
     <% end %>
     <% if @discounts.any? %>
       <table>
-        <thead><tr><th>Name</th><th>Method</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>Method</th><th>Amount</th><th>Status</th><th>Reserved</th><th>Settled</th><th>Savings on settled orders</th><th>Actions</th></tr></thead>
         <tbody>
           <% @discounts.each do |discount| %>
             <tr>
-              <td><%= discount.name %></td><td><%= discount.code || 'Automatic' %></td>
+              <td><%= discount.name %><% if discount.target_product %> · <%= discount.target_product.name %><% end %><% if discount.combinable? %> · Combinable<% end %></td><td><%= discount.code || 'Automatic' %></td>
               <td><%= discount.kind == 'percent' ? "#{discount.amount}%" : number_to_currency(discount.amount / 100.0) %></td>
-              <td><%= discount.active? ? 'Active' : 'Inactive' %></td>
-              <td><%= button_to(discount.active? ? 'Deactivate' : 'Activate', dashboard_commerce_store_discount_path(site_id: @site.id, id: discount.id),
-                method: :patch, params: {active: discount.active? ? '0' : '1'}, class: 'dd-button') %></td>
+              <td>
+                <% if !discount.active? %>Inactive
+                <% elsif discount.scheduled_for?(Time.current) %>Active
+                <% elsif discount.starts_at && discount.starts_at.future? %>Scheduled
+                <% else %>Ended
+                <% end %>
+              </td>
+              <td><%= @pending_discount_counts.fetch(discount.id, 0) %></td>
+              <td><%= @settled_discount_counts.fetch(discount.id, 0) %></td>
+              <td><%= number_to_currency(@settled_discount_values.fetch(discount.id, 0) / 100.0) %></td>
+              <td>
+                <%= button_to(discount.active? ? 'Deactivate' : 'Activate', dashboard_commerce_store_discount_path(site_id: @site.id, id: discount.id),
+                  method: :patch, params: {active: discount.active? ? '0' : '1'}, class: 'dd-button') %>
+                <details>
+                  <summary>Edit discount</summary>
+                  <%= form_with model: discount, scope: :discount, namespace: "discount_#{discount.id}",
+                    url: dashboard_commerce_store_discount_path(site_id: @site.id, id: discount.id), method: :patch, class: 'dd-form-stack' do |form| %>
+                    <%= render 'discount_fields', form: form %>
+                    <%= form.submit 'Save discount', class: 'dd-button dd-btn-primary' %>
+                  <% end %>
+                </details>
+              </td>
             </tr>
           <% end %>
         </tbody>

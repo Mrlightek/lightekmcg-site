@@ -5,7 +5,14 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
 
   def show
     @appearance = LightekCommerce::StoreAppearance.read(@site)
-    @discounts = LightekCommerce::Discount.where(site: @site).order(:id)
+    @discount_products = LightekCommerce::Product.visible.where(site: @site)
+    @discounts = LightekCommerce::Discount.where(site: @site).includes(:target_product).order(:id)
+    uses = LightekCommerce::DiscountUse.counted.where(discount: @discounts.except(:order))
+    pending = uses.where(lightek_commerce_orders: {status: 'pending_payment'})
+    settled = uses.where.not(lightek_commerce_orders: {status: 'pending_payment'})
+    @pending_discount_counts = pending.group(:discount_id).count
+    @settled_discount_counts = settled.group(:discount_id).count
+    @settled_discount_values = settled.group(:discount_id).sum(:amount_cents)
   end
 
   def update
@@ -27,8 +34,7 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
   end
 
   def create_discount
-    attrs = params.require(:discount).permit(:name, :code, :kind, :amount, :minimum_cents)
-    LightekCommerce::Discount.create!(attrs.merge(site: @site))
+    LightekCommerce::Discount.create!(discount_params.merge(site: @site))
     redirect_to_store('Discount created.')
   rescue ActiveRecord::RecordInvalid => error
     redirect_to_store(error.record.errors.full_messages.to_sentence, error: true)
@@ -38,11 +44,21 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
 
   def update_discount
     discount = LightekCommerce::Discount.where(site: @site).find(params[:id])
-    discount.update!(active: params[:active] == '1')
+    attrs = params.key?(:discount) ? discount_params : {active: params[:active] == '1'}
+    discount.update!(attrs)
     redirect_to_store('Discount updated.')
+  rescue ActiveRecord::RecordInvalid => error
+    redirect_to_store(error.record.errors.full_messages.to_sentence, error: true)
+  rescue ActiveRecord::RecordNotUnique
+    redirect_to_store('This code already exists for your store.', error: true)
   end
 
   private
+
+  def discount_params
+    params.require(:discount).permit(:name, :code, :kind, :amount, :minimum_cents, :combinable,
+      :target_product_id, :starts_at, :ends_at, :usage_limit, :buyer_limit)
+  end
 
   def redirect_to_store(message, error: false)
     redirect_to dashboard_commerce_store_settings_path(site_id: @site.id),

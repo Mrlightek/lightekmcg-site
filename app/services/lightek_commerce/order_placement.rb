@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, storefront_buyer: nil, gift_redemption: false)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, discount_review_token: nil, storefront_buyer: nil, gift_redemption: false)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -17,7 +17,6 @@ module LightekCommerce
           shipping_quote.lock!
           raise Invalid, "Shipping quote does not match this cart" unless shipping_quote.site_id == site.id && shipping_quote.expires_at > Time.current &&
             shipping_quote.cart_fingerprint == LightekShipping::Quotes.fingerprint(site, requested)
-          raise Invalid, "This shipping quote already has a checkout" if Order.where(shipping_quote: shipping_quote).where.not(purpose: "shipping_label").exists?
         end
         if buyer && buyer.email_address != customer_email.to_s.strip.downcase
           raise Invalid, "Buyer does not match checkout identity"
@@ -34,40 +33,60 @@ module LightekCommerce
           !defined?(Gatekeeper::Hosting::WorkspacePlans))
           raise Invalid, "Choose one Workspace plan"
         end
+        normalized_email = customer_email.to_s.strip.downcase
+        reviewed_key = if storefront && storefront_buyer && discount_review_token.present?
+          Digest::SHA256.hexdigest([discount_review_token, storefront_buyer.id, gift_redemption,
+            shipping_quote&.id, requested.transform_values(&:to_i).sort].to_json)
+        end
+        if reviewed_key
+          existing = Order.find_by(site: site, customer_email: normalized_email, client_checkout_key: reviewed_key)
+          next existing if existing
+        end
         fee_snapshot = if storefront && (buyer_fee_token.present? || ENV['LIGHTEK_COMMERCE_BUYER_FEE_HOSTS'].present?)
           BuyerFees.snapshot_for(site: site, products: products, requested: requested.transform_values(&:to_i),
             token: buyer_fee_token)
         else
           {}
         end
-        discount, savings = if storefront && (discount_code.present? || !expected_discount_cents.nil?)
-          storefront_discount(site: site, products: products, quantities: requested, code: discount_code)
+        discount = if storefront && (discount_code.present? || !expected_discount_cents.nil?)
+          storefront_discount(site: site, products: products, quantities: requested, code: discount_code, buyer_id: storefront_buyer&.id)
         end
-        if !expected_discount_cents.nil? && savings.to_i != Integer(expected_discount_cents.to_s, 10)
+        savings = discount&.total.to_i
+        if !expected_discount_cents.nil? && savings != Integer(expected_discount_cents.to_s, 10)
           raise Invalid, 'The discount changed. Review your cart before continuing.'
+        end
+        if discount_review_token.present? && !Discounts.matches_review?(site, discount, discount_review_token)
+          raise Invalid, 'The reviewed discount expired or changed. Review your cart before continuing.'
         end
         if fee_snapshot.present? && savings.to_i.positive?
           fee_snapshot = BuyerFees.quote_amount(fee_snapshot.fetch('merchant_cents') - savings)
         end
-        order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
+        order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: normalized_email)
+        order.client_checkout_key = reviewed_key if reviewed_key
         order.purpose = GiftCards::REDEMPTION if gift_redemption
         order.storefront_buyer_id = storefront_buyer.id if storefront && storefront_buyer
         if discount
           order.discount_cents = savings
-          order.discount_name = discount.name
+          order.discount_name = discount.names.join(", ").truncate(255)
         end
         if fee_snapshot.present?
           order.buyer_fee_snapshot = fee_snapshot
-          checkout_identity = [buyer_fee_token]
-          checkout_identity << "buyer=#{storefront_buyer.id}" if storefront && storefront_buyer
-          checkout_identity << 'gift' if gift_redemption
-          checkout_identity << "discount=#{discount.id}=#{savings}" if discount
-          order.client_checkout_key = Digest::SHA256.hexdigest(checkout_identity.join(':'))
-          existing = Order.find_by(site: site, customer_email: order.customer_email, client_checkout_key: order.client_checkout_key)
-          next existing if existing
+          unless reviewed_key
+            checkout_identity = [buyer_fee_token]
+            checkout_identity << "buyer=#{storefront_buyer.id}" if storefront && storefront_buyer
+            checkout_identity << 'gift' if gift_redemption
+            checkout_identity << Digest::SHA256.hexdigest(discount.identity.to_json) if discount
+            order.client_checkout_key = Digest::SHA256.hexdigest(checkout_identity.join(':'))
+            existing = Order.find_by(site: site, customer_email: order.customer_email, client_checkout_key: order.client_checkout_key)
+            next existing if existing
+          end
+        end
+        if shipping_quote && Order.where(shipping_quote: shipping_quote).where.not(purpose: "shipping_label").exists?
+          raise Invalid, "This shipping quote already has a checkout"
         end
         order.growth_visit = growth_visit if growth_visit
         order.save!
+        Discounts.record!(order, discount, buyer_id: storefront_buyer&.id) if discount
         recurring = products.select { |product| product.billing_interval != "one_time" }
         raise Invalid, "Buy each subscription separately, quantity one" if recurring.any? && (requested.size != 1 || requested.values.first.to_i != 1 || requested.keys.first.include?(":"))
         subtotal = 0
@@ -114,6 +133,10 @@ module LightekCommerce
           subtotal += line_total
           snapshot = {"product_type" => product.product_type, "billing_interval" => product.billing_interval,
             "track_inventory" => variant_id ? true : product.track_inventory?, "subscription_plan_id" => product.subscription_plan_id}
+          if discount
+            allocation = discount.line_savings.fetch(key, 0)
+            snapshot['merchandise_discount_cents'] = allocation if allocation.positive?
+          end
           kind = product.communications_kind
           snapshot["communications_kind"] = kind if kind
           snapshot["voice_plan"] = product.slug if kind == "voice"
@@ -177,8 +200,8 @@ module LightekCommerce
       raise Invalid, "Invalid cart items"
     end
 
-    def self.storefront_discount(site:, products:, quantities:, code:)
-      Discounts.quote(site: site, products: products, quantities: quantities, code: code, lock: true)
+    def self.storefront_discount(site:, products:, quantities:, code:, buyer_id:)
+      Discounts.quote(site: site, products: products, quantities: quantities, code: code, buyer_id: buyer_id, lock: true)
     rescue Discounts::Invalid => error
       raise Invalid, error.message
     end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_191000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_192000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1886,6 +1886,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_191000) do
     t.index ["peer_id"], name: "index_lightek_commerce_network_sales_on_peer_id"
     t.index ["public_key"], name: "index_lightek_commerce_network_sales_on_public_key", unique: true
     t.index ["source_shipping_quote_id"], name: "idx_network_shipping_source", unique: true
+  end
+
+  create_table "lightek_commerce_inventory_changes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "variant_id"
+    t.bigint "actor_id", null: false
+    t.string "actor_name", null: false
+    t.string "product_name", null: false
+    t.string "variant_name"
+    t.string "batch_key", null: false
+    t.integer "before_quantity", null: false
+    t.integer "after_quantity", null: false
+    t.datetime "created_at", null: false
+    t.index ["site_id", "id"], name: "idx_commerce_inventory_changes_site_history"
+    t.check_constraint "before_quantity >= 0 AND after_quantity >= 0 AND before_quantity <> after_quantity", name: "commerce_inventory_change_counts"
   end
 
   create_table "lightek_commerce_order_items", force: :cascade do |t|

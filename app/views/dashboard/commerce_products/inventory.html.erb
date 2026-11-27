@@ -2,6 +2,7 @@
 <main class="dd-workspace">
   <header class="dd-page-header">
     <div><h1>Inventory</h1><p><%= @site.name %></p></div>
+    <%= link_to 'Adjustment history', dashboard_commerce_products_path(site_id: @site.id, inventory_history: '1'), class: 'dd-button' %>
     <%= link_to 'Products', dashboard_commerce_products_path(site_id: @site.id), class: 'dd-button' %>
   </header>
 

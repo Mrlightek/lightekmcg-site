@@ -6,6 +6,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   before_action :set_product, only: %i[edit update destroy]
   before_action :redirect_workspace_management, only: %i[edit update destroy]
   def index
+    return inventory_history if params[:inventory_history] == '1'
     return inventory if params[:inventory] == '1'
 
     @products = LightekCommerce::Product.where(site: @site).order(:position, :id)
@@ -84,6 +85,21 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), alert: error.message, status: :see_other
   end
 
+  def inventory_history
+    history = LightekCommerce::InventoryChange.for_site(@site).order(id: :desc)
+    if params[:before].present?
+      before = params[:before].to_s
+      raise ActiveRecord::RecordNotFound unless before.match?(/\A[1-9][0-9]{0,17}\z/)
+
+      history = history.where(id: ...before.to_i)
+    end
+    @inventory_changes = history.limit(101).to_a
+    @more_inventory_changes = @inventory_changes.size > 100
+    @inventory_changes = @inventory_changes.first(100)
+    response.headers['Cache-Control'] = 'private, no-store'
+    render :inventory_history, formats: [:html]
+  end
+
   def import_inventory
     file = params[:inventory_csv]
     unless file.is_a?(ActionDispatch::Http::UploadedFile)
@@ -91,7 +107,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     end
 
     data = file.read(LightekCommerce::InventoryAdjustment::MAX_BYTES + 1).to_s.force_encoding(Encoding::UTF_8)
-    count = LightekCommerce::InventoryAdjustment.apply!(site: @site, data: data)
+    count = LightekCommerce::InventoryAdjustment.apply!(site: @site, actor: current_user, data: data)
     redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'),
       notice: "Updated #{count} inventory #{'row'.pluralize(count)}.", status: :see_other
   rescue LightekCommerce::InventoryAdjustment::Invalid => error

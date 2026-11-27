@@ -2,6 +2,7 @@
 
 require 'csv'
 require 'time'
+require 'securerandom'
 
 module LightekCommerce
   class InventoryAdjustment
@@ -17,8 +18,10 @@ module LightekCommerce
       "stock-#{ActiveRecord::Type::DateTime.new.deserialize(value).utc.iso8601(6)}"
     end
 
-    def self.apply!(site:, data:)
+    def self.apply!(site:, actor:, data:)
       changes = parse(data)
+      batch_key = SecureRandom.uuid
+      actor_name = actor.full_name.presence || "Account ##{actor.id}"
       Product.transaction do
         ids = changes.map(&:product_id).uniq
         products = Product.where(site: site, id: ids).order(:id).lock.index_by(&:id)
@@ -43,13 +46,20 @@ module LightekCommerce
             raise Invalid, "Stock changed since export on row #{change.line}. Download a fresh template and review the counts."
           end
 
-          [target, change.quantity]
+          [target, product, change]
         end
 
-        targets.count do |target, quantity|
-          next false if target.inventory_quantity == quantity
+        targets.count do |target, product, change|
+          next false if target.inventory_quantity == change.quantity
 
-          target.update!(inventory_quantity: quantity)
+          before_quantity = target.inventory_quantity
+          target.update!(inventory_quantity: change.quantity)
+          InventoryChange.create!(
+            site_id: site.id, product_id: product.id, variant_id: change.variant_id,
+            actor_id: actor.id, actor_name: actor_name, product_name: product.name,
+            variant_name: (target.name if change.variant_id), batch_key: batch_key,
+            before_quantity: before_quantity, after_quantity: change.quantity
+          )
           true
         end
       end

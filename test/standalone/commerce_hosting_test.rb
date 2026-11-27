@@ -108,6 +108,7 @@ eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING)
 ConnectFederatedCommerceSettlement.new.migrate(:up)
 require Rails.root.join("app/models/concerns/account_hierarchy").to_s
 class User < ApplicationRecord
+  def full_name = [first_name, last_name].compact.join(" ")
   belongs_to :agency, class_name: "User", optional: true
   has_many :agency_clients, class_name: "User", foreign_key: :agency_id
   has_one :agency_profile
@@ -302,6 +303,9 @@ require Rails.root.join('app/services/lightek_commerce/order_report')
 require Rails.root.join('app/services/lightek_commerce/order_timeline')
 require Rails.root.join('app/services/lightek_commerce/packing_slips')
 require Rails.root.join('app/services/lightek_commerce/inventory_report')
+require Rails.root.join('db/migrate/20261127192000_create_commerce_inventory_adjustments')
+CreateCommerceInventoryAdjustments.new.migrate(:up)
+require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
@@ -1910,18 +1914,49 @@ class CommerceHostingTest < Minitest::Test
     template = CSV.parse(report.adjustment_csv, headers: true)
     template.each { |row| row['new_available_quantity'] = row['variant_id'] ? '0' : '9' }
 
-    assert_equal 2, service.apply!(site: @site, data: template.to_csv)
+    assert_equal 2, service.apply!(site: @site, actor: @operator, data: template.to_csv)
     assert_equal [9, 0], [simple.reload.inventory_quantity, variant.reload.inventory_quantity]
-    assert_raises(service::Invalid) { service.apply!(site: @site, data: template.to_csv) }
+    recorded = LightekCommerce::InventoryChange.for_site(@site).order(:product_id).to_a
+    assert_equal [[simple.id, nil, 3, 9], [variable.id, variant.id, 6, 0]],
+      recorded.map { |entry| [entry.product_id, entry.variant_id, entry.before_quantity, entry.after_quantity] }
+    assert_equal [@operator.id], recorded.map(&:actor_id).uniq
+    assert_equal ['Simple count', 'Variant count'], recorded.map(&:product_name)
+    assert_equal [nil, 'Large'], recorded.map(&:variant_name)
+    assert_equal 1, recorded.map(&:batch_key).uniq.size
+    assert_raises(ActiveRecord::ReadOnlyRecord) { recorded.first.update!(after_quantity: 12) }
+    assert_raises(service::Invalid) { service.apply!(site: @site, actor: @operator, data: template.to_csv) }
 
     template = CSV.parse(report.adjustment_csv, headers: true)
     template.each { |row| row['new_available_quantity'] = '14' }
     simple.update!(inventory_quantity: 8)
-    assert_raises(service::Invalid) { service.apply!(site: @site, data: template.to_csv) }
+    assert_raises(service::Invalid) { service.apply!(site: @site, actor: @operator, data: template.to_csv) }
     assert_equal [8, 0], [simple.reload.inventory_quantity, variant.reload.inventory_quantity]
 
     foreign = DymondSite::Site.create!(tenant: @operator, host: 'stock-write-other.test')
-    assert_raises(service::Invalid) { service.apply!(site: foreign, data: template.to_csv) }
+    assert_raises(service::Invalid) { service.apply!(site: foreign, actor: @operator, data: template.to_csv) }
+    assert_empty LightekCommerce::InventoryChange.for_site(foreign)
+    assert_equal 2, LightekCommerce::InventoryChange.for_site(@site).count
+  end
+
+  def test_inventory_import_rolls_back_stock_and_history_when_an_audit_write_fails
+    items = [product(track_inventory: true, inventory_quantity: 1), product(track_inventory: true, inventory_quantity: 2)]
+    report = LightekCommerce::InventoryReport.new(site: @site, filters: {stock: 'all'})
+    template = CSV.parse(report.adjustment_csv, headers: true)
+    template.each { |row| row['new_available_quantity'] = '4' }
+    history = LightekCommerce::InventoryChange
+    insert = history.method(:create!)
+    simulated_failure = ->(**attrs) do
+      raise ActiveRecord::RecordInvalid.new(history.new) if attrs[:product_id] == items.last.id
+
+      insert.call(**attrs)
+    end
+    history.stub(:create!, simulated_failure) do
+      assert_raises(LightekCommerce::InventoryAdjustment::Invalid) do
+        LightekCommerce::InventoryAdjustment.apply!(site: @site, actor: @operator, data: template.to_csv)
+      end
+    end
+    assert_equal [1, 2], items.map { |item| item.reload.inventory_quantity }
+    assert_empty history.for_site(@site)
   end
 
   def test_inventory_report_mirrors_sellable_stock_and_scopes_csv_to_the_store

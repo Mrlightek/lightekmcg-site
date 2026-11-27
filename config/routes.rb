@@ -242,6 +242,7 @@ end
   get "/dashboard/commerce/returns", to: "dashboard/commerce_returns#index", as: :dashboard_commerce_return_queue
   get "/dashboard/commerce/orders/:order_id/returns", to: "dashboard/commerce_returns#show", as: :dashboard_commerce_returns
   post "/dashboard/commerce/orders/:order_id/returns", to: "dashboard/commerce_returns#create"
+  get "/dashboard/commerce/orders/:order_id/returns/:return_id/label", to: "dashboard/commerce_returns#label", as: :dashboard_commerce_return_label
   post "/dashboard/commerce/orders/:order_id/returns/:return_id", to: "dashboard/commerce_returns#change", as: :change_dashboard_commerce_return
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund
   get "/dashboard/commerce/industry/preview", to: "dashboard/commerce_products#preview_industry", as: :preview_dashboard_commerce_industry
@@ -282,6 +283,7 @@ end
   post "/commerce/cart/discount", to: "commerce#apply_discount", as: :commerce_cart_discount
   get "/commerce/account", to: "commerce#account", as: :commerce_account
   get "/commerce/account/orders/:order_id/returns", to: "commerce#account_returns", as: :commerce_account_returns
+  get "/commerce/account/orders/:order_id/returns/:return_id/label", to: "commerce#account_return_label", as: :commerce_account_return_label
   post "/commerce/account/orders/:order_id/returns", to: "commerce#request_account_return"
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders

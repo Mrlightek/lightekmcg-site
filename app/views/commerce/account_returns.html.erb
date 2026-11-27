@@ -32,6 +32,13 @@
             <li>
               <%= record.quantity %> × <%= @items[record.order_item_id]&.name || 'Order item' %>
               · <%= record.status.humanize %> · <%= l(record.created_at.to_date) %>
+              <% if (label = @return_labels[record.id]) %>
+                <div>
+                  <%= link_to 'Download return label', commerce_account_return_label_path(order_id: @order.id,
+                    return_id: record.id, site_id: @site.id) %>
+                  <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
+                </div>
+              <% end %>
               <% if (refund = @refunds[record.id]) %>
                 <div>Refund <%= number_to_currency(refund.amount_cents / 100.0) %> · <%= refund.status == 'succeeded' ? 'Completed' : refund.status.humanize %></div>
               <% end %>

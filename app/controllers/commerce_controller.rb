@@ -153,8 +153,17 @@ class CommerceController < ApplicationController
     @items = @order.items.includes(:product).select(&:physical_for_fulfillment?).index_by(&:id)
     returns = LightekCommerce::MerchandiseReturn.where(order_id: @order.id)
     @used = returns.counting_against_order.group(:order_item_id).sum(:quantity)
-    @returns = returns.order(id: :desc).limit(100)
+    @returns = returns.order(id: :desc).limit(100).to_a
+    @return_labels = LightekCommerce::ReturnLabel.list_for(@returns)
     @refunds = @order.refunds.where(merchandise_return_id: @returns.map(&:id)).index_by(&:merchandise_return_id)
+  end
+
+  def account_return_label
+    order = buyer_return_order
+    pdf = LightekCommerce::ReturnLabels.download!(order: order, return_id: params[:return_id])
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    send_data pdf, type: 'application/pdf', disposition: 'attachment', filename: "return-#{params[:return_id]}-label.pdf"
   end
 
   def request_account_return

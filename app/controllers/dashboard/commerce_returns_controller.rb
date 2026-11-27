@@ -23,8 +23,16 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     @items = @order.items.includes(:product).select(&:physical_for_fulfillment?).index_by(&:id)
     returns = LightekCommerce::MerchandiseReturn.where(order_id: @order.id)
     @used = returns.counting_against_order.group(:order_item_id).sum(:quantity)
-    @returns = returns.order(id: :desc)
+    @returns = returns.order(id: :desc).to_a
+    @return_labels = LightekCommerce::ReturnLabel.list_for(@returns)
     @refunds = @order.refunds.where.not(merchandise_return_id: nil).index_by(&:merchandise_return_id)
+  end
+
+  def label
+    pdf = LightekCommerce::ReturnLabels.download!(order: @order, return_id: params[:return_id])
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    send_data pdf, type: 'application/pdf', disposition: 'attachment', filename: "return-#{params[:return_id]}-label.pdf"
   end
 
   def create
@@ -49,6 +57,10 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     when 'cancel'
       service.cancel!(id)
       'Return canceled.'
+    when 'upload_label'
+      LightekCommerce::ReturnLabels.upload!(order: @order, return_id: id, actor: current_user,
+        upload: params[:label_pdf], carrier: params[:carrier], tracking_number: params[:tracking_number])
+      'Return label saved.'
     when 'refund'
       record = LightekCommerce::MerchandiseReturn.where(order_id: @order.id).find(id)
       refund = LightekCommerce::Refunds.issue!(order: @order, merchandise_return_id: record.id,
@@ -62,7 +74,7 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     end
     redirect_to return_path, notice: notice, status: :see_other
   rescue LightekCommerce::MerchandiseReturns::Invalid, LightekCommerce::InventoryStockStates::Invalid,
-    LightekCommerce::Refunds::Invalid, Stripe::StripeError => error
+    LightekCommerce::Refunds::Invalid, LightekCommerce::ReturnLabels::Invalid, Stripe::StripeError => error
     redirect_to return_path, alert: error.message, status: :see_other
   end
 

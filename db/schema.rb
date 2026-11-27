@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_203000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_204000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2106,6 +2106,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_203000) do
     t.index ["order_id"], name: "index_lightek_commerce_refunds_on_order_id"
     t.index ["processor_ref"], name: "index_lightek_commerce_refunds_on_processor_ref", unique: true
     t.check_constraint "amount_cents > 0", name: "commerce_refund_positive"
+  end
+
+  create_table "lightek_commerce_return_labels", force: :cascade do |t|
+    t.bigint "merchandise_return_id", null: false
+    t.bigint "uploaded_by_id", null: false
+    t.string "carrier", limit: 10
+    t.string "tracking_number", limit: 35
+    t.binary "pdf", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["merchandise_return_id"], name: "idx_commerce_return_label", unique: true
+    t.check_constraint "carrier IS NULL AND tracking_number IS NULL OR carrier IS NOT NULL AND (carrier::text = ANY (ARRAY['ups'::character varying, 'fedex'::character varying]::text[])) AND tracking_number IS NOT NULL", name: "commerce_return_label_tracking"
   end
 
   create_table "lightek_commerce_revenue_allocations", force: :cascade do |t|
@@ -7775,6 +7787,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_203000) do
   add_foreign_key "lightek_commerce_products", "hosting_packages", column: "source_hosting_package_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_return_labels", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "users", column: "beneficiary_id"
   add_foreign_key "lightek_commerce_subscriptions", "dymond_bank_subscriptions", column: "bank_subscription_id"

@@ -186,6 +186,42 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
     @http.public_send(method, path, params: params, headers: {"X-Test-User" => actor&.id.to_s})
     @http.response
   end
+  def test_private_return_label_upload_download_and_revocation
+    order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    path = "/dashboard/commerce/orders/#{order.id}/returns/#{record.id}"
+    pdf = "%PDF-1.4\nlabel fixture\n%%EOF\n"
+    file = ->(contents) { Rack::Test::UploadedFile.new(StringIO.new(contents), 'application/pdf', original_filename: 'label.pdf') }
+    upload = ->(contents, **extra) do
+      request(:post, path, site_id: @site.id, operation: 'upload_label', label_pdf: file.call(contents), **extra)
+    end
+
+    assert_equal 303, upload.call(pdf).status
+    assert_empty LightekCommerce::ReturnLabel.list_for([record.reload])
+    returns.approve!(record.id)
+    assert_equal 303, upload.call('<html>bad</html>').status
+    assert_equal 303, upload.call(pdf, carrier: 'ups', tracking_number: 'https://bad.test').status
+    assert_equal 404, request(:get, "#{path}/label", site_id: @site.id).status
+    assert_equal 303, upload.call(pdf, carrier: 'fedex', tracking_number: '123456789012').status
+    page = request(:get, "/dashboard/commerce/orders/#{order.id}/returns", site_id: @site.id)
+    assert_equal 200, page.status
+    assert_includes page.body, 'https://www.fedex.com/fedextrack/?trknbr=123456789012'
+    response = request(:get, "#{path}/label", site_id: @site.id)
+    assert_equal 200, response.status
+    assert_equal pdf, response.body
+    assert_includes response.headers.fetch('content-disposition'), 'attachment'
+    assert_includes response.headers.fetch('cache-control'), 'no-store'
+    assert_equal 'nosniff', response.headers.fetch('x-content-type-options')
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'return-label-other.test')
+    assert_equal 404, request(:get, "#{path}/label", site_id: foreign.id).status
+    assert_equal 303, upload.call(pdf.sub('fixture', 'replacement')).status
+    assert_equal 1, LightekCommerce::ReturnLabel.where(merchandise_return_id: record.id).count
+    returns.cancel!(record.id)
+    assert_equal 404, request(:get, "#{path}/label", site_id: @site.id).status
+  end
+
   def test_return_queue_links_to_the_order_and_rejects_an_independent_store
     order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
     order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)

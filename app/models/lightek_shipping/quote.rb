@@ -13,6 +13,10 @@ module LightekShipping
     validates :platform_price_cents, numericality: {only_integer: true, greater_than: 0}
     validates :customer_price_cents, numericality: {only_integer: true, greater_than_or_equal_to: :platform_price_cents}
     def carrier_tracking_url(number)
+      self.class.carrier_tracking_url(provider, number)
+    end
+
+    def self.carrier_tracking_url(provider, number)
       tracking = number.to_s
       if provider == 'ups' && tracking.match?(/\A[A-Z0-9]{8,35}\z/)
         "https://www.ups.com/track?#{URI.encode_www_form(tracknum: tracking)}"

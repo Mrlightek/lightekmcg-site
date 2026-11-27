@@ -224,6 +224,8 @@ end
   patch "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#update"
   patch "/dashboard/commerce/gift-cards", to: "dashboard/commerce_store_settings#update_gift_cards", as: :dashboard_commerce_gift_cards
   post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
+  post "/dashboard/commerce/discounts/import", to: "dashboard/commerce_store_settings#import_discounts", as: :import_dashboard_commerce_store_discounts
+  get "/dashboard/commerce/discounts/export", to: "dashboard/commerce_store_settings#export_discounts", as: :export_dashboard_commerce_store_discounts
   patch "/dashboard/commerce/discounts/:id", to: "dashboard/commerce_store_settings#update_discount", as: :dashboard_commerce_store_discount
   resources :dashboard_commerce_collections, path: "/dashboard/commerce/collections", controller: "dashboard/commerce_collections", except: :show
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]

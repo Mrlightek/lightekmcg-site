@@ -28,6 +28,15 @@
   <% end %>
   <section class="dd-panel">
     <h2>Discounts</h2>
+    <details>
+      <summary>Bulk discount codes</summary>
+      <p>Use the exported headings to import up to 500 new codes at once. Existing codes are rejected.</p>
+      <%= link_to 'Download discount codes CSV', export_dashboard_commerce_store_discounts_path(site_id: @site.id) %>
+      <%= form_with url: import_dashboard_commerce_store_discounts_path(site_id: @site.id), multipart: true, class: 'dd-form-stack' do |form| %>
+        <label>Discount codes CSV <%= form.file_field :file, accept: '.csv,text/csv', required: true %></label>
+        <%= form.submit 'Import codes', class: 'dd-button' %>
+      <% end %>
+    </details>
     <%= form_with model: LightekCommerce::Discount.new, scope: :discount, url: dashboard_commerce_store_discounts_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>
       <%= render 'discount_fields', form: form %>
       <%= form.submit 'Create discount', class: 'dd-button dd-btn-primary' %>

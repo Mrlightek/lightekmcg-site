@@ -285,6 +285,7 @@ CreateCommerceCollections.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/discount')
 require Rails.root.join('app/models/lightek_commerce/discount_use')
 require Rails.root.join('app/models/lightek_commerce/collection')
+require Rails.root.join('app/services/lightek_commerce/discount_csv')
 require Rails.root.join('app/services/lightek_commerce/discounts')
 require Rails.root.join('app/services/lightek_commerce/store_appearance')
 LightekCommerce::Order.reset_column_information
@@ -1024,6 +1025,34 @@ class CommerceHostingTest < Minitest::Test
     collection.destroy!
     refute collection_rule.reload.active?
     assert_nil collection_rule.target_collection_id
+  end
+
+  def test_discount_csv_import_is_scoped_and_atomic_and_exports_spreadsheet_safe_data
+    service = LightekCommerce::DiscountCSV
+    product = product(name: 'Sample', billing_interval: 'one_time', price_cents: 999)
+    other_site = DymondSite::Site.create!(tenant: @operator, host: 'discount-csv-other.test')
+    assert_equal service::HEADERS, CSV.parse(service.export(other_site)).sole
+    values = ['CSV', '=Sample', 'fixed', '150', '100', 'true', 'true', '2026-11-27T17:15:00Z',
+      '2026-11-29T17:15:00Z', '10', '1', product.slug, nil]
+    missing_target = values.dup
+    missing_target[0] = 'WRONG'
+    missing_target[11] = 'does-not-exist'
+    headers = CSV.generate_line(service::HEADERS)
+    row = CSV.generate_line(values)
+    failure = headers + row + CSV.generate_line(missing_target)
+    assert_raises(service::Invalid) { service.import!(@site, failure) }
+    refute LightekCommerce::Discount.exists?(site: @site, code: 'CSV')
+
+    assert_equal 1, service.import!(@site, headers + row)
+    discount = LightekCommerce::Discount.find_by!(site: @site, code: 'CSV')
+    assert_equal [true, true, 10, 1, product.id], [discount.active?, discount.combinable?,
+      discount.usage_limit, discount.buyer_limit, discount.target_product_id]
+    assert_equal "2026-11-27T17:15:00Z", discount.starts_at.utc.iso8601
+    export = CSV.parse(service.export(@site), headers: true)
+    assert_equal "'=Sample", export.first.fetch('name')
+    assert_raises(service::Invalid) { service.import!(other_site, service.export(@site)) }
+    assert_raises(service::Invalid) { service.import!(@site, headers + row) }
+    assert_equal 1, LightekCommerce::Discount.where(code: 'CSV').count
   end
 
   def test_discount_review_rejects_repriced_carts_and_retries_a_reserved_discount

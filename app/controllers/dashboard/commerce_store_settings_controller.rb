@@ -43,6 +43,25 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
     redirect_to_store('This code already exists for your store.', error: true)
   end
 
+  def import_discounts
+    file = params[:file]
+    unless file.is_a?(ActionDispatch::Http::UploadedFile)
+      return redirect_to_store('Choose a CSV file to import.', error: true)
+    end
+
+    service = LightekCommerce::DiscountCSV
+    content = file.read(service::MAX_BYTES + 1).to_s.force_encoding(Encoding::UTF_8)
+    count = service.import!(@site, content)
+    redirect_to_store("Imported #{count} discount #{'code'.pluralize(count)}.")
+  rescue LightekCommerce::DiscountCSV::Invalid => error
+    redirect_to_store(error.message, error: true)
+  end
+
+  def export_discounts
+    response.headers['Cache-Control'] = 'private, no-store'
+    send_data LightekCommerce::DiscountCSV.export(@site), filename: 'discount-codes.csv', type: 'text/csv; charset=utf-8'
+  end
+
   def update_discount
     discount = LightekCommerce::Discount.where(site: @site).find(params[:id])
     attrs = params.key?(:discount) ? discount_params : {active: params[:active] == '1'}

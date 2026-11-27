@@ -649,6 +649,8 @@ get "/dashboard/customers", to: "dashboard/customers#index", as: :dashboard_cust
 get "/dashboard/customers/history", to: "dashboard/customers#history", as: :history_dashboard_customers
 get "/dashboard/shipping", to: "dashboard/shipping#index", as: :dashboard_shipping
 post "/dashboard/shipping/profile", to: "dashboard/shipping#profile", as: :dashboard_shipping_profile
+get "/dashboard/shipping/supplies", to: "dashboard/shipping#supplies", as: :dashboard_shipping_supplies
+post "/dashboard/shipping/quotes/:key/pickup-rate", to: "dashboard/shipping#pickup_rate", as: :dashboard_shipping_pickup_rate
 post "/dashboard/shipping/quotes", to: "dashboard/shipping#quote", as: :dashboard_shipping_quotes
 post "/dashboard/shipping/carrier", to: "dashboard/shipping#configure_carrier", as: :dashboard_shipping_carrier
 post "/dashboard/shipping/:key/purchase", to: "dashboard/shipping#purchase", as: :purchase_dashboard_shipping
@@ -669,7 +671,9 @@ post "/api/reservations/federation/commerce/orders/:key/payout", to: "api/commer
 post "/api/reservations/federation/commerce/orders/:key/cancel-subscription", to: "api/commerce_network#cancel_subscription"
 post "/api/reservations/federation/commerce/connect", to: "api/commerce_network#connect"
 post "/api/reservations/federation/commerce/summary", to: "api/commerce_network#summary"
+get "/api/reservations/federation/shipping/supplies", to: "api/shipping_broker#supplies"
 post "/api/reservations/federation/shipping/quotes", to: "api/shipping_broker#quotes"
+post "/api/reservations/federation/shipping/quotes/:key/pickup-rate", to: "api/shipping_broker#pickup_rate"
 post "/api/reservations/federation/shipping/quotes/:key/purchase", to: "api/shipping_broker#purchase"
 get "/api/reservations/federation/shipping/quotes/:key/status", to: "api/shipping_broker#status"
 get "/api/reservations/federation/shipping/quotes/:key/labels/:index", to: "api/shipping_broker#label"

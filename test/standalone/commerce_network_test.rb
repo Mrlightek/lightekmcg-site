@@ -120,6 +120,17 @@ class CommerceNetworkTest < CommerceHostingTest
     assert_raises(ArgumentError) { reserve(payload.merge('discount_cents' => 250)) }
   end
 
+  def test_network_ups_quote_keeps_provider_and_rejects_local_markup
+    quote = shipping_quote(provider: 'ups', platform_price_cents: 1400, customer_price_cents: 1400, service_code: '03')
+    rows = attributes.fetch('items')
+    rows.first['product_type'] = 'physical'
+    payload = attributes.merge('items' => rows, 'shipping_quote_key' => quote.public_key, 'shipping_price_cents' => 1500)
+    assert_raises(ArgumentError) { reserve(payload) }
+    order = reserve(payload.merge('shipping_price_cents' => 1400)).order
+    assert_equal 'ups', order.shipping_quote.provider
+    assert_equal 1400, order.shipping_cents
+  end
+
   def test_network_free_shipping_retains_the_original_carrier_rate_and_rejects_unfunded_sales
     quote = shipping_quote
     rows = attributes.fetch('items')

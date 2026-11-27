@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_190000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_191000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4655,6 +4655,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_190000) do
     t.bigint "purchase_order_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "provider", default: "fedex", null: false
     t.index ["broker_reference"], name: "index_lightek_shipping_quotes_on_broker_reference"
     t.index ["public_key"], name: "index_lightek_shipping_quotes_on_public_key", unique: true
     t.index ["purchase_order_id"], name: "index_lightek_shipping_quotes_on_purchase_order_id", unique: true

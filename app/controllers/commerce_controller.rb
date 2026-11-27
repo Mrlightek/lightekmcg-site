@@ -134,7 +134,7 @@ class CommerceController < ApplicationController
     response.headers['Cache-Control'] = 'private, no-store'
     @appearance = LightekCommerce::StoreAppearance.read(@site)
     @orders = LightekCommerce::Order.visible.where(site: @site, storefront_buyer_id: current_user.id)
-      .where.not(paid_at: nil).order(paid_at: :desc).limit(50)
+      .where.not(paid_at: nil).includes(shipping_quote: :shipment).order(paid_at: :desc).limit(50)
   end
 
   def gift_card_balance

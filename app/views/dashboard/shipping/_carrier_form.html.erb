@@ -1,0 +1,35 @@
+<% name = account.provider == 'ups' ? 'UPS' : 'FedEx' %>
+<details>
+  <summary><%= name %> · <%= account.enabled? ? (account.sandbox? ? 'Sandbox' : 'Production') : 'Disabled' %></summary>
+  <%= form_with url: dashboard_shipping_carrier_path(site_id: @site.id), class: 'infra-form' do |form| %>
+    <%= hidden_field_tag :provider, account.provider, id: nil %>
+    <%= form.fields_for :carrier, account, namespace: account.provider do |carrier| %>
+      <div class="infra-fields">
+        <label><%= carrier.check_box :sandbox %> Sandbox</label>
+        <label><%= carrier.check_box :enabled %> Enable carrier</label>
+        <label><%= carrier.check_box :production_approved %> Carrier approved production use</label>
+        <% if account.provider == 'fedex' %>
+          <label>Markup (basis points) <%= carrier.number_field :markup_bps, min: 0, required: true %></label>
+          <label>Fixed markup (cents) <%= carrier.number_field :fixed_markup_cents, min: 0, required: true %></label>
+          <label>Minimum margin after processing (cents) <%= carrier.number_field :minimum_margin_cents, min: 1, required: true %></label>
+        <% else %>
+          <p>UPS rates include a fixed $2.00 Lightek markup before applicable tax.</p>
+        <% end %>
+      </div>
+    <% end %>
+    <p>Leave credentials blank to keep the saved connection.</p>
+    <%= form.fields_for :credentials do |credentials| %>
+      <div class="infra-fields">
+        <label>API client ID <%= credentials.password_field :client_id, autocomplete: 'new-password', id: nil %></label>
+        <label>API client secret <%= credentials.password_field :client_secret, autocomplete: 'new-password', id: nil %></label>
+        <label>Lightek billing account number <%= credentials.password_field :account_number, autocomplete: 'new-password', id: nil %></label>
+        <% if account.provider == 'fedex' %>
+          <label>Integrator child key <%= credentials.password_field :child_key, autocomplete: 'new-password', id: nil %></label>
+          <label>Integrator child secret <%= credentials.password_field :child_secret, autocomplete: 'new-password', id: nil %></label>
+          <label>Authorization type <%= credentials.select :grant_type, [['Standard', 'client_credentials'], ['Integrator', 'csp_credentials'], ['Parent / child', 'client_pc_credentials']], include_blank: 'Keep existing' %></label>
+        <% end %>
+      </div>
+    <% end %>
+    <%= form.submit "Save #{name} account", class: 'infra-button' %>
+  <% end %>
+</details>

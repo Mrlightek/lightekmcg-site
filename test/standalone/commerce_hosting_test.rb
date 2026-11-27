@@ -262,7 +262,7 @@ require Rails.root.join('app/services/lightek_agency/hosting_catalog').to_s
   lightek_commerce/network_account lightek_commerce/network_sale lightek_commerce/order lightek_commerce/order_item lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/account lightek_shipping/profile lightek_shipping/quote lightek_shipping/shipment].each do |path|
   require Rails.root.join("app/models/#{path}").to_s
 end
-%w[lightek_commerce/network_accounts lightek_commerce/network_gateway lightek_commerce/network_checkout lightek_shipping/payload lightek_shipping/fedex lightek_shipping/quotes lightek_shipping/purchases lightek_shipping/labels lightek_commerce/fulfillment gatekeeper/hosting/access lightek_commerce/payment_identity lightek_commerce/revenue_sharing lightek_commerce/merchant_payouts lightek_commerce/order_placement
+%w[lightek_commerce/network_accounts lightek_commerce/network_gateway lightek_commerce/network_checkout lightek_shipping/payload lightek_shipping/fedex lightek_shipping/ups lightek_shipping/quotes lightek_shipping/pickup_quote lightek_shipping/supplies lightek_shipping/purchases lightek_shipping/labels lightek_commerce/fulfillment gatekeeper/hosting/access lightek_commerce/payment_identity lightek_commerce/revenue_sharing lightek_commerce/merchant_payouts lightek_commerce/order_placement
   gatekeeper/compute/linode_catalog_service gatekeeper/hosting/package_purchase gatekeeper/hosting/workspace_plans gatekeeper/hosting/retail_pricing lightek_commerce/stripe_checkout lightek_commerce/stripe_events lightek_commerce/subscription_events lightek_commerce/refunds lightek_commerce/processor_payment lightek_commerce/buyer_price lightek_commerce/merchant_ledger lightek_settings/website_identity].each do |path|
   require Rails.root.join("app/services/#{path}").to_s
 end
@@ -293,6 +293,8 @@ RecordMerchantFundedShippingDiscounts.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127190000_add_commerce_gift_card_delivery')
 AddCommerceGiftCardDelivery.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/gift_delivery')
+require Rails.root.join('db/migrate/20261127191000_add_provider_to_shipping_quotes')
+AddProviderToShippingQuotes.new.migrate(:up)
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1809,6 +1811,103 @@ class CommerceHostingTest < Minitest::Test
     LightekShipping::Quote.create!({site: @site, service_code: "FEDEX_GROUND", service_name: "FedEx Ground", carrier_cost_cents: 900,
       platform_price_cents: 1200, customer_price_cents: 1400, expires_at: 30.minutes.from_now, shipment_payload: payload}.merge(attributes))
   end
+  def test_ups_negotiated_rates_add_exactly_two_dollars_for_every_store
+    account = LightekShipping::Account.create!(provider: 'ups', credential_slug: 'ups-fixture', enabled: true,
+      markup_bps: 1000, fixed_markup_cents: 500)
+    carrier = LightekShipping::Ups.new(account: account)
+    negotiated = {'Service' => {'Code' => '03'}, 'NegotiatedRateCharges' => {'TotalCharge' => {'CurrencyCode' => 'USD', 'MonetaryValue' => '12.35'}}}
+    list_only = {'Service' => {'Code' => '02'}, 'TotalCharges' => {'CurrencyCode' => 'USD', 'MonetaryValue' => '25.00'}}
+    LightekShipping::Ups.stub(:new, carrier) do
+      carrier.stub(:request, ->(method, path, input) {
+        assert_equal [:post, '/api/rating/v2409/Shop'], [method, path]
+        shipment = input.dig('RateRequest', 'Shipment')
+        assert shipment.fetch('ShipmentRatingOptions').key?('NegotiatedRatesIndicator')
+        assert_equal '02', shipment.dig('Package', 0, 'PackagingType', 'Code')
+        {'RateResponse' => {'RatedShipment' => [negotiated, list_only]}}
+      }) do
+        rates = LightekShipping::Quotes.create!(site: @site, origin: shipping_party, recipient: shipping_party,
+          packages: [shipping_package], customer_markup_bps: 2000, gateway: false)
+        quote = rates.sole
+        assert_equal ['ups', 1235, 1435, 1435], [quote.provider, quote.carrier_cost_cents, quote.platform_price_cents, quote.customer_price_cents]
+        assert_equal 'ups', quote.public_attributes[:provider]
+        refute quote.public_attributes.key?(:carrier_cost_cents)
+      end
+    end
+  end
+
+  def test_ups_labels_track_and_void_through_the_selected_carrier
+    quote = shipping_quote(provider: 'ups', service_code: '03')
+    order = order_for(product)
+    order.update!(status: 'paid', paid_at: Time.current, purpose: 'shipping_label')
+    quote.update!(purchase_order: order)
+    account = LightekShipping::Account.create!(provider: 'ups', credential_slug: 'ups-fixture', enabled: true)
+    carrier = LightekShipping::Ups.new(account: account)
+    tracking = '1Z1234567890123456'
+    handler = ->(method, path, payload = nil, **_) {
+      case method
+      when :post
+        assert_equal '/api/shipments/v2409/ship', path
+        assert_equal '03', payload.dig('ShipmentRequest', 'Shipment', 'Service', 'Code')
+        assert_equal 'GIF', payload.dig('ShipmentRequest', 'LabelSpecification', 'LabelImageFormat', 'Code')
+        {'ShipmentResponse' => {'ShipmentResults' => {'ShipmentIdentificationNumber' => tracking,
+          'NegotiatedRateCharges' => {'TotalCharge' => {'MonetaryValue' => '9.00', 'CurrencyCode' => 'USD'}},
+          'PackageResults' => {'ShippingLabel' => {'GraphicImage' => Base64.strict_encode64('GIF89a fixture')}}}}}
+      when :get
+        assert_equal "/api/track/v1/details/#{tracking}", path
+        {'trackResponse' => {'shipment' => [{'package' => [{'currentStatus' => {'description' => 'In transit'}}]}]}}
+      when :delete
+        assert_equal "/api/shipments/v2409/void/cancel/#{tracking}", path
+        {'VoidShipmentResponse' => {'SummaryResult' => {'Status' => {'Code' => '1'}}}}
+      end
+    }
+    DymondBank::StripeCredentials.stub(:secret_key, 'sk_test_fake') do
+      LightekShipping::Ups.stub(:new, carrier) do
+        carrier.stub(:request, handler) do
+          label = LightekShipping::Labels.issue!(quote: quote)
+          assert_equal [tracking, 900, 'image/gif'], [label.tracking_number, label.actual_carrier_cost_cents, label.labels.first[:content_type]]
+          assert_equal "https://www.ups.com/track?tracknum=#{tracking}", quote.carrier_tracking_url(tracking)
+          assert_nil quote.carrier_tracking_url('https://untrusted.example')
+          assert_equal 'In transit', LightekShipping::Labels.refresh!(quote: quote).carrier_status
+          assert_equal 'canceled', LightekShipping::Labels.cancel!(quote: quote).status
+        end
+      end
+    end
+  end
+
+  def test_ups_pickup_price_uses_the_negotiated_pickup_charge_plus_two_dollars
+    quote = shipping_quote(provider: 'ups', service_code: '03')
+    account = LightekShipping::Account.create!(provider: 'ups', credential_slug: 'ups-fixture', enabled: true)
+    carrier = LightekShipping::Ups.new(account: account)
+    pickup = {date: Date.current.next_day.iso8601, ready: '09:00', close: '17:00'}
+    LightekShipping::Ups.stub(:new, carrier) do
+      carrier.stub(:request, ->(method, path, input) {
+        assert_equal [:post, '/api/shipments/v2409/pickup/oncall'], [method, path]
+        assert_equal '03', input.dig('PickupRateRequest', 'ServiceDateOption')
+        assert_equal '0900', input.dig('PickupRateRequest', 'PickupDateInfo', 'ReadyTime')
+        {'PickupRateResponse' => {'Response' => {'ResponseStatus' => {'Code' => '1'}},
+          'RateResult' => {'CurrencyCode' => 'USD', 'PreTaxTotalCharge' => '8.50', 'PreTaxTotalIncentedCharge' => '5.50'}}}
+      }) do
+        assert_equal 750, LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup)
+        assert_raises(ArgumentError) { LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup.merge(close: '08:00')) }
+      end
+    end
+  end
+
+  def test_packing_supplies_catalog_requires_published_platform_stock
+    item = product(product_type: 'physical', billing_interval: 'one_time', published: true)
+    tenant = User.create!(role: 'white_label', email_address: 'supply-merchant@example.test')
+    site = DymondSite::Site.create!(tenant: tenant, host: 'merchant-supplies.example.test')
+    local = product(site: site, product_type: 'physical', billing_interval: 'one_time', published: true)
+    collections = LightekCommerce::Collection
+    collections.create!(site: site, name: 'Packing supplies', product_ids: [local.id], published: true)
+    supplies = LightekShipping::Supplies
+    assert_nil supplies.catalog_site_id
+    catalog = collections.create!(site: @site, name: 'Packing supplies', product_ids: [item.id], published: true)
+    assert_equal @site.id, supplies.catalog_site_id
+    catalog.update!(published: false)
+    assert_nil supplies.catalog_site_id
+  end
+
   def test_shipping_rate_preserves_platform_margin_after_processing_reserve
     account = LightekShipping::Account.new(provider: "fedex", credential_slug: "carrier", markup_bps: 1000, fixed_markup_cents: 50, minimum_margin_cents: 200)
     price = account.retail_cents(1000)

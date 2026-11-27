@@ -23,25 +23,39 @@ module LightekShipping
     def self.create!(site:, origin:, recipient:, packages:, fingerprint: nil, customer_markup_bps: 0, gateway: true)
       payload = Payload.shipment!(origin: origin, recipient: recipient, packages: packages)
       network = gateway && LightekReservations::Federation::Client.config(site)
-      if network
+      rates = if network
         data = LightekReservations::Federation::Client.new(site).request("shipping/quotes", method: :post,
           body: {origin: origin, recipient: recipient, packages: packages})
         data.fetch("quotes").map do |rate|
-          price = rate.fetch("price_cents")
-          Quote.create!(site: site, broker_reference: rate.fetch("key"), service_code: rate.fetch("service_code"), service_name: rate.fetch("service_name"),
-            platform_price_cents: price, customer_price_cents: (price * (10_000 + customer_markup_bps) + 9999) / 10_000,
-            sandbox: rate.fetch("sandbox"), shipment_payload: payload, cart_fingerprint: fingerprint, expires_at: Time.iso8601(rate.fetch("expires_at")))
+          rate.slice("service_code", "service_name", "sandbox").merge("provider" => rate.fetch("provider", "fedex"),
+            "broker_reference" => rate.fetch("key"), "platform_price_cents" => rate.fetch("price_cents"),
+            "expires_at" => Time.iso8601(rate.fetch("expires_at")))
         end
       else
-        account = Account.find_by!(provider: "fedex", enabled: true)
-        Fedex.new(account: account).rates(payload).map do |rate|
-          price = account.retail_cents(rate.fetch("cost_cents"))
-          Quote.create!(site: site, service_code: rate.fetch("service_code"), service_name: rate.fetch("service_name"),
-            carrier_cost_cents: rate.fetch("cost_cents"), platform_price_cents: price,
-            customer_price_cents: (price * (10_000 + customer_markup_bps) + 9999) / 10_000,
-            sandbox: account.sandbox?, shipment_payload: payload, cart_fingerprint: fingerprint, expires_at: 30.minutes.from_now)
+        platform_rates(payload)
+      end
+      raise ArgumentError, 'No carrier returned an eligible account rate for this delivery.' if rates.empty?
+
+      Quote.transaction do
+        rates.sort_by { |rate| rate.fetch("platform_price_cents") }.map do |rate|
+          price = rate.fetch("platform_price_cents")
+          customer_price = rate.fetch("provider") == "ups" ? price : (price * (10_000 + customer_markup_bps) + 9999) / 10_000
+          Quote.create!(rate.merge(site: site, customer_price_cents: customer_price, cart_fingerprint: fingerprint, shipment_payload: payload))
         end
       end
     end
+
+    def self.platform_rates(payload)
+      Account.where(enabled: true).order(:provider).flat_map do |account|
+        account.carrier_class.new(account: account).rates(payload).map do |rate|
+          cost = rate.fetch("cost_cents")
+          rate.slice("service_code", "service_name").merge("provider" => account.provider, "sandbox" => account.sandbox?,
+            "carrier_cost_cents" => cost, "platform_price_cents" => account.retail_cents(cost), "expires_at" => 30.minutes.from_now)
+        end
+      rescue Fedex::Unavailable, Ups::Unavailable, LightekVault::Service::AccessDenied, ActiveRecord::RecordNotFound
+        []
+      end
+    end
+    private_class_method :platform_rates
   end
 end

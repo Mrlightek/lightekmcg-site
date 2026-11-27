@@ -16,7 +16,20 @@
       <% else %>
         <ul>
           <% @orders.each do |order| %>
-            <li>Order #<%= order.id %> · <%= l(order.paid_at.to_date) %> · <%= number_to_currency(order.total_cents / 100.0) %> · <%= order.status.humanize %></li>
+            <li>
+              Order #<%= order.id %> · <%= l(order.paid_at.to_date) %> · <%= number_to_currency(order.total_cents / 100.0) %> · <%= order.status.humanize %>
+              <% quote = order.shipping_quote %>
+              <% shipment = quote&.shipment %>
+              <% if quote && (shipment.nil? || shipment.status == 'ready') %>
+                <% tracking = shipment&.tracking_number.presence || order.fulfillment_reference %>
+                <% if (url = quote.carrier_tracking_url(tracking)) %>
+                  <div>
+                    <%= link_to "Track #{quote.service_name} shipment", url %>
+                    <% if shipment&.carrier_status.present? %>· <%= shipment.carrier_status %><% end %>
+                  </div>
+                <% end %>
+              <% end %>
+            </li>
           <% end %>
         </ul>
       <% end %>

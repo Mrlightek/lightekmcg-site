@@ -86,6 +86,9 @@ module LightekCommerce
           raise ArgumentError, "This shipping quote already has a label order" if source_quote.purchase_order_id.present?
           shipping = Integer(attrs.fetch("shipping_price_cents"))
           raise ArgumentError, "Shipping price is below the platform rate" if shipping < source_quote.platform_price_cents || shipping > 10_000_000
+          if source_quote.provider == 'ups' && shipping != source_quote.platform_price_cents
+            raise ArgumentError, 'UPS shipping must match the platform price'
+          end
           unless shipping_discount.zero? || (!recurring && shipping_discount == shipping && rows.any? { |row| row["product_type"] == "physical" })
             raise ArgumentError, 'Invalid shipping discount'
           end

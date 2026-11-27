@@ -135,6 +135,8 @@ require ROOT.join('db/migrate/20261127193000_add_source_to_commerce_inventory_ch
 AddSourceToCommerceInventoryChanges.new.migrate(:up)
 require ROOT.join('db/migrate/20261127194000_record_order_inventory_changes')
 RecordOrderInventoryChanges.new.migrate(:up)
+require ROOT.join('db/migrate/20261127195000_add_reason_to_commerce_inventory_changes')
+AddReasonToCommerceInventoryChanges.new.migrate(:up)
 %w[hosting_package lightek_commerce/inventory_change lightek_commerce/network_sale lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/quote lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
   lightek_reservations/resource lightek_reservations/reservation lightek_reservations/blackout
   lightek_reservations/change lightek_reservations/peer lightek_reservations/intent lightek_commerce/payout_schedule].each { |file| require ROOT.join('app/models', file).to_s }

@@ -309,6 +309,8 @@ require Rails.root.join('db/migrate/20261127193000_add_source_to_commerce_invent
 AddSourceToCommerceInventoryChanges.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127194000_record_order_inventory_changes')
 RecordOrderInventoryChanges.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127195000_add_reason_to_commerce_inventory_changes')
+AddReasonToCommerceInventoryChanges.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
@@ -1918,7 +1920,11 @@ class CommerceHostingTest < Minitest::Test
     template = CSV.parse(report.adjustment_csv, headers: true)
     template.each { |row| row['new_available_quantity'] = row['variant_id'] ? '0' : '9' }
 
-    assert_equal 2, service.apply!(site: @site, actor: @operator, data: template.to_csv)
+    assert_raises(service::Invalid) { service.apply!(site: @site, actor: @operator, data: template.to_csv, reason: 'other') }
+    assert_equal [3, 6], [simple.reload.inventory_quantity, variant.reload.inventory_quantity]
+    assert_empty LightekCommerce::InventoryChange.for_site(@site)
+
+    assert_equal 2, service.apply!(site: @site, actor: @operator, data: template.to_csv, reason: 'count')
     assert_equal [9, 0], [simple.reload.inventory_quantity, variant.reload.inventory_quantity]
     recorded = LightekCommerce::InventoryChange.for_site(@site).order(:product_id).to_a
     assert_equal [[simple.id, nil, 3, 9], [variable.id, variant.id, 6, 0]],
@@ -1928,6 +1934,8 @@ class CommerceHostingTest < Minitest::Test
     assert_equal [nil, 'Large'], recorded.map(&:variant_name)
     assert_equal 1, recorded.map(&:batch_key).uniq.size
     assert_equal ['csv_import'], recorded.map(&:source).uniq
+    assert_equal ['count'], recorded.map(&:reason).uniq
+    assert_equal ['Stock count'], recorded.map(&:reason_label).uniq
     assert_raises(ActiveRecord::ReadOnlyRecord) { recorded.first.update!(after_quantity: 12) }
     assert_raises(service::Invalid) { service.apply!(site: @site, actor: @operator, data: template.to_csv) }
 
@@ -1980,12 +1988,20 @@ class CommerceHostingTest < Minitest::Test
     service = LightekCommerce::InventoryAdjustment
     history = LightekCommerce::InventoryChange.for_site(@site)
     old_version = service.snapshot_version(item.updated_at)
-    assert service.update_product!(product: item, actor: @operator, attributes: {inventory_quantity: 3}, version: old_version)
+    assert_raises(service::Invalid) do
+      service.update_product!(product: item, actor: @operator, attributes: {inventory_quantity: 3}, reason: 'unknown')
+    end
+    assert_equal 5, item.reload.inventory_quantity
+    assert_empty history
+    assert service.update_product!(product: item, actor: @operator,
+      attributes: {inventory_quantity: 3}, version: old_version, reason: 'damaged')
     assert_equal 3, item.reload.inventory_quantity
     entry = history.sole
     assert_equal [item.id, @operator.id, 5, 3, 'product_editor'],
       [entry.product_id, entry.actor_id, entry.before_quantity, entry.after_quantity, entry.source]
     assert_equal 'Product editor', entry.source_label
+    assert_equal 'damaged', entry.reason
+    assert_equal 'Damaged stock', entry.reason_label
 
     assert_raises(service::Invalid) do
       service.update_product!(product: item, actor: @operator, attributes: {inventory_quantity: 9}, version: old_version)
@@ -1995,6 +2011,8 @@ class CommerceHostingTest < Minitest::Test
     refute service.update_product!(product: item, actor: @operator, attributes: {inventory_quantity: -1})
     assert_equal 1, history.count
     assert_equal 'Tracked product', entry.reload.product_name
+    assert service.update_product!(product: item.reload, actor: @operator, attributes: {inventory_quantity: 4})
+    assert_nil history.order(:id).last.reason_label
   end
 
   def test_manual_stock_changes_roll_back_when_the_history_write_fails

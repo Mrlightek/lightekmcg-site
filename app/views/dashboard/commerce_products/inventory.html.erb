@@ -27,6 +27,10 @@
     <%= form_with url: dashboard_commerce_products_path(site_id: @site.id), method: :post, multipart: true, class: 'dd-form-stack' do %>
       <%= hidden_field_tag :inventory_import, '1' %>
       <label>Inventory adjustment CSV <%= file_field_tag :inventory_csv, accept: '.csv,text/csv', required: true %></label>
+      <label>Reason for this upload
+        <%= select_tag :inventory_reason, options_for_select(LightekCommerce::InventoryChange::REASON_LABELS.invert),
+          include_blank: 'Optional' %>
+      </label>
       <%= submit_tag 'Update stock', class: 'dd-button dd-btn-primary' %>
     <% end %>
   </section>

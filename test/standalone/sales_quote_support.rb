@@ -65,6 +65,8 @@ require ROOT.join('db/migrate/20261127193000_add_source_to_commerce_inventory_ch
 AddSourceToCommerceInventoryChanges.new.migrate(:up)
 require ROOT.join('db/migrate/20261127194000_record_order_inventory_changes')
 RecordOrderInventoryChanges.new.migrate(:up)
+require ROOT.join('db/migrate/20261127195000_add_reason_to_commerce_inventory_changes')
+AddReasonToCommerceInventoryChanges.new.migrate(:up)
 require ROOT.join('app/models/lightek_commerce/inventory_change')
 require ROOT.join('app/services/lightek_commerce/order_placement')
 require ROOT.join('db/migrate/20261115120100_add_sales_quotes')

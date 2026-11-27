@@ -18,7 +18,8 @@ module LightekCommerce
       "stock-#{ActiveRecord::Type::DateTime.new.deserialize(value).utc.iso8601(6)}"
     end
 
-    def self.apply!(site:, actor:, data:)
+    def self.apply!(site:, actor:, data:, reason: nil)
+      reason = normalize_reason(reason)
       changes = parse(data)
       batch_key = SecureRandom.uuid
       Product.transaction do
@@ -54,7 +55,7 @@ module LightekCommerce
           before_quantity = target.inventory_quantity
           target.update!(inventory_quantity: change.quantity)
           InventoryChange.record!(product: product, variant: (target if change.variant_id), actor: actor,
-            batch_key: batch_key, source: 'csv_import', before_quantity: before_quantity, after_quantity: change.quantity)
+            batch_key: batch_key, source: 'csv_import', reason: reason, before_quantity: before_quantity, after_quantity: change.quantity)
           true
         end
       end
@@ -64,7 +65,7 @@ module LightekCommerce
       raise Invalid, 'Another inventory transaction is in progress. Try the import again.'
     end
 
-    def self.update_product!(product:, actor:, attributes:, version: nil)
+    def self.update_product!(product:, actor:, attributes:, version: nil, reason: nil)
       product.with_lock do
         before_quantity = product.inventory_quantity
         before_tracking = product.track_inventory?
@@ -75,10 +76,12 @@ module LightekCommerce
           raise Invalid, 'Stock changed since you opened this product. Review the current count and try again.'
         end
 
+        audit_quantity = changed_quantity && (before_tracking || product.track_inventory?)
+        reason = normalize_reason(reason) if audit_quantity
         next false unless product.save
 
-        if changed_quantity && (before_tracking || product.track_inventory?)
-          InventoryChange.record!(product: product, actor: actor, source: 'product_editor',
+        if audit_quantity
+          InventoryChange.record!(product: product, actor: actor, source: 'product_editor', reason: reason,
             before_quantity: before_quantity, after_quantity: product.inventory_quantity)
         end
         true
@@ -87,6 +90,13 @@ module LightekCommerce
       raise Invalid, 'The product could not be saved with its inventory history. Try again.'
     rescue ActiveRecord::Deadlocked
       raise Invalid, 'Another inventory transaction is in progress. Try again.'
+    end
+
+    def self.normalize_reason(reason)
+      return if reason.nil? || reason == ''
+      raise Invalid, 'Choose a valid inventory adjustment reason.' unless InventoryChange::REASON_LABELS.key?(reason)
+
+      reason
     end
 
     def self.parse(data)
@@ -139,6 +149,6 @@ module LightekCommerce
       value.to_i
     end
 
-    private_class_method :parse, :parse_id, :parse_quantity
+    private_class_method :normalize_reason, :parse, :parse_id, :parse_quantity
   end
 end

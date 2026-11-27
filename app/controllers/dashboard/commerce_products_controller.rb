@@ -51,7 +51,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     authorize_instance_product!
     attributes = product_params.except(:remove_photo_ids)
     if LightekCommerce::InventoryAdjustment.update_product!(product: @product, actor: current_user,
-        attributes: attributes, version: params[:inventory_stock_version])
+        attributes: attributes, version: params[:inventory_stock_version], reason: params[:inventory_reason])
       Array(product_params[:remove_photo_ids]).reject(&:blank?).each do |id|
         attachment = @product.photos_attachments.find_by(id: id)
         attachment&.purge
@@ -111,7 +111,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     end
 
     data = file.read(LightekCommerce::InventoryAdjustment::MAX_BYTES + 1).to_s.force_encoding(Encoding::UTF_8)
-    count = LightekCommerce::InventoryAdjustment.apply!(site: @site, actor: current_user, data: data)
+    count = LightekCommerce::InventoryAdjustment.apply!(site: @site, actor: current_user, data: data, reason: params[:inventory_reason])
     redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'),
       notice: "Updated #{count} inventory #{'row'.pluralize(count)}.", status: :see_other
   rescue LightekCommerce::InventoryAdjustment::Invalid => error

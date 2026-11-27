@@ -286,6 +286,7 @@ end
   get "/commerce/account/orders/:order_id/returns", to: "commerce#account_returns", as: :commerce_account_returns
   get "/commerce/account/orders/:order_id/returns/:return_id/label", to: "commerce#account_return_label", as: :commerce_account_return_label
   post "/commerce/account/orders/:order_id/returns", to: "commerce#request_account_return"
+  post "/commerce/account/orders/:order_id/returns/:return_id/exchange", to: "commerce#reserve_account_exchange", as: :commerce_account_return_exchange
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"

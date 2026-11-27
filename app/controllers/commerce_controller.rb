@@ -7,7 +7,7 @@ class CommerceController < ApplicationController
   before_action :set_site
   layout 'auth', only: %i[embedded_checkout account account_returns]
   rate_limit to: 20, within: 5.minutes, only: %i[checkout buy_gift_card gift_card_balance], if: -> { action_name != 'checkout' || params[:gift_code].present? }, by: -> { current_user&.id || request.remote_ip }
-  rate_limit to: 20, within: 5.minutes, only: :request_account_return, by: -> { current_user.id }
+  rate_limit to: 20, within: 5.minutes, only: %i[request_account_return reserve_account_exchange], by: -> { current_user.id }
 
   def index
     if params[:payment_intent_client_secret].present?
@@ -174,6 +174,16 @@ class CommerceController < ApplicationController
     redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id),
       notice: 'Return request submitted.', status: :see_other
   rescue LightekCommerce::MerchandiseReturns::Invalid => error
+    redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id), alert: error.message, status: :see_other
+  end
+
+  def reserve_account_exchange
+    order = buyer_return_order
+    exchange = LightekCommerce::ReturnExchanges.new(order: order, actor: current_user)
+    record = exchange.reserve_for_buyer!(params[:return_id], replacement: params[:replacement])
+    message = record.exchange_status == 'shipped' ? 'Your replacement has already shipped.' : 'Replacement reserved.'
+    redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id), notice: message, status: :see_other
+  rescue LightekCommerce::ReturnExchanges::Invalid, LightekCommerce::InventoryStockStates::Invalid => error
     redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id), alert: error.message, status: :see_other
   end
 

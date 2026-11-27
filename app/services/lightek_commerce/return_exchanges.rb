@@ -27,13 +27,27 @@ module LightekCommerce
       @actor = actor
     end
 
-    def reserve!(id, replacement:)
+    def reserve_for_buyer!(id, replacement:)
+      reserve!(id, replacement: replacement, buyer_request: true)
+    end
+
+    def reserve!(id, replacement:, buyer_request: false)
       replacement = replacement.to_s
       unless replacement == 'product' || replacement.match?(/\A[1-9][0-9]{0,17}\z/)
         raise Invalid, 'Select an available replacement.'
       end
 
       with_return(id) do |record|
+        if buyer_request
+          unless @actor.id == @order.storefront_buyer_id && !@order.deleted_at?
+            raise ActiveRecord::RecordNotFound
+          end
+
+          current_replacement = record.replacement_variant_id&.to_s || 'product'
+          if record.active_exchange? && current_replacement == replacement
+            next record
+          end
+        end
         raise Invalid, 'This return already has an exchange.' if record.active_exchange?
         raise Invalid, 'This return already has a refund record.' if @order.refunds.exists?(merchandise_return_id: record.id)
 
@@ -55,6 +69,7 @@ module LightekCommerce
           units: record.quantity, actor: @actor, merchandise_return: record)
         record.update!(exchange_status: 'reserved', replacement_variant_id: variant&.id,
           replacement_name: variant ? "#{product.name} / #{variant.name}" : product.name)
+        record
       end
     end
 
@@ -82,6 +97,8 @@ module LightekCommerce
     private
 
     def with_return(id)
+      raise ActiveRecord::RecordNotFound unless id.to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+
       @order.with_lock do
         yield MerchandiseReturn.where(order_id: @order.id).find(id)
       end

@@ -1506,6 +1506,37 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_customer_exchange_rechecks_ownership_and_reserves_the_replacement_only_once
+    product = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700)
+    sold = product.variants.create!(name: 'Small', price_cents: 700, inventory_quantity: 3, active: true)
+    replacement = product.variants.create!(name: 'Large', price_cents: 700, inventory_quantity: 1, active: true)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {"#{product.id}:#{sold.id}" => 1})
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current, storefront_buyer_id: @operator.id,
+      payment_provider: 'stripe', payment_reference: 'cs_customer_exchange')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    service = LightekCommerce::ReturnExchanges
+    buyer = service.new(order: order, actor: @operator)
+    assert_raises(service::Invalid) { buyer.reserve_for_buyer!(record.id, replacement: replacement.id) }
+    returns.approve!(record.id)
+    returns.receive!(record.id, disposition: 'discarded')
+    outsider = service.new(order: order, actor: Struct.new(:id).new(@operator.id + 10))
+    assert_raises(ActiveRecord::RecordNotFound) { outsider.reserve_for_buyer!(record.id, replacement: replacement.id) }
+
+    replacement.update!(inventory_quantity: 0)
+    assert_raises(LightekCommerce::InventoryStockStates::Invalid) { buyer.reserve_for_buyer!(record.id, replacement: replacement.id) }
+    assert_nil record.reload.exchange_status
+    replacement.update!(inventory_quantity: 1)
+
+    2.times { assert_equal record.id, buyer.reserve_for_buyer!(record.id, replacement: replacement.id).id }
+    assert_raises(service::Invalid) { buyer.reserve_for_buyer!(record.id, replacement: sold.id) }
+    assert_equal [0, 'reserved'], [replacement.reload.inventory_quantity, record.reload.exchange_status]
+    assert_equal 1, LightekCommerce::InventoryChange.where(merchandise_return_id: record.id, variant_id: replacement.id).count
+    buyer.ship!(record.id, reference: 'ZIP-42')
+    assert_equal 'shipped', buyer.reserve_for_buyer!(record.id, replacement: replacement.id).exchange_status
+  end
+
   def test_returns_reserve_ship_or_cancel_an_equal_price_replacement
     item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
     small = item.variants.create!(name: 'Small', price_cents: 800, inventory_quantity: 5, active: true)

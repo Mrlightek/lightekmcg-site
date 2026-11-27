@@ -222,6 +222,7 @@ end
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
   get "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#show", as: :dashboard_commerce_store_settings
   patch "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#update"
+  patch "/dashboard/commerce/gift-cards", to: "dashboard/commerce_store_settings#update_gift_cards", as: :dashboard_commerce_gift_cards
   post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
   patch "/dashboard/commerce/discounts/:id", to: "dashboard/commerce_store_settings#update_discount", as: :dashboard_commerce_store_discount
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
@@ -258,6 +259,10 @@ end
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
   draw :commerce_embedded_checkout
+  post "/commerce/checkout/:order_id/gift-confirm", to: "commerce#confirm_gift_payment", as: :commerce_confirm_gift_payment
+  post "/commerce/checkout/:order_id/gift-cancel", to: "commerce#cancel_gift_payment", as: :commerce_cancel_gift_payment
+  post "/commerce/gift-cards/balance", to: "commerce#gift_card_balance", as: :commerce_gift_card_balance
+  post "/commerce/gift-cards", to: "commerce#buy_gift_card", as: :commerce_buy_gift_card
   post "/commerce/cart/discount", to: "commerce#apply_discount", as: :commerce_cart_discount
   get "/commerce/account", to: "commerce#account", as: :commerce_account
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
@@ -642,8 +647,12 @@ post "/dashboard/shipping/:key/purchase", to: "dashboard/shipping#purchase", as:
 post "/dashboard/shipping/:key/refresh", to: "dashboard/shipping#refresh", as: :refresh_dashboard_shipping
 post "/dashboard/shipping/:key/cancel", to: "dashboard/shipping#cancel", as: :cancel_dashboard_shipping
 get "/dashboard/shipping/:key/label/:index", to: "dashboard/shipping#label", as: :label_dashboard_shipping
+post "/api/reservations/federation/commerce/gift-balance", to: "api/commerce_network#gift_balance"
 post "/api/reservations/federation/commerce/checkouts", to: "api/commerce_network#checkout"
 get "/api/reservations/federation/commerce/orders/:key", to: "api/commerce_network#receipt"
+post "/api/reservations/federation/commerce/orders/:key/gift-start", to: "api/commerce_network#gift_start"
+post "/api/reservations/federation/commerce/orders/:key/gift-confirm", to: "api/commerce_network#gift_confirm"
+post "/api/reservations/federation/commerce/orders/:key/gift-cancel", to: "api/commerce_network#gift_cancel"
 post "/api/reservations/federation/commerce/orders/:key/embedded-checkout", to: "api/commerce_network#embedded_checkout"
 post "/api/reservations/federation/commerce/orders/:key/fulfill", to: "api/commerce_network#fulfill"
 post "/api/reservations/federation/commerce/orders/:key/refund", to: "api/commerce_network#refund"

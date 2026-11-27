@@ -121,7 +121,7 @@ module LightekCommerce
     def belongs_to_order?(dispute)
       intent = dispute.payment_intent
       intent = intent.id if intent.respond_to?(:id)
-      intent == @intent && dispute.currency == @order.currency && dispute.amount.to_i.between?(1, @order.total_cents)
+      intent == @intent && dispute.currency == @order.currency && dispute.amount.to_i.between?(1, @order.cash_paid_cents)
     end
   end
 end

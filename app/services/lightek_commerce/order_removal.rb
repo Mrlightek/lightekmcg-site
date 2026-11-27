@@ -6,6 +6,9 @@ module LightekCommerce
     # Keep the canceled record for delayed webhooks and network receipts, while
     # removing it from the merchant's orders list. Never delete payment history.
     def self.call(order)
+      if order.removable? && order.status == 'pending_payment' && order.gift_card_redemption? && order.payment_provider != 'network'
+        GiftCheckout.expire!(order)
+      end
       order.with_lock do
         raise Invalid, "Only unpaid orders without an installation can be deleted." unless order.removable?
         return order if order.deleted_at?
@@ -24,7 +27,7 @@ module LightekCommerce
         order.update!(deleted_at: Time.current)
       end
       order
-    rescue ::Stripe::StripeError
+    rescue ::Stripe::StripeError, GiftCheckout::Invalid
       raise Invalid, "Checkout could not be expired. The order was kept; try again after payment reconciliation."
     rescue LightekReservations::Federation::Client::Unavailable, StripeCheckout::Unavailable
       raise Invalid, "Network checkout could not be verified. The order was kept; try again later."

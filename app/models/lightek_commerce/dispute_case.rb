@@ -9,7 +9,7 @@ module LightekCommerce
       order.with_lock do
         reference = dispute.id.to_s
         return unless reference.match?(/\Adp_[A-Za-z0-9_]{1,150}\z/) &&
-          order.paid_at? && dispute.currency == order.currency && dispute.amount.to_i.between?(1, order.total_cents)
+          order.paid_at? && dispute.currency == order.currency && dispute.amount.to_i.between?(1, order.cash_paid_cents)
 
         record = find_or_initialize_by(order: order, processor_reference: reference)
         return record if historical && record.persisted?

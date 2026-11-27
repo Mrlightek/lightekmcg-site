@@ -77,6 +77,7 @@ ActiveRecord::Schema.define do
     t.string :status, default: "pending"
     t.string :idempotency_key, :processor_ref
     t.integer :amount_cents
+    t.timestamps
     t.index :idempotency_key, unique: true
   end
   create_table(:lightek_commerce_order_items) do |t|
@@ -163,9 +164,21 @@ module Stripe
     def self.update(*) = raise("Unexpected dispute response")
   end
   class PaymentIntent
+    def self.create(*) = raise("Unexpected processor payment setup")
+    def self.cancel(*) = raise("Unexpected processor payment cancellation")
     def self.retrieve(*) = raise("Unexpected processor payment intent")
   end
+  module Tax
+    class Calculation
+      def self.create(*) = raise("Unexpected tax quote")
+    end
+    class Transaction
+      def self.create_from_calculation(*) = raise("Unexpected tax transaction")
+      def self.create_reversal(*) = raise("Unexpected tax reversal")
+    end
+  end
   class Refund
+    def self.retrieve(*) = raise("Unexpected processor refund lookup")
     def self.create(*) = raise("Unexpected processor refund")
   end
   class Transfer
@@ -260,6 +273,10 @@ require Rails.root.join('db/migrate/20261127160000_add_commerce_discounts')
 AddCommerceDiscounts.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127161000_bind_storefront_orders_to_buyers')
 BindStorefrontOrdersToBuyers.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127170000_create_commerce_gift_cards')
+CreateCommerceGiftCards.new.migrate(:up)
+%w[gift_card gift_redemption].each { |name| require Rails.root.join("app/models/lightek_commerce/#{name}") }
+%w[gift_cards gift_checkout gift_refunds].each { |name| require Rails.root.join("app/services/lightek_commerce/#{name}") }
 require Rails.root.join('app/models/lightek_commerce/discount')
 require Rails.root.join('app/services/lightek_commerce/discounts')
 require Rails.root.join('app/services/lightek_commerce/store_appearance')
@@ -729,6 +746,188 @@ class CommerceHostingTest < Minitest::Test
     assert_equal "partially_refunded", order.reload.status
     assert_equal "tr_ledger", order.merchant_transfer_ref
   end
+
+  def test_gift_card_purchase_activates_only_after_stripe_and_holds_payout
+    with_gift_store do
+      purchase = LightekCommerce::GiftCards.purchase!(site: @site, buyer: @operator,
+        customer_email: @operator.email_address, denomination: 2500)
+      refute LightekCommerce::GiftCard.exists?(purchase_order: purchase)
+      Stripe::Checkout::Session.stub(:create, ->(payload, _) {
+        assert_equal 'txcd_10502000', payload.dig(:line_items, 0, :price_data, :product_data, :tax_code)
+        OpenStruct.new(id: 'cs_gift_purchase')
+      }) do
+        LightekCommerce::StripeCheckout.start!(order: purchase, success_url: 'https://shop.example.com/ok',
+          cancel_url: 'https://shop.example.com/shop')
+      end
+      session = OpenStruct.new(id: 'cs_gift_purchase', metadata: LightekCommerce::PaymentIdentity.metadata(purchase),
+        currency: 'usd', livemode: false, mode: 'payment', payment_status: 'unpaid', amount_subtotal: 2500, amount_total: 2500,
+        total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0))
+      event = OpenStruct.new(type: 'checkout.session.completed', data: OpenStruct.new(object: session))
+      LightekCommerce::StripeEvents.process!(event)
+      assert_equal 'pending_payment', purchase.reload.status
+      assert_empty LightekCommerce::GiftCard.where(purchase_order: purchase)
+      session.payment_status = 'paid'
+      2.times { LightekCommerce::StripeEvents.process!(event) }
+      assert_equal 'fulfilled', purchase.reload.status
+      card = LightekCommerce::GiftCard.find_by!(purchase_order: purchase)
+      assert_equal 2500, card.available_cents
+      assert_equal card.code_digest, LightekCommerce::GiftCard.digest(card.display_code)
+      refute_includes card.encrypted_code, card.display_code
+      assert_match(/held until redeemed/, LightekCommerce::MerchantPayouts.ineligible_reason(purchase))
+    end
+  end
+
+  def test_gift_card_split_payment_and_refund_restore_original_tenders
+    with_gift_store do
+      card = funded_gift_card
+      order = gift_merchandise_order(3000)
+      intent = nil
+      Stripe::Tax::Calculation.stub(:create, ->(payload, _) {
+        assert_equal [3000], payload[:line_items].map { |line| line[:amount] }
+        OpenStruct.new(id: 'taxcalc_gift', amount_total: 3300, tax_amount_exclusive: 300, currency: 'usd')
+      }) do
+        Stripe::PaymentIntent.stub(:create, ->(payload, _) {
+          assert_equal 800, payload[:amount]
+          intent = OpenStruct.new(**payload, id: 'pi_gift', status: 'requires_payment_method')
+        }) do
+          LightekCommerce::GiftCheckout.start!(order: order, code: card.display_code, address: gift_billing_address)
+        end
+      end
+      assert_equal 0, card.reload.available_cents
+      assert_equal 800, order.reload.cash_paid_cents
+      assert_equal 'pending_payment', order.status
+      intent.status = 'succeeded'
+      intent.amount_received = 799
+      assert_raises(LightekCommerce::GiftCheckout::Invalid) { LightekCommerce::GiftCheckout.settle_intent!(order, intent) }
+      intent.amount_received = 800
+      tax_entries = 0
+      Stripe::Tax::Transaction.stub(:create_from_calculation, ->(data, _) {
+        tax_entries += 1
+        OpenStruct.new(id: 'tax_gift', reference: data[:reference], currency: 'usd')
+      }) do
+        event = OpenStruct.new(type: 'payment_intent.succeeded', data: OpenStruct.new(object: intent))
+        2.times { LightekCommerce::StripeEvents.process!(event) }
+      end
+      assert_equal 1, tax_entries
+      assert_equal 'paid', order.reload.status
+      order.update!(status: 'fulfilled')
+      assert_nil LightekCommerce::MerchantPayouts.ineligible_reason(order)
+      @operator.update!(stripe_connect_account_id: 'acct_gift_store')
+      transfer_due = LightekCommerce::MerchantPayouts.fee_quote(order).fetch(:net_cents)
+      DymondBank::StripeService.stub(:create_transfer, ->(**data) {
+        assert_equal transfer_due, data[:amount_cents]
+        assert_equal 'acct_gift_store', data[:destination_account]
+        OpenStruct.new(id: 'tr_gift_sale')
+      }) { LightekCommerce::MerchantPayouts.request!(order: order, merchant: @operator) }
+      assert_raises(LightekCommerce::Refunds::Invalid) { LightekCommerce::Refunds.full!(order: card.purchase_order) }
+      Stripe::Refund.stub(:create, ->(data, _) {
+        assert_equal 800, data[:amount]
+        OpenStruct.new(**data, id: 're_gift', currency: 'usd', status: 'succeeded')
+      }) do
+        Stripe::Tax::Transaction.stub(:create_reversal, ->(data, _) {
+          assert_equal 'tax_gift', data[:original_transaction]
+          OpenStruct.new(id: 'tax_refunded', reference: data[:reference], currency: 'usd')
+        }) do
+          2.times { LightekCommerce::Refunds.full!(order: order) }
+        end
+      end
+      assert_equal 2500, card.reload.available_cents
+      assert_equal 3300, order.reload.refunded_cents
+      assert_equal 2500, order.refunds.sole.gift_restore_cents
+      Stripe::Transfer.stub(:create_reversal, ->(id, payload, _) {
+        assert_equal 'tr_gift_sale', id
+        assert_equal transfer_due, payload[:amount]
+        OpenStruct.new(id: 'trr_gift_sale', amount: transfer_due)
+      }) { 2.times { LightekCommerce::BuyerFeeReversalJob.new.perform(order.id) } }
+      assert_equal 'trr_gift_sale', order.reload.buyer_fee_reversal_ref
+    end
+  end
+
+  def test_gift_card_allows_partial_use_but_never_spends_pending_balance_twice
+    with_gift_store do
+      card = funded_gift_card
+      first = gift_merchandise_order(1000)
+      second = gift_merchandise_order(1900)
+      Stripe::Tax::Calculation.stub(:create, ->(data, _) {
+        OpenStruct.new(id: 'taxcalc_partial', amount_total: data[:line_items].sum { |line| line[:amount] },
+          tax_amount_exclusive: 0, currency: 'usd')
+      }) do
+        Stripe::Tax::Transaction.stub(:create_from_calculation, ->(data, _) {
+          OpenStruct.new(id: 'tax_partial', reference: data[:reference], currency: 'usd')
+        }) do
+          LightekCommerce::GiftCheckout.start!(order: first, code: card.display_code, address: gift_billing_address)
+          assert_equal 'pending_payment', first.reload.status
+          2.times { LightekCommerce::GiftCheckout.confirm!(first) }
+        end
+        assert_equal 1500, card.reload.available_cents
+        assert_equal 'paid', first.reload.status
+        assert_nil first.payment_reference
+        Stripe::PaymentIntent.stub(:create, ->(data, _) {
+          OpenStruct.new(**data, id: 'pi_expired', status: 'requires_payment_method')
+        }) { LightekCommerce::GiftCheckout.start!(order: second, code: card.display_code, address: gift_billing_address) }
+        assert_equal 0, card.reload.available_cents
+        assert_raises(LightekCommerce::GiftCheckout::Invalid) do
+          LightekCommerce::GiftCheckout.start!(order: gift_merchandise_order(900), code: card.display_code, address: gift_billing_address)
+        end
+      end
+      intent = OpenStruct.new(id: 'pi_expired', amount: 400, currency: 'usd', status: 'requires_payment_method',
+        metadata: LightekCommerce::PaymentIdentity.metadata(second).merge('lightek_gift_redemption' => '1'))
+      Stripe::PaymentIntent.stub(:retrieve, intent) do
+        Stripe::PaymentIntent.stub(:cancel, ->(id, _, _) {
+          assert_equal 'pi_expired', id
+          intent.status = 'canceled'
+          intent
+        }) { 2.times { LightekCommerce::GiftCheckout.expire!(second) } }
+      end
+      assert_equal 'canceled', second.reload.status
+      assert_equal 1500, card.reload.available_cents
+      assert_equal 'released', LightekCommerce::GiftRedemption.find_by!(order: second).state
+    end
+  end
+
+  def test_gift_card_code_is_scoped_to_the_issuing_store_and_currency_mode
+    with_gift_store do
+      card = funded_gift_card
+      order = gift_merchandise_order(2000)
+      order.update!(gift_store_scope: 'different-store-same-operator')
+      assert_raises(LightekCommerce::GiftCheckout::Invalid) do
+        LightekCommerce::GiftCheckout.start!(order: order, code: card.display_code, address: gift_billing_address)
+      end
+      order.update!(gift_store_scope: nil)
+      DymondBank::StripeCredentials.stub(:secret_key, 'sk_live_fixture') do
+        assert_raises(LightekCommerce::GiftCheckout::Invalid) do
+          LightekCommerce::GiftCheckout.start!(order: order, code: card.display_code, address: gift_billing_address)
+        end
+      end
+      assert_equal 2500, card.reload.available_cents
+    end
+  end
+
+  def with_gift_store
+    keys = %w[LIGHTEK_COMMERCE_GIFT_CARDS_ENABLED LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED]
+    previous = keys.to_h { |key| [key, ENV[key]] }
+    ENV.update(keys.index_with { 'true' })
+    @site.update!(manifest: {'commerce_gift_cards' => true})
+    encryptor = ActiveSupport::MessageEncryptor.new('f' * 32, cipher: 'aes-256-gcm')
+    LightekCommerce::GiftCard.stub(:encryptor, encryptor) { yield }
+  ensure
+    ENV.update(previous)
+  end
+
+  def funded_gift_card
+    purchase = LightekCommerce::GiftCards.purchase!(site: @site, buyer: @operator,
+      customer_email: @operator.email_address, denomination: 2500)
+    purchase.update!(status: 'fulfilled', paid_at: Time.current)
+    LightekCommerce::GiftCard.issue!(purchase, livemode: false)
+  end
+
+  def gift_merchandise_order(price)
+    item = product(billing_interval: 'one_time', price_cents: price)
+    LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {item.id.to_s => 1}, storefront: true, storefront_buyer: @operator, gift_redemption: true)
+  end
+
+  def gift_billing_address = {line1: '123 Any St', city: 'Miami', state: 'FL', postal_code: '33101'}
 
   def test_discount_is_scoped_to_store_and_frozen_into_taxable_line_prices
     merchandise = product(billing_interval: 'one_time', price_cents: 1250)

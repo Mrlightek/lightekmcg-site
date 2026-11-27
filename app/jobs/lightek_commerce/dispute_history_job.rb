@@ -12,7 +12,7 @@ module LightekCommerce
       site = LightekSettings::WebsiteIdentity.sites_for(merchant).find_by(id: site_id, tenant: merchant)
       return unless site
 
-      orders = Order.visible.where(site: site, payment_provider: %w[stripe stripe_invoice])
+      orders = Order.visible.where(site: site, payment_provider: %w[stripe stripe_invoice stripe_gift_split])
         .where.not(paid_at: nil).where('id > ?', after_id).order(:id).limit(101).to_a
       orders.first(100).each do |order|
         MerchantDisputes.new(order: order, actor: merchant).each_dispute do |dispute|

@@ -28,7 +28,7 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
 
     @order = LightekCommerce::Order.visible.where(site: @site).find(params.require(:order_id))
     @ledger = LightekCommerce::MerchantLedger.read(order: @order, actor: current_user)
-    @processor_available = @order.paid_at? && @order.payment_provider.in?(%w[stripe stripe_invoice])
+    @processor_available = @order.paid_at? && @order.payment_provider.in?(%w[stripe stripe_invoice stripe_gift_split]) && @order.cash_paid_cents.positive?
     if @order.subtotal_cents.positive?
       @buyer_price = LightekCommerce::BuyerPrice.quote(merchant_cents: @order.subtotal_cents)
     end

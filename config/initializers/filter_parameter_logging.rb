@@ -49,3 +49,5 @@ Rails.application.config.filter_parameters += [:package_base64]
 Rails.application.config.filter_parameters += [:record_values]
 
 Rails.application.config.filter_parameters += [:merchant_dispute_evidence]
+
+Rails.application.config.filter_parameters += [:gift_code, :gift_address, :encrypted_code, :code_digest]

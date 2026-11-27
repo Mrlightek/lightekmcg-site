@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, storefront_buyer: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, storefront_buyer: nil, gift_redemption: false)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -25,6 +25,11 @@ module LightekCommerce
         product_ids = requested.keys.map { |key| key.split(":").first.to_i }.uniq
         products = Product.where(site: site, id: product_ids).order(:id).lock.to_a
         raise Invalid, "One or more products are unavailable" unless products.size == product_ids.size && products.all?(&:published?)
+        if gift_redemption && (!storefront || !GiftCards.redemption_enabled?(site) || products.any? { |product|
+          !BuyerFees.eligible?(product) || product.billing_interval != 'one_time'
+        })
+          raise Invalid, 'Gift cards apply to one-time retail purchases at participating stores.'
+        end
         if workspace_seats && (requested.size != 1 || requested.keys.first.include?(":") ||
           !defined?(Gatekeeper::Hosting::WorkspacePlans))
           raise Invalid, "Choose one Workspace plan"
@@ -45,6 +50,7 @@ module LightekCommerce
           fee_snapshot = BuyerFees.quote_amount(fee_snapshot.fetch('merchant_cents') - savings)
         end
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
+        order.purpose = GiftCards::REDEMPTION if gift_redemption
         order.storefront_buyer_id = storefront_buyer.id if storefront && storefront_buyer
         if discount
           order.discount_cents = savings
@@ -54,6 +60,7 @@ module LightekCommerce
           order.buyer_fee_snapshot = fee_snapshot
           checkout_identity = [buyer_fee_token]
           checkout_identity << "buyer=#{storefront_buyer.id}" if storefront && storefront_buyer
+          checkout_identity << 'gift' if gift_redemption
           checkout_identity << "discount=#{discount.id}=#{savings}" if discount
           order.client_checkout_key = Digest::SHA256.hexdigest(checkout_identity.join(':'))
           existing = Order.find_by(site: site, customer_email: order.customer_email, client_checkout_key: order.client_checkout_key)
@@ -192,6 +199,7 @@ module LightekCommerce
             product.update!(inventory_quantity: product.inventory_quantity + item.quantity)
           end
         end
+        GiftCards.release_hold!(order) if order.gift_card_redemption? && order.payment_provider != 'network'
         order.update!(status: "canceled", canceled_at: Time.current)
       end
       order

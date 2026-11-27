@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_161000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1767,6 +1767,44 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_161000) do
     t.index ["processor_reference"], name: "index_lightek_commerce_dispute_cases_on_processor_reference", unique: true
   end
 
+  create_table "lightek_commerce_gift_cards", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "purchase_order_id", null: false
+    t.string "store_scope", null: false
+    t.boolean "livemode", null: false
+    t.string "code_digest", null: false
+    t.text "encrypted_code", null: false
+    t.integer "face_cents", null: false
+    t.integer "available_cents", null: false
+    t.datetime "blocked_at"
+    t.datetime "disputed_at"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code_digest"], name: "index_lightek_commerce_gift_cards_on_code_digest", unique: true
+    t.index ["purchase_order_id"], name: "index_lightek_commerce_gift_cards_on_purchase_order_id", unique: true
+    t.index ["site_id"], name: "index_lightek_commerce_gift_cards_on_site_id"
+    t.check_constraint "available_cents >= 0 AND available_cents <= face_cents AND face_cents > 0", name: "commerce_gift_card_balance"
+  end
+
+  create_table "lightek_commerce_gift_redemptions", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "gift_card_id", null: false
+    t.integer "amount_cents", null: false
+    t.integer "cash_cents", null: false
+    t.string "state", default: "held", null: false
+    t.string "tax_calculation", null: false
+    t.string "tax_transaction"
+    t.string "tax_reversal"
+    t.datetime "payment_attempted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["gift_card_id"], name: "index_lightek_commerce_gift_redemptions_on_gift_card_id"
+    t.index ["order_id"], name: "index_lightek_commerce_gift_redemptions_on_order_id", unique: true
+    t.check_constraint "amount_cents > 0 AND cash_cents >= 0", name: "commerce_gift_redemption_amount"
+    t.check_constraint "state IN ('held', 'captured', 'released', 'refunded')", name: "commerce_gift_redemption_state"
+  end
+
   create_table "lightek_commerce_network_accounts", force: :cascade do |t|
     t.bigint "peer_id", null: false
     t.bigint "user_id", null: false
@@ -1866,6 +1904,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_161000) do
     t.integer "discount_cents", default: 0, null: false
     t.string "discount_name"
     t.bigint "storefront_buyer_id"
+    t.string "gift_store_scope"
+    t.integer "gift_applied_cents", default: 0, null: false
     t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_storefront_buyer"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
@@ -1942,6 +1982,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_161000) do
     t.string "idempotency_key", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "gift_restore_cents", default: 0, null: false
     t.index ["idempotency_key"], name: "index_lightek_commerce_refunds_on_idempotency_key", unique: true
     t.index ["order_id"], name: "index_lightek_commerce_refunds_on_order_id"
     t.index ["processor_ref"], name: "index_lightek_commerce_refunds_on_processor_ref", unique: true
@@ -7554,6 +7595,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_161000) do
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
   add_foreign_key "lightek_commerce_discounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_dispute_cases", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_gift_cards", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_gift_cards", "lightek_commerce_orders", column: "purchase_order_id"
+  add_foreign_key "lightek_commerce_gift_redemptions", "lightek_commerce_gift_cards", column: "gift_card_id"
+  add_foreign_key "lightek_commerce_gift_redemptions", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_network_accounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_network_accounts", "lightek_reservation_peers", column: "peer_id"
   add_foreign_key "lightek_commerce_network_accounts", "users"

@@ -16,6 +16,16 @@ class Dashboard::CommerceStoreSettingsController < Dashboard::CommerceBaseContro
     redirect_to_store(error.message, error: true)
   end
 
+  def update_gift_cards
+    enabled = params[:enabled] == '1'
+    if enabled && !LightekCommerce::GiftCards.platform_enabled?
+      return redirect_to_store('Gift card payments are unavailable on this installation.', error: true)
+    end
+
+    @site.with_lock { @site.update!(manifest: @site.manifest.to_h.merge('commerce_gift_cards' => enabled)) }
+    redirect_to_store(enabled ? 'Gift cards enabled.' : 'New gift card sales paused. Existing cards can still be redeemed.')
+  end
+
   def create_discount
     attrs = params.require(:discount).permit(:name, :code, :kind, :amount, :minimum_cents)
     LightekCommerce::Discount.create!(attrs.merge(site: @site))

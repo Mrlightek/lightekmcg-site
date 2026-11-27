@@ -90,13 +90,19 @@
                   <section class="dd-form-section">
                     <div class="dd-section-heading"><i class="ti ti-credit-card-refund" aria-hidden="true"></i><div><h3>Issue a refund</h3><p>Available to refund: <%= number_to_currency((order.total_cents - order.refunded_cents) / 100.0) %>.</p></div></div>
                     <%= form_with url: dashboard_commerce_refund_path(order_id: order.id, site_id: @site.id), method: :post, class: "dd-form-stack", data: { turbo_confirm: "Issue this refund? Confirm the amount before continuing." } do %>
-                      <% if order.buyer_fee_cents.positive? %>
+                      <% if (order.buyer_fee_cents.positive? || order.gift_card_redemption? || order.gift_card_purchase?) %>
                         <%= hidden_field_tag :amount_cents, order.total_cents - order.refunded_cents %>
-                        <p>The full refund includes the checkout fee.</p>
+                        <% if order.gift_card_redemption? %>
+                          <p>Restore the gift card balance and refund the card portion.</p>
+                        <% elsif order.gift_card_purchase? %>
+                          <p>Refunding an unused gift card deactivates its code.</p>
+                        <% else %>
+                          <p>The full refund includes the checkout fee.</p>
+                        <% end %>
                       <% else %>
                       <div class="dd-field"><%= label_tag "order_#{order.id}_refund_amount", "Amount to refund (cents)" %><%= number_field_tag :amount_cents, order.total_cents - order.refunded_cents, id: "order_#{order.id}_refund_amount", min: 1, max: order.total_cents - order.refunded_cents, required: true, aria: { describedby: "order_#{order.id}_refund_help" } %><small id="order_<%= order.id %>_refund_help">100 cents = <%= number_to_currency(1) %>. The refund uses the original payment method.</small></div>
                       <% end %>
-                      <div class="dd-form-actions"><%= submit_tag(order.buyer_fee_cents.positive? ? "Refund full order" : "Refund amount", class: "dd-button dd-button-danger") %></div>
+                      <div class="dd-form-actions"><%= submit_tag((order.buyer_fee_cents.positive? || order.gift_card_redemption? || order.gift_card_purchase?) ? "Refund full order" : "Refund amount", class: "dd-button dd-button-danger") %></div>
                     <% end %>
                   </section>
                 <% end %>

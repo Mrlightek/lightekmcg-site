@@ -11,11 +11,19 @@ module LightekCommerce
       has_attribute?(:storefront_buyer_id) ? {storefront_buyer_id: storefront_buyer_id} : {}
     end
 
+    def gift_card_purchase? = purpose == 'gift_card_purchase'
+    def gift_card_redemption? = purpose == 'gift_card_redemption'
+    def gift_scope = self[:gift_store_scope].presence || "site-#{site_id}"
+
+    def gift_applied = has_attribute?(:gift_applied_cents) ? self[:gift_applied_cents].to_i : 0
+    def cash_paid_cents = total_cents - gift_applied
+    def transfer_reversal_required? = buyer_fee_cents.positive? || gift_card_redemption?
+
     def discount_amount = has_attribute?(:discount_cents) ? self[:discount_cents].to_i : 0
     after_update_commit :queue_buyer_fee_reversal, if: -> { saved_change_to_status? && status == 'refunded' }
 
     def queue_buyer_fee_reversal
-      return unless payment_provider != "network" && buyer_fee_cents.positive? && merchant_transfer_ref.present? && defined?(BuyerFeeReversalJob)
+      return unless payment_provider != "network" && transfer_reversal_required? && merchant_transfer_ref.present? && defined?(BuyerFeeReversalJob)
 
       BuyerFeeReversalJob.perform_later(id)
     rescue StandardError => error
@@ -44,7 +52,7 @@ module LightekCommerce
     belongs_to :hosting_owner, class_name: "User", optional: true
     has_many :revenue_allocations, class_name: "LightekCommerce::RevenueAllocation", dependent: :restrict_with_error
     before_validation(on: :create) do
-      self.revenue_share_snapshot = RevenueSharing.snapshot_for(site.tenant) if site && revenue_share_snapshot.blank? && !%w[subscription_renewal shipping_label creator_support creator_support_renewal agency_membership].include?(purpose)
+      self.revenue_share_snapshot = RevenueSharing.snapshot_for(site.tenant) if site && !gift_card_purchase? && revenue_share_snapshot.blank? && !%w[subscription_renewal shipping_label creator_support creator_support_renewal agency_membership].include?(purpose)
     end
     has_many :items, class_name: "LightekCommerce::OrderItem", dependent: :restrict_with_error
     STATUSES = %w[pending_payment paid fulfilled canceled partially_refunded refunded].freeze

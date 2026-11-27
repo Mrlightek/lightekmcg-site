@@ -66,6 +66,7 @@ module LightekCommerce
     end
 
     def self.ineligible_reason(order, quote: nil)
+      return 'Gift-card funds are held until redeemed for merchandise' if order.gift_card_purchase?
       return "Lightek agency membership fees belong to the platform" if order.purpose == "agency_membership"
       return "Use the creator earnings workspace" if %w[creator_support creator_support_renewal].include?(order.purpose)
       return "Only fulfilled orders are eligible" unless order.status == "fulfilled"
@@ -79,7 +80,9 @@ module LightekCommerce
       checkout_paid = order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
       renewal_paid = order.payment_provider == "stripe_invoice" && order.payment_reference.present? &&
         BillingInvoice.exists?(settlement_order_id: order.id, processor_reference: order.payment_reference)
-      return "Only verified store payments may fund earnings releases" unless checkout_paid || renewal_paid
+      redeemed = order.gift_card_redemption? && order.payment_provider == GiftCheckout::PROVIDER &&
+        GiftRedemption.exists?(order: order, state: 'captured')
+      return "Only verified store payments may fund earnings releases" unless checkout_paid || renewal_paid || redeemed
       return "Net transfer amount is zero" unless (quote || fee_quote(order))[:net_cents].positive?
     end
 
@@ -95,8 +98,8 @@ module LightekCommerce
         return order
       end
 
-      buyer_fee_order = order.buyer_fee_breakdown.present?
-      reserve_buyer_fee_release!(order, merchant) if buyer_fee_order
+      reserved_release = order.transfer_reversal_required?
+      reserve_buyer_fee_release!(order, merchant) if reserved_release
 
       transfer_error = nil
       order.with_lock do
@@ -107,10 +110,10 @@ module LightekCommerce
         RevenueSharing.record!(order)
         quote = fee_quote(order)
         raise Invalid, "Net transfer amount is zero" unless quote[:net_cents].positive?
-        if buyer_fee_order && order.buyer_fee_transfer_destination != merchant.stripe_connect_account_id
+        if reserved_release && order.buyer_fee_transfer_destination != merchant.stripe_connect_account_id
           raise Invalid, 'The payout account changed. Reconcile the original earnings release.'
         end
-        order.update!(merchant_transfer_requested_at: Time.current, merchant_transfer_error: nil) unless buyer_fee_order
+        order.update!(merchant_transfer_requested_at: Time.current, merchant_transfer_error: nil) unless reserved_release
         begin
           transfer = DymondBank::StripeService.create_transfer(
             amount_cents: quote.fetch(:net_cents),

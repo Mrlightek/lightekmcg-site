@@ -13,3 +13,9 @@ Tax: <%= number_to_currency(@order.tax_cents / 100.0) %>
 Total: <%= number_to_currency(@order.total_cents / 100.0) %>
 
 Thank you for your order.
+
+<% if @gift_code %>Store gift card: <%= @gift_code %>
+You can share this code with your recipient. Enter it at this store's checkout.
+<% end %><% if @order.gift_applied.positive? %>Paid with gift card: <%= number_to_currency(@order.gift_applied / 100.0) %>
+Paid by card: <%= number_to_currency(@order.cash_paid_cents / 100.0) %>
+<% end %>

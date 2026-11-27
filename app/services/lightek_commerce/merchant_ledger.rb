@@ -13,13 +13,14 @@ module LightekCommerce
       record = {
         gross_cents: order.total_cents, merchandise_cents: order.subtotal_cents,
         buyer_checkout_fee_cents: order.buyer_fee_cents.presence, buyer_fee_refunded: order.buyer_fee_cents.positive? && order.status == 'refunded',
+        gift_applied_cents: order.gift_applied, cash_paid_cents: order.cash_paid_cents,
         taxes_cents: order.tax_cents, shipping_cents: order.shipping_cents,
         refunded_cents: order.refunded_cents, merchant_transfer_cents: order.merchant_transfer_amount_cents,
         merchant_transfer_ref: order.merchant_transfer_ref, merchant_transfer_at: order.merchant_transfer_completed_at,
         agency_shares_cents: order.revenue_allocations.sum(:amount_cents),
         agency_reversed_cents: order.revenue_allocations.sum(:reversed_cents)
       }
-      if record[:buyer_fee_refunded] && order.merchant_transfer_ref.present?
+      if order.status == 'refunded' && order.transfer_reversal_required? && order.merchant_transfer_ref.present?
         record[:buyer_fee_reversal_ref] = order.buyer_fee_reversal_ref
         record[:buyer_fee_reversal_pending] = order.buyer_fee_reversal_ref.blank?
       end
@@ -37,7 +38,7 @@ module LightekCommerce
     end
 
     def self.dispute_payment_intent!(order, options)
-      unless order.paid_at? && order.payment_provider.in?(%w[stripe stripe_invoice])
+      unless order.paid_at? && order.payment_provider.in?(%w[stripe stripe_invoice stripe_gift_split]) && order.cash_paid_cents.positive?
         raise Invalid, 'Verified local Commerce payment is required.'
       end
 
@@ -45,7 +46,7 @@ module LightekCommerce
     end
 
     def self.processor_receipt!(order)
-      unless order.paid_at? && order.payment_provider.in?(%w[stripe stripe_invoice])
+      unless order.paid_at? && order.payment_provider.in?(%w[stripe stripe_invoice stripe_gift_split]) && order.cash_paid_cents.positive?
         raise Invalid, 'Verified Commerce payment is required to reconcile processor fees.'
       end
 
@@ -56,15 +57,18 @@ module LightekCommerce
       intent_id = verified_intent!(order, options)
       intent = hash(::Stripe::PaymentIntent.retrieve({id: intent_id, expand: ['latest_charge.balance_transaction']}, options))
       charge = intent['latest_charge']
+      if order.gift_card_redemption?
+        GiftCheckout.validate_intent!(order, GiftRedemption.find_by!(order: order), intent)
+      end
       unless intent['id'] == intent_id && intent['status'] == 'succeeded' && intent['currency'] == order.currency &&
-          intent['amount_received'] == order.total_cents && charge.is_a?(Hash) && charge['payment_intent'] == intent_id &&
-          charge['amount'] == order.total_cents && charge['currency'] == order.currency && charge['paid'] == true
+          intent['amount_received'] == order.cash_paid_cents && charge.is_a?(Hash) && charge['payment_intent'] == intent_id &&
+          charge['amount'] == order.cash_paid_cents && charge['currency'] == order.currency && charge['paid'] == true
         raise Invalid, 'The processor charge does not match this order.'
       end
 
       balance = charge['balance_transaction']
       unless balance.is_a?(Hash) && balance['source'] == charge['id'] && balance['currency'] == order.currency &&
-          balance['amount'] == order.total_cents && balance['fee'].is_a?(Integer) && balance['fee'] >= 0 &&
+          balance['amount'] == order.cash_paid_cents && balance['fee'].is_a?(Integer) && balance['fee'] >= 0 &&
           balance['net'] == balance['amount'] - balance['fee'] && balance['status'].in?(%w[pending available])
         raise Invalid, 'A matching processor balance record is not available.'
       end
@@ -72,11 +76,14 @@ module LightekCommerce
       {processor_actual_cents: balance['fee'], processor_net_cents: balance['net'],
        processor_funds_state: balance['status'], processor_refunded_cents: charge['amount_refunded'],
        processor_disputed: charge['disputed'] == true}
-    rescue ::Stripe::StripeError
+    rescue ::Stripe::StripeError, GiftCheckout::Invalid
       raise Invalid, 'Processor reconciliation is temporarily unavailable.'
     end
 
     def self.verified_intent!(order, options)
+      if order.payment_provider == 'stripe_gift_split'
+        return intent_reference!(order.payment_reference)
+      end
       if order.payment_provider == 'stripe'
         session = hash(::Stripe::Checkout::Session.retrieve(order.payment_reference, options))
         expected = PaymentIdentity.metadata(order).stringify_keys

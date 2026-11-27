@@ -113,6 +113,14 @@ class SharedBankWebhookTest < Minitest::Test
     assert_empty DymondBank::StripeWebhookService.events
     assert_equal 3, LightekCommerce::StripeEvents.events.size
   end
+  def test_gift_card_intents_use_the_shared_webhook_and_preserve_regular_bank_intents
+    assert_equal :bank, route(event('payment_intent.succeeded', {'lightek_commerce_order_id' => '42'}))
+    value = event('payment_intent.succeeded', {'lightek_gift_redemption' => '1'})
+    assert_equal :commerce, route(value)
+    assert_same value, LightekCommerce::StripeEvents.events.first
+    assert_equal 1, DymondBank::StripeWebhookService.events.size
+  end
+
   def test_susu_checkout_and_async_failures_keep_bank_handling
     %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.async_payment_failed checkout.session.expired].each do |type|
       assert_equal :bank, route(event(type))

@@ -14,6 +14,9 @@ module LightekCommerce
         NetworkCheckout.action!(order: order, action: "refund", attributes: {amount_cents: amount_cents})
         return order
       end
+      if order.gift_card_purchase? || order.gift_card_redemption?
+        return GiftRefunds.issue!(order: order, amount_cents: amount_cents)
+      end
       order.with_lock do
         if idempotency_key && (existing = order.refunds.find_by(idempotency_key: idempotency_key))
           raise Invalid, "The refund amount differs from the recorded request" if existing.amount_cents != amount_cents

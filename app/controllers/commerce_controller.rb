@@ -6,13 +6,24 @@ class CommerceController < ApplicationController
   skip_authorization_check
   before_action :set_site
   layout 'auth', only: %i[embedded_checkout account]
+  rate_limit to: 20, within: 5.minutes, only: %i[checkout buy_gift_card gift_card_balance], if: -> { action_name != 'checkout' || params[:gift_code].present? }, by: -> { current_user&.id || request.remote_ip }
   def index
+    if params[:payment_intent_client_secret].present?
+      response.headers['Referrer-Policy'] = 'no-referrer'
+      return redirect_to commerce_shop_path(site_id: @site.id, order_id: params[:order_id].to_s), status: :see_other
+    end
     if params[:order_id].present?
       order = LightekCommerce::Order.where(site: @site).find_by(id: params[:order_id])
       LightekCommerce::NetworkCheckout.synchronize!(order) if order&.payment_provider == "network"
+      if order&.gift_card_redemption? && order.payment_provider == LightekCommerce::GiftCheckout::PROVIDER &&
+          authenticated? && current_user&.id == order.storefront_buyer_id
+        LightekCommerce::GiftCheckout.refresh!(order)
+      end
     end
     @products = LightekCommerce::Product.visible.where(site: @site)
     @cart = cart
+    @gift_cards_redeemable = LightekCommerce::GiftCards.redemption_enabled?(@site)
+    @gift_cards_enabled = LightekCommerce::GiftCards.enabled?(@site)
     show_buyer_fee_prices
     show_discount
     keys = Array(session["lightek_shipping_quotes_#{@site.id}"]).first(10)
@@ -35,7 +46,8 @@ class CommerceController < ApplicationController
     end
   rescue LightekCommerce::BuyerFees::Invalid => error
     render plain: error.message, status: :service_unavailable
-  rescue LightekCommerce::StripeCheckout::Unavailable, LightekReservations::Federation::Client::Unavailable
+  rescue LightekCommerce::StripeCheckout::Unavailable, LightekCommerce::GiftCheckout::Invalid, ::Stripe::StripeError,
+      LightekReservations::Federation::Client::Unavailable
     redirect_to commerce_shop_path(site_id: @site.id), alert: "Your payment status could not be confirmed. Check your receipt before trying again."
   end
   def add
@@ -95,6 +107,43 @@ class CommerceController < ApplicationController
       .where.not(paid_at: nil).order(paid_at: :desc).limit(50)
   end
 
+  def gift_card_balance
+    cards = LightekCommerce::GiftCards
+    raise LightekCommerce::GiftCards::Invalid, 'Gift cards are unavailable for this store.' unless cards.redemption_enabled?(@site)
+
+    code = params[:gift_code].to_s
+    balance = if LightekReservations::Federation::Client.config(@site).present?
+      remote = LightekReservations::Federation::Client.new(@site).request('commerce/gift-balance', method: :post,
+        body: {gift_code: code, gift_store_key: cards.source_store_key(@site), store_name: @site.name,
+          merchant_chain: LightekCommerce::NetworkCheckout.chain(@site)})
+      Integer(remote.fetch('available_cents'))
+    else
+      cards.available_balance!(site: @site, scope: "site-#{@site.id}", code: code)
+    end
+    redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), status: :see_other,
+      notice: "Gift card balance: #{helpers.number_to_currency(balance / 100.0)}."
+  rescue LightekCommerce::GiftCards::Invalid, LightekReservations::Federation::Client::Unavailable,
+      LightekPayments::PayoutAccounts::Unavailable
+    redirect_to commerce_shop_path(site_id: @site.id, anchor: 'cart'), status: :see_other,
+      alert: 'This gift card balance is unavailable for this store.'
+  end
+
+  def buy_gift_card
+    order = LightekCommerce::GiftCards.purchase!(site: @site, buyer: current_user,
+      customer_email: current_user.email_address, denomination: params[:denomination])
+    embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
+    checkout = if LightekCommerce::NetworkCheckout.connected?(order)
+      LightekCommerce::NetworkCheckout.start!(order: order, embedded: embedded)
+    else
+      LightekCommerce::StripeCheckout.start!(order: order, success_url: completion_url(order, false),
+        cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
+    end
+    redirect_to_payment(checkout, order, false)
+  rescue LightekCommerce::GiftCards::Invalid, LightekCommerce::StripeCheckout::Unavailable, ActiveRecord::RecordInvalid => error
+    cancel_unsubmitted_order(order)
+    redirect_to commerce_shop_path(site_id: @site.id), alert: error.message, status: :see_other
+  end
+
   def checkout
     instance_cart = LightekCommerce::Product.where(site: @site, id: cart.keys.map { |key| key.split(":").first }, product_type: "lightek_instance").exists?
     email = instance_cart ? current_user.email_address : params.require(:customer_email)
@@ -104,55 +153,121 @@ class CommerceController < ApplicationController
       raise LightekCommerce::OrderPlacement::Invalid, "Choose a shipping quote before payment"
     end
     quantities, workspace_seats = checkout_selection
+    gift_code = params[:gift_code].to_s.strip.presence
+    gift_address = params[:gift_address]
+    address = gift_address.is_a?(ActionController::Parameters) ? gift_address.permit(:line1, :city, :state, :postal_code, :country).to_h : {}
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
-      storefront_buyer: current_user, discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
+      gift_redemption: gift_code.present?, storefront_buyer: current_user, discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
-    checkout = LightekCommerce::StripeCheckout.start!(order: order,
-      success_url: completion_url(order, instance_cart), cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
+    checkout = if gift_code && LightekCommerce::NetworkCheckout.connected?(order)
+      LightekCommerce::NetworkCheckout.start!(order: order, embedded: true, gift_code: gift_code, gift_address: address)
+    elsif gift_code
+      LightekCommerce::GiftCheckout.start!(order: order, code: gift_code, address: address)
+    else
+      LightekCommerce::StripeCheckout.start!(order: order,
+        success_url: completion_url(order, instance_cart), cancel_url: commerce_shop_url(site_id: @site.id), embedded: embedded)
+    end
     record_platform_experiment('checkout', order) if respond_to?(:record_platform_experiment, true)
     session.delete(cart_key)
     session.delete(discount_key)
-    if checkout.url.blank?
-      recent = session[:embedded_store_orders].to_h
-      recent[order.id.to_s] = [@site.id, current_user.id, request.host, instance_cart]
-      session[:embedded_store_orders] = recent.to_a.last(5).to_h
-      redirect_to commerce_embedded_checkout_path(site_id: @site.id, order_id: order.id), status: :see_other
-    else
-      redirect_to checkout.url, allow_other_host: true
-    end
+    redirect_to_payment(checkout, order, instance_cart)
   rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable,
-    LightekCommerce::BuyerFees::Invalid, ActiveRecord::RecordInvalid => e
-    # A session was never handed to the customer; release the reserved stock.
-    LightekCommerce::OrderPlacement.cancel!(order) if order&.persisted? && order.reload.payment_reference.blank? && order.status == "pending_payment"
+    LightekCommerce::BuyerFees::Invalid, LightekCommerce::GiftCheckout::Invalid, ActiveRecord::RecordInvalid => e
+    cancel_unsubmitted_order(order)
     redirect_to commerce_shop_path(site_id: @site.id), alert: e.message
   end
   def embedded_checkout
     response.headers['Cache-Control'] = 'private, no-store'
     response.headers['Referrer-Policy'] = 'no-referrer'
-    context = session[:embedded_store_orders].to_h[params[:order_id].to_s]
-    unless context && context.first(3) == [@site.id, current_user.id, request.host]
-      raise ActiveRecord::RecordNotFound
-    end
-
-    order = LightekCommerce::Order.visible.where(site: @site).find(params[:order_id])
+    order, context = owned_checkout
+    @payment_order = order
     @appearance = LightekCommerce::StoreAppearance.read(@site)
     @completion_url = completion_url(order, context.last)
     return redirect_to @completion_url if order.paid_at?
 
     if order.payment_provider == 'network'
+      LightekCommerce::NetworkCheckout.synchronize!(order) if order.gift_card_redemption?
+      return redirect_to @completion_url if order.paid_at?
       @checkout, @publishable_key = LightekCommerce::NetworkCheckout.embedded_session!(order)
+    elsif order.gift_card_redemption?
+      LightekCommerce::GiftCheckout.refresh!(order)
+      return redirect_to @completion_url if order.paid_at?
+      summary = LightekCommerce::GiftCheckout.payment_summary(order)
+      if summary.fetch(:cash_cents).positive?
+        intent = LightekCommerce::GiftCheckout.session!(order)
+        summary[:client_secret] = intent.client_secret
+        @publishable_key = LightekCommerce::StripeCheckout.embedded_publishable_key
+      end
+      @checkout = OpenStruct.new(**summary)
     else
       @checkout = LightekCommerce::StripeCheckout.resume!(order: order, embedded: true)
       @publishable_key = LightekCommerce::StripeCheckout.embedded_publishable_key
     end
-    render :embedded_checkout
-  rescue LightekCommerce::StripeCheckout::Unavailable => error
-    redirect_to commerce_shop_path(site_id: @site.id), alert: error.message
+    if @checkout.respond_to?(:gift_card_tender) && @checkout.gift_card_tender
+      render :gift_payment
+    else
+      render :embedded_checkout
+    end
+  rescue LightekCommerce::StripeCheckout::Unavailable, LightekCommerce::GiftCheckout::Invalid, ::Stripe::StripeError => error
+    message = error.is_a?(::Stripe::StripeError) ? 'Secure payment could not load. Please retry.' : error.message
+    redirect_to commerce_shop_path(site_id: @site.id), alert: message
+  end
+
+  def confirm_gift_payment
+    resolve_gift_payment('gift-confirm')
+  end
+
+  def cancel_gift_payment
+    resolve_gift_payment('gift-cancel')
   end
 
   private
+
+  def owned_checkout
+    context = session[:embedded_store_orders].to_h[params[:order_id].to_s]
+    unless context && context.first(3) == [@site.id, current_user.id, request.host]
+      raise ActiveRecord::RecordNotFound
+    end
+    order = LightekCommerce::Order.visible.where(site: @site).find(params[:order_id])
+    [order, context]
+  end
+
+  def resolve_gift_payment(action)
+    order, = owned_checkout
+    raise ActiveRecord::RecordNotFound unless order.gift_card_redemption?
+
+    if order.payment_provider == 'network'
+      LightekCommerce::NetworkCheckout.action!(order: order, action: action)
+    elsif action == 'gift-confirm'
+      LightekCommerce::GiftCheckout.confirm!(order)
+    else
+      LightekCommerce::GiftCheckout.expire!(order)
+    end
+    redirect_to completion_url(order, false), status: :see_other
+  rescue LightekCommerce::GiftCheckout::Invalid, LightekReservations::Federation::Client::Unavailable,
+      LightekCommerce::StripeCheckout::Unavailable, ::Stripe::StripeError
+    redirect_to commerce_embedded_checkout_path(site_id: @site.id, order_id: order.id),
+      alert: 'The gift card payment could not be updated. Check its status before retrying.', status: :see_other
+  end
+
+  def redirect_to_payment(checkout, order, instance_cart)
+    return redirect_to checkout.url, allow_other_host: true if checkout.url.present?
+    return redirect_to completion_url(order, instance_cart), status: :see_other if order.paid_at?
+
+    recent = session[:embedded_store_orders].to_h
+    recent[order.id.to_s] = [@site.id, current_user.id, request.host, instance_cart]
+    session[:embedded_store_orders] = recent.to_a.last(5).to_h
+    redirect_to commerce_embedded_checkout_path(site_id: @site.id, order_id: order.id), status: :see_other
+  end
+
+  def cancel_unsubmitted_order(order)
+    return unless order&.persisted? && order.reload.status == 'pending_payment' && order.payment_reference.blank?
+    return if order.gift_card_redemption? && LightekCommerce::GiftRedemption.where(order: order).where.not(payment_attempted_at: nil).exists?
+
+    LightekCommerce::OrderPlacement.cancel!(order)
+  end
 
   def discount_key = "lightek_commerce_discount_#{@site.id}"
 

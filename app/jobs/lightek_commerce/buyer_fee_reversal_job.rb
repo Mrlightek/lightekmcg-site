@@ -42,14 +42,14 @@ module LightekCommerce
 
     def eligible?(order)
       order.status == 'refunded' && order.refunded_cents == order.total_cents &&
-        order.buyer_fee_cents.positive? && order.merchant_transfer_ref.present? &&
-        order.merchant_transfer_amount_cents == order.buyer_fee_breakdown.fetch('merchant_cents') &&
+        order.transfer_reversal_required? && order.merchant_transfer_ref.present? &&
+        order.merchant_transfer_amount_cents.to_i.positive? &&
         order.buyer_fee_reversal_ref.blank?
     end
 
     def sweep
       Order.where(status: 'refunded', buyer_fee_reversal_ref: nil).where.not(merchant_transfer_ref: nil)
-        .where.not(buyer_fee_snapshot: {}).where('buyer_fee_reversal_requested_at IS NULL OR buyer_fee_reversal_requested_at >= ?', 22.hours.ago)
+        .where("buyer_fee_snapshot <> '{}' OR purpose = ?", 'gift_card_redemption').where('buyer_fee_reversal_requested_at IS NULL OR buyer_fee_reversal_requested_at >= ?', 22.hours.ago)
         .order(id: :asc).limit(50).pluck(:id).each { |id| self.class.perform_later(id) }
     end
   end

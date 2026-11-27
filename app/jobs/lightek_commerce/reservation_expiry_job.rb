@@ -2,6 +2,7 @@
 module LightekCommerce
   class ReservationExpiryJob < ApplicationJob
     queue_as :default
+    retry_on ::Stripe::StripeError, wait: :polynomially_longer, attempts: 6
 
     # Inventory is released only after Stripe confirms an expired, unpaid
     # checkout. A completed-but-unpaid session may still settle asynchronously.
@@ -14,6 +15,18 @@ module LightekCommerce
       end
       if order.payment_provider == "network"
         NetworkCheckout.synchronize!(order)
+        return
+      end
+
+      if order.gift_card_redemption?
+        begin
+          GiftCheckout.expire!(order)
+        rescue GiftCheckout::Invalid => error
+          # A confirmed charge or a cancellation in flight must be reconciled before releasing the hold.
+          raise error if order.created_at < 2.hours.ago
+
+          self.class.set(wait: 5.minutes).perform_later(order.id)
+        end
         return
       end
 

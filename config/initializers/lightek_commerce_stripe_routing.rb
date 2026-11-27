@@ -5,7 +5,8 @@ module LightekCommerceStripeRouting
   def process!(event)
     if DymondBank::BroadcastAdvertising::Funding.checkout_event?(event)
       DymondBank::BroadcastAdvertising::Funding.process!(event)
-    elsif %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type)
+    elsif %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type) ||
+        (event.type == 'refund.created' && event.data.object.metadata.to_h.stringify_keys['lightek_gift_refund'] == '1')
       # These events can concern both Bank/Susu and Commerce records. Preserve
       # Bank handling and let Commerce reconcile only its own recorded IDs.
       result = super
@@ -25,6 +26,9 @@ module LightekCommerceStripeRouting
     if LightekCommerce::SubscriptionEvents::TYPES.include?(event.type)
       return !LightekCommerce::SubscriptionEvents.metadata(event)["lightek_commerce_order_id"].to_s.empty? ||
         LightekCommerce::Subscription.exists?(processor_reference: LightekCommerce::SubscriptionEvents.reference(event))
+    end
+    if event.type == 'payment_intent.succeeded'
+      return event.data.object.metadata.to_h.stringify_keys['lightek_gift_redemption'] == '1'
     end
     types = %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired]
     return false unless types.include?(event.type)

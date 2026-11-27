@@ -4,7 +4,7 @@ module LightekCommerce
   class NetworkCheckout
     def self.connected?(order)
       LightekReservations::Federation::Client.config(order.site).present? && order.network_sale.nil? &&
-        order.purpose.to_s.in?(["", "purchase"]) && order.items.none? { |item| item.product.product_type == "lightek_instance" }
+        order.purpose.to_s.in?(["", "purchase", "gift_card_purchase", "gift_card_redemption"]) && order.items.none? { |item| item.product.product_type == "lightek_instance" }
     end
     def self.chain(site, merchant: site.tenant)
       raise ArgumentError, "Merchant must be a business account" unless merchant.is_a?(User)
@@ -16,7 +16,7 @@ module LightekCommerce
       users.reverse.map { |user| {"subject" => "user-#{user.id}", "email" => user.email_address, "first_name" => user.first_name,
         "last_name" => user.last_name, "role" => user.role, "upstream_share_bps" => user.upstream_share_bps} }
     end
-    def self.start!(order:, embedded: false)
+    def self.start!(order:, embedded: false, gift_code: nil, gift_address: {})
       config = LightekReservations::Federation::Client.config(order.site)
       host = config["client_host"].presence || ENV["LIGHTEK_DEPLOYED_SITE_HOST"].presence || order.site.host
       return_url = "https://#{host}/commerce/shop?#{URI.encode_www_form(site_id: order.site_id, order_id: order.id)}"
@@ -32,6 +32,11 @@ module LightekCommerce
       end
       attributes[:buyer_price_cents] = order.buyer_fee_breakdown.fetch('buyer_cents') if order.buyer_fee_cents.positive?
       attributes[:discount_cents] = order.discount_amount if order.discount_amount.positive?
+      if order.gift_card_purchase? || order.gift_card_redemption?
+        attributes[:gift_order_purpose] = order.purpose
+        attributes[:gift_store_key] = GiftCards.source_store_key(order.site)
+        return start_gift!(order, attributes, host: host, embedded: embedded, code: gift_code, address: gift_address)
+      end
       attributes[:embedded] = true if embedded
       result = client(order).request("commerce/checkouts", method: :post, body: {checkout: attributes})
       if order.buyer_fee_cents.positive? && result['buyer_fee_cents'] != order.buyer_fee_cents
@@ -52,6 +57,33 @@ module LightekCommerce
     rescue LightekReservations::Federation::Client::Unavailable, ArgumentError => error
       raise StripeCheckout::Unavailable, error.message
     end
+    def self.start_gift!(order, attributes, host:, embedded:, code:, address:)
+      order.with_lock do
+        if order.network_reference.blank?
+          result = client(order).request('commerce/checkouts', method: :post, body: {checkout: attributes})
+          reference = result.fetch('key')
+          unless result['gift_ready'] == true && reference.to_s.match?(/\A[0-9a-f-]{36}\z/) &&
+              result['buyer_fee_cents'] == order.buyer_fee_cents
+            raise StripeCheckout::Unavailable, 'The payment platform could not confirm the gift order.'
+          end
+          order.update!(payment_provider: 'network', payment_reference: reference, network_reference: reference)
+        end
+      end
+      result = client(order).request("commerce/orders/#{order.network_reference}/gift-start", method: :post,
+        body: {embedded: embedded, gift_code: code, gift_address: address})
+      url = result['url']
+      if url.present?
+        uri = URI.parse(url)
+        unless uri.is_a?(URI::HTTPS) && !uri.userinfo && uri.port == 443 && %W[checkout.stripe.com #{host}].include?(uri.host)
+          raise StripeCheckout::Unavailable, 'Invalid network checkout destination.'
+        end
+      elsif result['embedded'] != true
+        raise StripeCheckout::Unavailable, 'The payment platform did not confirm the gift order.'
+      end
+      OpenStruct.new(id: order.network_reference, url: uri&.to_s)
+    end
+    private_class_method :start_gift!
+
     def self.embedded_session!(order)
       reference = order.network_reference.to_s
       unless order.payment_provider == 'network' && reference.match?(/\A[a-f0-9-]{36}\z/)
@@ -61,12 +93,22 @@ module LightekCommerce
       result = client(order).request("commerce/orders/#{reference}/embedded-checkout", method: :post)
       secret = result['client_secret']
       key = result['publishable_key']
-      unless result['key'] == reference && secret.is_a?(String) && secret.start_with?('cs_') &&
+      split = result['gift_card_tender'] == true
+      if split
+        values = result.values_at('cash_cents', 'gift_cents', 'total_cents')
+        unless result['key'] == reference && values.all?(Integer) && values[0] >= 0 && values[1].positive? && values[0] + values[1] == values[2]
+          raise StripeCheckout::Unavailable, 'The gift card payment summary could not be verified.'
+        end
+        return [OpenStruct.new(gift_card_tender: true, cash_cents: 0, gift_cents: values[1], total_cents: values[2]), nil] if values[0].zero?
+      end
+      expected_prefix = split ? 'pi_' : 'cs_'
+      unless result['key'] == reference && secret.is_a?(String) && secret.start_with?(expected_prefix) &&
           key.is_a?(String) && key.match?(/\Apk_(?:live|test)_/)
         raise StripeCheckout::Unavailable, 'The embedded payment session could not be verified.'
       end
 
-      [OpenStruct.new(client_secret: secret), key]
+      [OpenStruct.new(client_secret: secret, gift_card_tender: split,
+        cash_cents: result['cash_cents'], gift_cents: result['gift_cents'], total_cents: result['total_cents']), key]
     rescue LightekReservations::Federation::Client::Unavailable => error
       raise StripeCheckout::Unavailable, error.message
     end
@@ -126,6 +168,12 @@ module LightekCommerce
         OrderPlacement.cancel!(order)
       else
         values = receipt.slice("status", "shipping_cents", "tax_cents", "total_cents", "refunded_cents", "paid_at", "fulfilled_at", "fulfillment_reference", "merchant_transfer_ref", "merchant_transfer_amount_cents")
+        if order.gift_card_redemption? && receipt.key?('gift_applied_cents')
+          gift = Integer(receipt['gift_applied_cents'])
+          raise StripeCheckout::Unavailable, 'Invalid gift card payment receipt.' unless gift.between?(0, Integer(receipt['total_cents']))
+
+          values['gift_applied_cents'] = gift
+        end
         order.update!(values)
       end
     end

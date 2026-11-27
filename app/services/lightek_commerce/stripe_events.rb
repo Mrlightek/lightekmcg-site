@@ -5,6 +5,9 @@ module LightekCommerce
 
     def self.process!(event)
       return if defined?(LightekPwa::CreatorSettlement) && LightekPwa::CreatorSettlement.payment_event!(event)
+      if event.type == 'payment_intent.succeeded' && event.data.object.metadata.to_h.stringify_keys['lightek_gift_redemption'] == '1'
+        return GiftCheckout.process_event!(event)
+      end
       return SubscriptionEvents.process!(event) if SubscriptionEvents::TYPES.include?(event.type)
       if %w[charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type)
         reference = event.data.object.id.to_s
@@ -12,8 +15,12 @@ module LightekCommerce
 
         return DisputeEventJob.perform_later(reference) if reference.match?(/\Adp_[A-Za-z0-9_]{1,150}\z/)
       end
-      if %w[charge.refund.updated refund.updated].include?(event.type)
+      if %w[charge.refund.updated refund.updated refund.created].include?(event.type)
         refund = event.data.object
+        if refund.respond_to?(:metadata) && refund.metadata.to_h.stringify_keys['lightek_gift_refund'] == '1'
+          return GiftRefunds.process_event!(refund)
+        end
+        return if event.type == 'refund.created'
         return RefundSettlement.call(processor_ref: refund.id, status: refund.status)
       end
       return unless %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired].include?(event.type)
@@ -86,7 +93,12 @@ module LightekCommerce
         LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport)
         LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
         LightekAgency::Trial.settle!(order: order) if order.purpose == "agency_membership"
-        RevenueSharing.record!(order)
+        if order.gift_card_purchase?
+          order.update!(status: 'fulfilled', fulfilled_at: Time.current, fulfillment_reference: session.id)
+          GiftCard.issue!(order, livemode: session.livemode == true)
+        else
+          RevenueSharing.record!(order)
+        end
         OrderConfirmationJob.perform_later(order.id)
         PaidInstanceProvisioningJob.perform_later(order.id) if order.purpose != "reservation_change" && order.items.any? { |item| item.product.product_type == "lightek_instance" }
       end

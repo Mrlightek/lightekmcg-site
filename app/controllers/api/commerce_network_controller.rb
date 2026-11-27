@@ -1,14 +1,51 @@
 class Api::CommerceNetworkController < Api::ReservationFederationController
   rescue_from LightekCommerce::MerchantPayouts::Invalid, LightekCommerce::RevenueSharing::Invalid,
-    LightekCommerce::BuyerFees::Invalid, LightekCommerce::Refunds::Invalid, LightekCommerce::Fulfillment::Invalid, LightekCommerce::StripeCheckout::Unavailable,
+    LightekCommerce::GiftCards::Invalid, LightekCommerce::GiftCheckout::Invalid, LightekPayments::PayoutAccounts::Unavailable, LightekCommerce::BuyerFees::Invalid, LightekCommerce::Refunds::Invalid, LightekCommerce::Fulfillment::Invalid, LightekCommerce::StripeCheckout::Unavailable,
     DymondBank::StripeService::ConfigurationError, with: ->(error) { render json: {error: error.message}, status: :unprocessable_entity }
   rescue_from Stripe::StripeError, DymondBank::StripeService::StripeError, with: ->(_) { render json: {error: 'Payment processing is temporarily unavailable. Retry or contact support.'}, status: :unprocessable_entity }
   def checkout
-    values = params.require(:checkout).permit(:source_key, :customer_email, :store_name, :return_url, :shipping_quote_key, :shipping_price_cents, :buyer_price_cents, :discount_cents,
+    values = params.require(:checkout).permit(:source_key, :customer_email, :store_name, :return_url, :shipping_quote_key, :shipping_price_cents, :buyer_price_cents, :discount_cents, :gift_order_purpose, :gift_store_key,
       merchant_chain: %i[subject email first_name last_name role upstream_share_bps], items: %i[name quantity unit_price_cents product_type billing_interval]).to_h
     sale = LightekCommerce::NetworkGateway.reserve!(peer: @peer, attributes: values)
+    if sale.order.gift_card_purchase? || sale.order.gift_card_redemption?
+      return render json: {key: sale.public_key, gift_ready: true, buyer_fee_cents: sale.order.buyer_fee_cents}
+    end
     render json: LightekCommerce::NetworkGateway.checkout!(sale, embedded: params.dig(:checkout, :embedded) == true)
   end
+  def gift_start
+    address = params[:gift_address]
+    fields = address.is_a?(ActionController::Parameters) ? address.permit(:line1, :city, :state, :postal_code, :country).to_h : {}
+    render json: LightekCommerce::NetworkGateway.gift_checkout!(sale, embedded: params[:embedded] == true,
+      code: params[:gift_code], address: fields)
+  end
+  def gift_balance
+    cards = LightekCommerce::GiftCards
+    raise ActiveRecord::RecordNotFound unless cards.platform_enabled?
+
+    values = params.permit(:store_name, :gift_store_key, :gift_code,
+      merchant_chain: %i[subject email first_name last_name role upstream_share_bps]).to_h
+    scope = cards.network_scope(@peer, values.fetch('gift_store_key'))
+    _, site = LightekCommerce::NetworkAccounts.resolve!(peer: @peer, chain: values.fetch('merchant_chain'),
+      store_name: values.fetch('store_name'))
+    render json: {available_cents: cards.available_balance!(site: site, scope: scope, code: values.fetch('gift_code'))}
+  end
+
+  def gift_confirm
+    order = sale.order
+    raise ActiveRecord::RecordNotFound unless order.gift_card_redemption?
+
+    LightekCommerce::GiftCheckout.confirm!(order)
+    render json: {status: 'paid'}
+  end
+
+  def gift_cancel
+    order = sale.order
+    raise ActiveRecord::RecordNotFound unless order.gift_card_redemption?
+
+    LightekCommerce::GiftCheckout.expire!(order)
+    render json: {status: order.reload.status}
+  end
+
   def embedded_checkout
     response.headers['Cache-Control'] = 'private, no-store'
     render json: LightekCommerce::NetworkGateway.embedded_session!(sale)

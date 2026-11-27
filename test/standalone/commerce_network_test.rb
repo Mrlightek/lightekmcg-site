@@ -15,6 +15,61 @@ class CommerceNetworkTest < CommerceHostingTest
   def reserve(values = attributes)
     LightekCommerce::NetworkGateway.reserve!(peer: peer, attributes: values)
   end
+  def test_network_gift_card_is_restricted_to_the_issuing_store_and_returns_a_zero_cash_summary
+    with_gift_store do
+      store_key = 'f' * 64
+      purchase = reserve(attributes.merge('gift_order_purpose' => 'gift_card_purchase', 'gift_store_key' => store_key,
+        'items' => [{'name' => 'Gift card', 'quantity' => 1, 'unit_price_cents' => 2500, 'product_type' => 'digital', 'billing_interval' => 'one_time'}]))
+      purchase.order.update!(status: 'fulfilled', paid_at: Time.current)
+      gift = LightekCommerce::GiftCard.issue!(purchase.order, livemode: false)
+      assert_equal 2500, LightekCommerce::GiftCards.available_balance!(site: purchase.order.site,
+        scope: LightekCommerce::GiftCards.network_scope(peer, store_key), code: gift.display_code)
+      another_store = reserve(attributes.merge('source_key' => 'b' * 64, 'gift_order_purpose' => 'gift_card_redemption', 'gift_store_key' => 'e' * 64))
+      assert_raises(LightekCommerce::GiftCheckout::Invalid) do
+        LightekCommerce::NetworkGateway.gift_checkout!(another_store, embedded: true, code: gift.display_code, address: gift_billing_address)
+      end
+      redemption = reserve(attributes.merge('source_key' => 'c' * 64, 'gift_order_purpose' => 'gift_card_redemption', 'gift_store_key' => store_key))
+      Stripe::Tax::Calculation.stub(:create, OpenStruct.new(id: 'taxcalc_network', amount_total: 2500, tax_amount_exclusive: 0, currency: 'usd')) do
+        assert_equal({embedded: true}, LightekCommerce::NetworkGateway.gift_checkout!(redemption, embedded: true,
+          code: gift.display_code, address: gift_billing_address))
+      end
+      summary = LightekCommerce::NetworkGateway.embedded_session!(redemption)
+      assert_equal({key: redemption.public_key, gift_card_tender: true, cash_cents: 0, gift_cents: 2500, total_cents: 2500}, summary)
+      refute_includes redemption.source_snapshot.keys, 'gift_code'
+      Stripe::Tax::Transaction.stub(:create_from_calculation, ->(data, _) {
+        OpenStruct.new(id: 'tax_net', reference: data[:reference], currency: 'usd')
+      }) { LightekCommerce::GiftCheckout.confirm!(redemption.order) }
+      receipt = LightekCommerce::NetworkGateway.receipt(redemption)
+      assert_equal [2500, 'paid'], receipt.values_at(:gift_applied_cents, :status)
+    end
+  end
+
+  def test_network_gift_reference_is_saved_before_the_platform_applies_tender
+    with_gift_store do
+      order = gift_merchandise_order(3000)
+      fake = Object.new
+      fake.define_singleton_method(:request) do |path, **input|
+        if path == 'commerce/checkouts'
+          raise 'Gift code must only be sent to the payment endpoint' if input.dig(:body, :checkout).key?(:gift_code)
+          {'key' => 'b' * 8 + '-bbbb-bbbb-bbbb-' + 'b' * 12, 'gift_ready' => true, 'buyer_fee_cents' => 0}
+        else
+          raise 'Local network reference must be persisted first' unless order.reload.payment_provider == 'network'
+          raise LightekReservations::Federation::Client::Unavailable, 'Provider retry'
+        end
+      end
+      LightekReservations::Federation::Client.stub(:config, {'client_host' => @site.host}) do
+        LightekCommerce::NetworkCheckout.stub(:client, fake) do
+          assert_raises(LightekCommerce::StripeCheckout::Unavailable) do
+            LightekCommerce::NetworkCheckout.start!(order: order, embedded: true, gift_code: 'fixture')
+          end
+        end
+      end
+      assert_equal 'network', order.reload.payment_provider
+      assert order.network_reference.present?
+      assert_equal 'pending_payment', order.status
+    end
+  end
+
   def test_network_discount_survives_central_checkout_and_cannot_change_on_replay
     payload = attributes.merge('discount_cents' => 251)
     sale = reserve(payload)

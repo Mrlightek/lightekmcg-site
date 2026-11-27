@@ -17,6 +17,15 @@
       <%= form.submit 'Save appearance', class: 'dd-button dd-btn-primary' %>
     <% end %>
   </section>
+  <% if LightekCommerce::GiftCards.platform_enabled? || @site.manifest.to_h.key?('commerce_gift_cards') %>
+    <section class="dd-panel">
+      <h2>Gift cards</h2>
+      <p>Customers can buy gift cards in USD. Pausing sales keeps existing cards redeemable.</p>
+      <% selling = @site.manifest.to_h['commerce_gift_cards'] == true %>
+      <%= button_to selling ? 'Pause gift card sales' : 'Enable gift card sales',
+        dashboard_commerce_gift_cards_path(site_id: @site.id), method: :patch, params: {enabled: selling ? '0' : '1'}, class: 'dd-button' %>
+    </section>
+  <% end %>
   <section class="dd-panel">
     <h2>Discounts</h2>
     <%= form_with scope: :discount, url: dashboard_commerce_store_discounts_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>

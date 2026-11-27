@@ -60,8 +60,10 @@ module LightekCommerce
         Discounts.processor_items(order)
       else
         order.items.map do |item|
+          product_data = {name: item.name}
+          product_data[:tax_code] = GiftCards::TAX_CODE if order.gift_card_purchase?
           {price_data: {currency: order.currency, unit_amount: item.unit_price_cents,
-            product_data: {name: item.name}, **(recurring ? {recurring: {interval: interval}} : {})}, quantity: item.quantity}
+            product_data: product_data, **(recurring ? {recurring: {interval: interval}} : {})}, quantity: item.quantity}
         end
       end
       if order.buyer_fee_cents.positive?

@@ -1,6 +1,29 @@
 <div id="lightek-cart">
 <section id="cart" class="lt-shop-cart"><h2>Your cart</h2>
-<%= link_to 'My orders', commerce_account_path(site_id: @site.id) %><% @cart.each do |id, quantity| %><% if (product = @products.find { |p| p.id.to_s == id.split(":").first }) %><% variant = id.include?(":") ? product.variants.find_by(id: id.split(":").last) : nil %><% workspace_seats = Gatekeeper::Hosting::WorkspacePlans.seats_for(product) %>
+<%= link_to 'My orders', commerce_account_path(site_id: @site.id) %>
+<% if @gift_cards_redeemable && authenticated? %>
+  <details>
+    <summary>Check a gift card balance</summary>
+    <%= form_with url: commerce_gift_card_balance_path(site_id: @site.id), method: :post, local: true do %>
+      <label>Gift card code <%= password_field_tag :gift_code, nil, id: 'gift-balance-code', maxlength: 40, autocomplete: 'off', required: true %></label>
+      <%= submit_tag 'Check balance' %>
+    <% end %>
+  </details>
+<% end %>
+<% if @gift_cards_enabled %>
+  <details>
+    <summary>Buy a gift card</summary>
+    <% if authenticated? %>
+      <%= form_with url: commerce_buy_gift_card_path(site_id: @site.id), method: :post, local: true do %>
+        <label>Gift card amount <%= select_tag :denomination, options_for_select(LightekCommerce::GiftCards::DENOMINATIONS.map { |amount| [number_to_currency(amount / 100.0), amount] }) %></label>
+        <p>The gift code will be sent to your account email after payment.</p>
+        <%= submit_tag 'Buy gift card' %>
+      <% end %>
+    <% else %>
+      <%= link_to 'Sign in to buy a gift card', commerce_account_path(site_id: @site.id) %>
+    <% end %>
+  </details>
+<% end %><% @cart.each do |id, quantity| %><% if (product = @products.find { |p| p.id.to_s == id.split(":").first }) %><% variant = id.include?(":") ? product.variants.find_by(id: id.split(":").last) : nil %><% workspace_seats = Gatekeeper::Hosting::WorkspacePlans.seats_for(product) %>
 <% if workspace_seats&.cover?(quantity) %>
   <% total = Gatekeeper::Hosting::WorkspacePlans.monthly_price(starting_price: product.price_cents, seats: quantity, seat_range: workspace_seats) %>
   <p><%= product.name %> · <%= pluralize(quantity, "seat") %> — <%= number_to_currency(total / 100.0) %>
@@ -18,5 +41,16 @@
 <% if @discount %><p><%= @discount.name %> · <%= number_to_currency(@discount_cents / 100.0) %> off merchandise</p><% end %>
 <% if @buyer_fee_cart %>
 <p><strong><%= number_to_currency((@discounted_buyer_price || @buyer_fee_cart.fetch('buyer_cents')) / 100.0) %><%= "/#{@buyer_fee_interval}" unless @buyer_fee_interval == 'one_time' %></strong> before tax · Includes Lightek checkout fees<%= ' · Shipping shown separately' if @cart.keys.any? { |key| @products.any? { |product| product.id.to_s == key.split(':').first && product.product_type == 'physical' } } %></p>
-<% end %><%= form_with url: commerce_checkout_path(site_id: @site.id), method: :post do |f| %><%= hidden_field_tag :expected_discount_cents, @discount_cents.to_i %><%= hidden_field_tag :buyer_fee_token, @buyer_fee_token if @buyer_fee_token %><% Array(@shipping_quotes).each do |quote| %><label><%= radio_button_tag :shipping_quote_key, quote.public_key, false, required: true %> <%= quote.service_name %> · <%= number_to_currency(quote.customer_price_cents / 100.0) %><%= " · TEST" if quote.sandbox? %></label><% end %><%= email_field_tag :customer_email, nil, placeholder: "Email", required: true %><%= f.submit(respond_to?(:experiment_text) ? experiment_text("commerce_checkout", "Continue to secure payment") : "Continue to secure payment") %><% end %><% end %></section>
+<% end %><%= form_with url: commerce_checkout_path(site_id: @site.id), method: :post do |f| %><%= hidden_field_tag :expected_discount_cents, @discount_cents.to_i %><%= hidden_field_tag :buyer_fee_token, @buyer_fee_token if @buyer_fee_token %><% Array(@shipping_quotes).each do |quote| %><label><%= radio_button_tag :shipping_quote_key, quote.public_key, false, required: true %> <%= quote.service_name %> · <%= number_to_currency(quote.customer_price_cents / 100.0) %><%= " · TEST" if quote.sandbox? %></label><% end %><%= email_field_tag :customer_email, nil, placeholder: "Email", required: true %><% if @gift_cards_redeemable %>
+  <details>
+    <summary>Use a gift card</summary>
+    <label>Gift card code <%= password_field_tag :gift_code, nil, maxlength: 40, autocomplete: 'off' %></label>
+    <p>Enter your billing address for digital items and services. Physical items use the selected shipping quote.</p>
+    <% {line1: 'Street', city: 'City', state: 'State', postal_code: 'ZIP code'}.each do |key, label| %>
+      <label><%= label %> <%= text_field_tag "gift_address[#{key}]", nil, maxlength: 120 %></label>
+    <% end %>
+    <%= hidden_field_tag 'gift_address[country]', 'US' %>
+  </details>
+<% end %>
+<%= f.submit(respond_to?(:experiment_text) ? experiment_text("commerce_checkout", "Continue to secure payment") : "Continue to secure payment") %><% end %><% end %></section>
 </div>

@@ -20,6 +20,9 @@
           <% end %>
         <% end %>
       </dl>
+      <% if @ledger[:gift_applied_cents].to_i.positive? %>
+        <p>Gift card <%= number_to_currency(@ledger[:gift_applied_cents] / 100.0) %> · Processor charge <%= number_to_currency(@ledger[:cash_paid_cents] / 100.0) %></p>
+      <% end %>
       <% if @ledger[:buyer_fee_reversal_ref] %>
         <p>Merchant refund reversal <%= @ledger[:buyer_fee_reversal_ref] %></p>
       <% elsif @ledger[:buyer_fee_reversal_pending] %>

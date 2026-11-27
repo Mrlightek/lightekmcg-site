@@ -18,6 +18,18 @@
     <%= link_to 'Export inventory CSV', dashboard_commerce_products_path(@filters.to_h.merge(site_id: @site.id, inventory: '1', format: :csv)), class: 'dd-button' %>
   </section>
 
+  <section class="dd-panel" aria-labelledby="inventory-adjustment-heading">
+    <h2 id="inventory-adjustment-heading">Update inventory from CSV</h2>
+    <p>Download a template for up to 500 rows matching these filters. Fill in <code>new_available_quantity</code> for the rows you want to change. Leave the other columns as exported.</p>
+    <%= link_to 'Download adjustment template', dashboard_commerce_products_path(@filters.to_h.merge(site_id: @site.id,
+      inventory: '1', format: :csv, adjustment_template: '1')), class: 'dd-button' %>
+    <%= form_with url: dashboard_commerce_products_path(site_id: @site.id), method: :post, multipart: true, class: 'dd-form-stack' do %>
+      <%= hidden_field_tag :inventory_import, '1' %>
+      <label>Inventory adjustment CSV <%= file_field_tag :inventory_csv, accept: '.csv,text/csv', required: true %></label>
+      <%= submit_tag 'Update stock', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+  </section>
+
   <section class="dd-panel" aria-label="Tracked stock">
     <% if @more_inventory %><p>Showing the first 150 matches. Narrow the filters or export the list.</p><% end %>
     <% if @inventory_rows.empty? %>

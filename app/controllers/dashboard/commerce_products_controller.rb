@@ -38,6 +38,8 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     @product = LightekCommerce::Product.new(site: @site)
   end
   def create
+    return import_inventory if params[:inventory_import] == '1'
+
     authorize_instance_product!
     @product = LightekCommerce::Product.new(product_params.except(:remove_photo_ids).merge(site: @site))
     return redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product created." if @product.save
@@ -72,10 +74,27 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
         render :inventory
       end
       format.csv do
-        send_data @inventory_report.csv, filename: "inventory-#{Date.current.iso8601}.csv", type: 'text/csv; charset=utf-8'
+        template = params[:adjustment_template] == '1'
+        data = template ? @inventory_report.adjustment_csv : @inventory_report.csv
+        prefix = template ? 'inventory-adjustment' : 'inventory'
+        send_data data, filename: "#{prefix}-#{Date.current.iso8601}.csv", type: 'text/csv; charset=utf-8'
       end
     end
   rescue LightekCommerce::InventoryReport::Invalid => error
+    redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), alert: error.message, status: :see_other
+  end
+
+  def import_inventory
+    file = params[:inventory_csv]
+    unless file.is_a?(ActionDispatch::Http::UploadedFile)
+      raise LightekCommerce::InventoryAdjustment::Invalid, 'Choose an inventory adjustment CSV.'
+    end
+
+    data = file.read(LightekCommerce::InventoryAdjustment::MAX_BYTES + 1).to_s.force_encoding(Encoding::UTF_8)
+    count = LightekCommerce::InventoryAdjustment.apply!(site: @site, data: data)
+    redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'),
+      notice: "Updated #{count} inventory #{'row'.pluralize(count)}.", status: :see_other
+  rescue LightekCommerce::InventoryAdjustment::Invalid => error
     redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), alert: error.message, status: :see_other
   end
 

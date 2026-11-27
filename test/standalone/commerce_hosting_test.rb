@@ -58,9 +58,11 @@ ActiveRecord::Schema.define do
     t.integer :price_cents, default: 0; t.integer :inventory_quantity, default: 0
     t.boolean :published, default: true; t.string :product_type, default: "physical"
     t.integer :subscription_plan_id; t.string :image_url; t.string :short_description; t.string :sku; t.integer :position
+    t.timestamps
   end
   create_table(:lightek_commerce_product_variants) do |t|
     t.references :product; t.string :name; t.string :sku; t.boolean :active, default: true; t.integer :price_cents; t.integer :inventory_quantity
+    t.timestamps
   end
   create_table(:lightek_commerce_orders) do |t|
     t.references :site; t.string :status, default: "pending_payment"; t.string :customer_email
@@ -300,6 +302,7 @@ require Rails.root.join('app/services/lightek_commerce/order_report')
 require Rails.root.join('app/services/lightek_commerce/order_timeline')
 require Rails.root.join('app/services/lightek_commerce/packing_slips')
 require Rails.root.join('app/services/lightek_commerce/inventory_report')
+require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
 require Rails.root.join('app/services/lightek_commerce/quantity_promotion')
@@ -1896,6 +1899,29 @@ class CommerceHostingTest < Minitest::Test
         assert_raises(ArgumentError) { LightekShipping::PickupQuote.rate!(quote: quote, attributes: pickup.merge(close: '08:00')) }
       end
     end
+  end
+
+  def test_inventory_template_updates_simple_and_variant_stock_in_one_indivisible_batch
+    simple = product(name: 'Simple count', track_inventory: true, inventory_quantity: 3)
+    variable = product(name: 'Variant count', track_inventory: false)
+    variant = variable.variants.create!(name: 'Large', price_cents: 350, inventory_quantity: 6, active: true)
+    service = LightekCommerce::InventoryAdjustment
+    report = LightekCommerce::InventoryReport.new(site: @site, filters: {stock: 'all'})
+    template = CSV.parse(report.adjustment_csv, headers: true)
+    template.each { |row| row['new_available_quantity'] = row['variant_id'] ? '0' : '9' }
+
+    assert_equal 2, service.apply!(site: @site, data: template.to_csv)
+    assert_equal [9, 0], [simple.reload.inventory_quantity, variant.reload.inventory_quantity]
+    assert_raises(service::Invalid) { service.apply!(site: @site, data: template.to_csv) }
+
+    template = CSV.parse(report.adjustment_csv, headers: true)
+    template.each { |row| row['new_available_quantity'] = '14' }
+    simple.update!(inventory_quantity: 8)
+    assert_raises(service::Invalid) { service.apply!(site: @site, data: template.to_csv) }
+    assert_equal [8, 0], [simple.reload.inventory_quantity, variant.reload.inventory_quantity]
+
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'stock-write-other.test')
+    assert_raises(service::Invalid) { service.apply!(site: foreign, data: template.to_csv) }
   end
 
   def test_inventory_report_mirrors_sellable_stock_and_scopes_csv_to_the_store

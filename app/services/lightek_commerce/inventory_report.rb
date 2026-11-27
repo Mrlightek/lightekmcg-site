@@ -35,15 +35,16 @@ module LightekCommerce
 
     def include_drafts? = @include_drafts
 
-    def rows(limit:)
+    def rows(limit:, adjustable: false)
+      catalog = adjustable ? @products.where.not(product_type: 'lightek_instance') : @products
       active = ProductVariant.where(active: true)
-      products = @products.where(track_inventory: true).where.not(id: active.select(:product_id))
-        .select('id AS product_id, NULL AS variant_id, name AS product_name, NULL AS variant_name, sku, inventory_quantity, published')
-      variants = active.joins(:product).merge(@products).select(
+      products = catalog.where(track_inventory: true).where.not(id: active.select(:product_id))
+        .select('id AS product_id, NULL AS variant_id, name AS product_name, NULL AS variant_name, sku, inventory_quantity, published, updated_at AS inventory_updated_at')
+      variants = active.joins(:product).merge(catalog).select(
         'lightek_commerce_products.id AS product_id, lightek_commerce_product_variants.id AS variant_id, ' \
         'lightek_commerce_products.name AS product_name, lightek_commerce_product_variants.name AS variant_name, ' \
         'lightek_commerce_product_variants.sku AS sku, lightek_commerce_product_variants.inventory_quantity AS inventory_quantity, ' \
-        'lightek_commerce_products.published AS published'
+        'lightek_commerce_products.published AS published, lightek_commerce_product_variants.updated_at AS inventory_updated_at'
       )
       relation = Product.unscoped.from("(#{products.to_sql} UNION ALL #{variants.to_sql}) AS stock_rows")
         .select('stock_rows.*')
@@ -71,6 +72,21 @@ module LightekCommerce
         results.each do |row|
           output << [row['product_id'], row['variant_id'], safe_text(row['product_name']), safe_text(row['variant_name']),
             safe_text(row['sku']), row['inventory_quantity'], publication(row)]
+        end
+      end
+    end
+
+    def adjustment_csv
+      results = rows(limit: InventoryAdjustment::MAX_ROWS + 1, adjustable: true)
+      if results.size > InventoryAdjustment::MAX_ROWS
+        raise Invalid, "Narrow your filters to #{InventoryAdjustment::MAX_ROWS} inventory rows or fewer."
+      end
+
+      CSV.generate do |output|
+        output << InventoryAdjustment::COLUMNS
+        results.each do |row|
+          output << [row['product_id'], row['variant_id'], safe_text(row['product_name']), safe_text(row['variant_name']),
+            safe_text(row['sku']), row['inventory_quantity'], InventoryAdjustment.snapshot_version(row['inventory_updated_at']), nil]
         end
       end
     end

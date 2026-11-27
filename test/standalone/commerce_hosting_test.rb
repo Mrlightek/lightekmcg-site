@@ -325,6 +325,8 @@ require Rails.root.join('db/migrate/20261127205000_add_commerce_return_fee')
 AddCommerceReturnFee.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127206000_snapshot_commerce_return_fee_rule')
 SnapshotCommerceReturnFeeRule.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127207000_add_commerce_return_exchanges')
+AddCommerceReturnExchanges.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -334,6 +336,7 @@ require Rails.root.join('app/services/lightek_commerce/supplier_orders')
 require Rails.root.join('app/models/lightek_commerce/merchandise_return')
 require Rails.root.join('app/services/lightek_commerce/merchandise_returns')
 require Rails.root.join('app/services/lightek_commerce/return_refunds')
+require Rails.root.join('app/services/lightek_commerce/return_exchanges')
 require Rails.root.join('app/services/lightek_commerce/return_fee_policy')
 require Rails.root.join('app/models/lightek_commerce/return_label')
 require Rails.root.join('app/services/lightek_commerce/return_labels')
@@ -1503,6 +1506,51 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_returns_reserve_ship_or_cancel_an_equal_price_replacement
+    item = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800)
+    small = item.variants.create!(name: 'Small', price_cents: 800, inventory_quantity: 5, active: true)
+    large = item.variants.create!(name: 'Large', price_cents: 800, inventory_quantity: 2, active: true)
+    expensive = item.variants.create!(name: 'Premium', price_cents: 900, inventory_quantity: 5, active: true)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test',
+      quantities: {"#{item.id}:#{small.id}" => 1})
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_exchange')
+    line = order.items.sole
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: line.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    service = LightekCommerce::ReturnExchanges
+    exchanges = service.new(order: order, actor: @operator)
+    assert_raises(service::Invalid) { exchanges.reserve!(record.id, replacement: large.id) }
+    returns.approve!(record.id)
+    returns.receive!(record.id, disposition: 'available')
+    assert_equal 5, small.reload.inventory_quantity
+    assert_equal [small.id, large.id], service.options(order, line, record.reload).map(&:last)
+    assert_raises(service::Invalid) { exchanges.reserve!(record.id, replacement: expensive.id) }
+    audit = LightekCommerce::InventoryChange
+    audit.stub(:record!, ->(**) { raise ActiveRecord::RecordInvalid.new(audit.new) }) do
+      assert_raises(service::Invalid) { exchanges.reserve!(record.id, replacement: large.id) }
+    end
+    assert_equal [2, nil], [large.reload.inventory_quantity, record.reload.exchange_status]
+
+    exchanges.reserve!(record.id, replacement: large.id)
+    assert_equal [1, 'reserved'], [large.reload.inventory_quantity, record.reload.exchange_status]
+    assert_raises(service::Invalid) { exchanges.reserve!(record.id, replacement: large.id) }
+    refunds = LightekCommerce::Refunds
+    assert_raises(refunds::Invalid) { refunds.issue!(order: order, amount_cents: 800, merchandise_return_id: record.id) }
+    assert_raises(refunds::Invalid) { refunds.issue!(order: order, amount_cents: 800) }
+    exchanges.cancel!(record.id)
+    assert_equal [2, 'canceled'], [large.reload.inventory_quantity, record.reload.exchange_status]
+    assert_equal 800, LightekCommerce::ReturnRefunds.amount_for(order, line, record)
+
+    exchanges.reserve!(record.id, replacement: large.id)
+    exchanges.ship!(record.id, reference: 'UPS-REF-42')
+    assert_equal ['shipped', 'UPS-REF-42'], record.reload.attributes.values_at('exchange_status', 'exchange_shipping_reference')
+    assert_raises(service::Invalid) { exchanges.cancel!(record.id) }
+    assert_equal 1, large.reload.inventory_quantity
+    assert_equal 2, audit.where(merchandise_return_id: record.id, variant_id: large.id).where(after_quantity: 1).count
+    assert_empty order.refunds
+  end
+
   def test_store_return_fee_rules_snapshot_suggestions_and_allow_waivers
     policy = LightekCommerce::ReturnFeePolicy
     assert_equal({'mode' => 'none'}, policy.read(@site))

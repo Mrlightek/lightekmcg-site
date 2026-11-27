@@ -189,6 +189,23 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
     @http.public_send(method, path, params: params, headers: {"X-Test-User" => actor&.id.to_s})
     @http.response
   end
+  def test_merchants_can_reserve_and_ship_a_replacement_from_the_dashboard
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 3)
+    order = order_for(item)
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_dashboard_exchange')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Replacement requested', request_key: SecureRandom.uuid)
+    returns.approve!(record.id)
+    returns.receive!(record.id, disposition: 'discarded')
+    base = "/dashboard/commerce/orders/#{order.id}/returns"
+    assert_includes request(:get, base, site_id: @site.id).body, 'Reserve replacement'
+    assert_equal 303, request(:post, "#{base}/#{record.id}", site_id: @site.id, operation: 'reserve_exchange', replacement: 'product').status
+    assert_equal [1, 'reserved'], [item.reload.inventory_quantity, record.reload.exchange_status]
+    assert_equal 303, request(:post, "#{base}/#{record.id}", site_id: @site.id, operation: 'ship_exchange', shipping_reference: 'BOX-42').status
+    assert_includes request(:get, base, site_id: @site.id).body, 'Shipping reference BOX-42'
+  end
+
   def test_store_owner_can_save_a_return_fee_rule_from_settings
     path = '/dashboard/commerce/return-fee-policy'
     response = request(:patch, path, site_id: @site.id, return_fee_policy: {mode: 'fixed', fixed_cents: '250'})

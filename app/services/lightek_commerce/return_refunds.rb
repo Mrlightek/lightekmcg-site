@@ -23,7 +23,7 @@ module LightekCommerce
     end
 
     def self.amount_for(order, item, record)
-      return unless record.status == 'received' && available?(order, item, record)
+      return unless record.status == 'received' && !record.active_exchange? && available?(order, item, record)
 
       net = merchandise_total(item)
       return unless net.positive?

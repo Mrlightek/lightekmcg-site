@@ -16,6 +16,9 @@ module LightekCommerce
       'closed' => %w[rejected canceled]
     }.freeze
     PAGE_SIZE = 50
+    ACTIVE_EXCHANGE_STATUSES = %w[reserved shipped].freeze
+
+    def active_exchange? = ACTIVE_EXCHANGE_STATUSES.include?(exchange_status)
 
     def self.queue(site:, filter:, before_id: nil)
       owned_orders = Order.receipt_eligible.where(site: site)

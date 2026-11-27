@@ -52,6 +52,11 @@
                   <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
                 </div>
               <% end %>
+              <% if record.active_exchange? %>
+                <div>Replacement <%= record.replacement_name %> · <%= record.exchange_status == 'reserved' ? 'Preparing shipment' : 'Shipped' %>
+                  <% if record.exchange_shipping_reference.present? %> · Shipping reference <%= record.exchange_shipping_reference %><% end %>
+                </div>
+              <% end %>
               <% if (refund = @refunds[record.id]) %>
                 <div>Refund <%= number_to_currency(refund.amount_cents / 100.0) %> · <%= refund.status == 'succeeded' ? 'Completed' : refund.status.humanize %></div>
               <% end %>

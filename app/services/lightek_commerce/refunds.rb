@@ -31,6 +31,8 @@ module LightekCommerce
           record = MerchandiseReturn.where(order_id: order.id).find(merchandise_return_id)
           current_amount = ReturnRefunds.amount_for(order, order.items.find(record.order_item_id), record)
           raise Invalid, 'The return refund amount is unavailable or changed. Review the order and any existing refunds.' unless current_amount == amount_cents
+        elsif MerchandiseReturn.where(order_id: order.id, exchange_status: MerchandiseReturn::ACTIVE_EXCHANGE_STATUSES).exists?
+          raise Invalid, 'This order has an exchange. Issue any remaining refund from its eligible return.'
         end
         raise Invalid, "Order is not refundable" unless %w[paid fulfilled partially_refunded].include?(order.status)
         pending = order.refunds.where(status: "pending").exists?

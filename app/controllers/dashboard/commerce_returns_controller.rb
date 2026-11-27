@@ -61,6 +61,15 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
       LightekCommerce::ReturnLabels.upload!(order: @order, return_id: id, actor: current_user,
         upload: params[:label_pdf], carrier: params[:carrier], tracking_number: params[:tracking_number])
       'Return label saved.'
+    when 'reserve_exchange'
+      LightekCommerce::ReturnExchanges.new(order: @order, actor: current_user).reserve!(id, replacement: params[:replacement])
+      'Replacement stock reserved.'
+    when 'ship_exchange'
+      LightekCommerce::ReturnExchanges.new(order: @order, actor: current_user).ship!(id, reference: params[:shipping_reference])
+      'Replacement marked as shipped.'
+    when 'cancel_exchange'
+      LightekCommerce::ReturnExchanges.new(order: @order, actor: current_user).cancel!(id)
+      'Exchange canceled and replacement stock released.'
     when 'refund'
       record = LightekCommerce::MerchandiseReturn.where(order_id: @order.id).find(id)
       refund = LightekCommerce::Refunds.issue!(order: @order, merchandise_return_id: record.id,
@@ -74,7 +83,7 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     end
     redirect_to return_path, notice: notice, status: :see_other
   rescue LightekCommerce::MerchandiseReturns::Invalid, LightekCommerce::InventoryStockStates::Invalid,
-    LightekCommerce::Refunds::Invalid, LightekCommerce::ReturnLabels::Invalid, Stripe::StripeError => error
+    LightekCommerce::Refunds::Invalid, LightekCommerce::ReturnLabels::Invalid, LightekCommerce::ReturnExchanges::Invalid, Stripe::StripeError => error
     redirect_to return_path, alert: error.message, status: :see_other
   end
 

@@ -97,11 +97,32 @@
                   <% end %>
                   <%= button_to 'Cancel return', change_path, params: {operation: 'cancel'}, class: 'dd-button' %>
                 <% elsif record.status == 'received' %>
-                  <% if (refund = @refunds[record.id]) %>
+                  <% if record.active_exchange? %>
+                    <p>Replacement <%= record.replacement_name %> · <%= record.exchange_status.humanize %></p>
+                    <% if record.exchange_status == 'reserved' %>
+                      <%= form_with url: change_path, method: :post do |form| %>
+                        <%= hidden_field_tag :operation, 'ship_exchange', id: nil %>
+                        <label>Shipping reference <%= form.text_field :shipping_reference, id: nil, required: true, maxlength: 120 %></label>
+                        <%= form.submit 'Mark replacement shipped', class: 'dd-button' %>
+                      <% end %>
+                      <%= button_to 'Cancel exchange', change_path, params: {operation: 'cancel_exchange'}, class: 'dd-button' %>
+                    <% else %>
+                      <p>Shipping reference <%= record.exchange_shipping_reference %></p>
+                    <% end %>
+                  <% elsif (refund = @refunds[record.id]) %>
                     <p><%= number_to_currency(refund.amount_cents / 100.0) %> refund · <%= refund.status.humanize %></p>
                     <% if refund.status == 'pending' %><p>Awaiting processor confirmation.</p><% end %>
                     <% if refund.status == 'failed' %><p>Review the refund on the original order before trying again.</p><% end %>
                   <% elsif (amount = LightekCommerce::ReturnRefunds.amount_for(@order, item, record)) %>
+                    <% available_replacements = LightekCommerce::ReturnExchanges.options(@order, item, record) %>
+                    <% if available_replacements.any? %>
+                      <%= form_with url: change_path, method: :post do |form| %>
+                        <%= hidden_field_tag :operation, 'reserve_exchange', id: nil %>
+                        <label>Replacement <%= form.select :replacement, available_replacements,
+                          {include_blank: 'Choose the replacement'}, id: nil, required: true %></label>
+                        <%= form.submit 'Reserve replacement', class: 'dd-button' %>
+                      <% end %>
+                    <% end %>
                     <%= button_to "Refund #{number_to_currency(amount / 100.0)}", change_path,
                       params: {operation: 'refund', amount_cents: amount}, class: 'dd-button',
                       form: {data: {turbo_confirm: 'Refund this amount to the original payment method?'}} %>

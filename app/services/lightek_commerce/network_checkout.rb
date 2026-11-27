@@ -108,7 +108,7 @@ module LightekCommerce
               end
               settled_order = Order.create!(site: root.site, customer_email: root.customer_email, purpose: "subscription_renewal", stock_reserved: false,
                 payment_provider: "network", payment_reference: root.network_reference, network_reference: root.network_reference,
-                network_invoice_reference: invoice.fetch("reference"), buyer_fee_snapshot: root.buyer_fee_breakdown, subtotal_cents: row.fetch("subtotal_cents"), total_cents: row.fetch("total_cents"))
+                **root.storefront_buyer_attributes, network_invoice_reference: invoice.fetch("reference"), buyer_fee_snapshot: root.buyer_fee_breakdown, subtotal_cents: row.fetch("subtotal_cents"), total_cents: row.fetch("total_cents"))
               source = root.items.sole
               settled_order.items.create!(product: source.product, name: source.name, quantity: 1,
                 unit_price_cents: row.fetch("subtotal_cents"), line_total_cents: row.fetch("subtotal_cents"), purchase_snapshot: source.purchase_snapshot)

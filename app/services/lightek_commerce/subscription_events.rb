@@ -102,7 +102,7 @@ module LightekCommerce
             invoice_subtotal + tax.to_i == record.amount_paid_cents
           renewal = Order.create!(site: original.site, customer_email: original.customer_email, currency: record.currency,
             status: "fulfilled", purpose: renewal_purpose(original), stock_reserved: false, revenue_share_snapshot: original.revenue_share_snapshot,
-            buyer_fee_snapshot: buyer_fee, subtotal_cents: subtotal, tax_cents: tax.to_i, total_cents: record.amount_paid_cents,
+            **original.storefront_buyer_attributes, buyer_fee_snapshot: buyer_fee, subtotal_cents: subtotal, tax_cents: tax.to_i, total_cents: record.amount_paid_cents,
             payment_provider: "stripe_invoice", payment_reference: record.processor_reference,
             paid_at: record.paid_at, fulfilled_at: record.paid_at, fulfillment_reference: record.processor_reference)
           source = original.items.sole

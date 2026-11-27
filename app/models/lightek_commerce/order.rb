@@ -7,6 +7,10 @@ module LightekCommerce
     self.table_name = "lightek_commerce_orders"
     attr_readonly :buyer_fee_snapshot, :discount_cents, :discount_name
 
+    def storefront_buyer_attributes
+      has_attribute?(:storefront_buyer_id) ? {storefront_buyer_id: storefront_buyer_id} : {}
+    end
+
     def discount_amount = has_attribute?(:discount_cents) ? self[:discount_cents].to_i : 0
     after_update_commit :queue_buyer_fee_reversal, if: -> { saved_change_to_status? && status == 'refunded' }
 

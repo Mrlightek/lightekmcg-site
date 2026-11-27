@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil, communications_peer: nil, full_package_offer: nil, workspace_seats: nil, buyer_fee_token: nil, storefront: false, discount_code: nil, expected_discount_cents: nil, storefront_buyer: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -45,15 +45,17 @@ module LightekCommerce
           fee_snapshot = BuyerFees.quote_amount(fee_snapshot.fetch('merchant_cents') - savings)
         end
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
+        order.storefront_buyer_id = storefront_buyer.id if storefront && storefront_buyer
         if discount
           order.discount_cents = savings
           order.discount_name = discount.name
         end
         if fee_snapshot.present?
           order.buyer_fee_snapshot = fee_snapshot
-          order.client_checkout_key = Digest::SHA256.hexdigest(
-            discount ? [buyer_fee_token, discount.id, savings].join(':') : buyer_fee_token
-          )
+          checkout_identity = [buyer_fee_token]
+          checkout_identity << "buyer=#{storefront_buyer.id}" if storefront && storefront_buyer
+          checkout_identity << "discount=#{discount.id}=#{savings}" if discount
+          order.client_checkout_key = Digest::SHA256.hexdigest(checkout_identity.join(':'))
           existing = Order.find_by(site: site, customer_email: order.customer_email, client_checkout_key: order.client_checkout_key)
           next existing if existing
         end

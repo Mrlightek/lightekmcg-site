@@ -258,6 +258,8 @@ require Rails.root.join('db/migrate/20261127140000_add_commerce_buyer_fee_snapsh
 AddCommerceBuyerFeeSnapshot.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127160000_add_commerce_discounts')
 AddCommerceDiscounts.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127161000_bind_storefront_orders_to_buyers')
+BindStorefrontOrdersToBuyers.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/discount')
 require Rails.root.join('app/services/lightek_commerce/discounts')
 require Rails.root.join('app/services/lightek_commerce/store_appearance')
@@ -734,7 +736,8 @@ class CommerceHostingTest < Minitest::Test
     auto = LightekCommerce::Discount.create!(site: @site, name: 'Spring', kind: 'percent', amount: 10)
     code = LightekCommerce::Discount.create!(site: @site, name: 'Member', code: ' member ', kind: 'fixed', amount: 251)
     inputs = {site: @site, customer_email: 'buyer@example.test', quantities: cart, storefront: true}
-    automatic = LightekCommerce::OrderPlacement.call(**inputs, expected_discount_cents: 375)
+    automatic = LightekCommerce::OrderPlacement.call(**inputs, expected_discount_cents: 375, storefront_buyer: @operator)
+    assert_equal @operator.id, automatic.storefront_buyer_id
     assert_equal [375, 3375, auto.name], [automatic.discount_amount, automatic.subtotal_cents, automatic.discount_name]
     assert_raises(LightekCommerce::OrderPlacement::Invalid) do
       LightekCommerce::OrderPlacement.call(**inputs, discount_code: code.code, expected_discount_cents: 250)

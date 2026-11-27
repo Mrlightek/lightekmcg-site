@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_160000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_161000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1865,6 +1865,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_160000) do
     t.string "buyer_fee_reversal_ref"
     t.integer "discount_cents", default: 0, null: false
     t.string "discount_name"
+    t.bigint "storefront_buyer_id"
+    t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_storefront_buyer"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"

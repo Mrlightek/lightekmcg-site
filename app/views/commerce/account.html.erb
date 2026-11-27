@@ -11,10 +11,8 @@
     <div class="auth-card">
       <h1><%= @appearance['account_title'] || 'My orders' %></h1>
       <% if @appearance['account_message'] %><p><%= @appearance['account_message'] %></p><% end %>
-      <% if current_user.lightek_email_confirmed_at.blank? %>
-        <p>Confirm your email address to view your orders.</p>
-      <% elsif @orders.empty? %>
-        <p>There are no paid orders for this email address at this store.</p>
+      <% if @orders.empty? %>
+        <p>There are no paid orders linked to this account at this store.</p>
       <% else %>
         <ul>
           <% @orders.each do |order| %>

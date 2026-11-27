@@ -91,12 +91,8 @@ class CommerceController < ApplicationController
   def account
     response.headers['Cache-Control'] = 'private, no-store'
     @appearance = LightekCommerce::StoreAppearance.read(@site)
-    @orders = if current_user.lightek_email_confirmed_at.present?
-      LightekCommerce::Order.visible.where(site: @site, customer_email: current_user.email_address.to_s.strip.downcase)
-        .where.not(paid_at: nil).order(paid_at: :desc).limit(50)
-    else
-      []
-    end
+    @orders = LightekCommerce::Order.visible.where(site: @site, storefront_buyer_id: current_user.id)
+      .where.not(paid_at: nil).order(paid_at: :desc).limit(50)
   end
 
   def checkout
@@ -110,7 +106,7 @@ class CommerceController < ApplicationController
     quantities, workspace_seats = checkout_selection
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: quantities,
       workspace_seats: workspace_seats, shipping_quote: quote, storefront: true, buyer_fee_token: params[:buyer_fee_token],
-      discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
+      storefront_buyer: current_user, discount_code: session[discount_key], expected_discount_cents: params.fetch(:expected_discount_cents, 0),
       growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     embedded = LightekCommerce::StripeCheckout.embedded_for?(order, network: true)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,

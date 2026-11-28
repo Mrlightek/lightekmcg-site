@@ -73,6 +73,10 @@
                   <% end %>
                   <%= button_to 'Reject', change_path, params: {operation: 'reject'}, class: 'dd-button' %>
                 <% elsif record.status == 'approved' %>
+                  <% if record.exchange_status == 'reserved' %>
+                    <p><%= record.replacement_name %> is reserved. Receive the return before shipping.</p>
+                    <%= button_to 'Cancel exchange', change_path, params: {operation: 'cancel_exchange'}, class: 'dd-button' %>
+                  <% end %>
                   <details>
                     <summary><%= @return_labels.key?(record.id) ? 'Replace return label' : 'Add return label' %></summary>
                     <%= form_with url: change_path, method: :post, multipart: true do |form| %>

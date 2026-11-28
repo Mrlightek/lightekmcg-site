@@ -53,7 +53,9 @@
                 </div>
               <% end %>
               <% if record.active_exchange? %>
-                <div>Replacement <%= record.replacement_name %> · <%= record.exchange_status == 'reserved' ? 'Preparing shipment' : 'Shipped' %>
+                <% status = record.status == 'approved' ? 'Reserved, awaiting your return' :
+                  (record.exchange_status == 'reserved' ? 'Preparing shipment' : 'Shipped') %>
+                <div>Replacement <%= record.replacement_name %> · <%= status %>
                   <% if record.exchange_shipping_reference.present? %> · Shipping reference <%= record.exchange_shipping_reference %><% end %>
                 </div>
               <% end %>

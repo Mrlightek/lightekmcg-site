@@ -101,7 +101,14 @@ module LightekCommerce
       end
     end
     def reject!(id) = transition!(id, from: ['requested'], to: 'rejected')
-    def cancel!(id) = transition!(id, from: %w[requested approved], to: 'canceled')
+    def cancel!(id)
+      transition!(id, from: %w[requested approved], to: 'canceled') do |record|
+        if record.exchange_status == 'reserved'
+          ReturnExchanges.new(order: @order, actor: @actor).cancel_locked!(record)
+        end
+        {}
+      end
+    end
 
     def receive!(id, disposition:)
       raise Invalid, 'Choose what to do with the received units.' unless DISPOSITIONS.key?(disposition)

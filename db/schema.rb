@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_208000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_209000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1882,7 +1882,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_208000) do
     t.index ["replacement_product_id"], name: "idx_commerce_exchange_product"
     t.index ["order_id", "request_key"], name: "idx_commerce_merchandise_return_request", unique: true
     t.index ["order_item_id", "status"], name: "idx_commerce_merchandise_return_item"
-    t.check_constraint "exchange_status IS NULL OR status::text = 'received'::text AND refund_fee_cents = 0 AND replacement_name IS NOT NULL AND ((exchange_status::text = ANY (ARRAY['reserved'::character varying, 'canceled'::character varying]::text[])) AND exchange_shipped_at IS NULL AND exchange_shipping_reference IS NULL OR exchange_status::text = 'shipped'::text AND exchange_shipped_at IS NOT NULL AND exchange_shipping_reference IS NOT NULL)", name: "commerce_merchandise_exchange_state"
+    t.check_constraint "exchange_status IS NULL OR refund_fee_cents = 0 AND replacement_name IS NOT NULL AND (exchange_status::text = 'reserved'::text AND (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying]::text[])) AND exchange_shipped_at IS NULL AND exchange_shipping_reference IS NULL OR exchange_status::text = 'canceled'::text AND (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])) AND exchange_shipped_at IS NULL AND exchange_shipping_reference IS NULL OR exchange_status::text = 'shipped'::text AND status::text = 'received'::text AND exchange_shipped_at IS NOT NULL AND exchange_shipping_reference IS NOT NULL)", name: "commerce_merchandise_exchange_state"
     t.check_constraint "suggested_refund_fee_cents >= 0", name: "commerce_merchandise_suggested_fee"
     t.check_constraint "refund_fee_cents >= 0 AND (refund_fee_cents = 0 OR (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])))", name: "commerce_merchandise_return_fee"
     t.check_constraint "quantity > 0 AND (status::text = ANY (ARRAY['requested'::character varying, 'approved'::character varying, 'rejected'::character varying, 'received'::character varying, 'canceled'::character varying]::text[]))", name: "commerce_merchandise_return_valid"

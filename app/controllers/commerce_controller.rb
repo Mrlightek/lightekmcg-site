@@ -181,7 +181,13 @@ class CommerceController < ApplicationController
     order = buyer_return_order
     exchange = LightekCommerce::ReturnExchanges.new(order: order, actor: current_user)
     record = exchange.reserve_for_buyer!(params[:return_id], replacement: params[:replacement])
-    message = record.exchange_status == 'shipped' ? 'Your replacement has already shipped.' : 'Replacement reserved.'
+    message = if record.exchange_status == 'shipped'
+      'Your replacement has already shipped.'
+    elsif record.status == 'approved'
+      'Replacement reserved. The store can ship it after receiving your return.'
+    else
+      'Replacement reserved.'
+    end
     redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id), notice: message, status: :see_other
   rescue LightekCommerce::ReturnExchanges::Invalid, LightekCommerce::InventoryStockStates::Invalid => error
     redirect_to commerce_account_returns_path(order_id: order.id, site_id: @site.id), alert: error.message, status: :see_other

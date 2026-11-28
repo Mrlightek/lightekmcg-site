@@ -5,8 +5,7 @@ module LightekCommerce
     class Invalid < StandardError; end
 
     def self.options(order, item, record)
-      return [] unless item && record.status == 'received' && record.refund_fee_cents.zero?
-      return [] unless ReturnRefunds.amount_for(order, item, record) && item.product&.site_id == order.site_id
+      return [] unless eligible?(order, item, record) && item.product&.site_id == order.site_id
 
       catalog = Product.where(site_id: order.site_id, published: true, product_type: 'physical', billing_interval: 'one_time')
       original = catalog.find_by(id: item.product_id)
@@ -20,6 +19,17 @@ module LightekCommerce
         .where('inventory_quantity >= ?', record.quantity)
         .where.not(id: ProductVariant.where(active: true).select(:product_id)).order(:id).limit(100)
       original_options + products.map { |product| [product.name, "product:#{product.id}"] } + variant_options
+    end
+
+    def self.eligible?(order, item, record)
+      return false unless item && !record.active_exchange? && record.refund_fee_cents.zero?
+
+      if record.status == 'approved'
+        ReturnRefunds.available?(order, item, record) && ReturnRefunds.minimum_merchandise_amount(item, record).positive? &&
+          order.total_cents > order.refunded_cents
+      else
+        ReturnRefunds.amount_for(order, item, record).present?
+      end
     end
 
     def self.options_for_original(product, item, quantity)
@@ -59,8 +69,8 @@ module LightekCommerce
         raise Invalid, 'This return already has an exchange.' if record.active_exchange?
         raise Invalid, 'This return already has a refund record.' if @order.refunds.exists?(merchandise_return_id: record.id)
 
-        unless record.refund_fee_cents.zero? && ReturnRefunds.amount_for(@order, item, record)
-          raise Invalid, 'Only a received, refundable return with no return fee can be exchanged.'
+        unless self.class.eligible?(@order, item, record)
+          raise Invalid, 'Only an approved or received return eligible for a no-fee exchange can reserve a replacement.'
         end
 
         product = locked_product(product_id)
@@ -81,15 +91,18 @@ module LightekCommerce
     end
 
     def cancel!(id)
-      with_return(id) do |record|
-        require_reserved!(record)
-        product_id = record.replacement_product_id || @order.items.find(record.order_item_id).product_id
-        product = locked_product(product_id)
-        target = record.replacement_variant_id ? product.variants.lock.find(record.replacement_variant_id) : product
-        InventoryStockStates.apply_locked!(product: product, target: target, from: nil, to: 'available',
-          units: record.quantity, actor: @actor, merchandise_return: record)
-        record.update!(exchange_status: 'canceled', replacement_product_id: nil)
-      end
+      with_return(id) { |record| cancel_locked!(record) }
+    end
+
+    # Caller holds the original order lock, including when the return itself is canceled.
+    def cancel_locked!(record)
+      require_reserved!(record)
+      product_id = record.replacement_product_id || @order.items.find(record.order_item_id).product_id
+      product = locked_product(product_id)
+      target = record.replacement_variant_id ? product.variants.lock.find(record.replacement_variant_id) : product
+      InventoryStockStates.apply_locked!(product: product, target: target, from: nil, to: 'available',
+        units: record.quantity, actor: @actor, merchandise_return: record)
+      record.update!(exchange_status: 'canceled', replacement_product_id: nil)
     end
 
     def ship!(id, reference:)
@@ -98,6 +111,8 @@ module LightekCommerce
 
       with_return(id) do |record|
         require_reserved!(record)
+        raise Invalid, 'Receive the returned items before shipping the replacement.' unless record.status == 'received'
+
         record.update!(exchange_status: 'shipped', exchange_shipping_reference: reference, exchange_shipped_at: Time.current)
       end
     end

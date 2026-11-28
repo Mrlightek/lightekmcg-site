@@ -329,6 +329,8 @@ require Rails.root.join('db/migrate/20261127207000_add_commerce_return_exchanges
 AddCommerceReturnExchanges.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127208000_add_commerce_exchange_replacement_product')
 AddCommerceExchangeReplacementProduct.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127209000_allow_pre_receipt_commerce_exchanges')
+AllowPreReceiptCommerceExchanges.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -1508,6 +1510,45 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_buyer_can_reserve_before_receipt_and_canceling_the_return_releases_the_replacement
+    sold = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700)
+    replacement = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700,
+      name: 'Replacement', track_inventory: true, inventory_quantity: 2)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: 'buyer@example.test', quantities: {sold.id.to_s => 2})
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current, storefront_buyer_id: @operator.id,
+      payment_provider: 'stripe', payment_reference: 'cs_exchange_before_receipt')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    exchanges = LightekCommerce::ReturnExchanges.new(order: order, actor: @operator)
+    item = order.items.sole
+    choice = "product:#{replacement.id}"
+    new_return = -> { returns.request!(item_id: item.id, quantity: 1, reason: 'Replacement', request_key: SecureRandom.uuid) }
+
+    early = new_return.call
+    assert_empty LightekCommerce::ReturnExchanges.options(order, item, early)
+    returns.approve!(early.id)
+    assert_includes LightekCommerce::ReturnExchanges.options(order, item, early.reload).map(&:last), choice
+    2.times { exchanges.reserve_for_buyer!(early.id, replacement: choice) }
+    assert_equal ['approved', 'reserved', 1], [early.reload.status, early.exchange_status, replacement.reload.inventory_quantity]
+    assert_raises(LightekCommerce::ReturnExchanges::Invalid) { exchanges.ship!(early.id, reference: 'BEFORE') }
+    assert_raises(LightekCommerce::Refunds::Invalid) { LightekCommerce::Refunds.issue!(order: order, amount_cents: 700) }
+    returns.cancel!(early.id)
+    assert_equal ['canceled', 'canceled', 2], [early.reload.status, early.exchange_status, replacement.reload.inventory_quantity]
+
+    waived = new_return.call
+    returns.approve!(waived.id, refund_fee_cents: 25)
+    assert_empty LightekCommerce::ReturnExchanges.options(order, item, waived.reload)
+    assert_raises(LightekCommerce::ReturnExchanges::Invalid) { exchanges.reserve_for_buyer!(waived.id, replacement: choice) }
+    returns.cancel!(waived.id)
+
+    shipped = new_return.call
+    returns.approve!(shipped.id)
+    exchanges.reserve_for_buyer!(shipped.id, replacement: choice)
+    returns.receive!(shipped.id, disposition: 'discarded')
+    assert_equal ['received', 'reserved', 1], [shipped.reload.status, shipped.exchange_status, replacement.reload.inventory_quantity]
+    exchanges.ship!(shipped.id, reference: 'AFTER')
+    assert_equal ['shipped', 'AFTER'], shipped.reload.attributes.values_at('exchange_status', 'exchange_shipping_reference')
+  end
+
   def test_cross_product_exchange_stays_within_the_store_and_releases_the_correct_stock
     sold = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700)
     alternate = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700,

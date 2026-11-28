@@ -20,7 +20,8 @@ class Api::ShippingBrokerController < Api::ReservationFederationController
     sale = LightekCommerce::NetworkSale.joins(:order).find_by(lightek_commerce_orders: {shipping_quote_id: quote.id})
     raise ArgumentError, "The merchandise checkout already includes this shipping label" if sale
     url = URI.parse(params.require(:return_url))
-    raise ArgumentError, "Invalid return address" unless url.is_a?(URI::HTTPS) && url.host == @peer.site.host && !url.userinfo && url.path == "/dashboard/shipping" && !url.fragment
+    shipping_path = url.path == "/dashboard/shipping" || url.path.to_s.match?(%r{\A/dashboard/commerce/orders/[1-9][0-9]*/returns\z})
+    raise ArgumentError, "Invalid return address" unless url.is_a?(URI::HTTPS) && url.host == @peer.site.host && !url.userinfo && shipping_path && !url.fragment
     checkout = LightekShipping::Purchases.start!(quote: quote, email: @peer.merchant.email_address, return_url: url.to_s)
     render json: {url: checkout}
   end

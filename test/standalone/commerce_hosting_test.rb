@@ -331,6 +331,8 @@ require Rails.root.join('db/migrate/20261127208000_add_commerce_exchange_replace
 AddCommerceExchangeReplacementProduct.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127209000_allow_pre_receipt_commerce_exchanges')
 AllowPreReceiptCommerceExchanges.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127210000_link_return_shipping_quotes')
+LinkReturnShippingQuotes.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -344,6 +346,7 @@ require Rails.root.join('app/services/lightek_commerce/return_exchanges')
 require Rails.root.join('app/services/lightek_commerce/return_fee_policy')
 require Rails.root.join('app/models/lightek_commerce/return_label')
 require Rails.root.join('app/services/lightek_commerce/return_labels')
+require Rails.root.join('app/services/lightek_commerce/return_shipping')
 require Rails.root.join('app/services/lightek_commerce/refund_settlement')
 require Rails.root.join('app/services/lightek_commerce/shipping_promotion')
 require Rails.root.join('app/models/lightek_commerce/customer_segment')
@@ -2132,6 +2135,69 @@ class CommerceHostingTest < Minitest::Test
     LightekShipping::Quote.create!({site: @site, service_code: "FEDEX_GROUND", service_name: "FedEx Ground", carrier_cost_cents: 900,
       platform_price_cents: 1200, customer_price_cents: 1400, expires_at: 30.minutes.from_now, shipment_payload: payload}.merge(attributes))
   end
+  def test_return_shipping_reverses_the_outbound_addresses_and_reserves_one_paid_quote
+    store_address = shipping_party
+    buyer_address = shipping_party.merge('name' => 'Buyer', 'street' => '55 Oak Avenue')
+    outbound = shipping_quote(shipment_payload: LightekShipping::Payload.shipment!(origin: store_address,
+      recipient: buyer_address, packages: [shipping_package]))
+    product = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 1400)
+    order = order_for(product)
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current, shipping_quote: outbound)
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    returns.approve!(record.id)
+    shipping = LightekCommerce::ReturnShipping
+    LightekShipping::Account.create!(provider: 'ups', credential_slug: 'ups-return', enabled: true)
+    carrier = Object.new
+    carrier.define_singleton_method(:rates) do |payload|
+      raise 'Addresses were not reversed' unless payload.dig('shipper', 'contact', 'personName') == 'Buyer' &&
+        payload.dig('recipients', 0, 'contact', 'personName') == 'Business Owner'
+      [{'service_code' => '03', 'service_name' => 'UPS Ground', 'cost_cents' => 900},
+       {'service_code' => '02', 'service_name' => 'UPS 2nd Day', 'cost_cents' => 1500}]
+    end
+    rates = LightekShipping::Ups.stub(:new, carrier) do
+      shipping.rates!(order: order, return_id: record.id, package: shipping_package)
+    end
+    assert_equal [1100, 1700], rates.map(&:platform_price_cents)
+    assert_equal [record.id, record.id], rates.map(&:merchandise_return_id)
+    inputs = {order: order, return_id: record.id, email: @operator.email_address, return_url: 'https://shop.example.com/dashboard'}
+    assert_raises(ActiveRecord::RecordNotFound) { shipping.purchase!(**inputs, quote_key: outbound.public_key) }
+    checkout = OpenStruct.new(url: 'https://checkout.stripe.com/fixture')
+    DymondBank::StripeCredentials.stub(:secret_key, 'sk_test_fake') do
+      LightekCommerce::StripeCheckout.stub(:start!, checkout) do
+        2.times { assert_equal checkout.url, shipping.purchase!(**inputs, quote_key: rates.first.public_key) }
+        assert_raises(shipping::Invalid) { shipping.purchase!(**inputs, quote_key: rates.last.public_key) }
+      end
+    end
+    rate = rates.first.reload
+    assert_equal rate.id, record.reload.return_shipping_quote_id
+    assert_equal 1100, rate.purchase_order.total_cents
+    assert_equal 'shipping_label', rate.purchase_order.purpose
+    refute_equal order.id, rate.purchase_order_id
+    assert_raises(ActiveRecord::RecordNotFound) { shipping.label!(order: order, return_id: record.id) }
+    shipment = LightekShipping::Shipment.create!(quote: rate, status: 'ready', tracking_number: '1Z1234567890123456')
+    file = OpenStruct.new(content_type: 'image/gif', download: 'GIF89a fixture')
+    attachments = Object.new
+    attachments.define_singleton_method(:order) { |_| self }
+    attachments.define_singleton_method(:first!) { file }
+    labels = OpenStruct.new(attachments: attachments)
+    LightekShipping::Quote.stub(:where, ->(*args) {
+      relation = LightekShipping::Quote.unscoped.where(*args)
+      relation.define_singleton_method(:find_by!) do |**attrs|
+        quote = super(**attrs)
+        quote.define_singleton_method(:shipment) { shipment }
+        quote
+      end
+      relation
+    }) do
+      shipment.stub(:labels, labels) do
+        assert_equal ['GIF89a fixture', 'image/gif', 'gif'], shipping.label!(order: order, return_id: record.id)
+      end
+    end
+    returns.cancel!(record.id)
+    assert_raises(ActiveRecord::RecordNotFound) { shipping.label!(order: order, return_id: record.id) }
+  end
+
   def test_ups_negotiated_rates_add_exactly_two_dollars_for_every_store
     account = LightekShipping::Account.create!(provider: 'ups', credential_slug: 'ups-fixture', enabled: true,
       markup_bps: 1000, fixed_markup_cents: 500)

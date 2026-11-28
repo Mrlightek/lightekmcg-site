@@ -5,7 +5,7 @@ class Dashboard::ShippingController < Dashboard::CommerceBaseController
     ArgumentError, ActiveRecord::RecordInvalid, with: :shipping_error
   def index
     @profile = LightekShipping::Profile.find_or_initialize_by(site: @site)
-    @quotes = LightekShipping::Quote.where(site: @site).includes(:shipment, :purchase_order).order(id: :desc).limit(50)
+    @quotes = LightekShipping::Quote.where(site: @site, merchandise_return_id: nil).includes(:shipment, :purchase_order).order(id: :desc).limit(50)
     if platform_carrier_operator?
       @carriers = LightekShipping::Account::PROVIDERS.map { |provider| LightekShipping::Account.find_or_initialize_by(provider: provider) }
     end
@@ -126,7 +126,7 @@ class Dashboard::ShippingController < Dashboard::CommerceBaseController
     @sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name)
     @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.first!
   end
-  def scoped_quote = LightekShipping::Quote.where(site: @site).find_by!(public_key: params.require(:key))
+  def scoped_quote = LightekShipping::Quote.where(site: @site, merchandise_return_id: nil).find_by!(public_key: params.require(:key))
   def shipping_error(error)
     redirect_to dashboard_shipping_path(site_id: params[:site_id]), alert: error.message
   end

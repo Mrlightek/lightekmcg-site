@@ -20,7 +20,7 @@ module LightekShipping
       create!(site: site, origin: profile.origin, recipient: recipient, packages: packages,
         fingerprint: fingerprint(site, quantities), customer_markup_bps: profile.customer_markup_bps)
     end
-    def self.create!(site:, origin:, recipient:, packages:, fingerprint: nil, customer_markup_bps: 0, gateway: true)
+    def self.create!(site:, origin:, recipient:, packages:, fingerprint: nil, customer_markup_bps: 0, gateway: true, merchandise_return: nil)
       payload = Payload.shipment!(origin: origin, recipient: recipient, packages: packages)
       network = gateway && LightekReservations::Federation::Client.config(site)
       rates = if network
@@ -40,6 +40,7 @@ module LightekShipping
         rates.sort_by { |rate| rate.fetch("platform_price_cents") }.map do |rate|
           price = rate.fetch("platform_price_cents")
           customer_price = rate.fetch("provider") == "ups" ? price : (price * (10_000 + customer_markup_bps) + 9999) / 10_000
+          rate['merchandise_return_id'] = merchandise_return.id if merchandise_return
           Quote.create!(rate.merge(site: site, customer_price_cents: customer_price, cart_fingerprint: fingerprint, shipment_payload: payload))
         end
       end

@@ -25,14 +25,22 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     @used = returns.counting_against_order.group(:order_item_id).sum(:quantity)
     @returns = returns.order(id: :desc).to_a
     @return_labels = LightekCommerce::ReturnLabel.list_for(@returns)
+    @carrier_quotes = LightekShipping::Quote.where(site_id: @site.id, merchandise_return_id: @returns.map(&:id))
+      .where('expires_at > :now OR id IN (:selected)', now: Time.current, selected: @returns.filter_map(&:return_shipping_quote_id))
+      .includes(:shipment).order(:platform_price_cents).group_by(&:merchandise_return_id)
     @refunds = @order.refunds.where.not(merchandise_return_id: nil).index_by(&:merchandise_return_id)
   end
 
   def label
-    pdf = LightekCommerce::ReturnLabels.download!(order: @order, return_id: params[:return_id])
+    if params[:carrier_label] == '1'
+      data, type, extension = LightekCommerce::ReturnShipping.label!(order: @order, return_id: params[:return_id])
+    else
+      data = LightekCommerce::ReturnLabels.download!(order: @order, return_id: params[:return_id])
+      type, extension = 'application/pdf', 'pdf'
+    end
     response.headers['Cache-Control'] = 'private, no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    send_data pdf, type: 'application/pdf', disposition: 'attachment', filename: "return-#{params[:return_id]}-label.pdf"
+    send_data data, type: type, disposition: 'attachment', filename: "return-#{params[:return_id]}-label.#{extension}"
   end
 
   def create
@@ -57,6 +65,17 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     when 'cancel'
       service.cancel!(id)
       'Return canceled.'
+    when 'quote_return_shipping'
+      package = params.expect(package: %i[weight_lb length_in width_in height_in]).to_h
+      LightekCommerce::ReturnShipping.rates!(order: @order, return_id: id, package: package)
+      'Return shipping rates are ready.'
+    when 'buy_return_shipping'
+      url = LightekCommerce::ReturnShipping.purchase!(order: @order, return_id: id, quote_key: params.require(:quote_key),
+        email: current_user.email_address, return_url: dashboard_commerce_returns_url(order_id: @order.id, site_id: @site.id))
+      return redirect_to url, allow_other_host: true, status: :see_other
+    when 'refresh_return_shipping'
+      LightekCommerce::ReturnShipping.refresh!(order: @order, return_id: id)
+      'Return label status refreshed.'
     when 'upload_label'
       LightekCommerce::ReturnLabels.upload!(order: @order, return_id: id, actor: current_user,
         upload: params[:label_pdf], carrier: params[:carrier], tracking_number: params[:tracking_number])
@@ -83,7 +102,10 @@ class Dashboard::CommerceReturnsController < Dashboard::CommerceBaseController
     end
     redirect_to return_path, notice: notice, status: :see_other
   rescue LightekCommerce::MerchandiseReturns::Invalid, LightekCommerce::InventoryStockStates::Invalid,
-    LightekCommerce::Refunds::Invalid, LightekCommerce::ReturnLabels::Invalid, LightekCommerce::ReturnExchanges::Invalid, Stripe::StripeError => error
+    LightekCommerce::Refunds::Invalid, LightekCommerce::ReturnLabels::Invalid, LightekCommerce::ReturnExchanges::Invalid,
+    LightekCommerce::ReturnShipping::Invalid, LightekCommerce::StripeCheckout::Unavailable, Stripe::StripeError,
+    LightekShipping::Fedex::Unavailable, LightekShipping::Ups::Unavailable, LightekReservations::Federation::Client::Unavailable,
+    ArgumentError => error
     redirect_to return_path, alert: error.message, status: :see_other
   end
 

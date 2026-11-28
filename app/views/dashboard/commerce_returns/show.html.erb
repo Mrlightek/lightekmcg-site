@@ -56,6 +56,9 @@
                   <%= link_to 'Download label', dashboard_commerce_return_label_path(order_id: @order.id, return_id: record.id, site_id: @site.id) %>
                   <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
                 <% end %>
+                <% if record.status.in?(%w[approved received]) %>
+                  <%= render 'carrier_label', record: record, change_path: change_path %>
+                <% end %>
                 <% if record.status == 'requested' %>
                   <% max_fee = LightekCommerce::ReturnRefunds.maximum_fee_cents(@order, item, record) %>
                   <% if max_fee.positive? %>
@@ -77,6 +80,7 @@
                     <p><%= record.replacement_name %> is reserved. Receive the return before shipping.</p>
                     <%= button_to 'Cancel exchange', change_path, params: {operation: 'cancel_exchange'}, class: 'dd-button' %>
                   <% end %>
+                  <% unless record.return_shipping_quote_id? %>
                   <details>
                     <summary><%= @return_labels.key?(record.id) ? 'Replace return label' : 'Add return label' %></summary>
                     <%= form_with url: change_path, method: :post, multipart: true do |form| %>
@@ -91,6 +95,7 @@
                       <%= form.submit 'Save label', class: 'dd-button' %>
                     <% end %>
                   </details>
+                  <% end %>
                   <%= form_with url: change_path, method: :post do %>
                     <%= hidden_field_tag :operation, 'receive', id: nil %>
                     <% options = LightekCommerce::MerchandiseReturns::DISPOSITIONS %>

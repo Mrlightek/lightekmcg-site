@@ -52,6 +52,15 @@
                   <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
                 </div>
               <% end %>
+              <% if record.status.in?(%w[approved received]) && (quote = @carrier_labels[record.id]) %>
+                <div>
+                  <%= link_to 'Download carrier return label', commerce_account_return_label_path(order_id: @order.id,
+                    return_id: record.id, site_id: @site.id, carrier_label: '1') %>
+                  <% if (url = quote.carrier_tracking_url(quote.shipment.tracking_number)) %>
+                    <%= link_to 'Track return shipment', url, rel: 'noreferrer' %>
+                  <% end %>
+                </div>
+              <% end %>
               <% if record.active_exchange? %>
                 <% status = record.status == 'approved' ? 'Reserved, awaiting your return' :
                   (record.exchange_status == 'reserved' ? 'Preparing shipment' : 'Shipped') %>

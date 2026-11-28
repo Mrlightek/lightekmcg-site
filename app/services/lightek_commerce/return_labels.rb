@@ -24,6 +24,7 @@ module LightekCommerce
       order.with_lock do
         record = MerchandiseReturn.where(order_id: order.id).find(return_id)
         raise Invalid, 'Approve the return before adding a label.' unless record.status == 'approved'
+        raise Invalid, 'A carrier label purchase is already linked to this return.' if record.return_shipping_quote_id?
 
         label = ReturnLabel.find_or_initialize_by(merchandise_return_id: record.id)
         label.update!(pdf: pdf, carrier: carrier, tracking_number: tracking_number, uploaded_by_id: actor.id)

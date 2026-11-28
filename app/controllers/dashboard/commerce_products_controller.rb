@@ -69,6 +69,9 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
       if LightekCommerce::InventoryStockStates.allocated?(@product)
         return redirect_to destination, alert: 'Clear incoming, unavailable and damaged stock before removing this product.'
       end
+      if LightekCommerce::MerchandiseReturn.exists?(replacement_product_id: @product.id)
+        return redirect_to destination, alert: 'This product appears in exchange history. Unpublish it to remove it from the storefront.'
+      end
       @product.destroy!
     end
     redirect_to destination, notice: "Product removed."

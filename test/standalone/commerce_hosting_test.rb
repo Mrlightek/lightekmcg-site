@@ -327,6 +327,8 @@ require Rails.root.join('db/migrate/20261127206000_snapshot_commerce_return_fee_
 SnapshotCommerceReturnFeeRule.new.migrate(:up)
 require Rails.root.join('db/migrate/20261127207000_add_commerce_return_exchanges')
 AddCommerceReturnExchanges.new.migrate(:up)
+require Rails.root.join('db/migrate/20261127208000_add_commerce_exchange_replacement_product')
+AddCommerceExchangeReplacementProduct.new.migrate(:up)
 require Rails.root.join('app/models/lightek_commerce/inventory_change')
 require Rails.root.join('app/services/lightek_commerce/inventory_adjustment')
 require Rails.root.join('app/services/lightek_commerce/inventory_stock_states')
@@ -1506,6 +1508,46 @@ class CommerceHostingTest < Minitest::Test
     assert_nil LightekCommerce::BillingInvoice.sole.settlement_order
     assert_equal 1, LightekCommerce::Order.count
   end
+  def test_cross_product_exchange_stays_within_the_store_and_releases_the_correct_stock
+    sold = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700)
+    alternate = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700,
+      name: 'Alternate', track_inventory: true, inventory_quantity: 2)
+    parent = product(product_type: 'physical', billing_interval: 'one_time', name: 'Alternate with options')
+    option = parent.variants.create!(name: 'Blue', price_cents: 700, inventory_quantity: 2, active: true)
+    different_price = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 800,
+      track_inventory: true, inventory_quantity: 2)
+    foreign_site = DymondSite::Site.create!(tenant: @operator, host: 'exchange-catalog.test')
+    foreign = product(site: foreign_site, product_type: 'physical', billing_interval: 'one_time', price_cents: 700,
+      track_inventory: true, inventory_quantity: 2)
+    order = order_for(sold)
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current, storefront_buyer_id: @operator.id,
+      payment_provider: 'stripe', payment_reference: 'cs_cross_product_exchange')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    line = order.items.sole
+    record = returns.request!(item_id: line.id, quantity: 1, reason: 'Product replacement', request_key: SecureRandom.uuid)
+    returns.approve!(record.id)
+    returns.receive!(record.id, disposition: 'discarded')
+    service = LightekCommerce::ReturnExchanges
+    exchanges = service.new(order: order, actor: @operator)
+    assert_equal ["product:#{alternate.id}", "product:#{parent.id}:#{option.id}"],
+      service.options(order, line, record.reload).map(&:last)
+    assert_raises(ActiveRecord::RecordNotFound) { exchanges.reserve_for_buyer!(record.id, replacement: "product:#{foreign.id}") }
+    assert_raises(ActiveRecord::RecordNotFound) { exchanges.reserve!(record.id, replacement: "product:#{alternate.id}:#{option.id}") }
+    assert_raises(service::Invalid) { exchanges.reserve!(record.id, replacement: "product:#{different_price.id}") }
+
+    2.times { exchanges.reserve_for_buyer!(record.id, replacement: "product:#{alternate.id}") }
+    assert_equal [alternate.id, 1, 0], [record.reload.replacement_product_id, alternate.reload.inventory_quantity, sold.reload.inventory_quantity]
+    assert_raises(ActiveRecord::InvalidForeignKey) { alternate.delete }
+    exchanges.cancel!(record.id)
+    assert_equal [2, 0], [alternate.reload.inventory_quantity, sold.reload.inventory_quantity]
+    assert_nil record.reload.replacement_product_id
+
+    exchanges.reserve!(record.id, replacement: "product:#{parent.id}:#{option.id}")
+    exchanges.ship!(record.id, reference: 'BOX-25')
+    assert_equal [parent.id, option.id, 'shipped', 1], [record.reload.replacement_product_id, record.replacement_variant_id,
+      record.exchange_status, option.reload.inventory_quantity]
+  end
+
   def test_customer_exchange_rechecks_ownership_and_reserves_the_replacement_only_once
     product = product(product_type: 'physical', billing_interval: 'one_time', price_cents: 700)
     sold = product.variants.create!(name: 'Small', price_cents: 700, inventory_quantity: 3, active: true)

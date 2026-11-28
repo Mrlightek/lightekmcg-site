@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_207000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_208000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1878,6 +1878,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_207000) do
     t.string "replacement_name"
     t.string "exchange_shipping_reference", limit: 120
     t.datetime "exchange_shipped_at"
+    t.bigint "replacement_product_id"
+    t.index ["replacement_product_id"], name: "idx_commerce_exchange_product"
     t.index ["order_id", "request_key"], name: "idx_commerce_merchandise_return_request", unique: true
     t.index ["order_item_id", "status"], name: "idx_commerce_merchandise_return_item"
     t.check_constraint "exchange_status IS NULL OR status::text = 'received'::text AND refund_fee_cents = 0 AND replacement_name IS NOT NULL AND ((exchange_status::text = ANY (ARRAY['reserved'::character varying, 'canceled'::character varying]::text[])) AND exchange_shipped_at IS NULL AND exchange_shipping_reference IS NULL OR exchange_status::text = 'shipped'::text AND exchange_shipped_at IS NOT NULL AND exchange_shipping_reference IS NOT NULL)", name: "commerce_merchandise_exchange_state"
@@ -7795,6 +7797,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_207000) do
   add_foreign_key "lightek_commerce_products", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_supplier_order_lines", "lightek_commerce_supplier_orders", column: "supplier_order_id"
   add_foreign_key "lightek_commerce_products", "hosting_packages", column: "source_hosting_package_id"
+  add_foreign_key "lightek_commerce_merchandise_returns", "lightek_commerce_products", column: "replacement_product_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_return_labels", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"

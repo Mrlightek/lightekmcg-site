@@ -1,0 +1,21 @@
+<details>
+  <summary>Customer segments</summary>
+  <p>Segments match signed-in buyers using paid orders at this store. Set the maximum paid orders to zero for first-time buyers. Spending includes paid totals after refunds.</p>
+  <%= form_with model: LightekCommerce::CustomerSegment.new, scope: :segment,
+    url: dashboard_commerce_customer_segments_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>
+    <%= render 'customer_segment_fields', form: form %>
+    <%= form.submit 'Create segment', class: 'dd-button' %>
+  <% end %>
+  <% @customer_segments.each do |segment| %>
+    <details>
+      <summary><%= segment.name %></summary>
+      <%= form_with model: segment, scope: :segment, namespace: "segment_#{segment.id}",
+        url: dashboard_commerce_customer_segment_path(site_id: @site.id, id: segment.id), method: :patch, class: 'dd-form-stack' do |form| %>
+        <%= render 'customer_segment_fields', form: form %>
+        <%= form.submit 'Save segment', class: 'dd-button' %>
+      <% end %>
+      <%= button_to 'Delete segment', dashboard_commerce_customer_segment_path(site_id: @site.id, id: segment.id),
+        method: :delete, class: 'dd-button', form: {data: {turbo_confirm: 'Delete this customer segment?'}} %>
+    </details>
+  <% end %>
+</details>

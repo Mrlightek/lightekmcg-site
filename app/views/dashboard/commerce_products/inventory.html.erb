@@ -1,0 +1,87 @@
+<% content_for :page_title, 'Inventory' %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <div><h1>Inventory</h1><p><%= @site.name %></p></div>
+    <%= link_to 'Supplier purchase orders', dashboard_commerce_supplier_orders_path(site_id: @site.id), class: 'dd-button' %>
+    <%= link_to 'Adjustment history', dashboard_commerce_products_path(site_id: @site.id, inventory_history: '1'), class: 'dd-button' %>
+    <%= link_to 'Products', dashboard_commerce_products_path(site_id: @site.id), class: 'dd-button' %>
+  </header>
+
+  <section class="dd-panel" aria-label="Inventory filters">
+    <%= form_with url: dashboard_commerce_products_path, method: :get, class: 'dd-form-stack' do %>
+      <%= hidden_field_tag :site_id, @site.id %>
+      <%= hidden_field_tag :inventory, '1' %>
+      <label>Product, variant, or SKU <%= search_field_tag :lookup, @inventory_report.lookup, maxlength: 120 %></label>
+      <label>Stock level <%= select_tag :stock, options_for_select(LightekCommerce::InventoryReport::STOCK_OPTIONS, @inventory_report.stock) %></label>
+      <label>Low-stock threshold <%= number_field_tag :threshold, @inventory_report.threshold, min: 0, max: 999_999, required: true %></label>
+      <label><%= check_box_tag :include_drafts, '1', @inventory_report.include_drafts? %> Include drafts</label>
+      <%= submit_tag 'Filter inventory', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+    <%= link_to 'Export inventory CSV', dashboard_commerce_products_path(@filters.to_h.merge(site_id: @site.id, inventory: '1', format: :csv)), class: 'dd-button' %>
+  </section>
+
+  <section class="dd-panel" aria-labelledby="inventory-adjustment-heading">
+    <h2 id="inventory-adjustment-heading">Update inventory from CSV</h2>
+    <p>Download a template for up to 500 rows matching these filters. Fill in <code>new_available_quantity</code> for the rows you want to change. Leave the other columns as exported.</p>
+    <%= link_to 'Download adjustment template', dashboard_commerce_products_path(@filters.to_h.merge(site_id: @site.id,
+      inventory: '1', format: :csv, adjustment_template: '1')), class: 'dd-button' %>
+    <%= form_with url: dashboard_commerce_products_path(site_id: @site.id), method: :post, multipart: true, class: 'dd-form-stack' do %>
+      <%= hidden_field_tag :inventory_import, '1' %>
+      <label>Inventory adjustment CSV <%= file_field_tag :inventory_csv, accept: '.csv,text/csv', required: true %></label>
+      <label>Reason for this upload
+        <%= select_tag :inventory_reason, options_for_select(LightekCommerce::InventoryChange::REASON_LABELS.invert),
+          include_blank: 'Optional' %>
+      </label>
+      <%= submit_tag 'Update stock', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+  </section>
+
+  <section class="dd-panel" aria-label="Tracked stock">
+    <p>Reserved stock is held for unpaid orders. Committed stock is held for paid orders awaiting fulfillment.</p>
+    <% if @more_inventory %><p>Showing the first 150 matches. Narrow the filters or export the list.</p><% end %>
+    <% if @inventory_rows.empty? %>
+      <p>No tracked inventory matches these filters.</p>
+    <% else %>
+      <table>
+        <thead><tr><th scope="col">Product</th><th scope="col">Variant</th><th scope="col">SKU</th><th scope="col">Available</th><th scope="col">Reserved</th><th scope="col">Committed</th><th scope="col">Incoming</th><th scope="col">Unavailable</th><th scope="col">Damaged</th><th scope="col">Publication</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+          <% @inventory_rows.each do |row| %>
+            <tr>
+              <th scope="row"><%= link_to row['product_name'], edit_dashboard_commerce_product_path(row['product_id'], site_id: @site.id) %></th>
+              <td><%= row['variant_name'].presence || '—' %></td>
+              <td><%= row['sku'].presence || '—' %></td>
+              <td><%= row['inventory_quantity'] %></td>
+              <td><%= row['reserved_quantity'] %></td>
+              <td><%= row['committed_quantity'] %></td>
+              <td><%= row['incoming_quantity'] %></td>
+              <td><%= row['unavailable_quantity'] %></td>
+              <td><%= row['damaged_quantity'] %></td>
+              <td><%= @inventory_report.publication(row) %></td>
+              <td>
+                <% if row['product_type'] != 'lightek_instance' %>
+                  <details>
+                    <summary>Move stock</summary>
+                    <% stock_form_id = "stock-#{row['product_id']}-#{row['variant_id'] || 'product'}" %>
+                    <%= form_with scope: :inventory_movement, url: dashboard_commerce_products_path(@filters.to_h.merge(site_id: @site.id)),
+                      method: :post, namespace: stock_form_id, class: 'dd-form-stack' do |form| %>
+                      <%= hidden_field_tag :inventory_move, '1', id: nil %>
+                      <%= form.hidden_field :product_id, value: row['product_id'] %>
+                      <%= form.hidden_field :variant_id, value: row['variant_id'] %>
+                      <%= form.hidden_field :version, value: LightekCommerce::InventoryAdjustment.snapshot_version(row['inventory_updated_at']) %>
+                      <label>Movement
+                        <%= form.select :movement, LightekCommerce::InventoryStockStates::MOVEMENTS.map { |key, (label, *)| [label, key] },
+                          {include_blank: 'Choose a movement'}, required: true %>
+                      </label>
+                      <label>Quantity <%= form.number_field :quantity, min: 1, max: LightekCommerce::InventoryAdjustment::MAX_QUANTITY, required: true %></label>
+                      <%= form.submit 'Move units', class: 'dd-button dd-btn-primary' %>
+                    <% end %>
+                  </details>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </section>
+</main>

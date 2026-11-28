@@ -8,6 +8,10 @@
     <div class="dd-form-errors" role="alert"><strong>Check these details before saving</strong><ul><% @product.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div>
   <% end %>
   <%= form_with model: @product, scope: :product, url: (@product.persisted? ? dashboard_commerce_product_path(@product, site_id: @site.id) : dashboard_commerce_products_path(site_id: @site.id)), class: "dd-product-form" do |f| %>
+    <% if @product.persisted? %>
+      <%= hidden_field_tag :inventory_stock_version, params[:inventory_stock_version].presence ||
+        LightekCommerce::InventoryAdjustment.snapshot_version(@product.updated_at) %>
+    <% end %>
     <div class="dd-form-layout">
       <div class="dd-form-column">
         <section class="dd-form-section" aria-labelledby="product-story-heading">
@@ -49,6 +53,12 @@
           <%= f.label :track_inventory, class: "dd-check" do %><%= f.check_box :track_inventory %> Track available inventory<% end %>
           <p class="dd-form-callout">Turn inventory tracking off for unlimited services and digital products.</p>
           <div class="dd-field"><%= f.label :inventory_quantity, "Available quantity" %><%= f.number_field :inventory_quantity, min: 0, required: true %></div>
+          <% if @product.persisted? %>
+            <label class="dd-field">Reason for stock change
+              <%= select_tag :inventory_reason, options_for_select(LightekCommerce::InventoryChange::REASON_LABELS.invert, params[:inventory_reason]),
+                include_blank: 'Optional' %>
+            </label>
+          <% end %>
         </section>
         <section class="dd-form-section" aria-labelledby="product-shipping-heading">
           <div class="dd-section-heading"><i class="ti ti-truck" aria-hidden="true"></i><div><h2 id="product-shipping-heading">Physical shipping</h2><p>Optional overrides. Leave blank to use your business's default package.</p></div></div>

@@ -21,7 +21,7 @@ ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:'
 ActiveRecord::Schema.define do
   create_table(:users) { |t| t.string :role; t.string :email_address; t.string :first_name; t.string :last_name; t.string :password; t.integer :agency_id; t.integer :upstream_share_bps, default: 0; t.boolean :password_setup_required, default: false }
   create_table(:agency_profiles) { |t| t.integer :user_id; t.string :brand_name }
-  create_table(:sites) { |t| t.integer :tenant_id; t.string :name; t.string :host }
+  create_table(:sites) { |t| t.integer :tenant_id; t.string :name; t.string :host; t.json :manifest }
   create_table(:orders) { |t| t.integer :hosting_owner_id; t.string :customer_email; t.string :provisioning_state; t.timestamps }
   create_table(:gatekeeper_nodes) { |t| t.string :owner_type; t.integer :owner_id }
   create_table(:products) { |t| t.string :name; t.integer :price_cents; t.string :short_description }
@@ -32,6 +32,7 @@ class User < ActiveRecord::Base
   has_many :agency_clients, class_name: 'User', foreign_key: :agency_id
   validates :email_address, presence: true, uniqueness: true
   has_one :agency_profile
+  def white_label? = role == 'white_label'
   def full_name = [first_name, last_name].compact.join(' ').presence || email_address
   def managed_account_ids = [id] + agency_clients.pluck(:id)
   def password_setup_invitation_error = nil
@@ -69,6 +70,14 @@ class ApplicationController < ActionController::Base
   helper_method :current_user
   def self.rate_limit(**) = nil
 end
+module Current
+  def self.session = Struct.new(:connect_delegation).new
+end
+module NevaehOnboarding
+  module StandingAssignment
+    def self.paid_trial(*) = nil
+  end
+end
 module Dashboard; end
 require ROOT.join('app/controllers/dashboard/agencies_controller')
 require ROOT.join('app/controllers/dashboard/server_instances_controller')
@@ -86,6 +95,7 @@ AgencyWorkspaceHarness.routes.draw do
   end
   get '/dashboard/servers', to: 'dashboard/server_instances#index', as: :dashboard_servers
   get '/dashboard/servers/hosting', to: 'dashboard/server_instances#hosting', as: :hosting_dashboard_servers
+  get '/dashboard/agency-websites/:id', to: 'dashboard/agencies#index', as: :dashboard_agency_website
   get '/dashboard/business', to: 'dashboard/agencies#index', as: :dashboard_business_hub
   get '/dashboard/reseller-packages', to: 'dashboard/agencies#index', as: :dashboard_reseller_packages
   get '/dashboard/demos', to: 'dashboard/agencies#index', as: :dashboard_demos

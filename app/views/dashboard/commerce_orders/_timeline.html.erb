@@ -1,0 +1,12 @@
+<section class="dd-form-section">
+  <h3>Order activity</h3>
+  <ol>
+    <% LightekCommerce::OrderTimeline.for(order).each do |event| %>
+      <li>
+        <%= event.label %>
+        <% if event.amount_cents %> · <%= number_to_currency(event.amount_cents / 100.0) %><% end %>
+        · <time datetime="<%= event.time.iso8601 %>"><%= l(event.time.in_time_zone, format: :short) %></time>
+      </li>
+    <% end %>
+  </ol>
+</section>

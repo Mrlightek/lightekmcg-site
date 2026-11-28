@@ -116,6 +116,10 @@ module LightekCommerce
     has_many :variants, class_name: 'LightekCommerce::ProductVariant'
     belongs_to :source_hosting_package, class_name: 'HostingPackage', optional: true
     def effective_hosting_package = hosting_package || source_hosting_package
+    # This fixture creates lodging and hosting products rather than telecom offers.
+    def communications_kind = nil
+    def full_communications_package? = false
+    def cellular_voice_bundle? = false
     has_one :hosting_package
   end
   class ProductVariant < ApplicationRecord
@@ -125,7 +129,30 @@ module LightekCommerce
   class PaidInstanceProvisioningJob < ApplicationJob; end
   class FulfillmentNotificationJob < ApplicationJob; end
 end
-%w[hosting_package lightek_commerce/network_sale lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/quote lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
+require ROOT.join('db/migrate/20261127192000_create_commerce_inventory_adjustments')
+CreateCommerceInventoryAdjustments.new.migrate(:up)
+require ROOT.join('db/migrate/20261127193000_add_source_to_commerce_inventory_changes')
+AddSourceToCommerceInventoryChanges.new.migrate(:up)
+require ROOT.join('db/migrate/20261127194000_record_order_inventory_changes')
+RecordOrderInventoryChanges.new.migrate(:up)
+require ROOT.join('db/migrate/20261127195000_add_reason_to_commerce_inventory_changes')
+AddReasonToCommerceInventoryChanges.new.migrate(:up)
+require ROOT.join('db/migrate/20261127200000_add_commerce_inventory_stock_states')
+AddCommerceInventoryStockStates.new.migrate(:up)
+require ROOT.join('db/migrate/20261127201000_create_commerce_supplier_orders')
+CreateCommerceSupplierOrders.new.migrate(:up)
+require ROOT.join('db/migrate/20261127202000_create_commerce_merchandise_returns')
+CreateCommerceMerchandiseReturns.new.migrate(:up)
+require ROOT.join('db/migrate/20261127203000_link_commerce_refunds_to_returns')
+LinkCommerceRefundsToReturns.new.migrate(:up)
+require ROOT.join('db/migrate/20261127205000_add_commerce_return_fee')
+AddCommerceReturnFee.new.migrate(:up)
+require ROOT.join('db/migrate/20261127206000_snapshot_commerce_return_fee_rule')
+SnapshotCommerceReturnFeeRule.new.migrate(:up)
+require ROOT.join('db/migrate/20261127207000_add_commerce_return_exchanges')
+AddCommerceReturnExchanges.new.migrate(:up)
+require ROOT.join('app/models/lightek_commerce/merchandise_return')
+%w[hosting_package lightek_commerce/inventory_change lightek_commerce/network_sale lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/quote lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
   lightek_reservations/resource lightek_reservations/reservation lightek_reservations/blackout
   lightek_reservations/change lightek_reservations/peer lightek_reservations/intent lightek_commerce/payout_schedule].each { |file| require ROOT.join('app/models', file).to_s }
 %w[lightek_commerce/revenue_sharing lightek_commerce/subscription_events lightek_commerce/processor_payment lightek_commerce/network_checkout lightek_shipping/quotes lightek_reservations/availability lightek_reservations/booking lightek_reservations/package_changes

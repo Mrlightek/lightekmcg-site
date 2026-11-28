@@ -11,6 +11,11 @@ module LightekShipping
       quote.with_lock do
         order = quote.purchase_order
         unless order
+          reserved = LightekCommerce::NetworkSale.exists?(source_shipping_quote: quote) ||
+            LightekCommerce::Order.where(shipping_quote: quote).where.not(status: 'canceled')
+              .where("purpose IS NULL OR purpose <> ?", "shipping_label").exists?
+          raise ArgumentError, "The merchandise checkout already includes this shipping label" if reserved
+
           operator = User.find_by!(role: "super_admin")
           platform_site = DymondSite::Site.where(tenant: operator).order(:id).first || raise(ArgumentError, "Platform billing storefront is not configured")
           product = LightekCommerce::Product.find_or_create_by!(site: platform_site, slug: "internal-shipping-label") do |item|

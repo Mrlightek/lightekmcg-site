@@ -1,0 +1,32 @@
+<% content_for :page_title, 'Collections' %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <h1>Collections</h1>
+    <%= link_to 'Products', dashboard_commerce_products_path(site_id: @site.id) %>
+    <%= link_to 'New collection', new_dashboard_commerce_collection_path(site_id: @site.id), class: 'dd-button dd-btn-primary' %>
+  </header>
+  <section class="dd-panel">
+    <% if @collections.empty? %>
+      <p>Create a collection to group products in your storefront.</p>
+    <% else %>
+      <table>
+        <thead><tr><th>Name</th><th>Product selection</th><th>Publication</th><th>Actions</th></tr></thead>
+        <tbody>
+          <% @collections.each do |collection| %>
+            <tr>
+              <td><%= collection.name %></td>
+              <td><%= collection.source == 'manual' ? 'Manual' : 'Rule-based' %></td>
+              <td><%= collection.published? ? 'Published' : 'Draft' %></td>
+              <td>
+                <%= link_to 'Edit', edit_dashboard_commerce_collection_path(collection, site_id: @site.id) %>
+                <% if collection.published? %>
+                  <%= link_to 'View in shop', commerce_shop_path(site_id: @site.id, collection: collection.slug) %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </section>
+</main>

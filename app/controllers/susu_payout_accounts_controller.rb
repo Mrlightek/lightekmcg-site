@@ -4,15 +4,37 @@ class SusuPayoutAccountsController < ApplicationController
   before_action :require_sensitive_session!
   before_action :require_direct_owner!
   before_action :private_response!
-  before_action :redirect_network_payouts
+  before_action :redirect_network_payouts, except: %i[stripe_access check_stripe_access update_stripe_browser_key]
+  before_action :require_platform_operator!, only: %i[stripe_access check_stripe_access update_stripe_browser_key]
   layout 'dymond_dash/layouts/dymond_dash'
   protect_from_forgery with: :exception
-  rate_limit to: 12, within: 1.minute, only: %i[account_session replace connect], by: -> { current_user&.id || request.remote_ip }
+  rate_limit to: 12, within: 1.minute, only: %i[account_session replace connect check_stripe_access update_stripe_browser_key], by: -> { current_user&.id || request.remote_ip }
 
   def show
     @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
     @payout_status = LightekPayments::PayoutAccounts.status(current_user)
     @payout_configuration = LightekPayments::PayoutAccounts.configuration_status
+  end
+
+  def stripe_access
+    @checks = DymondBank::StripeAccessCheck::CHECKS
+  end
+
+  def check_stripe_access
+    @checks = DymondBank::StripeAccessCheck::CHECKS
+    @selected_check = params[:check].to_s
+    @result = DymondBank::StripeAccessCheck.call(actor: current_user, check: @selected_check)
+    render :stripe_access
+  rescue DymondBank::StripeAccessCheck::InvalidCheck => error
+    flash.now[:alert] = error.message
+    render :stripe_access, status: :unprocessable_entity
+  end
+
+  def update_stripe_browser_key
+    LightekPayments::StripeBrowserKey.update!(actor: current_user, key: params[:browser_key].to_s.strip)
+    redirect_to dashboard_commerce_stripe_access_path, notice: 'Stripe publishable key saved.', status: :see_other
+  rescue LightekPayments::StripeBrowserKey::Invalid => error
+    redirect_to dashboard_commerce_stripe_access_path, alert: error.message, status: :see_other
   end
 
   def connection_status
@@ -51,6 +73,10 @@ class SusuPayoutAccountsController < ApplicationController
   private
   # Personal earnings setup is independent of the optional Susu application.
   def package_feature = nil
+
+  def require_platform_operator!
+    head :forbidden unless current_user&.role == 'super_admin'
+  end
 
   def require_direct_owner!
     head :forbidden if Current.session&.connect_delegation.present?

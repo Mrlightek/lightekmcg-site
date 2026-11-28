@@ -1,0 +1,37 @@
+<% content_for :page_title, 'Supplier purchase orders' %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <div><h1>Supplier purchase orders</h1><p><%= @site.name %></p></div>
+    <%= link_to 'Inventory', dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), class: 'dd-button' %>
+  </header>
+  <section class="dd-panel" aria-labelledby="new-purchase-order">
+    <h2 id="new-purchase-order">New purchase order</h2>
+    <%= form_with scope: :supplier_order, url: dashboard_commerce_supplier_orders_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>
+      <label>Supplier <%= form.text_field :supplier, required: true, maxlength: 160 %></label>
+      <label>Expected delivery <%= form.date_field :expected_on %></label>
+      <%= form.submit 'Create draft', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+  </section>
+  <section class="dd-panel" aria-label="Purchase orders">
+    <% if @orders.empty? %>
+      <p>No purchase orders in this view.</p>
+    <% else %>
+      <table>
+        <thead><tr><th scope="col">Order</th><th scope="col">Supplier</th><th scope="col">Expected delivery</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          <% @orders.each do |order| %>
+            <tr>
+              <th scope="row"><%= link_to "PO ##{order.id}", dashboard_commerce_supplier_order_path(order, site_id: @site.id) %></th>
+              <td><%= order.supplier %></td>
+              <td><%= order.expected_on ? l(order.expected_on) : '—' %></td>
+              <td><%= order.status.humanize %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @older %>
+        <%= link_to 'Older orders', dashboard_commerce_supplier_orders_path(site_id: @site.id, before: @orders.last.id), class: 'dd-button' %>
+      <% end %>
+    <% end %>
+  </section>
+</main>

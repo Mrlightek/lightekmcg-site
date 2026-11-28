@@ -1,17 +1,27 @@
 class Api::ShippingBrokerController < Api::ReservationFederationController
-  rescue_from LightekShipping::Fedex::Unavailable, with: ->(error) { render json: {error: error.message}, status: :service_unavailable }
+  rescue_from LightekShipping::Fedex::Unavailable, LightekShipping::Ups::Unavailable, with: ->(error) { render json: {error: error.message}, status: :service_unavailable }
+  def supplies
+    render json: {site_id: LightekShipping::Supplies.catalog_site_id}
+  end
+
   def quotes
     values = params.permit(origin: %i[name phone street city state postal_code country residential],
       recipient: %i[name phone street city state postal_code country residential], packages: %i[weight_lb length_in width_in height_in]).to_h
     quotes = LightekShipping::Quotes.create!(site: @peer.site, origin: values.fetch("origin"), recipient: values.fetch("recipient"), packages: values.fetch("packages"), gateway: false)
     render json: {quotes: quotes.map(&:public_attributes)}
   end
+  def pickup_rate
+    pickup = params.require(:pickup).permit(:date, :ready, :close)
+    render json: {price_cents: LightekShipping::PickupQuote.rate!(quote: scoped_quote, attributes: pickup)}
+  end
+
   def purchase
     quote = scoped_quote
     sale = LightekCommerce::NetworkSale.joins(:order).find_by(lightek_commerce_orders: {shipping_quote_id: quote.id})
     raise ArgumentError, "The merchandise checkout already includes this shipping label" if sale
     url = URI.parse(params.require(:return_url))
-    raise ArgumentError, "Invalid return address" unless url.is_a?(URI::HTTPS) && url.host == @peer.site.host && !url.userinfo && url.path == "/dashboard/shipping" && !url.fragment
+    shipping_path = url.path == "/dashboard/shipping" || url.path.to_s.match?(%r{\A/dashboard/commerce/orders/[1-9][0-9]*/returns\z})
+    raise ArgumentError, "Invalid return address" unless url.is_a?(URI::HTTPS) && url.host == @peer.site.host && !url.userinfo && shipping_path && !url.fragment
     checkout = LightekShipping::Purchases.start!(quote: quote, email: @peer.merchant.email_address, return_url: url.to_s)
     render json: {url: checkout}
   end
@@ -29,7 +39,7 @@ class Api::ShippingBrokerController < Api::ReservationFederationController
     shipment = scoped_quote.shipment || raise(ActiveRecord::RecordNotFound)
     raise ActiveRecord::RecordNotFound unless shipment.status == "ready"
     attachment = shipment.labels.attachments.order(:id).offset(Integer(params[:index])).first || raise(ActiveRecord::RecordNotFound)
-    render json: {filename: attachment.filename.to_s, content_type: "application/pdf", data: Base64.strict_encode64(attachment.download)}
+    render json: {filename: attachment.filename.to_s, content_type: attachment.content_type, data: Base64.strict_encode64(attachment.download)}
   end
   def cancel
     LightekShipping::Labels.cancel!(quote: scoped_quote)

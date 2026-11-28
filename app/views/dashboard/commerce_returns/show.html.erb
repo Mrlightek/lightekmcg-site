@@ -1,0 +1,150 @@
+<% content_for :page_title, "Returns for order ##{@order.id}" %>
+<% return_path = dashboard_commerce_returns_path(order_id: @order.id, site_id: @site.id) %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <div><h1>Returns for order #<%= @order.id %></h1><p><%= @site.name %></p></div>
+    <%= link_to 'Returns queue', dashboard_commerce_return_queue_path(site_id: @site.id), class: 'dd-button' %>
+  </header>
+
+  <section class="dd-panel" aria-labelledby="new-return-heading">
+    <h2 id="new-return-heading">Request a return</h2>
+    <% choices = @items.values.filter_map do |item|
+      remaining = item.quantity - @used.fetch(item.id, 0)
+      ["#{item.name} (#{remaining} returnable)", item.id] if remaining.positive?
+    end %>
+    <% if choices.empty? %>
+      <p>There are no more returnable units on this order.</p>
+    <% else %>
+      <%= form_with url: return_path, method: :post, class: 'dd-form-stack' do %>
+        <%= hidden_field_tag :request_key, SecureRandom.uuid %>
+        <label>Item <%= select_tag :item_id, options_for_select(choices), prompt: 'Choose an item', required: true %></label>
+        <label>Quantity <%= number_field_tag :quantity, nil, min: 1, required: true %></label>
+        <label>Reason <%= text_area_tag :reason, nil, rows: 2, maxlength: 300, required: true %></label>
+        <%= submit_tag 'Record request', class: 'dd-button dd-btn-primary' %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="dd-panel" aria-labelledby="return-history">
+    <h2 id="return-history">Returns</h2>
+    <% if @returns.empty? %>
+      <p>No returns recorded.</p>
+    <% else %>
+      <table>
+        <thead><tr><th scope="col">Return</th><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+        <tbody>
+          <% @returns.each do |record| %>
+            <% item = @items[record.order_item_id] %>
+            <% change_path = change_dashboard_commerce_return_path(order_id: @order.id, site_id: @site.id, return_id: record.id) %>
+            <tr id="return-<%= record.id %>">
+              <th scope="row">#<%= record.id %></th>
+              <td><%= item&.name || "Item ##{record.order_item_id}" %></td>
+              <td><%= record.quantity %></td>
+              <td><%= record.reason %></td>
+              <td>
+                <%= record.status.humanize %>
+                <% if record.refund_fee_cents.positive? && record.status.in?(%w[approved received]) %>
+                  <p>Return fee <%= number_to_currency(record.refund_fee_cents / 100.0) %></p>
+                <% end %>
+                <% if record.received_at? %>
+                  <p><%= LightekCommerce::MerchandiseReturns::DISPOSITIONS.fetch(record.disposition) %></p>
+                  <time datetime="<%= record.received_at.iso8601 %>"><%= l(record.received_at, format: :short) %></time>
+                <% end %>
+              </td>
+              <td>
+                <% if (label = @return_labels[record.id]) %>
+                  <%= link_to 'Download label', dashboard_commerce_return_label_path(order_id: @order.id, return_id: record.id, site_id: @site.id) %>
+                  <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
+                <% end %>
+                <% if record.status.in?(%w[approved received]) %>
+                  <%= render 'carrier_label', record: record, change_path: change_path %>
+                <% end %>
+                <% if record.status == 'requested' %>
+                  <% max_fee = LightekCommerce::ReturnRefunds.maximum_fee_cents(@order, item, record) %>
+                  <% if max_fee.positive? %>
+                    <%= form_with url: change_path, method: :post do |form| %>
+                      <%= hidden_field_tag :operation, 'approve', id: nil %>
+                      <label>Return fee in cents (optional)
+                        <%= form.number_field :refund_fee_cents, id: nil, min: 0, max: max_fee,
+                          value: [record.suggested_refund_fee_cents, max_fee].min %>
+                      </label>
+                      <p>Enter 0 to waive the fee. The approved amount is shown to the customer and deducted from the refund.</p>
+                      <%= form.submit 'Approve', class: 'dd-button' %>
+                    <% end %>
+                  <% else %>
+                    <%= button_to 'Approve', change_path, params: {operation: 'approve'}, class: 'dd-button' %>
+                  <% end %>
+                  <%= button_to 'Reject', change_path, params: {operation: 'reject'}, class: 'dd-button' %>
+                <% elsif record.status == 'approved' %>
+                  <% if record.exchange_status == 'reserved' %>
+                    <p><%= record.replacement_name %> is reserved. Receive the return before shipping.</p>
+                    <%= button_to 'Cancel exchange', change_path, params: {operation: 'cancel_exchange'}, class: 'dd-button' %>
+                  <% end %>
+                  <% unless record.return_shipping_quote_id? %>
+                  <details>
+                    <summary><%= @return_labels.key?(record.id) ? 'Replace return label' : 'Add return label' %></summary>
+                    <%= form_with url: change_path, method: :post, multipart: true do |form| %>
+                      <%= hidden_field_tag :operation, 'upload_label', id: nil %>
+                      <label>Label PDF <%= form.file_field :label_pdf, id: nil, accept: 'application/pdf', required: true %></label>
+                      <label>Carrier
+                        <%= form.select :carrier, LightekCommerce::ReturnLabel::CARRIERS,
+                          {include_blank: 'Optional', selected: @return_labels[record.id]&.carrier}, id: nil %>
+                      </label>
+                      <label>Tracking number <%= form.text_field :tracking_number, id: nil, maxlength: 35,
+                        value: @return_labels[record.id]&.tracking_number %></label>
+                      <%= form.submit 'Save label', class: 'dd-button' %>
+                    <% end %>
+                  </details>
+                  <% end %>
+                  <%= form_with url: change_path, method: :post do %>
+                    <%= hidden_field_tag :operation, 'receive', id: nil %>
+                    <% options = LightekCommerce::MerchandiseReturns::DISPOSITIONS %>
+                    <% options = options.slice('discarded') unless item && LightekCommerce::MerchandiseReturns.restockable?(@order, item) %>
+                    <label>Disposition <%= select_tag :disposition, options_for_select(options.invert), id: nil,
+                      prompt: 'Choose a disposition', required: true %></label>
+                    <%= submit_tag 'Receive return', class: 'dd-button dd-btn-primary' %>
+                  <% end %>
+                  <%= button_to 'Cancel return', change_path, params: {operation: 'cancel'}, class: 'dd-button' %>
+                <% elsif record.status == 'received' %>
+                  <% if record.active_exchange? %>
+                    <p>Replacement <%= record.replacement_name %> · <%= record.exchange_status.humanize %></p>
+                    <% if record.exchange_status == 'reserved' %>
+                      <%= form_with url: change_path, method: :post do |form| %>
+                        <%= hidden_field_tag :operation, 'ship_exchange', id: nil %>
+                        <label>Shipping reference <%= form.text_field :shipping_reference, id: nil, required: true, maxlength: 120 %></label>
+                        <%= form.submit 'Mark replacement shipped', class: 'dd-button' %>
+                      <% end %>
+                      <%= button_to 'Cancel exchange', change_path, params: {operation: 'cancel_exchange'}, class: 'dd-button' %>
+                    <% else %>
+                      <p>Shipping reference <%= record.exchange_shipping_reference %></p>
+                    <% end %>
+                  <% elsif (refund = @refunds[record.id]) %>
+                    <p><%= number_to_currency(refund.amount_cents / 100.0) %> refund · <%= refund.status.humanize %></p>
+                    <% if refund.status == 'pending' %><p>Awaiting processor confirmation.</p><% end %>
+                    <% if refund.status == 'failed' %><p>Review the refund on the original order before trying again.</p><% end %>
+                  <% elsif (amount = LightekCommerce::ReturnRefunds.amount_for(@order, item, record)) %>
+                    <% available_replacements = LightekCommerce::ReturnExchanges.options(@order, item, record) %>
+                    <% if available_replacements.any? %>
+                      <%= form_with url: change_path, method: :post do |form| %>
+                        <%= hidden_field_tag :operation, 'reserve_exchange', id: nil %>
+                        <label>Replacement <%= form.select :replacement, available_replacements,
+                          {include_blank: 'Choose the replacement'}, id: nil, required: true %></label>
+                        <%= form.submit 'Reserve replacement', class: 'dd-button' %>
+                      <% end %>
+                    <% end %>
+                    <%= button_to "Refund #{number_to_currency(amount / 100.0)}", change_path,
+                      params: {operation: 'refund', amount_cents: amount}, class: 'dd-button',
+                      form: {data: {turbo_confirm: 'Refund this amount to the original payment method?'}} %>
+                  <% else %>
+                    <p>Review refund options on the original order.</p>
+                  <% end %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <p><%= link_to 'View original order', dashboard_commerce_orders_path(site_id: @site.id, lookup: @order.id) %></p>
+  </section>
+</main>

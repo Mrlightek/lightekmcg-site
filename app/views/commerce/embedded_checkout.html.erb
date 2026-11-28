@@ -1,0 +1,24 @@
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<% content_for :title, "Checkout · #{@site.name}" %>
+<main class="auth-shell">
+  <% accent = LightekCommerce::StoreAppearance.accent(@appearance) if @appearance %>
+  <section class="auth-story"<%= tag.attributes(style: "background: #{accent}") if accent %>>
+    <div class="auth-story-copy">
+      <h2><%= @appearance&.fetch('brand_name', nil) || @site.name %></h2>
+      <%= link_to 'Back', @back_url || commerce_shop_path(site_id: @site.id), class: 'auth-link' %>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card" data-embedded-checkout data-turbo="false"
+      data-publishable-key="<%= @publishable_key %>" data-checkout-secret="<%= @checkout.client_secret %>"
+      data-completion-url="<%= @completion_url %>">
+      <h1><%= @appearance&.fetch('checkout_title', nil) || 'Checkout' %></h1>
+      <% if @appearance&.dig('checkout_message').present? %><p><%= @appearance['checkout_message'] %></p><% end %>
+      <p role="status" data-checkout-status aria-live="polite">Loading secure checkout…</p>
+      <div data-checkout-form></div>
+      <noscript>Turn on JavaScript to use secure checkout, then reload this page.</noscript>
+    </div>
+  </section>
+</main>
+<%= javascript_include_tag 'https://js.stripe.com/dahlia/stripe.js', defer: true, 'data-turbo-track': 'reload' %>
+<%= javascript_include_tag '/lightek/embedded-commerce-checkout.js', defer: true, 'data-turbo-track': 'reload' %>

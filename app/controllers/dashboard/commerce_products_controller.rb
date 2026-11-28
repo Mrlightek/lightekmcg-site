@@ -6,6 +6,9 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   before_action :set_product, only: %i[edit update destroy]
   before_action :redirect_workspace_management, only: %i[edit update destroy]
   def index
+    return inventory_history if params[:inventory_history] == '1'
+    return inventory if params[:inventory] == '1'
+
     @products = LightekCommerce::Product.where(site: @site).order(:position, :id)
   end
   def preview_industry
@@ -36,6 +39,9 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
     @product = LightekCommerce::Product.new(site: @site)
   end
   def create
+    return import_inventory if params[:inventory_import] == '1'
+    return move_inventory if params[:inventory_move] == '1'
+
     authorize_instance_product!
     @product = LightekCommerce::Product.new(product_params.except(:remove_photo_ids).merge(site: @site))
     return redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product created." if @product.save
@@ -44,7 +50,9 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   def edit; end
   def update
     authorize_instance_product!
-    if @product.update(product_params.except(:remove_photo_ids))
+    attributes = product_params.except(:remove_photo_ids)
+    if LightekCommerce::InventoryAdjustment.update_product!(product: @product, actor: current_user,
+        attributes: attributes, version: params[:inventory_stock_version], reason: params[:inventory_reason])
       Array(product_params[:remove_photo_ids]).reject(&:blank?).each do |id|
         attachment = @product.photos_attachments.find_by(id: id)
         attachment&.purge
@@ -52,12 +60,85 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
       return redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product updated."
     end
     render :edit, status: :unprocessable_entity
+  rescue LightekCommerce::InventoryAdjustment::Invalid => error
+    redirect_to edit_dashboard_commerce_product_path(@product, site_id: @site.id), alert: error.message, status: :see_other
   end
   def destroy
-    @product.destroy!
-    redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product removed."
+    destination = dashboard_commerce_products_path(site_id: @site.id)
+    @product.with_lock do
+      if LightekCommerce::InventoryStockStates.allocated?(@product)
+        return redirect_to destination, alert: 'Clear incoming, unavailable and damaged stock before removing this product.'
+      end
+      if LightekCommerce::MerchandiseReturn.exists?(replacement_product_id: @product.id)
+        return redirect_to destination, alert: 'This product appears in exchange history. Unpublish it to remove it from the storefront.'
+      end
+      @product.destroy!
+    end
+    redirect_to destination, notice: "Product removed."
   end
   private
+  def inventory
+    @filters = params.permit(*LightekCommerce::InventoryReport::FILTERS)
+    @inventory_report = LightekCommerce::InventoryReport.new(site: @site, filters: @filters)
+    response.headers['Cache-Control'] = 'private, no-store'
+    respond_to do |format|
+      format.html do
+        @inventory_rows = @inventory_report.rows(limit: 151)
+        @more_inventory = @inventory_rows.length > 150
+        @inventory_rows = @inventory_rows.first(150)
+        render :inventory
+      end
+      format.csv do
+        template = params[:adjustment_template] == '1'
+        data = template ? @inventory_report.adjustment_csv : @inventory_report.csv
+        prefix = template ? 'inventory-adjustment' : 'inventory'
+        send_data data, filename: "#{prefix}-#{Date.current.iso8601}.csv", type: 'text/csv; charset=utf-8'
+      end
+    end
+  rescue LightekCommerce::InventoryReport::Invalid => error
+    redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), alert: error.message, status: :see_other
+  end
+
+  def inventory_history
+    history = LightekCommerce::InventoryChange.for_site(@site).order(id: :desc)
+    if params[:before].present?
+      before = params[:before].to_s
+      raise ActiveRecord::RecordNotFound unless before.match?(/\A[1-9][0-9]{0,17}\z/)
+
+      history = history.where(id: ...before.to_i)
+    end
+    @inventory_changes = history.limit(101).to_a
+    @more_inventory_changes = @inventory_changes.size > 100
+    @inventory_changes = @inventory_changes.first(100)
+    response.headers['Cache-Control'] = 'private, no-store'
+    render :inventory_history, formats: [:html]
+  end
+
+  def move_inventory
+    filters = params.permit(*LightekCommerce::InventoryReport::FILTERS).to_h
+    destination = dashboard_commerce_products_path(filters.merge(site_id: @site.id, inventory: '1'))
+    movement = params.expect(inventory_movement: %i[product_id variant_id movement quantity version])
+    LightekCommerce::InventoryStockStates.move!(site: @site, actor: current_user, product_id: movement[:product_id],
+      variant_id: movement[:variant_id], movement: movement[:movement], quantity: movement[:quantity], version: movement[:version])
+    redirect_to destination, notice: 'Stock movement recorded.', status: :see_other
+  rescue LightekCommerce::InventoryStockStates::Invalid => error
+    redirect_to destination, alert: error.message, status: :see_other
+  end
+
+  def import_inventory
+    file = params[:inventory_csv]
+    unless file.is_a?(ActionDispatch::Http::UploadedFile)
+      raise LightekCommerce::InventoryAdjustment::Invalid, 'Choose an inventory adjustment CSV.'
+    end
+
+    data = file.read(LightekCommerce::InventoryAdjustment::MAX_BYTES + 1).to_s.force_encoding(Encoding::UTF_8)
+    count = LightekCommerce::InventoryAdjustment.apply!(site: @site, actor: current_user, data: data, reason: params[:inventory_reason])
+    redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'),
+      notice: "Updated #{count} inventory #{'row'.pluralize(count)}.", status: :see_other
+  rescue LightekCommerce::InventoryAdjustment::Invalid => error
+    redirect_to dashboard_commerce_products_path(site_id: @site.id, inventory: '1'), alert: error.message, status: :see_other
+  end
+
   def redirect_workspace_management
     return unless @product.hosting_package && Gatekeeper::Hosting::WorkspacePlans.workspace?(@product)
 

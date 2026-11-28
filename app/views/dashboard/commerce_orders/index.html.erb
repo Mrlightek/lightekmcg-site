@@ -1,4 +1,5 @@
 <% content_for :page_title, "Orders" %>
+<%= javascript_include_tag '/lightek/order-views.js', defer: true %>
 <main class="dd-workspace dd-orders" data-orders-workspace>
   <header class="dd-page-header dd-page-hero">
     <div>
@@ -7,11 +8,41 @@
       <p>A clear view of every purchase. Manage payments, delivery, and customer access from one place.</p>
     </div>
     <nav class="dd-action-group" aria-label="Commerce navigation">
+      <%= link_to 'Returns', dashboard_commerce_return_queue_path(site_id: @site.id), class: 'dd-button' %>
       <%= link_to dashboard_commerce_payouts_path(site_id: @site.id), class: "dd-button" do %><i class="ti ti-wallet" aria-hidden="true"></i> Payouts<% end %>
+      <% if @site.tenant == current_user %>
+        <%= link_to 'Payment disputes', dashboard_commerce_disputes_path(site_id: @site.id), class: 'dd-button' %>
+      <% end %>
       <%= link_to dashboard_installations_path, class: "dd-button" do %><i class="ti ti-server" aria-hidden="true"></i> Installations<% end %>
       <%= link_to dashboard_commerce_products_path(site_id: @site.id), class: "dd-button dd-btn-primary" do %><i class="ti ti-package" aria-hidden="true"></i> Manage products<% end %>
     </nav>
   </header>
+
+  <section class="dd-panel">
+    <h2>Filter orders</h2>
+    <%= form_with url: dashboard_commerce_orders_path, method: :get, data: {order_filters: true} do %>
+      <%= hidden_field_tag :site_id, @site.id %>
+      <label>Order number or buyer email <%= search_field_tag :lookup, @filters[:lookup], maxlength: 254 %></label>
+      <label>Status <%= select_tag :status, options_for_select(LightekCommerce::Order::STATUSES.map { |value| [value.humanize, value] }, @filters[:status]), include_blank: 'All statuses' %></label>
+      <label>Created from <%= date_field_tag :from, @filters[:from] %></label>
+      <label>Created through <%= date_field_tag :through, @filters[:through] %></label>
+      <%= submit_tag 'Filter', class: 'dd-button' %>
+    <% end %>
+    <div hidden data-saved-order-views="<%= current_user.id %>:<%= @site.id %>">
+      <h3>Saved views</h3>
+      <p>Save status and dates for this store in this browser.</p>
+      <form data-order-view-save>
+        <label>View name <input name="view_name" type="text" required maxlength="60"></label>
+        <button type="submit" class="dd-button">Save view</button>
+      </form>
+      <label>Saved view <select data-order-view-picker disabled></select></label>
+      <button type="button" class="dd-button" data-order-view-apply disabled>Apply view</button>
+      <button type="button" class="dd-button" data-order-view-remove disabled>Remove view</button>
+      <p role="status" data-order-view-message></p>
+    </div>
+    <%= link_to 'Export orders CSV', dashboard_commerce_orders_path(@filters.to_h.merge(site_id: @site.id, format: :csv, kind: 'orders')), class: 'dd-button' %>
+    <%= link_to 'Export line items CSV', dashboard_commerce_orders_path(@filters.to_h.merge(site_id: @site.id, format: :csv, kind: 'items')), class: 'dd-button' %>
+  </section>
 
   <section class="dd-metrics" aria-label="Orders in this view">
     <% [["Orders shown", @orders.size, "ti-receipt"], ["Awaiting payment", @orders.count { |order| order.status == "pending_payment" }, "ti-clock"], ["Ready to fulfill", @orders.count { |order| order.status == "paid" }, "ti-box-seam"]].each do |label, value, icon| %>
@@ -38,6 +69,15 @@
         </div>
       <% end %>
 
+      <% if @orders.any? { |order| LightekCommerce::PackingSlips.eligible?(order) } %>
+        <%= form_with url: dashboard_commerce_orders_path, method: :get, id: 'print-packing-slips', data: {turbo: false} do %>
+          <%= hidden_field_tag :site_id, @site.id, id: nil %>
+          <%= hidden_field_tag :print_packing_slips, '1' %>
+          <p>Select paid physical orders below to print their packing slips together.</p>
+          <%= submit_tag 'Print selected packing slips', class: 'dd-button' %>
+        <% end %>
+      <% end %>
+
       <div class="dd-order-collection">
         <% @orders.each do |order| %>
           <% tone = %w[paid fulfilled].include?(order.status) ? "success" : %w[pending_payment partially_refunded].include?(order.status) ? "warning" : "neutral" %>
@@ -46,6 +86,8 @@
               <div class="dd-order-identity">
                 <% if order.removable? %>
                   <%= check_box_tag "order_ids[]", order.id, false, id: "select-order-#{order.id}", form: "delete-selected-orders", data: { order_select: true }, aria: { label: "Select unpaid order ##{order.id}" } %>
+                <% elsif LightekCommerce::PackingSlips.eligible?(order) %>
+                  <%= check_box_tag 'packing_order_ids[]', order.id, false, id: "print-order-#{order.id}", form: 'print-packing-slips', aria: {label: "Select packing slip for order ##{order.id}"} %>
                 <% else %><span class="dd-order-receipt" aria-hidden="true"><i class="ti ti-receipt"></i></span><% end %>
                 <div><span class="dd-caption">Order</span><h3 id="order-heading-<%= order.id %>">#<%= order.id %></h3></div>
               </div>
@@ -58,6 +100,16 @@
               <summary><span><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Manage order</span><span class="dd-disclosure-hint">Details & actions <i class="ti ti-chevron-down" aria-hidden="true"></i></span></summary>
               <div class="dd-order-attribution"><%= render "dashboard/growth/attribution", record: order %></div>
               <div class="dd-order-panels">
+                <%= render 'timeline', order: order %>
+                <% if order.paid_at? && %w[paid fulfilled partially_refunded refunded].include?(order.status) %>
+                  <%= link_to 'Payment receipt', dashboard_commerce_orders_path(site_id: @site.id, receipt_order_id: order.id), class: 'dd-button' %>
+                <% end %>
+                <% if LightekCommerce::MerchandiseReturns.eligible_order?(order) && order.items.any?(&:physical_for_fulfillment?) %>
+                  <%= link_to 'Manage returns', dashboard_commerce_returns_path(order_id: order.id, site_id: @site.id), class: 'dd-button' %>
+                <% end %>
+                <% if LightekCommerce::PackingSlips.eligible?(order) %>
+                  <%= link_to 'Packing slip', dashboard_commerce_orders_path(site_id: @site.id, print_order_id: order.id), class: 'dd-button' %>
+                <% end %>
                 <% if order.items.any? { |item| item.product.product_type == "lightek_instance" } %>
                   <section class="dd-form-section">
                     <div class="dd-section-heading"><i class="ti ti-server" aria-hidden="true"></i><div><h3>Application installation</h3><p><%= order.provisioning_state.presence&.humanize || "Awaiting paid confirmation" %></p></div></div>
@@ -80,12 +132,26 @@
                     <% end %>
                   </section>
                 <% end %>
-                <% if %w[paid partially_refunded].include?(order.status) %>
+                <% if @site.tenant == current_user && order.paid_at? && %w[stripe stripe_invoice network].include?(order.payment_provider) %>
+                  <p><%= link_to 'View payment disputes', dashboard_commerce_order_disputes_path(site_id: @site.id, order_id: order.id) %></p>
+                <% end %>
+                <% if %w[paid fulfilled partially_refunded].include?(order.status) %>
                   <section class="dd-form-section">
                     <div class="dd-section-heading"><i class="ti ti-credit-card-refund" aria-hidden="true"></i><div><h3>Issue a refund</h3><p>Available to refund: <%= number_to_currency((order.total_cents - order.refunded_cents) / 100.0) %>.</p></div></div>
                     <%= form_with url: dashboard_commerce_refund_path(order_id: order.id, site_id: @site.id), method: :post, class: "dd-form-stack", data: { turbo_confirm: "Issue this refund? Confirm the amount before continuing." } do %>
+                      <% if (order.buyer_fee_cents.positive? || order.gift_card_redemption? || order.gift_card_purchase?) %>
+                        <%= hidden_field_tag :amount_cents, order.total_cents - order.refunded_cents %>
+                        <% if order.gift_card_redemption? %>
+                          <p>Restore the gift card balance and refund the card portion.</p>
+                        <% elsif order.gift_card_purchase? %>
+                          <p>Refunding an unused gift card deactivates its code.</p>
+                        <% else %>
+                          <p>The full refund includes the checkout fee.</p>
+                        <% end %>
+                      <% else %>
                       <div class="dd-field"><%= label_tag "order_#{order.id}_refund_amount", "Amount to refund (cents)" %><%= number_field_tag :amount_cents, order.total_cents - order.refunded_cents, id: "order_#{order.id}_refund_amount", min: 1, max: order.total_cents - order.refunded_cents, required: true, aria: { describedby: "order_#{order.id}_refund_help" } %><small id="order_<%= order.id %>_refund_help">100 cents = <%= number_to_currency(1) %>. The refund uses the original payment method.</small></div>
-                      <div class="dd-form-actions"><%= submit_tag "Refund amount", class: "dd-button dd-button-danger" %></div>
+                      <% end %>
+                      <div class="dd-form-actions"><%= submit_tag((order.buyer_fee_cents.positive? || order.gift_card_redemption? || order.gift_card_purchase?) ? "Refund full order" : "Refund amount", class: "dd-button dd-button-danger") %></div>
                     <% end %>
                   </section>
                 <% end %>

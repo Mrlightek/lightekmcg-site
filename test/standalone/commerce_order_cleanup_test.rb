@@ -1,8 +1,5 @@
 # Run against the real commerce models and transactions, without private gems.
 require_relative "commerce_hosting_test"
-require Rails.root.join("db/migrate/20261114140000_add_commerce_order_deletion").to_s
-AddCommerceOrderDeletion.new.migrate(:up)
-LightekCommerce::Order.reset_column_information
 require Rails.root.join("app/services/lightek_commerce/order_removal").to_s
 require Rails.root.join("app/services/lightek_commerce/installations").to_s
 
@@ -150,12 +147,19 @@ module Dashboard; end
 require Rails.root.join("app/controllers/dashboard/settings_home_controller").to_s
 require Rails.root.join("app/controllers/dashboard/commerce_base_controller").to_s
 require Rails.root.join("app/controllers/dashboard/commerce_orders_controller").to_s
+require Rails.root.join("app/controllers/dashboard/commerce_returns_controller").to_s
+require Rails.root.join("app/controllers/dashboard/commerce_store_settings_controller").to_s
 require Rails.root.join("app/services/lightek_settings/website_identity").to_s
 Dashboard::CommerceOrdersController.prepend_view_path(Rails.root.join("app/views"))
 Dashboard::CommerceOrdersController.layout false
+Dashboard::CommerceReturnsController.prepend_view_path(Rails.root.join("app/views"))
+Dashboard::CommerceReturnsController.layout false
 CLEANUP_ROUTES = ActionDispatch::Routing::RouteSet.new
 CLEANUP_ROUTES.draw do
+  instance_eval(File.readlines(Rails.root.join('config/routes.rb')).grep(%r{"/dashboard/commerce/(return-fee-policy|store-settings)"}).join)
+  instance_eval(File.readlines(Rails.root.join('config/routes.rb')).grep(%r{"/dashboard/commerce/(returns|orders/:order_id/returns[^"]*)"}).join)
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
+  get "/dashboard/commerce/disputes", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_disputes
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"
   delete "/dashboard/commerce/orders/:order_id", to: "dashboard/commerce_orders#destroy", as: :dashboard_commerce_order
   get "/dashboard/installations", to: "dashboard/commerce_orders#index", as: :dashboard_installations
@@ -168,8 +172,11 @@ CLEANUP_ROUTES.draw do
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_variants
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_variant
 end
+Dashboard::CommerceStoreSettingsController.include(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceOrdersController.include(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceOrdersController.helper(CLEANUP_ROUTES.url_helpers)
+Dashboard::CommerceReturnsController.include(CLEANUP_ROUTES.url_helpers)
+Dashboard::CommerceReturnsController.helper(CLEANUP_ROUTES.url_helpers)
 CLEANUP_APP = Rack::Builder.new do
   use ActionDispatch::Flash
   run CLEANUP_ROUTES
@@ -182,6 +189,100 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
     @http.public_send(method, path, params: params, headers: {"X-Test-User" => actor&.id.to_s})
     @http.response
   end
+  def test_merchants_can_reserve_and_ship_a_replacement_from_the_dashboard
+    item = product(product_type: 'physical', billing_interval: 'one_time', track_inventory: true, inventory_quantity: 3)
+    order = order_for(item)
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_dashboard_exchange')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Replacement requested', request_key: SecureRandom.uuid)
+    returns.approve!(record.id)
+    returns.receive!(record.id, disposition: 'discarded')
+    base = "/dashboard/commerce/orders/#{order.id}/returns"
+    assert_includes request(:get, base, site_id: @site.id).body, 'Reserve replacement'
+    assert_equal 303, request(:post, "#{base}/#{record.id}", site_id: @site.id, operation: 'reserve_exchange', replacement: 'product').status
+    assert_equal [1, 'reserved'], [item.reload.inventory_quantity, record.reload.exchange_status]
+    assert_equal 303, request(:post, "#{base}/#{record.id}", site_id: @site.id, operation: 'ship_exchange', shipping_reference: 'BOX-42').status
+    assert_includes request(:get, base, site_id: @site.id).body, 'Shipping reference BOX-42'
+  end
+
+  def test_store_owner_can_save_a_return_fee_rule_from_settings
+    path = '/dashboard/commerce/return-fee-policy'
+    response = request(:patch, path, site_id: @site.id, return_fee_policy: {mode: 'fixed', fixed_cents: '250'})
+    assert_equal 303, response.status
+    assert_equal({'mode' => 'fixed', 'fixed_cents' => 250}, LightekCommerce::ReturnFeePolicy.read(@site.reload))
+    other = User.create!(role: 'super_admin', email_address: 'other-return-owner@example.test')
+    response = request(:patch, path, actor: other, site_id: @site.id, return_fee_policy: {mode: 'none'})
+    assert_equal 403, response.status
+    assert_equal 250, LightekCommerce::ReturnFeePolicy.read(@site.reload).fetch('fixed_cents')
+  end
+
+  def test_merchants_set_and_view_a_return_fee_through_the_dashboard
+    order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current,
+      payment_provider: 'stripe', payment_reference: 'cs_dashboard_return_fee')
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    base = "/dashboard/commerce/orders/#{order.id}/returns"
+    assert_includes request(:get, base, site_id: @site.id).body, 'Return fee in cents'
+    response = request(:post, "#{base}/#{record.id}", site_id: @site.id, operation: 'approve', refund_fee_cents: '125')
+    assert_equal 303, response.status
+    assert_equal ['approved', 125], record.reload.attributes.values_at('status', 'refund_fee_cents')
+    assert_includes request(:get, base, site_id: @site.id).body, 'Return fee $1.25'
+  end
+
+  def test_private_return_label_upload_download_and_revocation
+    order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)
+    returns = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator)
+    record = returns.request!(item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    path = "/dashboard/commerce/orders/#{order.id}/returns/#{record.id}"
+    pdf = "%PDF-1.4\nlabel fixture\n%%EOF\n"
+    file = ->(contents) { Rack::Test::UploadedFile.new(StringIO.new(contents), 'application/pdf', original_filename: 'label.pdf') }
+    upload = ->(contents, **extra) do
+      request(:post, path, site_id: @site.id, operation: 'upload_label', label_pdf: file.call(contents), **extra)
+    end
+
+    assert_equal 303, upload.call(pdf).status
+    assert_empty LightekCommerce::ReturnLabel.list_for([record.reload])
+    returns.approve!(record.id)
+    assert_equal 303, upload.call('<html>bad</html>').status
+    assert_equal 303, upload.call(pdf, carrier: 'ups', tracking_number: 'https://bad.test').status
+    assert_equal 404, request(:get, "#{path}/label", site_id: @site.id).status
+    assert_equal 303, upload.call(pdf, carrier: 'fedex', tracking_number: '123456789012').status
+    page = request(:get, "/dashboard/commerce/orders/#{order.id}/returns", site_id: @site.id)
+    assert_equal 200, page.status
+    assert_includes page.body, 'https://www.fedex.com/fedextrack/?trknbr=123456789012'
+    response = request(:get, "#{path}/label", site_id: @site.id)
+    assert_equal 200, response.status
+    assert_equal pdf, response.body
+    assert_includes response.headers.fetch('content-disposition'), 'attachment'
+    assert_includes response.headers.fetch('cache-control'), 'no-store'
+    assert_equal 'nosniff', response.headers.fetch('x-content-type-options')
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'return-label-other.test')
+    assert_equal 404, request(:get, "#{path}/label", site_id: foreign.id).status
+    assert_equal 303, upload.call(pdf.sub('fixture', 'replacement')).status
+    assert_equal 1, LightekCommerce::ReturnLabel.where(merchandise_return_id: record.id).count
+    returns.cancel!(record.id)
+    assert_equal 404, request(:get, "#{path}/label", site_id: @site.id).status
+  end
+
+  def test_return_queue_links_to_the_order_and_rejects_an_independent_store
+    order = order_for(product(product_type: 'physical', billing_interval: 'one_time'))
+    order.update!(status: 'fulfilled', paid_at: Time.current, fulfilled_at: Time.current)
+    return_record = LightekCommerce::MerchandiseReturns.new(order: order, actor: @operator).request!(
+      item_id: order.items.sole.id, quantity: 1, reason: 'Wrong size', request_key: SecureRandom.uuid)
+    page = request(:get, '/dashboard/commerce/returns', site_id: @site.id)
+    assert_equal 200, page.status
+    assert_includes page.body, "#return-#{return_record.id}"
+    assert_includes page.headers.fetch('cache-control'), 'no-store'
+    detail = request(:get, "/dashboard/commerce/orders/#{order.id}/returns", site_id: @site.id)
+    assert_equal 200, detail.status
+    assert_includes detail.body, 'Wrong size'
+    foreign = DymondSite::Site.create!(tenant: @operator, host: 'return-http-other.test')
+    assert_equal 404, request(:get, "/dashboard/commerce/orders/#{order.id}/returns", site_id: foreign.id).status
+  end
+
   def test_single_delete_and_visible_list_rendering
     order = order_for(product(billing_interval: "one_time"))
     paid = order_for(product(billing_interval: "one_time"))

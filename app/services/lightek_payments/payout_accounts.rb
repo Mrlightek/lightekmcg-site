@@ -20,9 +20,12 @@ module LightekPayments
 
     def self.publishable_key(opts)
       provider = DymondBank::StripeCredentials
+      mode = opts.fetch(:api_key).match?(/\A(?:sk|rk)_live_/) ? 'live' : 'test'
+      configured = StripeBrowserKey.read if defined?(StripeBrowserKey)
+      return configured if configured.to_s.start_with?("pk_#{mode}_")
+
       value = provider.publishable_key if provider.respond_to?(:publishable_key)
       value = value.presence || ENV['LIGHTEK_PAYOUT_PUBLISHABLE_KEY'].presence || ENV['STRIPE_PUBLISHABLE_KEY'].presence
-      mode = opts.fetch(:api_key).match?(/\A(?:sk|rk)_live_/) ? 'live' : 'test'
       raise Unavailable.new('Embedded payout fields are not configured. Use Open secure verification to continue.', code: 'embedded_configuration') unless value.to_s.start_with?("pk_#{mode}_")
       value
     end

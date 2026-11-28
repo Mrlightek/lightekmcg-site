@@ -1,0 +1,11 @@
+<% content_for :page_title, 'UPS pickup price' %>
+<%= render 'dashboard/infrastructure/styles' %>
+<main class="infra">
+  <section class="infra-panel">
+    <h1>UPS pickup price</h1>
+    <p><%= @pickup[:date] %> · <%= @pickup[:ready] %>–<%= @pickup[:close] %> local time</p>
+    <p><strong><%= number_to_currency(@pickup_price_cents / 100.0) %></strong> before applicable tax<%= ' · TEST' if @pickup_quote.sandbox? %></p>
+    <p>This is a price estimate. No pickup has been booked.</p>
+    <%= link_to 'Back to shipping', dashboard_shipping_path(site_id: @site.id), class: 'infra-button' %>
+  </section>
+</main>

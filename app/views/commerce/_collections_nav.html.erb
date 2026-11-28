@@ -1,0 +1,9 @@
+<% if @collections.present? %>
+  <nav class="lt-commerce-collections" aria-label="Shop collections">
+    <%= link_to 'All products', commerce_shop_path(site_id: @site.id), aria: {current: ('page' unless @collection)} %>
+    <% @collections.each do |collection| %>
+      <%= link_to collection.name, commerce_shop_path(site_id: @site.id, collection: collection.slug),
+        aria: {current: ('page' if @collection == collection)} %>
+    <% end %>
+  </nav>
+<% end %>

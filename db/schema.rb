@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_27_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1739,6 +1739,158 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.index ["subscription_id"], name: "idx_billing_invoice_subscription"
   end
 
+  create_table "lightek_commerce_collections", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.text "description"
+    t.boolean "published", default: false, null: false
+    t.string "source", default: "manual", null: false
+    t.string "matching", default: "all", null: false
+    t.json "product_ids", default: [], null: false
+    t.json "conditions", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "slug"], name: "idx_commerce_collections_site_slug", unique: true
+  end
+
+  create_table "lightek_commerce_customer_segments", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.integer "minimum_orders"
+    t.integer "maximum_orders"
+    t.bigint "minimum_net_spend_cents"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "slug"], name: "idx_commerce_customer_segments_site_slug", unique: true
+  end
+
+  create_table "lightek_commerce_discount_uses", force: :cascade do |t|
+    t.bigint "discount_id", null: false
+    t.bigint "order_id", null: false
+    t.bigint "buyer_id"
+    t.integer "amount_cents", null: false
+    t.index ["discount_id", "buyer_id"], name: "idx_commerce_discount_uses_rule_buyer"
+    t.index ["order_id", "discount_id"], name: "idx_commerce_discount_uses_order_rule", unique: true
+    t.index ["order_id"], name: "index_lightek_commerce_discount_uses_on_order_id"
+  end
+
+  create_table "lightek_commerce_discounts", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "code"
+    t.string "kind", null: false
+    t.integer "amount", null: false
+    t.integer "minimum_cents", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "combinable", default: false, null: false
+    t.bigint "target_collection_id"
+    t.bigint "target_product_id"
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.integer "usage_limit"
+    t.integer "buyer_limit"
+    t.bigint "qualifying_product_id"
+    t.bigint "qualifying_collection_id"
+    t.integer "buy_quantity"
+    t.integer "get_quantity"
+    t.integer "applications_per_order"
+    t.string "reward_type"
+    t.bigint "customer_segment_id"
+    t.index ["customer_segment_id"], name: "idx_commerce_discounts_segment"
+    t.index ["site_id", "code"], name: "index_lightek_commerce_discounts_on_site_id_and_code", unique: true
+    t.index ["site_id"], name: "index_lightek_commerce_discounts_on_site_id"
+  end
+
+  create_table "lightek_commerce_dispute_cases", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.string "processor_reference", null: false
+    t.string "status", null: false
+    t.string "reason", null: false
+    t.integer "amount_cents", null: false
+    t.datetime "due_at"
+    t.datetime "alerted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_lightek_commerce_dispute_cases_on_order_id"
+    t.index ["processor_reference"], name: "index_lightek_commerce_dispute_cases_on_processor_reference", unique: true
+  end
+
+  create_table "lightek_commerce_gift_cards", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "purchase_order_id", null: false
+    t.string "store_scope", null: false
+    t.boolean "livemode", null: false
+    t.string "code_digest", null: false
+    t.text "encrypted_code", null: false
+    t.integer "face_cents", null: false
+    t.integer "available_cents", null: false
+    t.datetime "blocked_at"
+    t.datetime "disputed_at"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["store_scope", "livemode"], name: "idx_commerce_gift_cards_scope_mode"
+    t.index ["code_digest"], name: "index_lightek_commerce_gift_cards_on_code_digest", unique: true
+    t.index ["purchase_order_id"], name: "index_lightek_commerce_gift_cards_on_purchase_order_id", unique: true
+    t.index ["site_id"], name: "index_lightek_commerce_gift_cards_on_site_id"
+    t.check_constraint "available_cents >= 0 AND available_cents <= face_cents AND face_cents > 0", name: "commerce_gift_card_balance"
+  end
+
+  create_table "lightek_commerce_gift_redemptions", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "gift_card_id", null: false
+    t.integer "amount_cents", null: false
+    t.integer "cash_cents", null: false
+    t.string "state", default: "held", null: false
+    t.string "tax_calculation", null: false
+    t.string "tax_transaction"
+    t.string "tax_reversal"
+    t.datetime "payment_attempted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["gift_card_id"], name: "index_lightek_commerce_gift_redemptions_on_gift_card_id"
+    t.index ["order_id"], name: "index_lightek_commerce_gift_redemptions_on_order_id", unique: true
+    t.check_constraint "amount_cents > 0 AND cash_cents >= 0", name: "commerce_gift_redemption_amount"
+    t.check_constraint "state IN ('held', 'captured', 'released', 'refunded')", name: "commerce_gift_redemption_state"
+  end
+
+  create_table "lightek_commerce_merchandise_returns", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "order_item_id", null: false
+    t.string "request_key", limit: 36, null: false
+    t.integer "quantity", null: false
+    t.string "reason", limit: 300, null: false
+    t.string "status", default: "requested", null: false
+    t.string "disposition"
+    t.bigint "requested_by_id", null: false
+    t.bigint "resolved_by_id"
+    t.datetime "received_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "refund_fee_cents", default: 0, null: false
+    t.integer "suggested_refund_fee_cents", default: 0, null: false
+    t.string "exchange_status"
+    t.bigint "replacement_variant_id"
+    t.string "replacement_name"
+    t.string "exchange_shipping_reference", limit: 120
+    t.datetime "exchange_shipped_at"
+    t.bigint "replacement_product_id"
+    t.bigint "return_shipping_quote_id"
+    t.index ["replacement_product_id"], name: "idx_commerce_exchange_product"
+    t.index ["order_id", "request_key"], name: "idx_commerce_merchandise_return_request", unique: true
+    t.index ["order_item_id", "status"], name: "idx_commerce_merchandise_return_item"
+    t.index ["return_shipping_quote_id"], name: "idx_return_shipping_quote", unique: true
+    t.check_constraint "exchange_status IS NULL OR refund_fee_cents = 0 AND replacement_name IS NOT NULL AND (exchange_status::text = 'reserved'::text AND (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying]::text[])) AND exchange_shipped_at IS NULL AND exchange_shipping_reference IS NULL OR exchange_status::text = 'canceled'::text AND (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])) AND exchange_shipped_at IS NULL AND exchange_shipping_reference IS NULL OR exchange_status::text = 'shipped'::text AND status::text = 'received'::text AND exchange_shipped_at IS NOT NULL AND exchange_shipping_reference IS NOT NULL)", name: "commerce_merchandise_exchange_state"
+    t.check_constraint "suggested_refund_fee_cents >= 0", name: "commerce_merchandise_suggested_fee"
+    t.check_constraint "refund_fee_cents >= 0 AND (refund_fee_cents = 0 OR (status::text = ANY (ARRAY['approved'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])))", name: "commerce_merchandise_return_fee"
+    t.check_constraint "quantity > 0 AND (status::text = ANY (ARRAY['requested'::character varying, 'approved'::character varying, 'rejected'::character varying, 'received'::character varying, 'canceled'::character varying]::text[]))", name: "commerce_merchandise_return_valid"
+    t.check_constraint "status::text = 'received'::text AND disposition IS NOT NULL AND (disposition::text = ANY (ARRAY['available'::character varying, 'damaged'::character varying, 'discarded'::character varying]::text[])) AND received_at IS NOT NULL OR status::text <> 'received'::text AND disposition IS NULL AND received_at IS NULL", name: "commerce_merchandise_return_receipt"
+  end
+
   create_table "lightek_commerce_network_accounts", force: :cascade do |t|
     t.bigint "peer_id", null: false
     t.bigint "user_id", null: false
@@ -1767,6 +1919,33 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.index ["peer_id"], name: "index_lightek_commerce_network_sales_on_peer_id"
     t.index ["public_key"], name: "index_lightek_commerce_network_sales_on_public_key", unique: true
     t.index ["source_shipping_quote_id"], name: "idx_network_shipping_source", unique: true
+  end
+
+  create_table "lightek_commerce_inventory_changes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "variant_id"
+    t.bigint "actor_id"
+    t.string "actor_name", null: false
+    t.string "product_name", null: false
+    t.string "variant_name"
+    t.string "batch_key", null: false
+    t.integer "before_quantity", null: false
+    t.integer "after_quantity", null: false
+    t.datetime "created_at", null: false
+    t.string "source", default: "csv_import", null: false
+    t.bigint "order_id"
+    t.string "reason"
+    t.string "stock_state", default: "available", null: false
+    t.bigint "supplier_order_id"
+    t.bigint "merchandise_return_id"
+    t.index ["site_id", "id"], name: "idx_commerce_inventory_changes_site_history"
+    t.check_constraint "before_quantity >= 0 AND after_quantity >= 0 AND before_quantity <> after_quantity", name: "commerce_inventory_change_counts"
+    t.check_constraint "(source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying, 'stock_state_adjustment'::character varying]::text[])) AND actor_id IS NOT NULL AND order_id IS NULL OR (source::text = ANY (ARRAY['checkout_reserved'::character varying, 'checkout_released'::character varying]::text[])) AND actor_id IS NULL AND order_id IS NOT NULL", name: "commerce_inventory_change_context"
+    t.check_constraint "reason IS NULL OR (source::text = ANY (ARRAY['csv_import'::character varying, 'product_editor'::character varying]::text[])) AND (reason::text = ANY (ARRAY['count'::character varying, 'received'::character varying, 'returned'::character varying, 'damaged'::character varying, 'lost'::character varying, 'correction'::character varying]::text[]))", name: "commerce_inventory_change_reason"
+    t.check_constraint "stock_state::text = 'available'::text OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['incoming'::character varying, 'unavailable'::character varying, 'damaged'::character varying]::text[]))", name: "commerce_inventory_change_stock_state"
+    t.check_constraint "supplier_order_id IS NULL OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['available'::character varying, 'incoming'::character varying]::text[]))", name: "commerce_inventory_change_supplier"
+    t.check_constraint "merchandise_return_id IS NULL OR source::text = 'stock_state_adjustment'::text AND (stock_state::text = ANY (ARRAY['available'::character varying, 'damaged'::character varying]::text[])) AND supplier_order_id IS NULL", name: "commerce_inventory_change_return"
   end
 
   create_table "lightek_commerce_order_items", force: :cascade do |t|
@@ -1831,6 +2010,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.jsonb "demo_content", default: {}, null: false
     t.datetime "deleted_at"
     t.bigint "growth_visit_id"
+    t.jsonb "buyer_fee_snapshot", default: {}, null: false
+    t.string "buyer_fee_transfer_destination"
+    t.datetime "buyer_fee_reversal_requested_at"
+    t.string "buyer_fee_reversal_ref"
+    t.integer "discount_cents", default: 0, null: false
+    t.string "discount_name"
+    t.bigint "storefront_buyer_id"
+    t.string "gift_store_scope"
+    t.integer "gift_applied_cents", default: 0, null: false
+    t.integer "shipping_discount_cents", default: 0, null: false
+    t.string "gift_recipient_email"
+    t.datetime "gift_deliver_at"
+    t.datetime "gift_delivered_at"
+    t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_store_buyer"
+    t.index ["site_id", "storefront_buyer_id"], name: "idx_commerce_orders_storefront_buyer"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"
@@ -1846,6 +2040,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.index ["site_id"], name: "index_lightek_commerce_orders_on_site_id"
     t.check_constraint "refunded_cents >= 0 AND refunded_cents <= total_cents", name: "commerce_refunded_amount_valid"
     t.check_constraint "subtotal_cents >= 0 AND shipping_cents >= 0 AND tax_cents >= 0 AND total_cents >= 0", name: "commerce_order_amounts_valid"
+    t.check_constraint "shipping_discount_cents >= 0", name: "commerce_shipping_discount_nonnegative"
   end
 
   create_table "lightek_commerce_product_variants", force: :cascade do |t|
@@ -1857,8 +2052,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "incoming_quantity", default: 0, null: false
+    t.integer "unavailable_quantity", default: 0, null: false
+    t.integer "damaged_quantity", default: 0, null: false
+    t.integer "supplier_incoming_quantity", default: 0, null: false
     t.index ["product_id", "sku"], name: "index_commerce_variants_product_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["product_id"], name: "index_lightek_commerce_product_variants_on_product_id"
+    t.check_constraint "incoming_quantity >= 0 AND unavailable_quantity >= 0 AND damaged_quantity >= 0", name: "commerce_stock_states_nonnegative"
+    t.check_constraint "supplier_incoming_quantity >= 0 AND supplier_incoming_quantity <= incoming_quantity", name: "commerce_supplier_incoming_valid"
   end
 
   create_table "lightek_commerce_products", force: :cascade do |t|
@@ -1888,6 +2089,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.integer "shipping_height_in"
     t.bigint "source_hosting_package_id"
     t.jsonb "package_policy", default: {}, null: false
+    t.integer "incoming_quantity", default: 0, null: false
+    t.integer "unavailable_quantity", default: 0, null: false
+    t.integer "damaged_quantity", default: 0, null: false
+    t.integer "supplier_incoming_quantity", default: 0, null: false
     t.index ["site_id", "sku"], name: "idx_commerce_site_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["site_id", "slug"], name: "index_lightek_commerce_products_on_site_id_and_slug", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_products_on_site_id"
@@ -1896,6 +2101,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.check_constraint "compare_at_cents IS NULL OR compare_at_cents >= 0", name: "commerce_compare_price_valid"
     t.check_constraint "inventory_quantity >= 0", name: "commerce_inventory_nonnegative"
     t.check_constraint "price_cents >= 0", name: "commerce_price_nonnegative"
+    t.check_constraint "incoming_quantity >= 0 AND unavailable_quantity >= 0 AND damaged_quantity >= 0", name: "commerce_stock_states_nonnegative"
+    t.check_constraint "supplier_incoming_quantity >= 0 AND supplier_incoming_quantity <= incoming_quantity", name: "commerce_supplier_incoming_valid"
   end
 
   create_table "lightek_commerce_refunds", force: :cascade do |t|
@@ -1906,10 +2113,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.string "idempotency_key", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "gift_restore_cents", default: 0, null: false
+    t.bigint "merchandise_return_id"
+    t.index ["merchandise_return_id"], name: "idx_commerce_refund_return", unique: true
     t.index ["idempotency_key"], name: "index_lightek_commerce_refunds_on_idempotency_key", unique: true
     t.index ["order_id"], name: "index_lightek_commerce_refunds_on_order_id"
     t.index ["processor_ref"], name: "index_lightek_commerce_refunds_on_processor_ref", unique: true
     t.check_constraint "amount_cents > 0", name: "commerce_refund_positive"
+  end
+
+  create_table "lightek_commerce_return_labels", force: :cascade do |t|
+    t.bigint "merchandise_return_id", null: false
+    t.bigint "uploaded_by_id", null: false
+    t.string "carrier", limit: 10
+    t.string "tracking_number", limit: 35
+    t.binary "pdf", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["merchandise_return_id"], name: "idx_commerce_return_label", unique: true
+    t.check_constraint "carrier IS NULL AND tracking_number IS NULL OR carrier IS NOT NULL AND (carrier::text = ANY (ARRAY['ups'::character varying, 'fedex'::character varying]::text[])) AND tracking_number IS NOT NULL", name: "commerce_return_label_tracking"
   end
 
   create_table "lightek_commerce_revenue_allocations", force: :cascade do |t|
@@ -1948,6 +2170,33 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.index ["bank_subscription_id"], name: "idx_commerce_bank_subscription"
     t.index ["order_id"], name: "index_lightek_commerce_subscriptions_on_order_id", unique: true
     t.index ["processor_reference"], name: "index_lightek_commerce_subscriptions_on_processor_reference", unique: true
+  end
+
+  create_table "lightek_commerce_supplier_order_lines", force: :cascade do |t|
+    t.bigint "supplier_order_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "variant_id"
+    t.string "item_name", null: false
+    t.integer "ordered_quantity", null: false
+    t.integer "received_quantity", default: 0, null: false
+    t.bigint "unit_cost_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["supplier_order_id"], name: "idx_supplier_order_lines"
+    t.check_constraint "ordered_quantity > 0 AND received_quantity >= 0 AND received_quantity <= ordered_quantity AND unit_cost_cents >= 0", name: "commerce_supplier_line_amounts"
+  end
+
+  create_table "lightek_commerce_supplier_orders", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "supplier", limit: 160, null: false
+    t.string "status", default: "draft", null: false
+    t.date "expected_on"
+    t.string "invoice_reference", limit: 160
+    t.bigint "invoice_subtotal_cents"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "id"], name: "idx_supplier_orders_by_store"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'ordered'::character varying, 'received'::character varying, 'canceled'::character varying]::text[])", name: "commerce_supplier_order_status"
   end
 
   create_table "lightek_communications_service_events", force: :cascade do |t|
@@ -4519,6 +4768,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
     t.bigint "purchase_order_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "provider", default: "fedex", null: false
+    t.bigint "merchandise_return_id"
+    t.index ["merchandise_return_id"], name: "idx_shipping_quotes_return"
     t.index ["broker_reference"], name: "index_lightek_shipping_quotes_on_broker_reference"
     t.index ["public_key"], name: "index_lightek_shipping_quotes_on_public_key", unique: true
     t.index ["purchase_order_id"], name: "index_lightek_shipping_quotes_on_purchase_order_id", unique: true
@@ -7516,6 +7768,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
   add_foreign_key "lightek_blog_entries", "posts", on_delete: :cascade
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
+  add_foreign_key "lightek_commerce_collections", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_customer_segments", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_discounts", column: "discount_id"
+  add_foreign_key "lightek_commerce_discount_uses", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_customer_segments", column: "customer_segment_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_collections", column: "qualifying_collection_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_products", column: "qualifying_product_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_collections", column: "target_collection_id"
+  add_foreign_key "lightek_commerce_discounts", "lightek_commerce_products", column: "target_product_id"
+  add_foreign_key "lightek_commerce_discounts", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_dispute_cases", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_gift_cards", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_gift_cards", "lightek_commerce_orders", column: "purchase_order_id"
+  add_foreign_key "lightek_commerce_gift_redemptions", "lightek_commerce_gift_cards", column: "gift_card_id"
+  add_foreign_key "lightek_commerce_gift_redemptions", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_network_accounts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_network_accounts", "lightek_reservation_peers", column: "peer_id"
   add_foreign_key "lightek_commerce_network_accounts", "users"
@@ -7532,8 +7799,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
   add_foreign_key "lightek_commerce_orders", "users", column: "hosting_owner_id"
   add_foreign_key "lightek_commerce_product_variants", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_commerce_products", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_supplier_order_lines", "lightek_commerce_supplier_orders", column: "supplier_order_id"
   add_foreign_key "lightek_commerce_products", "hosting_packages", column: "source_hosting_package_id"
+  add_foreign_key "lightek_commerce_merchandise_returns", "lightek_commerce_products", column: "replacement_product_id"
+  add_foreign_key "lightek_commerce_merchandise_returns", "lightek_shipping_quotes", column: "return_shipping_quote_id"
+  add_foreign_key "lightek_commerce_refunds", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_return_labels", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "users", column: "beneficiary_id"
   add_foreign_key "lightek_commerce_subscriptions", "dymond_bank_subscriptions", column: "bank_subscription_id"
@@ -7868,6 +8140,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_27_130000) do
   add_foreign_key "lightek_shared_external_invitations", "lightek_shared_events", column: "event_id", on_delete: :cascade
   add_foreign_key "lightek_shipping_profiles", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_shipping_quotes", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_shipping_quotes", "lightek_commerce_merchandise_returns", column: "merchandise_return_id"
   add_foreign_key "lightek_shipping_quotes", "lightek_commerce_orders", column: "purchase_order_id"
   add_foreign_key "lightek_shipping_shipments", "lightek_shipping_quotes", column: "quote_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocked_profile_id"

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= pluralize(@slips.size, 'packing slip') %> · <%= @site.name %></title>
+  <style media="print">
+    .packing-slip + .packing-slip { break-before: page; }
+  </style>
+</head>
+<body>
+  <main>
+    <% @slips.each do |slip| %>
+      <%= render 'packing_slip_order', slip: slip %>
+    <% end %>
+  </main>
+</body>
+</html>

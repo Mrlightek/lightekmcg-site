@@ -48,6 +48,7 @@ SalesHarness.routes.draw do
   get '/shop', to: 'commerce#index', as: :commerce_shop
   post '/shop/add', to: 'commerce#add'
   post '/shop/checkout', to: 'commerce#checkout'
+  eval(ROOT.join('config/routes/commerce_embedded_checkout.rb').read, binding)
 end
 
 module LightekCommerce
@@ -343,6 +344,40 @@ class GrowthFoundationChecks < LifecycleQuoteChecks
     assert_equal 'https://checkout.stripe.test/fixture', response.location
     assert_equal LightekGrowth::Visit.last, LightekCommerce::Order.last.growth_attribution
   end
+  def test_growth_embedded_checkout_is_bound_to_the_buyers_session_and_site
+    host! @site.host
+    product = offer
+    env_key = 'LIGHTEK_COMMERCE_EMBEDDED_CHECKOUT'
+    previous = ENV[env_key]
+    ENV[env_key] = 'true'
+    gateway = LightekCommerce::StripeCheckout
+    checkout = OpenStruct.new(client_secret: 'cs_fixture_secret')
+    gateway.stub(:embedded_for?, true) do
+      gateway.stub(:start!, ->(**args) { assert_equal true, args[:embedded]; checkout }) do
+        csrf = token
+        post '/shop/add', params: {site_id: @site.id, product_id: product.id}, headers: headers.merge('X-CSRF-Token' => csrf)
+        post '/shop/checkout', params: {site_id: @site.id, customer_email: 'buyer@example.test'}, headers: headers.merge('X-CSRF-Token' => csrf)
+      end
+    end
+    order = LightekCommerce::Order.last
+    path = commerce_embedded_checkout_path(site_id: @site.id, order_id: order.id)
+    assert_redirected_to path
+    assert_raises(ActiveRecord::RecordNotFound) { get path, headers: headers(@other) }
+    assert_raises(ActiveRecord::RecordNotFound) do
+      get commerce_embedded_checkout_path(site_id: @foreign_site.id, order_id: order.id), headers: headers
+    end
+    gateway.stub(:resume!, ->(**args) { assert_equal order.id, args[:order].id; assert args[:embedded]; checkout }) do
+      gateway.stub(:embedded_publishable_key, 'pk_test_fixture') do
+        get path, headers: headers
+        assert_response :success
+        assert_equal 'private, no-store', response.headers['Cache-Control']
+        assert_select '[data-embedded-checkout][data-checkout-secret="cs_fixture_secret"]'
+      end
+    end
+  ensure
+    ENV[env_key] = previous if env_key
+  end
+
   def test_growth_head_privacy_and_disabled_marketing_do_not_create_tracking
     host! @site.host
     head growth_link_path(token: @link.token)

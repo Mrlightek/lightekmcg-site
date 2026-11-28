@@ -13,17 +13,29 @@
 <% elsif payout_state.nil? %>
   <p><strong>Payout account:</strong> Managed by the store owner.</p>
 <% else %>
-  <p><strong>Payout account:</strong> Setup required. <%= link_to "Set up your payout account", dashboard_susu_payout_account_path %></p>
+  <p><strong>Payout account:</strong> Setup required. <%= link_to "Set up your payout account", dashboard_commerce_payout_account_path %></p>
 <% end %>
 <% if payout_state %>
-<section class="lr-card"><span class="lr-eyebrow">YOUR PAYDAY</span><h2>Automatic earnings releases</h2><p>Choose when eligible fulfilled orders are released to your connected payout account. The default is every two weeks. Bank arrival depends on processing and your bank.</p><%= form_with url: dashboard_commerce_payout_schedule_path, method: :patch, class: 'lr-form' do %><%= hidden_field_tag :site_id, @site.id %><label>Release schedule<%= select_tag :cadence, options_for_select([['Every two weeks (14 days)', 'biweekly'], ['Every week (7 days)', 'weekly']], @payout_schedule.cadence) %></label><label><span><%= check_box_tag :enabled, '1', @payout_schedule.enabled? %> Enable automatic earnings releases</span></label><%= submit_tag 'Save payout schedule', class: 'lr-button' %><% end %><p>Next release: <strong><%= @payout_schedule.next_run_at.in_time_zone('America/New_York').strftime('%b %-d, %Y · %-I:%M %p %Z') %></strong></p><p>Pending refunds, incomplete onboarding, and unavailable funds delay release. Unpaid orders are never eligible.</p><% if @payout_schedule.last_error.present? %><p class="lr-alert" role="status">An earnings release needs review. Verify your payout account and available funds before retrying.</p><% end %><%= link_to 'Add or manage payout account ↗', dashboard_susu_payout_account_path, class: 'lr-link' %></section>
+<section class="lr-card"><span class="lr-eyebrow">YOUR PAYDAY</span><h2>Automatic earnings releases</h2><p>Choose when eligible fulfilled orders are released to your connected payout account. The default is every two weeks. Bank arrival depends on processing and your bank.</p><%= form_with url: dashboard_commerce_payout_schedule_path, method: :patch, class: 'lr-form' do %><%= hidden_field_tag :site_id, @site.id %><label>Release schedule<%= select_tag :cadence, options_for_select([['Every two weeks (14 days)', 'biweekly'], ['Every week (7 days)', 'weekly']], @payout_schedule.cadence) %></label><label><span><%= check_box_tag :enabled, '1', @payout_schedule.enabled? %> Enable automatic earnings releases</span></label><%= submit_tag 'Save payout schedule', class: 'lr-button' %><% end %><p>Next release: <strong><%= @payout_schedule.next_run_at.in_time_zone('America/New_York').strftime('%b %-d, %Y · %-I:%M %p %Z') %></strong></p><p>Pending refunds, incomplete onboarding, and unavailable funds delay release. Unpaid orders are never eligible.</p><% if @payout_schedule.last_error.present? %><p class="lr-alert" role="status">An earnings release needs review. Verify your payout account and available funds before retrying.</p><% end %><%= link_to 'Add or manage payout account ↗', dashboard_commerce_payout_account_path, class: 'lr-link' %></section>
+<% end %>
+<% if @site.tenant == current_user %>
+  <p><%= link_to 'Bank deposits', dashboard_commerce_bank_deposits_path(site_id: @site.id) %> · <%= link_to 'Payment disputes', dashboard_commerce_disputes_path(site_id: @site.id) %></p>
+<% end %>
+<% if current_user.role == 'super_admin' %>
+  <p><%= link_to 'Check Stripe access', dashboard_commerce_stripe_access_path %></p>
 <% end %>
 <p><%= link_to "Orders", dashboard_commerce_orders_path(site_id: @site.id) %></p>
 <table><thead><tr><th>Order</th><th>Gross</th><th>Processor reserve</th><th>Platform fee / infrastructure</th><th>Transfer</th><th>Status</th></tr></thead><tbody>
 <% @orders.each do |order| %>
 <% quote = LightekCommerce::MerchantPayouts.fee_quote(order) %>
 <% reason = order.merchant_transfer_ref.present? ? nil : LightekCommerce::MerchantPayouts.ineligible_reason(order, quote: quote) %>
-<tr><td>#<%= order.id %></td><td><%= number_to_currency(quote[:gross_cents] / 100.0) %></td>
+<tr><td>
+  <% if @site.tenant == current_user %>
+    <%= link_to "##{order.id}", dashboard_commerce_payout_ledger_path(site_id: @site.id, order_id: order.id) %>
+  <% else %>
+    #<%= order.id %>
+  <% end %>
+</td><td><%= number_to_currency(quote[:gross_cents] / 100.0) %></td>
 <td><%= number_to_currency(quote[:processor_reserve_cents] / 100.0) %></td>
 <td><%= number_to_currency((quote[:platform_fee_cents] + quote[:infrastructure_reserve_cents]) / 100.0) %></td>
 <td><% amount = order.merchant_transfer_ref.present? ? order.merchant_transfer_amount_cents : (quote[:net_cents] unless reason || order.payment_provider == "network") %><%= amount ? number_to_currency(amount / 100.0) : "—" %></td>

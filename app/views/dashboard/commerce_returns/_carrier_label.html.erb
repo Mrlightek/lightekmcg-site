@@ -1,0 +1,36 @@
+<% quotes = @carrier_quotes.fetch(record.id, []) %>
+<% if record.return_shipping_quote_id? %>
+  <% quote = quotes.find { |rate| rate.id == record.return_shipping_quote_id } %>
+  <% if quote&.shipment&.status == 'ready' %>
+    <%= link_to 'Download carrier label', dashboard_commerce_return_label_path(order_id: @order.id,
+      return_id: record.id, site_id: @site.id, carrier_label: '1') %>
+    <% if (url = quote.carrier_tracking_url(quote.shipment.tracking_number)) %>
+      <%= link_to 'Track carrier return', url, rel: 'noreferrer' %>
+    <% end %>
+  <% elsif quote %>
+    <p>Carrier label <%= quote.shipment&.status&.humanize || 'awaiting payment or issuance' %>.</p>
+    <% if record.status == 'approved' && (quote.shipment.nil? || quote.shipment.status == 'queued') %>
+      <%= button_to 'Continue label purchase', change_path,
+        params: {operation: 'buy_return_shipping', quote_key: quote.public_key}, class: 'dd-button' %>
+    <% end %>
+    <%= button_to 'Refresh label status', change_path, params: {operation: 'refresh_return_shipping'}, class: 'dd-button' %>
+  <% end %>
+<% elsif record.status == 'approved' && !@return_labels.key?(record.id) && LightekCommerce::ReturnShipping.available?(@order) %>
+  <details>
+    <summary>Buy a return label</summary>
+    <p>Quote one parcel from the original delivery address back to the original shipping origin.</p>
+    <%= form_with scope: :package, url: change_path, method: :post do |form| %>
+      <%= hidden_field_tag :operation, 'quote_return_shipping', id: nil %>
+      <label>Weight (lb) <%= form.number_field :weight_lb, id: nil, min: 0.01, max: 150, step: 0.01, required: true %></label>
+      <label>Length (in) <%= form.number_field :length_in, id: nil, min: 1, max: 108, required: true %></label>
+      <label>Width (in) <%= form.number_field :width_in, id: nil, min: 1, max: 108, required: true %></label>
+      <label>Height (in) <%= form.number_field :height_in, id: nil, min: 1, max: 108, required: true %></label>
+      <%= form.submit 'Get return rates', class: 'dd-button' %>
+    <% end %>
+  </details>
+  <% quotes.each do |rate| %>
+    <%= button_to "Buy #{rate.service_name} label for #{number_to_currency(rate.platform_price_cents / 100.0)}",
+      change_path, params: {operation: 'buy_return_shipping', quote_key: rate.public_key},
+      form: {data: {turbo: false}}, class: 'dd-button' %>
+  <% end %>
+<% end %>

@@ -1,0 +1,18 @@
+<% content_for :page_title, @collection.name %>
+<main class="lt-commerce">
+  <h1><%= @collection.name %></h1>
+  <%= render 'commerce/collections_nav' %>
+  <% if @collection.description.present? %>
+    <p><%= @collection.description %></p>
+  <% end %>
+  <% if @collection_products.empty? %>
+    <p>There are no published products in this collection yet.</p>
+  <% else %>
+    <div class="lt-commerce-grid">
+      <% @collection_products.each do |product| %>
+        <%= render 'commerce/product_card', product: product %>
+      <% end %>
+    </div>
+  <% end %>
+  <%= render 'commerce/cart' %>
+</main>

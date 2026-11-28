@@ -76,6 +76,7 @@ SalesHarness.routes.draw do
   get '/shop', to: 'commerce#index', as: :commerce_shop
   post '/shop/add', to: 'commerce#add'
   post '/shop/checkout', to: 'commerce#checkout'
+  eval(ROOT.join('config/routes/commerce_embedded_checkout.rb').read, binding)
   get '/campaigns/:id/edit', to: 'dashboard/marketing_campaigns#edit', as: :edit_dashboard_marketing_campaign
   post '/campaigns/:id/studio', to: 'dashboard/marketing_campaigns#studio', as: :studio_dashboard_marketing_campaign
   patch '/campaigns/:id', to: 'dashboard/marketing_campaigns#update', as: :dashboard_marketing_campaign

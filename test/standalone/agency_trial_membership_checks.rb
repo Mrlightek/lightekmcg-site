@@ -2,7 +2,12 @@ require_relative 'commerce_hosting_test'
 
 ActiveRecord::Schema.define do
   add_column :users, :access_suspended_at, :datetime
-  create_table(:lightek_agency_demos) { |t| t.references :site }
+  create_table(:lightek_agency_demos) do |t|
+    t.references :site
+    t.string :status
+    t.datetime :cleaned_at
+    t.datetime :expires_at
+  end
 end
 require Rails.root.join('db/migrate/20261120190000_create_lightek_agency_trials').to_s
 CreateLightekAgencyTrials.new.migrate(:up)

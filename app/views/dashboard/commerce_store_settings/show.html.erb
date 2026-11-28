@@ -1,0 +1,113 @@
+<% content_for :page_title, 'Store settings' %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <h1>Store settings</h1>
+    <%= link_to 'Products', dashboard_commerce_products_path(site_id: @site.id) %>
+    <%= link_to 'View storefront', commerce_shop_path(site_id: @site.id) %>
+  </header>
+  <section class="dd-panel">
+    <h2>Checkout and customer accounts</h2>
+    <%= form_with scope: :appearance, url: dashboard_commerce_store_settings_path(site_id: @site.id), method: :patch, class: 'dd-form-stack' do |form| %>
+      <label>Brand name <%= form.text_field :brand_name, value: @appearance['brand_name'], maxlength: 48 %></label>
+      <label>Accent color <%= form.color_field :accent_color, value: @appearance['accent_color'] || '#315d8a' %></label>
+      <label>Checkout heading <%= form.text_field :checkout_title, value: @appearance['checkout_title'], maxlength: 80 %></label>
+      <label>Checkout message <%= form.text_area :checkout_message, value: @appearance['checkout_message'], maxlength: 280 %></label>
+      <label>Account heading <%= form.text_field :account_title, value: @appearance['account_title'], maxlength: 80 %></label>
+      <label>Account message <%= form.text_area :account_message, value: @appearance['account_message'], maxlength: 280 %></label>
+      <%= form.submit 'Save appearance', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+  </section>
+  <% if LightekCommerce::GiftCards.platform_enabled? || @site.manifest.to_h.key?('commerce_gift_cards') %>
+    <section class="dd-panel">
+      <h2>Gift cards</h2>
+      <%= link_to 'Gift card balance report', dashboard_commerce_gift_liability_path(site_id: @site.id) %>
+      <p>Customers can buy gift cards in USD. Pausing sales keeps existing cards redeemable.</p>
+      <% selling = @site.manifest.to_h['commerce_gift_cards'] == true %>
+      <%= button_to selling ? 'Pause gift card sales' : 'Enable gift card sales',
+        dashboard_commerce_gift_cards_path(site_id: @site.id), method: :patch, params: {enabled: selling ? '0' : '1'}, class: 'dd-button' %>
+    </section>
+  <% end %>
+  <section class="dd-panel" aria-labelledby="return-fee-settings">
+    <h2 id="return-fee-settings">Return fee rule</h2>
+    <p>Set a default fee for new returns on eligible Stripe orders. Review, change, or waive it when approving a return.</p>
+    <%= form_with scope: :return_fee_policy, url: dashboard_commerce_return_fee_policy_path(site_id: @site.id),
+      method: :patch, class: 'dd-form-stack' do |form| %>
+      <label>Rule <%= form.select :mode, LightekCommerce::ReturnFeePolicy::MODES, selected: @return_fee_policy['mode'] %></label>
+      <label>Fixed fee in cents <%= form.number_field :fixed_cents, value: @return_fee_policy['fixed_cents'], min: 1 %></label>
+      <label>Percentage of merchandise value after discounts <%= form.number_field :percent, value: @return_fee_policy['percent'], min: 1, max: 99 %></label>
+      <%= form.submit 'Save return fee rule', class: 'dd-button' %>
+    <% end %>
+  </section>
+  <section class="dd-panel">
+    <h2>Discounts</h2>
+    <details>
+      <summary>Free shipping</summary>
+      <p>Eligible orders use merchandise proceeds to cover delivery. Free shipping combines only with combinable merchandise discounts. The minimum uses the merchandise total after combinable discounts.</p>
+      <%= form_with scope: :shipping_promotion, url: dashboard_commerce_shipping_promotion_path(site_id: @site.id),
+        method: :patch, class: 'dd-form-stack' do |form| %>
+        <label><%= form.check_box :enabled, checked: @shipping_promotion['enabled'] %> Offer free shipping</label>
+        <label>Shipping code <%= form.text_field :code, value: @shipping_promotion['code'], maxlength: 40, placeholder: 'Leave blank for automatic free shipping' %></label>
+        <label>Minimum merchandise total (cents) <%= form.number_field :minimum_cents, value: @shipping_promotion.fetch('minimum_cents', 5000), min: 0, required: true %></label>
+        <label>Maximum delivery rate (cents) <%= form.number_field :maximum_rate_cents, value: @shipping_promotion.fetch('maximum_rate_cents', 1500), min: 1, required: true %></label>
+        <%= form.submit 'Save free shipping', class: 'dd-button' %>
+      <% end %>
+    </details>
+    <%= render "customer_segments" %>
+    <details>
+      <summary>Bulk discount codes</summary>
+      <p>Use the exported headings to import up to 500 new codes at once. Existing codes are rejected.</p>
+      <%= link_to 'Download discount codes CSV', export_dashboard_commerce_store_discounts_path(site_id: @site.id) %>
+      <%= form_with url: import_dashboard_commerce_store_discounts_path(site_id: @site.id), multipart: true, class: 'dd-form-stack' do |form| %>
+        <label>Discount codes CSV <%= form.file_field :file, accept: '.csv,text/csv', required: true %></label>
+        <%= form.submit 'Import codes', class: 'dd-button' %>
+      <% end %>
+    </details>
+    <%= form_with model: LightekCommerce::Discount.new, scope: :discount, url: dashboard_commerce_store_discounts_path(site_id: @site.id), class: 'dd-form-stack' do |form| %>
+      <%= render 'discount_fields', form: form %>
+      <%= form.submit 'Create discount', class: 'dd-button dd-btn-primary' %>
+    <% end %>
+    <% if @discounts.any? %>
+      <table>
+        <thead><tr><th>Name</th><th>Method</th><th>Amount</th><th>Eligible customers</th><th>Status</th><th>Reserved</th><th>Settled</th><th>Savings on settled orders</th><th>Actions</th></tr></thead>
+        <tbody>
+          <% @discounts.each do |discount| %>
+            <tr>
+              <td><%= discount.name %><% if discount.target_product %> · <%= discount.target_product.name %><% elsif discount.target_collection %> · <%= discount.target_collection.name %><% end %><% if discount.combinable? %> · Combinable<% end %></td><td><%= discount.code || 'Automatic' %></td>
+              <td>
+                <% if discount.quantity_promotion? %>
+                  Buy <%= discount.buy_quantity %>, get <%= discount.get_quantity %> at
+                  <%= discount.reward_type == 'percent' ? "#{discount.amount}% off" : "#{number_to_currency(discount.amount / 100.0)} off" %>
+                <% else %>
+                  <%= discount.kind == 'percent' ? "#{discount.amount}%" : number_to_currency(discount.amount / 100.0) %>
+                <% end %>
+              </td>
+              <td><%= discount.customer_segment&.name || 'All customers' %></td>
+              <td>
+                <% if !discount.active? %>Inactive
+                <% elsif discount.scheduled_for?(Time.current) %>Active
+                <% elsif discount.starts_at && discount.starts_at.future? %>Scheduled
+                <% else %>Ended
+                <% end %>
+              </td>
+              <td><%= @pending_discount_counts.fetch(discount.id, 0) %></td>
+              <td><%= @settled_discount_counts.fetch(discount.id, 0) %></td>
+              <td><%= number_to_currency(@settled_discount_values.fetch(discount.id, 0) / 100.0) %></td>
+              <td>
+                <%= button_to(discount.active? ? 'Deactivate' : 'Activate', dashboard_commerce_store_discount_path(site_id: @site.id, id: discount.id),
+                  method: :patch, params: {active: discount.active? ? '0' : '1'}, class: 'dd-button') %>
+                <details>
+                  <summary>Edit discount</summary>
+                  <%= form_with model: discount, scope: :discount, namespace: "discount_#{discount.id}",
+                    url: dashboard_commerce_store_discount_path(site_id: @site.id, id: discount.id), method: :patch, class: 'dd-form-stack' do |form| %>
+                    <%= render 'discount_fields', form: form %>
+                    <%= form.submit 'Save discount', class: 'dd-button dd-btn-primary' %>
+                  <% end %>
+                </details>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </section>
+</main>

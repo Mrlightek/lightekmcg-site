@@ -220,8 +220,31 @@ end
   post "/dashboard/marketing/campaigns/:id/schedule", to: "dashboard/marketing_campaigns#schedule", as: :schedule_dashboard_marketing_campaign
   get "/dashboard/business", to: "dashboard/business_hub#index", as: :dashboard_business_hub
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
+  get "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#show", as: :dashboard_commerce_store_settings
+  patch "/dashboard/commerce/store-settings", to: "dashboard/commerce_store_settings#update"
+  get "/dashboard/commerce/gift-cards/liability", to: "dashboard/commerce_store_settings#gift_liability", as: :dashboard_commerce_gift_liability
+  patch "/dashboard/commerce/gift-cards", to: "dashboard/commerce_store_settings#update_gift_cards", as: :dashboard_commerce_gift_cards
+  post "/dashboard/commerce/customer-segments", to: "dashboard/commerce_store_settings#save_segment", as: :dashboard_commerce_customer_segments
+  patch "/dashboard/commerce/customer-segments/:id", to: "dashboard/commerce_store_settings#save_segment", as: :dashboard_commerce_customer_segment
+  delete "/dashboard/commerce/customer-segments/:id", to: "dashboard/commerce_store_settings#delete_segment"
+  patch "/dashboard/commerce/return-fee-policy", to: "dashboard/commerce_store_settings#update_return_fee_policy", as: :dashboard_commerce_return_fee_policy
+  patch "/dashboard/commerce/shipping-promotion", to: "dashboard/commerce_store_settings#update_shipping_promotion", as: :dashboard_commerce_shipping_promotion
+  post "/dashboard/commerce/discounts", to: "dashboard/commerce_store_settings#create_discount", as: :dashboard_commerce_store_discounts
+  post "/dashboard/commerce/discounts/import", to: "dashboard/commerce_store_settings#import_discounts", as: :import_dashboard_commerce_store_discounts
+  get "/dashboard/commerce/discounts/export", to: "dashboard/commerce_store_settings#export_discounts", as: :export_dashboard_commerce_store_discounts
+  patch "/dashboard/commerce/discounts/:id", to: "dashboard/commerce_store_settings#update_discount", as: :dashboard_commerce_store_discount
+  resources :dashboard_commerce_collections, path: "/dashboard/commerce/collections", controller: "dashboard/commerce_collections", except: :show
+  resources :dashboard_commerce_supplier_orders, path: "/dashboard/commerce/supplier_orders",
+    controller: "dashboard/commerce_supplier_orders", only: %i[index create show] do
+    post :change, on: :member
+  end
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
+  get "/dashboard/commerce/returns", to: "dashboard/commerce_returns#index", as: :dashboard_commerce_return_queue
+  get "/dashboard/commerce/orders/:order_id/returns", to: "dashboard/commerce_returns#show", as: :dashboard_commerce_returns
+  post "/dashboard/commerce/orders/:order_id/returns", to: "dashboard/commerce_returns#create"
+  get "/dashboard/commerce/orders/:order_id/returns/:return_id/label", to: "dashboard/commerce_returns#label", as: :dashboard_commerce_return_label
+  post "/dashboard/commerce/orders/:order_id/returns/:return_id", to: "dashboard/commerce_returns#change", as: :change_dashboard_commerce_return
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund
   get "/dashboard/commerce/industry/preview", to: "dashboard/commerce_products#preview_industry", as: :preview_dashboard_commerce_industry
   post "/dashboard/commerce/industry", to: "dashboard/commerce_products#install_industry", as: :dashboard_commerce_industry
@@ -229,6 +252,13 @@ end
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_variants#create", as: :dashboard_commerce_variants
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
+  get "/dashboard/commerce/bank-deposits", to: "dashboard/commerce_payouts#bank_deposits", as: :dashboard_commerce_bank_deposits
+  get "/dashboard/commerce/bank-deposits/:payout_id", to: "dashboard/commerce_payouts#bank_deposit", as: :dashboard_commerce_bank_deposit
+  get "/dashboard/commerce/disputes", to: "dashboard/commerce_payouts#dispute_queue", as: :dashboard_commerce_disputes
+  post "/dashboard/commerce/disputes/refresh", to: "dashboard/commerce_payouts#refresh_disputes", as: :refresh_dashboard_commerce_disputes
+  get "/dashboard/commerce/orders/:order_id/disputes", to: "dashboard/commerce_payouts#disputes", as: :dashboard_commerce_order_disputes
+  post "/dashboard/commerce/orders/:order_id/disputes/:dispute_id/respond", to: "dashboard/commerce_payouts#respond_to_dispute", as: :respond_dashboard_commerce_dispute
+  get "/dashboard/commerce/payouts/:order_id/ledger", to: "dashboard/commerce_payouts#ledger", as: :dashboard_commerce_payout_ledger
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
   post "/dashboard/network/cron_jobs", to: "dashboard/network#create_cron_job", as: :dashboard_network_cron_jobs
   patch "/dashboard/network/cron_jobs", to: "dashboard/network#update_cron_job"
@@ -246,6 +276,17 @@ end
   post "/commerce/shipping/quotes", to: "commerce_shipping_quotes#create", as: :commerce_shipping_quotes
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
+  draw :commerce_embedded_checkout
+  post "/commerce/checkout/:order_id/gift-confirm", to: "commerce#confirm_gift_payment", as: :commerce_confirm_gift_payment
+  post "/commerce/checkout/:order_id/gift-cancel", to: "commerce#cancel_gift_payment", as: :commerce_cancel_gift_payment
+  post "/commerce/gift-cards/balance", to: "commerce#gift_card_balance", as: :commerce_gift_card_balance
+  post "/commerce/gift-cards", to: "commerce#buy_gift_card", as: :commerce_buy_gift_card
+  post "/commerce/cart/discount", to: "commerce#apply_discount", as: :commerce_cart_discount
+  get "/commerce/account", to: "commerce#account", as: :commerce_account
+  get "/commerce/account/orders/:order_id/returns", to: "commerce#account_returns", as: :commerce_account_returns
+  get "/commerce/account/orders/:order_id/returns/:return_id/label", to: "commerce#account_return_label", as: :commerce_account_return_label
+  post "/commerce/account/orders/:order_id/returns", to: "commerce#request_account_return"
+  post "/commerce/account/orders/:order_id/returns/:return_id/exchange", to: "commerce#reserve_account_exchange", as: :commerce_account_return_exchange
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"
@@ -587,6 +628,10 @@ get "gatekeeper/search",
       to: "dashboard/susu#index",
       as: :dashboard_susu
 
+get "/dashboard/commerce/stripe-access", to: "susu_payout_accounts#stripe_access", as: :dashboard_commerce_stripe_access
+post "/dashboard/commerce/stripe-access", to: "susu_payout_accounts#check_stripe_access"
+patch "/dashboard/commerce/stripe-access/browser-key", to: "susu_payout_accounts#update_stripe_browser_key", as: :dashboard_commerce_stripe_browser_key
+get "/dashboard/commerce/payout-account", to: "susu_payout_accounts#show", as: :dashboard_commerce_payout_account
 post "/dashboard/susu/payout-account/connect", to: "susu_payout_accounts#connect", as: :connect_dashboard_susu_payout_account
 get "/dashboard/susu/payout-account/refresh", to: "susu_payout_accounts#refresh", as: :refresh_dashboard_susu_payout_account
 get "/dashboard/susu/payout-account", to: "susu_payout_accounts#show", as: :dashboard_susu_payout_account
@@ -618,21 +663,31 @@ get "/dashboard/customers", to: "dashboard/customers#index", as: :dashboard_cust
 get "/dashboard/customers/history", to: "dashboard/customers#history", as: :history_dashboard_customers
 get "/dashboard/shipping", to: "dashboard/shipping#index", as: :dashboard_shipping
 post "/dashboard/shipping/profile", to: "dashboard/shipping#profile", as: :dashboard_shipping_profile
+get "/dashboard/shipping/supplies", to: "dashboard/shipping#supplies", as: :dashboard_shipping_supplies
+post "/dashboard/shipping/quotes/:key/pickup-rate", to: "dashboard/shipping#pickup_rate", as: :dashboard_shipping_pickup_rate
 post "/dashboard/shipping/quotes", to: "dashboard/shipping#quote", as: :dashboard_shipping_quotes
 post "/dashboard/shipping/carrier", to: "dashboard/shipping#configure_carrier", as: :dashboard_shipping_carrier
 post "/dashboard/shipping/:key/purchase", to: "dashboard/shipping#purchase", as: :purchase_dashboard_shipping
 post "/dashboard/shipping/:key/refresh", to: "dashboard/shipping#refresh", as: :refresh_dashboard_shipping
 post "/dashboard/shipping/:key/cancel", to: "dashboard/shipping#cancel", as: :cancel_dashboard_shipping
 get "/dashboard/shipping/:key/label/:index", to: "dashboard/shipping#label", as: :label_dashboard_shipping
+post "/api/reservations/federation/commerce/gift-liability", to: "api/commerce_network#gift_liability"
+post "/api/reservations/federation/commerce/gift-balance", to: "api/commerce_network#gift_balance"
 post "/api/reservations/federation/commerce/checkouts", to: "api/commerce_network#checkout"
 get "/api/reservations/federation/commerce/orders/:key", to: "api/commerce_network#receipt"
+post "/api/reservations/federation/commerce/orders/:key/gift-start", to: "api/commerce_network#gift_start"
+post "/api/reservations/federation/commerce/orders/:key/gift-confirm", to: "api/commerce_network#gift_confirm"
+post "/api/reservations/federation/commerce/orders/:key/gift-cancel", to: "api/commerce_network#gift_cancel"
+post "/api/reservations/federation/commerce/orders/:key/embedded-checkout", to: "api/commerce_network#embedded_checkout"
 post "/api/reservations/federation/commerce/orders/:key/fulfill", to: "api/commerce_network#fulfill"
 post "/api/reservations/federation/commerce/orders/:key/refund", to: "api/commerce_network#refund"
 post "/api/reservations/federation/commerce/orders/:key/payout", to: "api/commerce_network#payout"
 post "/api/reservations/federation/commerce/orders/:key/cancel-subscription", to: "api/commerce_network#cancel_subscription"
 post "/api/reservations/federation/commerce/connect", to: "api/commerce_network#connect"
 post "/api/reservations/federation/commerce/summary", to: "api/commerce_network#summary"
+get "/api/reservations/federation/shipping/supplies", to: "api/shipping_broker#supplies"
 post "/api/reservations/federation/shipping/quotes", to: "api/shipping_broker#quotes"
+post "/api/reservations/federation/shipping/quotes/:key/pickup-rate", to: "api/shipping_broker#pickup_rate"
 post "/api/reservations/federation/shipping/quotes/:key/purchase", to: "api/shipping_broker#purchase"
 get "/api/reservations/federation/shipping/quotes/:key/status", to: "api/shipping_broker#status"
 get "/api/reservations/federation/shipping/quotes/:key/labels/:index", to: "api/shipping_broker#label"

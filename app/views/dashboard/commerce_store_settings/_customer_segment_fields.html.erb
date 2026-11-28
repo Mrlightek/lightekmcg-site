@@ -1,0 +1,4 @@
+<label>Name <%= form.text_field :name, maxlength: 80, required: true %></label>
+<label>Minimum paid orders <%= form.number_field :minimum_orders, min: 0, placeholder: 'No minimum' %></label>
+<label>Maximum paid orders <%= form.number_field :maximum_orders, min: 0, placeholder: 'No maximum' %></label>
+<label>Minimum net spending (cents) <%= form.number_field :minimum_net_spend_cents, min: 0, placeholder: 'No minimum' %></label>

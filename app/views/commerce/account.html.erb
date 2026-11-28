@@ -1,0 +1,42 @@
+<% content_for :title, "My orders · #{@site.name}" %>
+<main class="auth-shell">
+  <% accent = LightekCommerce::StoreAppearance.accent(@appearance) if @appearance %>
+  <section class="auth-story"<%= tag.attributes(style: "background: #{accent}") if accent %>>
+    <div class="auth-story-copy">
+      <h2><%= @appearance['brand_name'] || @site.name %></h2>
+      <%= link_to 'Back to store', commerce_shop_path(site_id: @site.id), class: 'auth-link' %>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1><%= @appearance['account_title'] || 'My orders' %></h1>
+      <% if @appearance['account_message'] %><p><%= @appearance['account_message'] %></p><% end %>
+      <% if @orders.empty? %>
+        <p>There are no paid orders linked to this account at this store.</p>
+      <% else %>
+        <ul>
+          <% @orders.each do |order| %>
+            <li>
+              Order #<%= order.id %> · <%= l(order.paid_at.to_date) %> · <%= number_to_currency(order.total_cents / 100.0) %> · <%= order.status.humanize %>
+              <%= link_to 'Payment receipt', commerce_account_path(site_id: @site.id, receipt_order_id: order.id) %>
+              <% if LightekCommerce::MerchandiseReturns.eligible_order?(order) && order.items.any?(&:physical_for_fulfillment?) %>
+                <%= link_to 'Returns', commerce_account_returns_path(site_id: @site.id, order_id: order.id) %>
+              <% end %>
+              <% quote = order.shipping_quote %>
+              <% shipment = quote&.shipment %>
+              <% if quote && (shipment.nil? || shipment.status == 'ready') %>
+                <% tracking = shipment&.tracking_number.presence || order.fulfillment_reference %>
+                <% if (url = quote.carrier_tracking_url(tracking)) %>
+                  <div>
+                    <%= link_to "Track #{quote.service_name} shipment", url %>
+                    <% if shipment&.carrier_status.present? %>· <%= shipment.carrier_status %><% end %>
+                  </div>
+                <% end %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </section>
+</main>

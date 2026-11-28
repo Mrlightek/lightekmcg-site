@@ -12,3 +12,70 @@ Dymond Bank owns provider access. Lightek screens and workers should call typed 
 The **Check payout connection** action in Sales & CRM verifies read access to the configured financial account. It does not establish recipient eligibility, available balance, write permissions, or access to other Stripe products. The partner's setup page checks ACH readiness on the linked recipient.
 
 Track additional operations per provider account, environment and Vault credential. For each operation, record the Stripe product and API version, required key permissions and account eligibility, Lightek entry point, read/write scope, and sandbox/provider acceptance evidence. Classify permissions and enabled provider products as unknown until verified with that installation's authorized connection. The Stripe API reference alone establishes the available interface, not this account's entitlements.
+
+## Merchant commerce path
+
+An agency or client that owns a store can open **Commerce → Merchant payouts** for its own account, verify its payout connection, and release eligible fulfilled orders manually or on a schedule. A delegated manager cannot use this workflow to edit another person's bank details or release their orders. Embedded Connect onboarding and account management depend on the installed account and matching publishable key. Some browsers, requirements, and account configurations use the existing secure hosted fallback. Federated installations synchronize earnings with the central Lightek platform.
+
+Local and Lightek VPS storefront carts and accepted local quotes use embedded checkout by default when the processing platform’s publishable key is available. The provider's browser component collects payment details inside the storefront and can request payment-method authentication when required. The signed billing webhook remains authoritative for settlement and fulfillment. Existing hosted sessions retain their original payment presentation. Separate checkout entry points such as dedicated package signup continue to use their existing checkout.
+
+The merchant payout calculation separates the configured processor reserve, Lightek platform fee, infrastructure reserve, and eligible upstream allocation. `LIGHTEK_COMMERCE_PLATFORM_FEE_BPS` defaults to zero when unset. Verify the deployed fee schedule, real processor costs, refund and dispute treatment, and signed settlement receipts before using these amounts in projections. Test paid and refunded orders for one agency and one agency-client merchant, including independent bank setup, order attribution, transfer or release, and bank arrival.
+
+A platform administrator with a verified session can open **Commerce → Merchant payouts → Check Stripe access**. The checks use the installed Vault-bound credentials and return read access and mode for known resources. They perform no provider writes and disclose no provider records. Use these checks for the initial account inventory and run a controlled sandbox workflow to verify write and event permissions for each product.
+
+## Buyer-inclusive pricing and merchant reconciliation
+
+The intended pricing model preserves the merchant's listed merchandise price. The Lightek network fee and estimated processor recovery are included in the full buyer price shown up front. The pricing preview in **Commerce → Merchant payouts → Order ledger** applies the estimate to the full pretax buyer amount, including the fees themselves. Tax, shipping, agency contracts and actual processor cost are separate. The network fee is the intended markup. Processor recovery covers the cost of the payment and is reconciled against Stripe's recorded fee. The variance belongs in Lightek's reconciliation while preserving the merchant principal under this pricing model.
+
+The preview starts with a $2 Lightek network fee per transaction. It grosses up the pretax buyer amount for estimated processing and rounds up to the next multiple of $2, keeping an already even total. Recalculate estimated processing on that rounded buyer total. The remaining amount above the merchant price and the estimate is the Lightek network fee. At a $100 merchant price and an assumed 3% plus $0.30 processing schedule, the $106 buyer total leaves $3.48 in estimated processing and $2.52 in network revenue.
+
+The order ledger compares the original Stripe charge's recorded fee, processor net and balance status with the order, refunds, upstream allocations and merchant transfer. For buyer-fee orders it also shows the buyer charge less actual processor fees and any merchant transfer reversal. The bank deposit workflow can link provider-matched connected-account entries to orders on the payment ledger. VPS storefronts open deposit and dispute details in the central Lightek Dashboard, where owner sign-in and recent MFA still apply.
+
+### Collect buyer fees on eligible storefronts
+
+Apply the migration and set `LIGHTEK_COMMERCE_BUYER_FEE_HOSTS` to approved storefront hosts and `LIGHTEK_COMMERCE_BUYER_FEE_TAX_CODE` to the Stripe Tax product code approved for the checkout fee. An empty host list keeps the feature off. Review all price placements on each pilot storefront before enabling it. Eligible carts can contain physical products, variants and multiple items. A service subscription uses the same accepted checkout fee each renewal. Hosting, communications, upstream revenue-share orders and mixed subscription carts keep their existing checkout rules. For a VPS storefront, approve its storefront host on the VPS and the registered installation host on central Lightek. Both sides use the same buyer pricing configuration. The central service independently recalculates the buyer total before creating the payment and records the full merchant principal.
+
+The cart shows the buyer price before tax and shipping. A signed cart quote expires after 15 minutes. The order freezes its agreed prices and processor estimate, validates payment totals against Stripe's signed event, and preserves the merchandise principal for merchant release. The receipt itemizes the checkout fee. Tax is calculated by the existing Stripe Tax integration and can change the final total and actual processing cost. The difference between the fee estimate and Stripe's actual charge belongs in Lightek reconciliation.
+
+Refund these orders inside Lightek. A full refund includes the checkout fee. If the merchant principal was already transferred, the refund queues a reversal with a stable provider key. An older uncertain transfer or reversal requires reconciliation before any replacement money movement. The ledger distinguishes a merchant release, a pending reversal and a recorded reversal.
+
+Validate all-in displays and the fee tax treatment for the pilot market. Test one fee-bearing order from published price through signed payment, merchant transfer, and full refund before enabling live mode. This is a tender-neutral buyer price. Card-only surcharge treatment has separate requirements.
+
+
+### Merchant bank deposits and disputes
+
+From **Commerce → Merchant payouts → Bank deposits**, a local store owner can view deposit status and open the provider's transaction list for reconciled automatic deposits. Export the full transaction list or a date range of deposits and their available transactions as CSV. Lightek links an entry to a local order only if its provider transfer matches that order's saved merchant transfer. Unmatched adjustments remain visible as provider entries. Deposit dates and statuses come from the provider.
+
+From a paid storefront order, **View payment disputes** shows the provider's status and response deadline. An authorized owner can review and submit text and supporting files for a matching open dispute. Automatic dispute funds recovery and live bank arrival acceptance remain open.
+
+### Store checkout and payments workspace
+
+Platform super administrators can save the Stripe publishable key in Dashboard → Commerce → Stripe access checks after MFA. This updates the publishable key field on the existing Stripe production credential. Use the key from the platform Stripe account that processes the orders. The dashboard validates test/live mode. Verify the account pairing by completing embedded checkout in the same mode.
+
+Commerce → Merchant payouts → Bank deposits filters by provider-reported arrival date in UTC. The range CSV includes each payout and all available automatic payout transactions. A payout sent manually or still awaiting Stripe reconciliation has a payout row even when no transaction breakdown is available. Store order matches require a Stripe transfer reference. Unmatched entries stay in the export.
+
+Commerce → Orders → Payment disputes shows the store dispute queue. Configure the shared signed Stripe webhook to deliver `charge.dispute.created`, `charge.dispute.updated` and `charge.dispute.closed`. New actionable disputes create an owner notification with the response deadline. The store owner can refresh historical disputes and submit a reviewed response with PDF, JPEG or PNG attachments. VPS merchants open the owner-scoped queue on the payment platform.
+
+Production acceptance requires a live embedded checkout and bank deposit confirmation for both an agency and an agency client. Validate dispute webhook delivery and evidence upload with Stripe test data before relying on dispute alerts.
+
+### Storefront acceptance scope for PR #463
+
+The comparison covers online storefronts in USD. POS and local-currency checkout are out of scope. Track the following acceptance criteria together before describing the milestone as complete.
+
+| Capability | Acceptance criteria |
+| --- | --- |
+| Checkout and payment operations | Complete embedded checkout, buyer-fee reconciliation, payout reconciliation and dispute handling through the shared Stripe integration. Verify production checkout and separate agency and agency-client bank deposits. |
+| Discount codes | A store owner creates and deactivates a fixed-amount or percentage code. A buyer applies the code to an eligible one-time retail cart. The cart shows the discount and the shared payment system charges, taxes and settles the discounted merchandise amount. |
+| Automatic discounts | A store owner creates a fixed-amount or percentage rule with an optional minimum order value. The highest eligible automatic discount applies unless a buyer chooses a valid code. A changed cart or rule requires review before payment. Discounts apply one at a time. |
+| Gift cards | A buyer can purchase a fixed denomination, and the recipient can redeem it alone or alongside another payment. Keep a store-scoped balance with concurrency protection and verify taxes, cancellation, partial redemption, refunds and merchant settlement. The application flow is implemented. Stripe test-mode and live acceptance remain open. |
+| Checkout and accounts editor | A store owner saves branding and copy for the Lightek embedded payment page and customer order history. A customer can see only orders linked to their signed-in buyer account at the selected store. Shopify-style app blocks and arbitrary checkout layout changes are outside this editor's implementation. |
+
+
+### Gift card launch
+
+1. Apply the gift-card schema migration. Set `LIGHTEK_COMMERCE_GIFT_CARDS_ENABLED=true` on the central payments installation and participating storefront installations. In **Dashboard → Commerce → Store settings**, enable gift card sales for the store.
+2. Check that the existing signed Stripe webhook receives `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `payment_intent.succeeded`, `refund.created`, `refund.updated`, and the existing dispute events. The configured Stripe key must be allowed to use Tax calculations, Tax transactions and reversals, Payment Intents, and refunds.
+3. In Stripe test mode, purchase a listed USD denomination, verify receipt delivery and that proceeds are recorded as an unredeemed liability, then redeem it on the issuing storefront. Check full gift payment, split payment, a remaining gift balance, expiration, and full refunds. A physical order needs the existing shipping quote so tax and fulfillment use its delivery address.
+4. Verify the merchant payout after merchandise is fulfilled and the transfer reversal after a refund. Reconcile the stored-value liability with the platform funds before enabling live sales. Agency and agency-client stores can use the same central Stripe integration. Codes stay scoped to the issuing store and Stripe mode.
+
+One gift card can be applied to an eligible one-time checkout. The tax calculation uses the full merchandise and shipping charge before applying gift tender. The sale order does not release funds to the merchant. A canceled payment releases its reserved gift balance, while a full refund on a paid order restores that balance and refunds any Stripe card charge. An unused gift-card purchase can be refunded and its code revoked. Pausing sales preserves redemption for existing cards.

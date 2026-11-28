@@ -113,6 +113,14 @@ class SharedBankWebhookTest < Minitest::Test
     assert_empty DymondBank::StripeWebhookService.events
     assert_equal 3, LightekCommerce::StripeEvents.events.size
   end
+  def test_gift_card_intents_use_the_shared_webhook_and_preserve_regular_bank_intents
+    assert_equal :bank, route(event('payment_intent.succeeded', {'lightek_commerce_order_id' => '42'}))
+    value = event('payment_intent.succeeded', {'lightek_gift_redemption' => '1'})
+    assert_equal :commerce, route(value)
+    assert_same value, LightekCommerce::StripeEvents.events.first
+    assert_equal 1, DymondBank::StripeWebhookService.events.size
+  end
+
   def test_susu_checkout_and_async_failures_keep_bank_handling
     %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.async_payment_failed checkout.session.expired].each do |type|
       assert_equal :bank, route(event(type))
@@ -134,7 +142,7 @@ class SharedBankWebhookTest < Minitest::Test
     assert_empty LightekCommerce::StripeEvents.events
   end
   def test_refund_and_dispute_events_reach_both_existing_bank_and_commerce_reconciliation
-    types = %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.closed]
+    types = %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.updated charge.dispute.closed]
     types.each do |type|
       value = event(type)
       assert_equal :bank, route(value)
@@ -144,6 +152,16 @@ class SharedBankWebhookTest < Minitest::Test
     assert_equal types.size, DymondBank::StripeWebhookService.events.size
     assert_equal types.size, LightekCommerce::StripeEvents.events.size
   end
+  def test_return_refund_created_uses_the_shared_bank_and_commerce_route
+    value = event('refund.created', {'lightek_return_refund' => 'fixture-return-refund'})
+    assert_equal :bank, route(value)
+    assert_same value, DymondBank::StripeWebhookService.events.last
+    assert_same value, LightekCommerce::StripeEvents.events.last
+
+    assert_equal :bank, route(event('refund.created'))
+    assert_equal 1, LightekCommerce::StripeEvents.events.size
+  end
+
   def test_commerce_reconciliation_failure_is_not_acknowledged_as_success
     LightekCommerce::StripeEvents.error = RuntimeError.new('retry reconciliation')
     assert_raises(RuntimeError) { route(event('charge.refunded')) }

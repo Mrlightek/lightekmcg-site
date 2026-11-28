@@ -22,8 +22,26 @@ class SalesQuotesController < ApplicationController
   def checkout
     raise ArgumentError, 'Accept this quote before checkout.' unless @quote.status == 'accepted' && @quote.order
     return_url = public_sales_quote_url(token: params[:token])
-    checkout = LightekCommerce::StripeCheckout.start!(order: @quote.order, success_url: return_url, cancel_url: return_url)
-    redirect_to checkout.url, allow_other_host: true, status: :see_other
+    embedded = LightekCommerce::StripeCheckout.embedded_for?(@quote.order)
+    checkout = LightekCommerce::StripeCheckout.start!(order: @quote.order, success_url: return_url, cancel_url: return_url, embedded: embedded)
+    if checkout.url.present?
+      redirect_to checkout.url, allow_other_host: true, status: :see_other
+    else
+      redirect_to embedded_public_sales_quote_path(token: params[:token]), status: :see_other
+    end
+  end
+
+  def embedded_checkout
+    raise ActiveRecord::RecordNotFound unless @quote.status == 'accepted' && @quote.order
+
+    @completion_url = public_sales_quote_url(token: params[:token])
+    return redirect_to @completion_url if @quote.order.paid_at?
+
+    @site = @quote.site
+    @checkout = LightekCommerce::StripeCheckout.resume!(order: @quote.order, embedded: true)
+    @publishable_key = LightekCommerce::StripeCheckout.embedded_publishable_key
+    @back_url = @completion_url
+    render 'commerce/embedded_checkout'
   end
   private
   def quote!

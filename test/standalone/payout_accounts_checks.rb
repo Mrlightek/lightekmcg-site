@@ -12,6 +12,8 @@ require ROOT.join('db/migrate/20261115110000_create_payout_connection_changes')
 CreatePayoutConnectionChanges.new.migrate(:up)
 require ROOT.join('app/models/lightek_payments/connection_change')
 require ROOT.join('app/services/lightek_payments/payout_accounts')
+require ROOT.join('app/services/dymond_bank/workforce_payouts')
+require ROOT.join('app/services/dymond_bank/stripe_access_check')
 require ROOT.join('app/models/lightek_commerce/payout_schedule')
 ActiveRecord::Schema.define do
   create_table(:lightek_merchant_payout_schedules) do |t|
@@ -206,6 +208,44 @@ class PayoutAccountsChecks < EnterpriseHttpChecks
     assert_equal 'acct_owner',@employer.reload.stripe_connect_account_id
     assert_equal 0,LightekPayments::ConnectionChange.count
   end
+  def test_payout_stripe_access_is_admin_only_read_only_and_hides_provider_records
+    login(@employer)
+    get dashboard_commerce_stripe_access_path
+    assert_response :forbidden
+
+    operator = User.create!(email_address: 'platform-check@example.test', role: 'super_admin')
+    login(operator)
+    get '/test/payout-csrf'
+    csrf = response.parsed_body.fetch('token')
+    Stripe::Account.stub(:list, ->(params, options) {
+      assert_equal({limit: 1}, params)
+      assert_equal 'sk_test_fixture_only', options.fetch(:api_key)
+      {data: [{id: 'acct_private_record'}]}
+    }) do
+      post dashboard_commerce_stripe_access_path, params: {authenticity_token: csrf, check: 'connect'},
+        headers: {'Origin' => 'http://example.test'}
+      assert_response :success
+      assert_includes response.body, 'Read access verified'
+      refute_includes response.body, 'acct_private_record'
+      refute_includes response.body, 'sk_test_fixture_only'
+      assert_includes response.headers.fetch('Cache-Control'), 'no-store'
+    end
+    post dashboard_commerce_stripe_access_path, params: {authenticity_token: csrf, check: 'create_transfer'},
+      headers: {'Origin' => 'http://example.test'}
+    assert_response :unprocessable_entity
+  end
+
+  def test_payout_stripe_browser_key_form_is_available_only_to_platform_admins
+    sign_in
+    patch dashboard_commerce_stripe_browser_key_path,
+      params: {browser_key: 'pk_test_newfixture', authenticity_token: @csrf}, headers: {'Origin' => 'http://example.test'}
+    assert_response :forbidden
+    login(User.create!(email_address: 'platform-browser-key@example.test', role: 'super_admin'))
+    get dashboard_commerce_stripe_access_path
+    assert_response :success
+    assert_includes response.body, 'Save publishable key'
+  end
+
   def test_payout_http_session_is_current_owner_scoped_and_contains_no_private_api_key
     sign_in;linked
     Stripe::Account.stub(:retrieve,account) do

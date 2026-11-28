@@ -5,9 +5,26 @@ module LightekCommerce
 
     def self.process!(event)
       return if defined?(LightekPwa::CreatorSettlement) && LightekPwa::CreatorSettlement.payment_event!(event)
+      if event.type == 'payment_intent.succeeded' && event.data.object.metadata.to_h.stringify_keys['lightek_gift_redemption'] == '1'
+        return GiftCheckout.process_event!(event)
+      end
       return SubscriptionEvents.process!(event) if SubscriptionEvents::TYPES.include?(event.type)
-      if %w[charge.refund.updated refund.updated].include?(event.type)
+      if %w[charge.dispute.created charge.dispute.updated charge.dispute.closed].include?(event.type)
+        reference = event.data.object.id.to_s
+        return if event.respond_to?(:account) && event.account.present?
+
+        return DisputeEventJob.perform_later(reference) if reference.match?(/\Adp_[A-Za-z0-9_]{1,150}\z/)
+      end
+      if %w[charge.refund.updated refund.updated refund.created].include?(event.type)
         refund = event.data.object
+        if refund.respond_to?(:metadata) && refund.metadata.to_h.stringify_keys['lightek_gift_refund'] == '1'
+          return GiftRefunds.process_event!(refund)
+        end
+        return_key = refund.metadata.to_h.stringify_keys['lightek_return_refund'] if refund.respond_to?(:metadata)
+        return if event.type == 'refund.created' && return_key.blank?
+        if return_key.present?
+          return RefundSettlement.call(processor_ref: refund.id, status: refund.status, return_key: return_key, amount_cents: refund.amount)
+        end
         return RefundSettlement.call(processor_ref: refund.id, status: refund.status)
       end
       return unless %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired].include?(event.type)
@@ -37,6 +54,10 @@ module LightekCommerce
         raise Rejected, "Checkout billing mode mismatch" unless session.mode == (interval == "one_time" ? "payment" : "subscription")
         SubscriptionEvents.register!(order: order, session: session) if session.mode == "subscription"
         if %w[paid fulfilled partially_refunded refunded].include?(order.status)
+          if order.gift_card_purchase? && order.status == 'fulfilled' &&
+              (!order.confirmation_sent_at? || (order.managed_gift_delivery? && !order.gift_delivered_at?))
+            OrderConfirmationJob.perform_later(order.id)
+          end
           LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport) && %w[paid fulfilled].include?(order.status)
           LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
           LightekAgency::Trial.settle!(order: order) if order.purpose == "agency_membership"
@@ -50,13 +71,14 @@ module LightekCommerce
           next
         end
         raise Rejected, "Paid checkout for canceled order requires manual recovery" unless order.status == "pending_payment"
-        quoted_shipping = order.shipping_quote && order.purpose != "shipping_label" ? order.shipping_quote.customer_price_cents : 0
+        shipping_selected = order.shipping_quote && order.purpose != "shipping_label"
+        quoted_shipping = shipping_selected ? order.quoted_shipping_charge_cents : 0
         subtotal = session.amount_subtotal.to_i - quoted_shipping
         tax = session.total_details.amount_tax.to_i
-        raise Rejected, "Unexpected extra shipping charge" if quoted_shipping.positive? && session.total_details.amount_shipping.to_i != 0
+        raise Rejected, "Unexpected extra shipping charge" if shipping_selected && session.total_details.amount_shipping.to_i != 0
         shipping = session.total_details.amount_shipping.to_i + quoted_shipping
         total = session.amount_total.to_i
-        raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents
+        raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents + order.buyer_fee_cents
         raise Rejected, "Mismatched totals" unless subtotal + tax + shipping == total && total >= subtotal
         order.update!(status: "paid", paid_at: Time.current, tax_cents: tax, shipping_cents: shipping, total_cents: total)
         if session.mode == 'subscription' && order.commerce_subscription
@@ -80,7 +102,12 @@ module LightekCommerce
         LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport)
         LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
         LightekAgency::Trial.settle!(order: order) if order.purpose == "agency_membership"
-        RevenueSharing.record!(order)
+        if order.gift_card_purchase?
+          order.update!(status: 'fulfilled', fulfilled_at: Time.current, fulfillment_reference: session.id)
+          GiftCard.issue!(order, livemode: session.livemode == true)
+        else
+          RevenueSharing.record!(order)
+        end
         OrderConfirmationJob.perform_later(order.id)
         PaidInstanceProvisioningJob.perform_later(order.id) if order.purpose != "reservation_change" && order.items.any? { |item| item.product.product_type == "lightek_instance" }
       end

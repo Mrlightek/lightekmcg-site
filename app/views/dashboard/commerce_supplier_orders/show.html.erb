@@ -1,0 +1,89 @@
+<% content_for :page_title, "Purchase order ##{@order.id}" %>
+<% change_path = change_dashboard_commerce_supplier_order_path(@order, site_id: @site.id) %>
+<main class="dd-workspace">
+  <header class="dd-page-header">
+    <div><h1>Purchase order #<%= @order.id %></h1><p><%= @order.supplier %> · <%= @order.status.humanize %></p></div>
+    <%= link_to 'Supplier purchase orders', dashboard_commerce_supplier_orders_path(site_id: @site.id), class: 'dd-button' %>
+  </header>
+  <section class="dd-panel" aria-label="Ordered items">
+    <% if @order.expected_on %><p>Expected delivery <%= l(@order.expected_on) %></p><% end %>
+    <% if @lines.empty? %>
+      <p>There are no items on this order.</p>
+    <% else %>
+      <table>
+        <thead><tr><th scope="col">Product</th><th scope="col">Ordered</th><th scope="col">Received</th><th scope="col">Unit cost</th><th scope="col">Action</th></tr></thead>
+        <tbody>
+          <% @lines.each do |line| %>
+            <tr>
+              <th scope="row"><%= line.item_name %></th>
+              <td><%= line.ordered_quantity %></td>
+              <td><%= line.received_quantity %></td>
+              <td><%= number_to_currency(BigDecimal(line.unit_cost_cents) / 100, unit: '$') %></td>
+              <td>
+                <% if @order.status == 'draft' %>
+                  <%= button_to 'Remove item', change_path, params: {operation: 'remove_line', line_id: line.id}, class: 'dd-button' %>
+                <% elsif @order.status == 'ordered' && line.remaining_quantity.positive? %>
+                  <%= form_with url: change_path, method: :post do %>
+                    <%= hidden_field_tag :operation, 'receive', id: nil %>
+                    <%= hidden_field_tag :line_id, line.id, id: nil %>
+                    <%= hidden_field_tag :expected_received, line.received_quantity, id: nil %>
+                    <label>Units received <%= number_field_tag :quantity, nil, id: nil, min: 1, max: line.remaining_quantity, required: true %></label>
+                    <%= submit_tag 'Receive units', class: 'dd-button' %>
+                  <% end %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <p>Order subtotal <%= number_to_currency(BigDecimal(@lines.sum { |line| line.ordered_quantity * line.unit_cost_cents }) / 100, unit: '$') %></p>
+    <% end %>
+    <% if @order.status == 'draft' && @lines.any? %>
+      <%= button_to 'Mark as ordered', change_path, params: {operation: 'place'}, class: 'dd-button dd-btn-primary' %>
+    <% end %>
+    <% if @order.status.in?(%w[draft ordered]) %>
+      <%= button_to 'Cancel order', change_path, params: {operation: 'cancel'}, class: 'dd-button',
+        form: {data: {turbo_confirm: 'Cancel this purchase order? Only outstanding incoming units will be removed.'}} %>
+    <% end %>
+  </section>
+  <% if @order.status == 'draft' %>
+    <section class="dd-panel" aria-labelledby="supplier-order-item">
+      <h2 id="supplier-order-item">Add or update an item</h2>
+      <%= form_with url: dashboard_commerce_supplier_order_path(@order, site_id: @site.id), method: :get do %>
+        <%= hidden_field_tag :site_id, @site.id %>
+        <label>Find by product, variant, or SKU <%= search_field_tag :lookup, @lookup, maxlength: 120 %></label>
+        <%= submit_tag 'Find items', class: 'dd-button' %>
+      <% end %>
+      <% if @more_choices %><p>Showing 150 matches. Search to narrow the list.</p><% end %>
+      <% if @choices.empty? %>
+        <p>No tracked physical items match this search.</p>
+      <% else %>
+        <%= form_with url: change_path, method: :post, class: 'dd-form-stack' do %>
+          <%= hidden_field_tag :operation, 'save_line' %>
+          <% choices = @choices.map { |row| [[row['product_name'], row['variant_name'], row['sku'].presence].compact.join(' · '), [row['product_id'], row['variant_id']].compact.join(':')] } %>
+          <label>Item <%= select_tag :item_key, options_for_select(choices), prompt: 'Choose an item', required: true %></label>
+          <label>Quantity <%= number_field_tag :quantity, nil, min: 1, max: LightekCommerce::SupplierOrders::MAX_UNITS, required: true %></label>
+          <label>Unit cost in cents <%= number_field_tag :unit_cost, nil, min: 0, max: LightekCommerce::SupplierOrders::MAX_UNIT_COST, required: true %></label>
+          <%= submit_tag 'Save item', class: 'dd-button dd-btn-primary' %>
+        <% end %>
+      <% end %>
+    </section>
+  <% elsif @order.status.in?(%w[received canceled]) && @lines.any? { |line| line.received_quantity.positive? } %>
+    <section class="dd-panel" aria-labelledby="supplier-order-invoice">
+      <h2 id="supplier-order-invoice">Invoice reconciliation</h2>
+      <% received = @order.received_subtotal_cents %>
+      <p>Received subtotal <%= number_to_currency(BigDecimal(received) / 100, unit: '$') %></p>
+      <% if @order.invoice_subtotal_cents %>
+        <% difference = @order.invoice_subtotal_cents - received %>
+        <% if difference.zero? %><p>The invoice subtotal matches the received items.</p>
+        <% else %><p>Invoice difference <%= number_to_currency(BigDecimal(difference) / 100, unit: '$') %></p><% end %>
+      <% end %>
+      <%= form_with url: change_path, method: :post, class: 'dd-form-stack' do %>
+        <%= hidden_field_tag :operation, 'invoice' %>
+        <label>Invoice reference <%= text_field_tag :reference, @order.invoice_reference, maxlength: 160, required: true %></label>
+        <label>Invoice merchandise subtotal in cents <%= number_field_tag :subtotal, @order.invoice_subtotal_cents, min: 0, required: true %></label>
+        <%= submit_tag 'Save invoice subtotal', class: 'dd-button' %>
+      <% end %>
+    </section>
+  <% end %>
+</main>

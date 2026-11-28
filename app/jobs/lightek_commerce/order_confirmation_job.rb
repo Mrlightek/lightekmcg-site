@@ -6,6 +6,7 @@ module LightekCommerce
       order = Order.find_by(id: order_id)
       return unless order
       order.with_lock do
+        GiftDelivery.enqueue(order) if order.managed_gift_delivery?
         return if order.confirmation_sent_at? || !%w[paid fulfilled partially_refunded refunded].include?(order.status)
         # Mail is queued within the lock. A delivery failure does not silently
         # transition a payment to unpaid.

@@ -1,0 +1,92 @@
+<% content_for :title, "Returns for order ##{@order.id} · #{@site.name}" %>
+<main class="auth-shell">
+  <% accent = LightekCommerce::StoreAppearance.accent(@appearance) %>
+  <section class="auth-story"<%= tag.attributes(style: "background: #{accent}") if accent %>>
+    <div class="auth-story-copy">
+      <h2><%= @appearance['brand_name'] || @site.name %></h2>
+      <%= link_to 'Back to my orders', commerce_account_path(site_id: @site.id), class: 'auth-link' %>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1>Returns for order #<%= @order.id %></h1>
+      <% choices = @items.values.filter_map do |item|
+        remaining = item.quantity - @used.fetch(item.id, 0)
+        ["#{item.name} (#{remaining} available to return)", item.id] if remaining.positive?
+      end %>
+      <% if choices.empty? %>
+        <p>There are no more items available to return on this order.</p>
+      <% else %>
+        <% policy = LightekCommerce::ReturnFeePolicy.read(@site) if LightekCommerce::ReturnRefunds.supported?(@order) %>
+        <% case policy&.fetch('mode') %>
+        <% when 'fixed' %>
+          <p>The default return fee is <%= number_to_currency(policy.fetch('fixed_cents').to_i / 100.0) %>. The store confirms the fee at approval.</p>
+        <% when 'percentage' %>
+          <p>The default return fee is <%= policy.fetch('percent') %>% of the returned merchandise value after discounts. The store confirms the fee at approval.</p>
+        <% end %>
+        <%= form_with url: commerce_account_returns_path(order_id: @order.id, site_id: @site.id), method: :post do |form| %>
+          <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
+          <label>Item <%= form.select :item_id, choices, {include_blank: 'Choose an item'}, required: true %></label>
+          <label>Quantity <%= form.number_field :quantity, min: 1, value: 1, required: true %></label>
+          <label>Reason <%= form.text_area :reason, rows: 2, maxlength: 300, required: true %></label>
+          <%= form.submit 'Request return', class: 'auth-submit' %>
+        <% end %>
+      <% end %>
+      <% if @returns.any? %>
+        <h2>Return status</h2>
+        <ul>
+          <% @returns.each do |record| %>
+            <li>
+              <%= record.quantity %> × <%= @items[record.order_item_id]&.name || 'Order item' %>
+              · <%= record.status.humanize %> · <%= l(record.created_at.to_date) %>
+              <% if record.status == 'requested' && record.suggested_refund_fee_cents.positive? %>
+                <div>Estimated return fee <%= number_to_currency(record.suggested_refund_fee_cents / 100.0) %>. The store confirms the fee at approval.</div>
+              <% end %>
+              <% if record.refund_fee_cents.positive? && record.status.in?(%w[approved received]) %>
+                <div>Return fee <%= number_to_currency(record.refund_fee_cents / 100.0) %>, deducted from any linked refund.</div>
+              <% end %>
+              <% if (label = @return_labels[record.id]) %>
+                <div>
+                  <%= link_to 'Download return label', commerce_account_return_label_path(order_id: @order.id,
+                    return_id: record.id, site_id: @site.id) %>
+                  <% if (url = label.tracking_url) %><%= link_to "Track return (#{label.tracking_number})", url, rel: 'noreferrer' %><% end %>
+                </div>
+              <% end %>
+              <% if record.status.in?(%w[approved received]) && (quote = @carrier_labels[record.id]) %>
+                <div>
+                  <%= link_to 'Download carrier return label', commerce_account_return_label_path(order_id: @order.id,
+                    return_id: record.id, site_id: @site.id, carrier_label: '1') %>
+                  <% if (url = quote.carrier_tracking_url(quote.shipment.tracking_number)) %>
+                    <%= link_to 'Track return shipment', url, rel: 'noreferrer' %>
+                  <% end %>
+                </div>
+              <% end %>
+              <% if record.active_exchange? %>
+                <% status = record.status == 'approved' ? 'Reserved, awaiting your return' :
+                  (record.exchange_status == 'reserved' ? 'Preparing shipment' : 'Shipped') %>
+                <div>Replacement <%= record.replacement_name %> · <%= status %>
+                  <% if record.exchange_shipping_reference.present? %> · Shipping reference <%= record.exchange_shipping_reference %><% end %>
+                </div>
+              <% end %>
+              <% if !record.active_exchange? && !@refunds.key?(record.id) %>
+                <% replacements = LightekCommerce::ReturnExchanges.options(@order, @items[record.order_item_id], record) %>
+                <% if replacements.any? %>
+                  <%= form_with url: commerce_account_return_exchange_path(order_id: @order.id,
+                    return_id: record.id, site_id: @site.id), method: :post do |form| %>
+                    <label>Replacement item <%= form.select :replacement, replacements,
+                      {include_blank: 'Choose a replacement'}, id: nil, required: true %></label>
+                    <p>Reserving a replacement uses this return for an exchange. No refund is issued for an active exchange.</p>
+                    <%= form.submit 'Reserve replacement', class: 'auth-submit' %>
+                  <% end %>
+                <% end %>
+              <% end %>
+              <% if (refund = @refunds[record.id]) %>
+                <div>Refund <%= number_to_currency(refund.amount_cents / 100.0) %> · <%= refund.status == 'succeeded' ? 'Completed' : refund.status.humanize %></div>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </section>
+</main>
